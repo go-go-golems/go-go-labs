@@ -5,6 +5,7 @@ go 1.20
 require (
 	github.com/mattn/go-mastodon v0.0.6
 	github.com/spf13/cobra v1.7.0
+	golang.org/x/net v0.12.0
 )
 
 require (
