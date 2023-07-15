@@ -1,6 +1,7 @@
 package plaintext
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/mattn/go-mastodon"
 	"golang.org/x/net/html"
@@ -49,6 +50,7 @@ func convertHTMLToPlainText(htmlContent string) string {
 type Renderer struct {
 	Verbose    bool
 	WithHeader bool
+	isFirst    bool
 }
 
 type RenderOption func(*Renderer)
@@ -66,23 +68,77 @@ func WithVerbose(verbose bool) RenderOption {
 }
 
 func NewRenderer(opts ...RenderOption) *Renderer {
-	r := &Renderer{}
+	r := &Renderer{
+		isFirst: true,
+	}
 	for _, opt := range opts {
 		opt(r)
 	}
 	return r
 }
 
+func (r *Renderer) RenderHeader(w io.Writer, status *mastodon.Status, isFirst bool) error {
+	if !r.WithHeader {
+		return nil
+	}
+
+	if !r.Verbose && !r.isFirst {
+		return nil
+	}
+
+	var buffer bytes.Buffer
+
+	if r.Verbose {
+		buffer.WriteString(fmt.Sprintf("ID: %s\n", status.ID))
+	}
+
+	buffer.WriteString(fmt.Sprintf("Author: %s (%v)\n", status.Account.Acct, status.CreatedAt))
+	buffer.WriteString(fmt.Sprintf("Replies/Reblogs/Favourites: %d/%d/%d\n",
+		status.RepliesCount, status.ReblogsCount, status.FavouritesCount))
+
+	header := buffer.String()
+
+	if isFirst {
+		header += fmt.Sprintf("URL: %s\nAuthor URL: %s\n", status.URL, status.Account.URL)
+	}
+
+	_, err := w.Write([]byte(header))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (r *Renderer) RenderStatus(w io.Writer, status *mastodon.Status) error {
 	var content string
+	if r.WithHeader {
+		if err := r.RenderHeader(w, status, r.isFirst); err != nil {
+			return err
+		}
+		r.isFirst = false
+	}
+
 	if r.Verbose {
 		content = fmt.Sprintf("Status ID: %s\nCreated at: %v\nContent: %s\n-----------------\n",
 			status.ID, status.CreatedAt, convertHTMLToPlainText(status.Content))
 	} else {
 		content = fmt.Sprintf("%s\n", convertHTMLToPlainText(status.Content))
 	}
-	_, err := w.Write([]byte(content))
-	return err
+	_, _ = w.Write([]byte(content))
+
+	if len(status.MediaAttachments) > 0 {
+		_, _ = w.Write([]byte("Attachments:\n"))
+		for _, attachment := range status.MediaAttachments {
+			if _, err := w.Write([]byte(fmt.Sprintf("%s\n", attachment.URL))); err != nil {
+				return err
+			}
+		}
+	}
+
+	_, _ = w.Write([]byte("\n"))
+
+	return nil
 }
 
 func (r *Renderer) RenderThread(w io.Writer, status *mastodon.Status, context *mastodon.Context) error {
