@@ -26,6 +26,11 @@ var threadCmd = &cobra.Command{
 		verbose, _ := cmd.Flags().GetBool("verbose")
 		html, _ := cmd.Flags().GetBool("html")
 
+		// extract statusID from URL if we have a URL
+		if strings.Contains(statusID, "http") {
+			statusID = strings.Split(statusID, "/")[4]
+		}
+
 		ctx := context.Background()
 
 		client, err := createClient(instance)
