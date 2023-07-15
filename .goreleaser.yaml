@@ -1,4 +1,4 @@
-project_name: XXX
+project_name: go-go-labs
 
 before:
   hooks:
@@ -9,8 +9,8 @@ before:
 builds:
   - env:
       - CGO_ENABLED=0
-    main: ./cmd/XXX
-    binary: XXX
+    main: ./cmd/mastoid
+    binary: mastoid
     goos:
       - linux
 # I am not able to test windows at the time
@@ -27,9 +27,9 @@ changelog:
       - '^docs:'
       - '^test:'
 brews:
-  - name: XXX
-    description: "XXX is a tool"
-    homepage: "https://github.com/go-go-golems/XXX"
+  - name: go-go-labs
+    description: "go-go-labs contains experimental go go tools"
+    homepage: "https://github.com/go-go-golems/go-go-labs"
     tap:
       owner: go-go-golems
       name: homebrew-go-go-go
@@ -44,7 +44,7 @@ nfpms:
     maintainer: Manuel Odendahl <wesen@ruinwesen.com>
 
     description: |-
-      XXX is a tool
+      go-go-labs contains experimental go go tools
 
     license: MIT
 
