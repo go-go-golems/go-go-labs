@@ -73,8 +73,6 @@ func printStatus(status *mastodon.Status, verbose bool, html bool) {
 }
 
 func printThread(status *mastodon.Status, context *mastodon.Context, verbose bool, html bool) {
-	printStatus(status, verbose, html)
-
 	for _, ancestor := range context.Ancestors {
 		if verbose {
 			fmt.Println("--AN--")
@@ -85,6 +83,7 @@ func printThread(status *mastodon.Status, context *mastodon.Context, verbose boo
 	if verbose {
 		fmt.Println("--OR--")
 	}
+	printStatus(status, verbose, html)
 
 	for _, descendant := range context.Descendants {
 		if verbose {
