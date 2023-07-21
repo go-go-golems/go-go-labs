@@ -1,0 +1,17 @@
+#!/usr/bin/env bin/aipl
+
+# fetch url, split webpage into chunks, summarize each chunk, then summarize the summaries.
+
+# the inputs are urls
+!read
+
+# extract text from html
+!extract-text
+
+# split into chunks of lines that can fit in the context window
+!split maxsize=8000 sep=\n
+
+# have GPT summary each chunk
+!format
+
+Foobar foobar prompt

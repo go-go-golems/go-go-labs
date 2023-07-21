@@ -1,0 +1,10 @@
+#!/usr/bin/env bin/aipl
+
+# fetch url, split webpage into chunks, summarize each chunk, then summarize the summaries.
+
+# the inputs are urls
+!read
+
+# extract text from html
+!extract-text
+
