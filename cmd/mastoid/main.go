@@ -11,9 +11,20 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/pkg/browser"
+
 	"github.com/mattn/go-mastodon"
 	"github.com/spf13/cobra"
+	"github.com/yardbirdsax/bubblewrap"
 )
+
+// Credentials stores the result of an oauth flow.
+type Credentials struct {
+	Server      string
+	GrantToken  string
+	Application *mastodon.Application
+	AccessToken string
+}
 
 var rootCmd = &cobra.Command{
 	Use:   "mastoid",
@@ -24,15 +35,36 @@ var verifyCmd = &cobra.Command{
 	Use:   "verify",
 	Short: "Verifies the credentials of a Mastodon instance",
 	Run: func(cmd *cobra.Command, args []string) {
-		instance, _ := cmd.Flags().GetString("instance")
-
 		ctx := context.Background()
 
-		client, err := createClient(instance)
+		credentials, err := loadCredentials()
 		cobra.CheckErr(err)
 
-		err = client.AuthenticateApp(ctx)
+		if credentials.Application.ClientID == "" || credentials.Application.ClientSecret == "" {
+			fmt.Println("No client ID or secret found")
+			return
+		}
+
+		client, err := createClient(credentials)
 		cobra.CheckErr(err)
+
+		if client.Config.AccessToken == "" {
+			fmt.Println("No access token found")
+			if credentials.GrantToken != "" {
+				fmt.Println("Authenticating with grant token")
+				err = client.AuthenticateToken(ctx, credentials.GrantToken, credentials.Application.RedirectURI)
+				cobra.CheckErr(err)
+
+				fmt.Println("Grant token authenticated")
+			} else {
+				fmt.Println("Authenticating with app")
+				err = client.AuthenticateApp(ctx)
+				cobra.CheckErr(err)
+				fmt.Println("App authenticated")
+			}
+		} else {
+			fmt.Printf("Access token found: %s\n", client.Config.AccessToken)
+		}
 
 		app, err := client.VerifyAppCredentials(ctx)
 		cobra.CheckErr(err)
@@ -46,7 +78,6 @@ var threadCmd = &cobra.Command{
 	Use:   "thread",
 	Short: "Retrieves a thread from a Mastodon instance",
 	Run: func(cmd *cobra.Command, args []string) {
-		instance, _ := cmd.Flags().GetString("instance")
 		statusID, _ := cmd.Flags().GetString("status-id")
 		verbose, _ := cmd.Flags().GetBool("verbose")
 		withHtml, _ := cmd.Flags().GetBool("withHtml")
@@ -59,11 +90,27 @@ var threadCmd = &cobra.Command{
 
 		ctx := context.Background()
 
-		client, err := createClient(instance)
+		credentials, err := loadCredentials()
 		cobra.CheckErr(err)
 
-		err = client.AuthenticateApp(ctx)
+		client, err := createClient(credentials)
 		cobra.CheckErr(err)
+		if client.Config.AccessToken == "" {
+			if credentials.GrantToken != "" {
+				fmt.Println("Authenticating with grant token")
+				err = client.AuthenticateToken(ctx, credentials.GrantToken, credentials.Application.RedirectURI)
+				cobra.CheckErr(err)
+
+				fmt.Println("Grant token authenticated")
+			} else {
+				fmt.Println("Authenticating with app")
+				err = client.AuthenticateApp(ctx)
+				cobra.CheckErr(err)
+				fmt.Println("App authenticated")
+			}
+		} else {
+			fmt.Printf("Access token found: %s\n", client.Config.AccessToken)
+		}
 
 		app, err := client.VerifyAppCredentials(ctx)
 		cobra.CheckErr(err)
@@ -99,6 +146,31 @@ var threadCmd = &cobra.Command{
 	},
 }
 
+var authorizeCmd = &cobra.Command{
+	Use:   "authorize",
+	Short: "Authorize the app with the Mastodon instance",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		credentials, err := loadCredentials()
+		if err != nil {
+			return fmt.Errorf("Error loading credentials: %w", err)
+		}
+
+		err = authorize(context.Background(), credentials)
+		if err != nil {
+			return fmt.Errorf("Error authorizing app: %w", err)
+		}
+
+		err = storeCredentials(credentials)
+		if err != nil {
+			return fmt.Errorf("Error storing credentials: %w", err)
+		}
+		fmt.Printf("Grant Token: %s\n", credentials.GrantToken)
+		fmt.Printf("Access Token: %s\n", credentials.AccessToken)
+
+		return nil
+	},
+}
+
 var registerCmd = &cobra.Command{
 	Use:   "register",
 	Short: "Register the app with the Mastodon instance",
@@ -123,17 +195,89 @@ var registerCmd = &cobra.Command{
 			return fmt.Errorf("Error registering app: %w", err)
 		}
 
-		err = storeCredentials(app)
-		if err != nil {
-			return fmt.Errorf("Error storing credentials: %w", err)
+		credentials := &Credentials{
+			Server:      server,
+			Application: app,
 		}
 
 		fmt.Printf("App registration successful!\n")
 		fmt.Printf("Client ID: %s\n", app.ClientID)
 		fmt.Printf("Client Secret: %s\n", app.ClientSecret)
+		fmt.Printf("Auth URI: %s\n", app.AuthURI)
+		fmt.Printf("Redirect URI: %s\n", app.RedirectURI)
+
+		err = authorize(ctx, credentials)
+		if err != nil {
+			return fmt.Errorf("Error authorizing app: %w", err)
+		}
+
+		err = storeCredentials(credentials)
+		if err != nil {
+			return fmt.Errorf("Error storing credentials: %w", err)
+		}
+
+		fmt.Printf("Grant Token: %s\n", credentials.GrantToken)
+		fmt.Printf("Access Token: %s\n", credentials.AccessToken)
 
 		return nil
 	},
+}
+
+func authorize(ctx context.Context, credentials_ *Credentials) error {
+	// open app.AuthURI in browser
+	err := browser.OpenURL(credentials_.Application.AuthURI)
+	if err != nil {
+		return fmt.Errorf("Error opening browser: %w", err)
+	}
+
+	isCodeValid := false
+
+	var grantToken string
+
+	for !isCodeValid {
+		grantToken, err = bubblewrap.Input("Enter the code from the browser: ")
+		if err != nil {
+			return fmt.Errorf("Error reading user input: %w", err)
+		}
+
+		credentials_.GrantToken = grantToken
+		fmt.Printf("Grant Token: %s\n", credentials_.GrantToken)
+
+		client := mastodon.NewClient(&mastodon.Config{
+			Server:       credentials_.Server,
+			ClientID:     credentials_.Application.ClientID,
+			ClientSecret: credentials_.Application.ClientSecret,
+		})
+
+		err = client.AuthenticateApp(ctx)
+		if err != nil {
+			fmt.Printf("Error authenticating app: %s\n", err)
+			isCodeValid = false
+			continue
+		}
+
+		err = client.AuthenticateToken(ctx, grantToken, credentials_.Application.RedirectURI)
+		if err != nil {
+			fmt.Printf("Error authenticating token: %s\n", err)
+			isCodeValid = false
+			continue
+		}
+		credentials_.AccessToken = client.Config.AccessToken
+		fmt.Printf("Access Token: %s\n", credentials_.AccessToken)
+
+		credentials, err := client.VerifyAppCredentials(ctx)
+		if err != nil {
+			fmt.Printf("Error verifying credentials: %s\n", err)
+			isCodeValid = false
+			continue
+		}
+
+		fmt.Printf("Website: %s\n", credentials.Website)
+		fmt.Printf("Name: %s\n", credentials.Name)
+		isCodeValid = true
+	}
+
+	return nil
 }
 
 func initConfig() {
@@ -143,38 +287,64 @@ func initConfig() {
 	_ = viper.ReadInConfig()                                // read in config file
 }
 
-func storeCredentials(app *mastodon.Application) error {
-	viper.Set("client_id", app.ClientID)
-	viper.Set("client_secret", app.ClientSecret)
+func storeCredentials(credentials *Credentials) error {
+	viper.Set("client_id", credentials.Application.ClientID)
+	viper.Set("client_secret", credentials.Application.ClientSecret)
+	viper.Set("auth_uri", credentials.Application.AuthURI)
+	viper.Set("redirect_uri", credentials.Application.RedirectURI)
+	viper.Set("grant_token", credentials.GrantToken)
+	viper.Set("access_token", credentials.AccessToken)
+	viper.Set("server", credentials.Server)
 
-	return viper.WriteConfig()
+	err := viper.WriteConfig()
+	if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+		// config file not found, create it
+		err = viper.SafeWriteConfig()
+		if err != nil {
+			return fmt.Errorf("Error writing config: %w", err)
+		}
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("Error writing config: %w", err)
+	}
+	return nil
 }
 
-func loadCredentials() (*mastodon.Application, error) {
+func loadCredentials() (*Credentials, error) {
 	clientId := viper.GetString("client_id")
 	clientSecret := viper.GetString("client_secret")
+	authUri := viper.GetString("auth_uri")
+	redirectUri := viper.GetString("redirect_uri")
+	grantToken := viper.GetString("grant_token")
+	accessToken := viper.GetString("access_token")
+	server := viper.GetString("server")
 
 	// check that they are valid
 	if clientId == "" || clientSecret == "" {
 		return nil, fmt.Errorf("no credentials found")
 	}
 
-	app := &mastodon.Application{
-		ClientID:     clientId,
-		ClientSecret: clientSecret,
+	app := &Credentials{
+		Server:      server,
+		GrantToken:  grantToken,
+		AccessToken: accessToken,
+		Application: &mastodon.Application{
+			ClientID:     clientId,
+			ClientSecret: clientSecret,
+			AuthURI:      authUri,
+			RedirectURI:  redirectUri,
+		},
 	}
 	return app, nil
 }
 
-func createClient(instance string) (*mastodon.Client, error) {
-	credentials, err := loadCredentials()
-	if err != nil {
-		return nil, err
-	}
+func createClient(credentials *Credentials) (*mastodon.Client, error) {
 	config := &mastodon.Config{
-		Server:       instance,
-		ClientID:     credentials.ClientID,
-		ClientSecret: credentials.ClientSecret,
+		Server:       credentials.Server,
+		ClientID:     credentials.Application.ClientID,
+		ClientSecret: credentials.Application.ClientSecret,
+		AccessToken:  credentials.AccessToken,
 	}
 	return mastodon.NewClient(config), nil
 }
@@ -182,7 +352,6 @@ func createClient(instance string) (*mastodon.Client, error) {
 func main() {
 	initConfig()
 
-	threadCmd.Flags().StringP("instance", "i", "https://hachyderm.io", "Mastodon instance")
 	threadCmd.Flags().StringP("status-id", "s", "", "Status ID")
 	threadCmd.Flags().BoolP("verbose", "v", false, "Verbose output")
 	threadCmd.Flags().Bool("html", false, "HTML output")
@@ -197,7 +366,8 @@ func main() {
 
 	rootCmd.AddCommand(registerCmd)
 
-	verifyCmd.Flags().StringP("instance", "i", "https://hachyderm.io", "Mastodon instance")
+	rootCmd.AddCommand(authorizeCmd)
+
 	rootCmd.AddCommand(verifyCmd)
 
 	if err := rootCmd.Execute(); err != nil {
