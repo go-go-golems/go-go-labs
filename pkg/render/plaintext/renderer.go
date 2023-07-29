@@ -110,6 +110,12 @@ func (r *Renderer) RenderHeader(w io.Writer, status *mastodon.Status, isFirst bo
 	return nil
 }
 
+func isImageUrl(url string) bool {
+	s := strings.ToLower(url)
+	return strings.HasSuffix(s, ".jpg") || strings.HasSuffix(s, ".jpeg") || strings.HasSuffix(s, ".png") ||
+		strings.HasSuffix(s, ".gif") || strings.HasSuffix(s, ".webp")
+}
+
 func (r *Renderer) RenderStatus(w io.Writer, status *mastodon.Status) error {
 	var content string
 	if r.WithHeader {
@@ -129,8 +135,28 @@ func (r *Renderer) RenderStatus(w io.Writer, status *mastodon.Status) error {
 
 	if len(status.MediaAttachments) > 0 {
 		_, _ = w.Write([]byte("Attachments:\n"))
-		for _, attachment := range status.MediaAttachments {
-			if _, err := w.Write([]byte(fmt.Sprintf("%s\n", attachment.URL))); err != nil {
+		for i, attachment := range status.MediaAttachments {
+			url := attachment.URL
+
+			if isImageUrl(url) {
+				url = fmt.Sprintf("![attachment %d](%s)", i, url)
+				if _, err := w.Write([]byte(fmt.Sprintf("%s\n\n", url))); err != nil {
+					return err
+				}
+			} else {
+				if _, err := w.Write([]byte(fmt.Sprintf("[attachment %d](%s)\n", i, attachment.URL))); err != nil {
+					return err
+				}
+			}
+
+			// split attachment.Description by \n and add "> " to the beginning of each line
+			s := strings.Split(attachment.Description, "\n")
+			for i := range s {
+				s[i] = "> " + s[i]
+			}
+			attachment.Description = "> (Image Description)\n>\n" + strings.Join(s, "\n")
+
+			if _, err := w.Write([]byte(fmt.Sprintf("%s\n\n", attachment.Description))); err != nil {
 				return err
 			}
 		}

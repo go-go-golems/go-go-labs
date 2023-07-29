@@ -67,7 +67,7 @@ func Resolve[S any, T any](m Monad[S], values ...T) Monad[T] {
 	return Monad[T]{value: c, logger: m.logger}
 }
 
-func main() {
+func TestThreeByThree() {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
@@ -82,4 +82,27 @@ func main() {
 	for v := range m2.value {
 		println(v)
 	}
+}
+
+func TestThreeByOne() {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	logger := log.New(os.Stdout, "Async Monad: ", log.Ltime)
+
+	m1 := NewMonad[int](logger)
+	m1 = Resolve(m1, 1, 2, 3)
+	m2 := Bind(ctx, m1, func(value int) Monad[string] {
+		return Resolve(m1, fmt.Sprintf("%d-%d", value, 1))
+	})
+
+	for v := range m2.value {
+		println(v)
+	}
+}
+
+func main() {
+	TestThreeByThree()
+	println()
+	TestThreeByOne()
 }
