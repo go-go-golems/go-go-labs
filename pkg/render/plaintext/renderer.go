@@ -48,9 +48,10 @@ func convertHTMLToPlainText(htmlContent string) string {
 }
 
 type Renderer struct {
-	Verbose    bool
-	WithHeader bool
-	isFirst    bool
+	Verbose        bool
+	WithHeader     bool
+	isFirst        bool
+	previousAuthor string
 }
 
 type RenderOption func(*Renderer)
@@ -82,23 +83,24 @@ func (r *Renderer) RenderHeader(w io.Writer, status *mastodon.Status, isFirst bo
 		return nil
 	}
 
-	if !r.Verbose && !r.isFirst {
-		return nil
-	}
-
 	var buffer bytes.Buffer
 
 	if r.Verbose {
 		buffer.WriteString(fmt.Sprintf("ID: %s\n", status.ID))
 	}
 
-	buffer.WriteString(fmt.Sprintf("Author: %s (%v)\n", status.Account.Acct, status.CreatedAt))
-	buffer.WriteString(fmt.Sprintf("Replies/Reblogs/Favourites: %d/%d/%d\n",
-		status.RepliesCount, status.ReblogsCount, status.FavouritesCount))
+	if r.previousAuthor != status.Account.Acct {
+		buffer.WriteString(fmt.Sprintf("Author: %s (%v)\n", status.Account.Acct, status.CreatedAt))
+		r.previousAuthor = status.Account.Acct
+	}
+	if r.Verbose {
+		buffer.WriteString(fmt.Sprintf("Replies/Reblogs/Favourites: %d/%d/%d\n",
+			status.RepliesCount, status.ReblogsCount, status.FavouritesCount))
+	}
 
 	header := buffer.String()
 
-	if isFirst {
+	if isFirst || r.Verbose {
 		header += fmt.Sprintf("URL: %s\nAuthor URL: %s\n", status.URL, status.Account.URL)
 	}
 

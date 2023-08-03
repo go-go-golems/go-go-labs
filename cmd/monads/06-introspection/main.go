@@ -70,13 +70,14 @@ func Bind[T any, U any](
 			// the vs' here are so to say the inputs of m2
 			//fmt.Printf("Adding input %v to monad %s\n", v, ret.state.Name)
 			ret.state.AddInput(v)
+			// in order to fully rerun something from the inputs, we need actually input + transform,
+			// put to restore the result monad from persistence, we just need the outputs.
+			// So the connection from input to output through transform is the graph that is compiled.
 
 			wg.Add(1)
 			go func(v T) {
 				defer wg.Done()
 				m2 := transform(v)
-				// NOTE(manuel, 2023-07-28) It'd be good to capture the submonads
-				// here and percolate them upstream through GetState
 				ch := m2.value
 
 			L:
