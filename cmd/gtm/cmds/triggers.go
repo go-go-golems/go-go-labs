@@ -84,9 +84,15 @@ func (c *TriggersCommand) Run(
 			types.MRP("name", trigger.Name),
 			types.MRP("type", trigger.Type),
 			types.MRP("fingerprint", trigger.Fingerprint),
-			types.MRP("filters", strings.Join(filters, ", ")),
-			types.MRP("customEventFilters", strings.Join(customEventFilters, ", ")),
 		)
+
+		if len(filters) > 0 {
+			row.Set("filters", strings.Join(filters, ", "))
+		}
+
+		if len(customEventFilters) > 0 {
+			row.Set("customEventFilters", strings.Join(customEventFilters, ", "))
+		}
 
 		if err := gp.AddRow(ctx, row); err != nil {
 			return err

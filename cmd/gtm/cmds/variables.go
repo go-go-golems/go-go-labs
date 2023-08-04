@@ -90,6 +90,14 @@ func (c *VariablesCommand) Run(
 		case "jsm":
 			row.Set("type", "JavaScript Variable")
 			row.Set("javascript", variable.Parameter[0].Value)
+		case "ed":
+			row.Set("type", "Element Data Variable")
+			// find the template entry in parameters
+			for _, parameter := range variable.Parameter {
+				if parameter.Key == "keyPath" {
+					row.Set("elementPath", parameter.Value)
+				}
+			}
 		}
 
 		if err := gp.AddRow(ctx, row); err != nil {

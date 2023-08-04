@@ -81,8 +81,29 @@ func (c *TagsCommand) Run(
 			types.MRP("tagFiringOption", tag.TagFiringOption),
 		)
 
-		if tag.Type == "html" {
+		switch tag.Type {
+		case "html":
 			row.Set("html", tag.Parameter[0].Value)
+		case "http_request":
+			for _, parameter := range tag.Parameter {
+				switch parameter.Key {
+				case "url":
+					row.Set("url", parameter.Value)
+				case "httpMethod":
+					row.Set("httpMethod", parameter.Value)
+				case "requestBody":
+					row.Set("requestBody", parameter.Value)
+				case "headers":
+					headers := make(map[string]string)
+					for _, header := range parameter.List {
+						keyParameter := header.Map[0]
+						valueParameter := header.Map[1]
+						headers[keyParameter.Value] = valueParameter.Value
+					}
+					row.Set("headers", headers)
+				}
+			}
+
 		}
 		if err := gp.AddRow(ctx, row); err != nil {
 			return err
