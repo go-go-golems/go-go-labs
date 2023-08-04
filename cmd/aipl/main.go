@@ -1,3 +1,4 @@
+//nolint:govet
 package main
 
 import (
@@ -9,20 +10,20 @@ import (
 )
 
 var BasicLexer = lexer.MustSimple([]lexer.SimpleRule{
-	{"Comment", `^#[^\n]*\n`},
-	{"EmptyLine", `\n`},
-	{"Whitespace", `[ \t]+`},
-	{"Ident", `[A-Za-z_][A-Za-z0-9_-]*`},
-	{"CommandSign", `!!?`},
-	{"VarName", `>`},
-	{"GlobalName", `>>`},
-	{"InputCol", `<`},
-	{"InputTable", `<<`},
-	{"Equal", `=`},
-	{"BareString", `[^ \t\n!"'><]\S*`},
-	{"EscapedString", `"([^"\\]*(\\.[^"\\]*)*)"`},
-	{"Prompt", `(<< | \n)`},
-	{"StringLine", `[^!#\n][^\n]*(\n|$) | \n`},
+	{Name: "Comment", Pattern: `^#[^\n]*\n`},
+	{Name: "EmptyLine", Pattern: `\n`},
+	{Name: "Whitespace", Pattern: `[ \t]+`},
+	{Name: "Ident", Pattern: `[A-Za-z_][A-Za-z0-9_-]*`},
+	{Name: "CommandSign", Pattern: `!!?`},
+	{Name: "VarName", Pattern: `>`},
+	{Name: "GlobalName", Pattern: `>>`},
+	{Name: "InputCol", Pattern: `<`},
+	{Name: "InputTable", Pattern: `<<`},
+	{Name: "Equal", Pattern: `=`},
+	{Name: "BareString", Pattern: `[^ \t\n!"'><]\S*`},
+	{Name: "EscapedString", Pattern: `"([^"\\]*(\\.[^"\\]*)*)"`},
+	{Name: "Prompt", Pattern: `(<< | \n)`},
+	{Name: "StringLine", Pattern: `[^!#\n][^\n]*(\n|$) | \n`},
 })
 
 type Program struct {
