@@ -47,7 +47,8 @@ var slackConversationCmd = &cobra.Command{
 		prevUser := ""
 		for _, message := range export.Messages {
 			if prevUser != message.User && prevUser != "" {
-				fmt.Println("\n---\n")
+				fmt.Println("\n---")
+				fmt.Println()
 				fmt.Println("- User:", message.User)
 			}
 
@@ -60,12 +61,11 @@ var slackConversationCmd = &cobra.Command{
 			}
 			fmt.Println(message.Text)
 			if len(message.Files) > 0 {
-				fmt.Println("\n")
+				fmt.Println()
+				fmt.Println()
 
 				for _, file := range message.Files {
-					fmt.Println(
-						fmt.Sprintf("![](%s)", file.UrlPrivate),
-					)
+					fmt.Printf("![](%s)", file.UrlPrivate)
 				}
 			}
 
