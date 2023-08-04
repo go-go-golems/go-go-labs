@@ -10,9 +10,20 @@ import (
 	"time"
 )
 
+// State contains the data that can be introspected from a monad
+// NOTE(manuel, 2023-08-04) I don't think this is necessarily the right place to store all of this.
+// This represents a result, not the transformer itself, but we might want to get some information
+// about the transformation steps, in fact we probably want mostly to get information about the
+// current state of transformation, while the state of the output is mostly gathering the input / output
+// metadata. That's because so often these things are not even created yet, so how could we introspect them?
+//
+// So the main first step is to create an actual structure that represents the actual transformers,
+// instead of just using a lambda, and then modeling around that. The transformers are created once
+// at the start of the app, but the Monad is created multiple times.
 type State[T any] struct {
-	UUID  uuid.UUID
-	Name  string
+	UUID uuid.UUID
+	Name string
+	// NOTE(manuel, 2023-08-04) I'm not sure why I decided to make multiple inputs...
 	Input []interface{}
 	// TODO(manuel, 2023-07-28) Add input/output types for monads
 	// theoretically this could be a generic type too...
@@ -59,6 +70,13 @@ func (m Monad[T]) GetState() *State[T] {
 func Bind[T any, U any](
 	ctx context.Context,
 	m Monad[T],
+	// NOTE(manuel, 2023-08-04)
+	// the transform is the main component that we are building and as such it should probably be its own struct.
+	// to model the monad, we should make a:
+	// - emitter that sends out a few values (urls, for example)
+	// - a curl step that takes the urls and returns the body
+	// - a retry step that takes a step and if it fails retries it a couple of times
+	// - a step that generates multiple outputs from one input
 	transform func(value T) Monad[U],
 ) Monad[U] {
 	c := make(chan U)
