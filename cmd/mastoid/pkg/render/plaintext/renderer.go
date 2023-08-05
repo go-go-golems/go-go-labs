@@ -49,13 +49,26 @@ func convertHTMLToPlainText(htmlContent string) string {
 }
 
 type Renderer struct {
-	Verbose        bool
-	WithHeader     bool
-	isFirst        bool
-	previousAuthor string
+	Verbose         bool
+	WithHeader      bool
+	isFirst         bool
+	previousAuthor  string
+	indent          string
+	firstLinePrefix string
+	nextLinePrefix  string
+	prefix          string
 }
 
 type RenderOption func(*Renderer)
+
+func WithMarkdown() RenderOption {
+	return func(r *Renderer) {
+		r.indent = "> "
+		r.firstLinePrefix = ""
+		r.nextLinePrefix = ""
+		r.prefix = "> "
+	}
+}
 
 func WithHeader(withHeader bool) RenderOption {
 	return func(r *Renderer) {
@@ -71,7 +84,10 @@ func WithVerbose(verbose bool) RenderOption {
 
 func NewRenderer(opts ...RenderOption) *Renderer {
 	r := &Renderer{
-		isFirst: true,
+		isFirst:         true,
+		indent:          "  ",
+		firstLinePrefix: "+ ",
+		nextLinePrefix:  "| ",
 	}
 	for _, opt := range opts {
 		opt(r)
@@ -93,6 +109,9 @@ func (r *Renderer) RenderHeader(w io.Writer, status *mastodon.Status, isFirst bo
 	if r.previousAuthor != status.Account.Acct {
 		buffer.WriteString(fmt.Sprintf("Author: %s (%v)\n", status.Account.Acct, status.CreatedAt))
 		r.previousAuthor = status.Account.Acct
+	} else {
+		buffer.WriteString(fmt.Sprintf("Author: %s (%v)\n", status.Account.Acct, status.CreatedAt))
+
 	}
 	if r.Verbose {
 		buffer.WriteString(fmt.Sprintf("Replies/Reblogs/Favourites: %d/%d/%d\n",
@@ -185,11 +204,22 @@ func (r *Renderer) RenderThread(w io.Writer, status *mastodon.Status, context *m
 			return err
 		}
 
-		s := buf.String()
+		s := strings.TrimSpace(buf.String())
 		// prepend each line with depth * "  "
-		s = strings.ReplaceAll(s, "\n", "\n"+strings.Repeat("  ", depth))
+		lines := strings.Split(s, "\n")
+		buf = bytes.NewBuffer(nil)
+		prefix := r.prefix + strings.Repeat(r.indent, depth)
+		for i := range lines {
+			if i == 0 {
+				lines[i] = prefix + r.firstLinePrefix + lines[i]
+			} else {
+				lines[i] = prefix + r.nextLinePrefix + lines[i]
+			}
+			buf.WriteString(lines[i] + "\n")
+		}
+		buf.WriteString(prefix + "\n")
 
-		_, err := w.Write([]byte(s))
+		_, err := w.Write([]byte(buf.String()))
 		if err != nil {
 			return err
 		}

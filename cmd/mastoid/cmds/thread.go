@@ -3,7 +3,6 @@ package cmds
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/go-go-golems/go-go-labs/cmd/mastoid/pkg"
 	"github.com/go-go-golems/go-go-labs/cmd/mastoid/pkg/render"
 	"github.com/go-go-golems/go-go-labs/cmd/mastoid/pkg/render/html"
@@ -21,8 +20,7 @@ var ThreadCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		statusID, _ := cmd.Flags().GetString("status-id")
 		verbose, _ := cmd.Flags().GetBool("verbose")
-		withHtml, _ := cmd.Flags().GetBool("withHtml")
-		withJson, _ := cmd.Flags().GetBool("json")
+		output, _ := cmd.Flags().GetString("output")
 		withHeader, _ := cmd.Flags().GetBool("with-header")
 
 		// extract statusID from URL if we have a URL
@@ -47,57 +45,35 @@ var ThreadCmd = &cobra.Command{
 		context, err := client.GetStatusContext(ctx, status.ID)
 		cobra.CheckErr(err)
 
-		thread := &pkg.Thread{
-			Nodes: map[mastodon.ID]*pkg.Node{},
-		}
+		var renderer render.Renderer
 
-		thread.AddStatus(status)
-
-		thread.AddContextAndGetMissingIDs(status.ID, context)
-
-		printNode := func(node *pkg.Node, depth int) error {
-			fmt.Printf(
-				"%s%s (parent: %s)",
-				strings.Repeat("  ", depth), node.Status.ID, node.Status.InReplyToID,
-			)
-			if node.Status != nil {
-				// print the first 20 characters of the status
-				l := len(node.Status.Content)
-				if l > 20 {
-					l = 20
-				}
-				fmt.Printf(" %s", node.Status.Content[0:l])
-			}
-			fmt.Println()
-			return nil
-		}
-		err = thread.WalkBreadthFirst(printNode)
-		cobra.CheckErr(err)
-
-		err = thread.WalkDepthFirst(printNode)
-
-		return
-
-		if withJson {
+		switch output {
+		case "json":
 			encoder := json.NewEncoder(os.Stdout)
 			encoder.SetIndent("", "  ")
 			err = encoder.Encode(context)
 			cobra.CheckErr(err)
 			return
-		}
+		case "html":
 
-		var renderer render.Renderer
-
-		if withHtml {
 			renderer = html.NewRenderer(
 				html.WithVerbose(verbose),
 				html.WithHeader(withHeader),
 			)
-		} else {
+		case "text":
 			renderer = plaintext.NewRenderer(
 				plaintext.WithVerbose(verbose),
 				plaintext.WithHeader(withHeader),
 			)
+
+		case "markdown":
+			renderer = plaintext.NewRenderer(
+				plaintext.WithVerbose(verbose),
+				plaintext.WithHeader(withHeader),
+				plaintext.WithMarkdown(),
+			)
+		default:
+			cobra.CheckErr("Unknown output format")
 		}
 
 		err = renderer.RenderThread(os.Stdout, status, context)

@@ -47,31 +47,16 @@ func (r *Renderer) RenderStatus(w io.Writer, status *mastodon.Status) error {
 
 func (r *Renderer) RenderThread(w io.Writer, status *mastodon.Status, context *mastodon.Context) error {
 	for _, ancestor := range context.Ancestors {
-		if r.Verbose {
-			if _, err := w.Write([]byte("--AN--<br>")); err != nil {
-				return err
-			}
-		}
 		if err := r.RenderStatus(w, ancestor); err != nil {
 			return err
 		}
 	}
 
-	if r.Verbose {
-		if _, err := w.Write([]byte("--OR--<br>")); err != nil {
-			return err
-		}
-	}
 	if err := r.RenderStatus(w, status); err != nil {
 		return err
 	}
 
 	for _, descendant := range context.Descendants {
-		if r.Verbose {
-			if _, err := w.Write([]byte("--DE--<br>")); err != nil {
-				return err
-			}
-		}
 		if err := r.RenderStatus(w, descendant); err != nil {
 			return err
 		}

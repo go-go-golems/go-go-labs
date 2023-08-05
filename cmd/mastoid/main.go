@@ -17,8 +17,7 @@ func main() {
 
 	cmds.ThreadCmd.Flags().StringP("status-id", "s", "", "Status ID")
 	cmds.ThreadCmd.Flags().BoolP("verbose", "v", false, "Verbose output")
-	cmds.ThreadCmd.Flags().Bool("html", false, "HTML output")
-	cmds.ThreadCmd.Flags().Bool("json", false, "JSON output")
+	cmds.ThreadCmd.Flags().String("output", "markdown", "Output format (html, text, markdown, json)")
 	cmds.ThreadCmd.Flags().Bool("with-header", true, "Print header")
 	rootCmd.AddCommand(cmds.ThreadCmd)
 
