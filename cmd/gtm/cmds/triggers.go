@@ -11,7 +11,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/types"
 	"github.com/go-go-golems/go-go-labs/cmd/gtm/pkg"
 	"github.com/pkg/errors"
-	"io/ioutil"
+	"os"
 	"strings"
 )
 
@@ -56,7 +56,7 @@ func (c *TriggersCommand) Run(
 ) error {
 	filePath := ps["file"].(string)
 
-	data, err := ioutil.ReadFile(filePath)
+	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return errors.Wrap(err, "failed to read GTM file")
 	}
