@@ -31,6 +31,9 @@ WIP:
 
 ## Installation
 
+![an ai generated skselton with muscles made out of plants](https://github.com/go-go-golems/go-go-labs/assets/128441/24b8d925-b02b-44d7-8157-ab9ebe4fb581)
+
+
 To install the `mastoid` command line tool with homebrew, run:
 
 ```bash
