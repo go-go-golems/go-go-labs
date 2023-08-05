@@ -23,7 +23,7 @@ func main() {
 
 	cmds.RegisterCmd.Flags().StringP("client-name", "n", "mastoid", "Client name")
 	cmds.RegisterCmd.Flags().StringP("redirect-uris", "r", "urn:ietf:wg:oauth:2.0:oob", "Redirect URIs")
-	cmds.RegisterCmd.Flags().StringP("scopes", "s", "read write follow", "Scopes")
+	cmds.RegisterCmd.Flags().StringP("scopes", "s", "read", "Scopes")
 	cmds.RegisterCmd.Flags().StringP("website", "w", "", "Website")
 	cmds.RegisterCmd.Flags().StringP("server", "v", "https://hachyderm.io", "Mastodon instance")
 
