@@ -3,6 +3,7 @@ package plaintext
 import (
 	"bytes"
 	"fmt"
+	"github.com/go-go-golems/go-go-labs/cmd/mastoid/pkg"
 	"github.com/mattn/go-mastodon"
 	"golang.org/x/net/html"
 	"io"
@@ -170,35 +171,34 @@ func (r *Renderer) RenderStatus(w io.Writer, status *mastodon.Status) error {
 }
 
 func (r *Renderer) RenderThread(w io.Writer, status *mastodon.Status, context *mastodon.Context) error {
-	for _, ancestor := range context.Ancestors {
-		if r.Verbose {
-			if _, err := w.Write([]byte("--AN--\n")); err != nil {
-				return err
-			}
-		}
-		if err := r.RenderStatus(w, ancestor); err != nil {
-			return err
-		}
+
+	thread := &pkg.Thread{
+		Nodes: map[mastodon.ID]*pkg.Node{},
 	}
 
-	if r.Verbose {
-		if _, err := w.Write([]byte("--OR--\n")); err != nil {
+	thread.AddStatus(status)
+	thread.AddContextAndGetMissingIDs(status.ID, context)
+
+	printNode := func(node *pkg.Node, depth int) error {
+		buf := bytes.NewBuffer(nil)
+		if err := r.RenderStatus(buf, node.Status); err != nil {
 			return err
 		}
+
+		s := buf.String()
+		// prepend each line with depth * "  "
+		s = strings.ReplaceAll(s, "\n", "\n"+strings.Repeat("  ", depth))
+
+		_, err := w.Write([]byte(s))
+		if err != nil {
+			return err
+		}
+		return nil
 	}
-	if err := r.RenderStatus(w, status); err != nil {
+
+	err := thread.WalkDepthFirst(printNode)
+	if err != nil {
 		return err
-	}
-
-	for _, descendant := range context.Descendants {
-		if r.Verbose {
-			if _, err := w.Write([]byte("--DE--\n")); err != nil {
-				return err
-			}
-		}
-		if err := r.RenderStatus(w, descendant); err != nil {
-			return err
-		}
 	}
 
 	return nil
