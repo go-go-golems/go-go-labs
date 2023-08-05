@@ -219,7 +219,7 @@ func (r *Renderer) RenderThread(w io.Writer, status *mastodon.Status, context *m
 		}
 		buf.WriteString(prefix + "\n")
 
-		_, err := w.Write([]byte(buf.String()))
+		_, err := w.Write(buf.Bytes())
 		if err != nil {
 			return err
 		}

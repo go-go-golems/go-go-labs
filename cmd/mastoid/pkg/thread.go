@@ -142,20 +142,6 @@ func (t *Thread) WalkDepthFirst(f func(n *Node, depth int) error) error {
 	return nil
 }
 
-func (t *Thread) walkDepthFirst(node *Node, depth int, f func(n *Node, depth int) error) error {
-	err := f(node, depth)
-	if err != nil {
-		return err
-	}
-	for pair := node.Descendants.Oldest(); pair != nil; pair = pair.Next() {
-		err := t.walkDepthFirst(pair.Value, depth+1, f)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (t *Thread) OutputToProcessor(ctx context.Context, gp middlewares.Processor) error {
 	for _, root := range t.GetRoots() {
 		err := gp.AddRow(ctx, types.NewRowFromStruct(root.Status, true))
