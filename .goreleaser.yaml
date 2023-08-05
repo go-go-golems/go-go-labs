@@ -18,14 +18,22 @@ builds:
       - darwin
 checksum:
   name_template: 'checksums.txt'
+
+signs:
+  - artifacts: checksum
+    # setup for github actions according to https://goreleaser.com/ci/actions/
+    args: [ "--batch", "-u", "{{ .Env.GPG_FINGERPRINT }}", "--output", "${signature}", "--detach-sign", "${artifact}" ]
+
 snapshot:
   name_template: "{{ incpatch .Version }}-next"
+
 changelog:
   sort: asc
   filters:
     exclude:
       - '^docs:'
       - '^test:'
+      -
 brews:
   - name: go-go-labs
     description: "go-go-labs contains experimental go go tools"
