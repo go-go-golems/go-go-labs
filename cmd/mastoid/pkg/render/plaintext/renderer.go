@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/go-go-golems/go-go-labs/cmd/mastoid/pkg"
 	"github.com/mattn/go-mastodon"
+	"github.com/rs/zerolog/log"
 	"golang.org/x/net/html"
 	"io"
 	"strings"
@@ -198,6 +199,10 @@ func (r *Renderer) RenderThread(w io.Writer, status *mastodon.Status, context *m
 	thread.AddStatus(status)
 	thread.AddContextAndGetMissingIDs(status.ID, context)
 
+	prevDepth := 0
+	firstOfNewDepth := false
+	siblingIdx := 0
+
 	printNode := func(node *pkg.Node, depth int) error {
 		buf := bytes.NewBuffer(nil)
 		if err := r.RenderStatus(buf, node.Status); err != nil {
@@ -208,7 +213,22 @@ func (r *Renderer) RenderThread(w io.Writer, status *mastodon.Status, context *m
 		// prepend each line with depth * "  "
 		lines := strings.Split(s, "\n")
 		buf = bytes.NewBuffer(nil)
-		prefix := r.prefix + strings.Repeat(r.indent, depth)
+		var prefix string
+		if depth != prevDepth {
+			siblingIdx = 0
+			firstOfNewDepth = true
+		} else {
+			siblingIdx++
+			firstOfNewDepth = false
+		}
+		log.Debug().Int("depth", depth).Int("prevDepth", prevDepth).Bool("firstOfNewDepth", firstOfNewDepth).Msg("rendering")
+		if firstOfNewDepth {
+			prefix = r.prefix + strings.Repeat(r.indent, siblingIdx+depth-1)
+		} else {
+			prefix = r.prefix + strings.Repeat(r.indent, depth)
+		}
+		prevDepth = depth
+
 		for i := range lines {
 			if i == 0 {
 				lines[i] = prefix + r.firstLinePrefix + lines[i]
