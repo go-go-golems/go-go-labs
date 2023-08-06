@@ -222,7 +222,11 @@ func (r *Renderer) RenderThread(w io.Writer, status *mastodon.Status, context *m
 			Int("siblingIdx", siblingIdx).
 			Msg("rendering")
 
-		prefix = r.prefix + strings.Repeat(r.indent, siblingIdx-1)
+		indentDepth := depth - 1
+		if indentDepth < 0 {
+			indentDepth = 0
+		}
+		prefix = r.prefix + strings.Repeat(r.indent, indentDepth)
 		prevDepth = depth
 
 		for i := range lines {
