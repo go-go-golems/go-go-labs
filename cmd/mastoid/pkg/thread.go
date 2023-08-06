@@ -79,62 +79,71 @@ func (t *Thread) AddContextAndGetMissingIDs(id mastodon.ID, context *mastodon.Co
 }
 
 type queueEntry struct {
-	node  *Node
-	depth int
+	node       *Node
+	depth      int
+	siblingIdx int
 }
 
 // WalkBreadthFirst walks the thread in order, calling the given function on each node.
-func (t *Thread) WalkBreadthFirst(f func(n *Node, depth int) error) error {
+func (t *Thread) WalkBreadthFirst(f func(n *Node, depth int, siblingIdx int) error) error {
 	roots := t.GetRoots()
 
-	for _, root := range roots {
+	for rootSiblingIdx, root := range roots {
 		queue := []*queueEntry{
 			{
-				node:  root,
-				depth: 0,
+				node:       root,
+				depth:      0,
+				siblingIdx: rootSiblingIdx,
 			},
 		}
 		for len(queue) > 0 {
 			entry := queue[0]
 			queue = queue[1:]
-			err := f(entry.node, entry.depth)
+			err := f(entry.node, entry.depth, entry.siblingIdx)
 			if err != nil {
 				return err
 			}
+			siblingIdx := 0
 			for pair := entry.node.Descendants.Oldest(); pair != nil; pair = pair.Next() {
 				queue = append(queue, &queueEntry{
-					node:  pair.Value,
-					depth: entry.depth + 1,
+					node:       pair.Value,
+					depth:      entry.depth + 1,
+					siblingIdx: siblingIdx,
 				})
+				siblingIdx++
 			}
 		}
 	}
 	return nil
 }
 
-func (t *Thread) WalkDepthFirst(f func(n *Node, depth int) error) error {
+func (t *Thread) WalkDepthFirst(f func(n *Node, depth int, siblingIdx int) error) error {
 	roots := t.GetRoots()
 
-	for _, root := range roots {
+	for rootSiblingIdx, root := range roots {
 		queue := []*queueEntry{
 			{
-				node:  root,
-				depth: 0,
+				node:       root,
+				depth:      0,
+				siblingIdx: rootSiblingIdx,
 			},
 		}
 
 		for len(queue) > 0 {
 			entry := queue[len(queue)-1]
 			queue = queue[:len(queue)-1]
-			err := f(entry.node, entry.depth)
+			err := f(entry.node, entry.depth, entry.siblingIdx)
 			if err != nil {
 				return err
 			}
+			siblingIdx := 0
 			for pair := entry.node.Descendants.Oldest(); pair != nil; pair = pair.Next() {
 				queue = append(queue, &queueEntry{
-					node:  pair.Value,
-					depth: entry.depth + 1,
+					node:       pair.Value,
+					depth:      entry.depth + 1,
+					siblingIdx: siblingIdx,
 				})
+				siblingIdx++
 			}
 		}
 	}

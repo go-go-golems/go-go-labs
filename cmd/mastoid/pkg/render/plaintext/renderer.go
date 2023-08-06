@@ -200,9 +200,9 @@ func (r *Renderer) RenderThread(w io.Writer, status *mastodon.Status, context *m
 	thread.AddContextAndGetMissingIDs(status.ID, context)
 
 	prevDepth := 0
-	siblingIdx := 0
+	horizontalIndex := 0
 
-	printNode := func(node *pkg.Node, depth int) error {
+	printNode := func(node *pkg.Node, depth int, siblingIdx int) error {
 		buf := bytes.NewBuffer(nil)
 		if err := r.RenderStatus(buf, node.Status); err != nil {
 			return err
@@ -214,11 +214,12 @@ func (r *Renderer) RenderThread(w io.Writer, status *mastodon.Status, context *m
 		buf = bytes.NewBuffer(nil)
 		var prefix string
 		if depth <= prevDepth {
-			siblingIdx++
+			horizontalIndex++
 		}
 		log.Debug().
 			Int("depth", depth).
 			Int("prevDepth", prevDepth).
+			Int("horizontalIndex", horizontalIndex).
 			Int("siblingIdx", siblingIdx).
 			Msg("rendering")
 
@@ -226,7 +227,7 @@ func (r *Renderer) RenderThread(w io.Writer, status *mastodon.Status, context *m
 		if indentDepth < 0 {
 			indentDepth = 0
 		}
-		prefix = r.prefix + strings.Repeat(r.indent, indentDepth)
+		prefix = r.prefix + strings.Repeat(r.indent, siblingIdx)
 		prevDepth = depth
 
 		for i := range lines {
