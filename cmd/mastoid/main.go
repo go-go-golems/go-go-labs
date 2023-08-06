@@ -2,18 +2,42 @@ package main
 
 import (
 	"fmt"
+	clay "github.com/go-go-golems/clay/pkg"
+	"github.com/go-go-golems/glazed/pkg/help"
 	cmds "github.com/go-go-golems/go-go-labs/cmd/mastoid/cmds"
-	"github.com/go-go-golems/go-go-labs/cmd/mastoid/pkg"
 	"github.com/spf13/cobra"
 )
 
 var rootCmd = &cobra.Command{
 	Use:   "mastoid",
 	Short: "mastoid is a CLI app to interact with Mastodon",
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		// reinitialize the logger because we can now parse --log-level and co
+		// from the command line flag
+		err := clay.InitLogger()
+		cobra.CheckErr(err)
+	},
+}
+
+func initRootCmd() (*help.HelpSystem, error) {
+	helpSystem := help.NewHelpSystem()
+	helpSystem.SetupCobraRootCommand(rootCmd)
+
+	err := clay.InitViper("mastoid", rootCmd)
+	if err != nil {
+		return nil, err
+	}
+	err = clay.InitLogger()
+	if err != nil {
+		return nil, err
+	}
+
+	return helpSystem, nil
 }
 
 func main() {
-	pkg.InitConfig()
+	_, err := initRootCmd()
+	cobra.CheckErr(err)
 
 	cmds.ThreadCmd.Flags().StringP("status-id", "s", "", "Status ID")
 	cmds.ThreadCmd.Flags().BoolP("verbose", "v", false, "Verbose output")
