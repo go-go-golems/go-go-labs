@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/mattn/go-mastodon"
 	"github.com/rs/zerolog/log"
+	"regexp"
 )
 
 func CreateClient(credentials *Credentials) (*mastodon.Client, error) {
@@ -51,4 +52,10 @@ func CreateClientAndAuthenticate(ctx context.Context, credentials *Credentials) 
 	}
 
 	return client, nil
+}
+
+// ExtractID matches [0-9]+ in a string and returns the matched value
+func ExtractID(status string) string {
+	reg := regexp.MustCompile(`[0-9]+`)
+	return reg.FindString(status)
 }

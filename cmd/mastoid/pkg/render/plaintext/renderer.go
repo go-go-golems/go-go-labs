@@ -191,7 +191,6 @@ func (r *Renderer) RenderStatus(w io.Writer, status *mastodon.Status) error {
 }
 
 func (r *Renderer) RenderThread(w io.Writer, status *mastodon.Status, context *mastodon.Context) error {
-
 	thread := &pkg.Thread{
 		Nodes: map[mastodon.ID]*pkg.Node{},
 	}
@@ -223,10 +222,6 @@ func (r *Renderer) RenderThread(w io.Writer, status *mastodon.Status, context *m
 			Int("siblingIdx", siblingIdx).
 			Msg("rendering")
 
-		indentDepth := depth - 1
-		if indentDepth < 0 {
-			indentDepth = 0
-		}
 		prefix = r.prefix + strings.Repeat(r.indent, siblingIdx)
 		prevDepth = depth
 

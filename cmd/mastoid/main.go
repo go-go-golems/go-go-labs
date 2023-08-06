@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	clay "github.com/go-go-golems/clay/pkg"
+	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/help"
 	cmds "github.com/go-go-golems/go-go-labs/cmd/mastoid/cmds"
 	"github.com/spf13/cobra"
@@ -39,11 +40,11 @@ func main() {
 	_, err := initRootCmd()
 	cobra.CheckErr(err)
 
-	cmds.ThreadCmd.Flags().StringP("status-id", "s", "", "Status ID")
-	cmds.ThreadCmd.Flags().BoolP("verbose", "v", false, "Verbose output")
-	cmds.ThreadCmd.Flags().String("output", "markdown", "Output format (html, text, markdown, json)")
-	cmds.ThreadCmd.Flags().Bool("with-header", true, "Print header")
-	rootCmd.AddCommand(cmds.ThreadCmd)
+	cmds.RenderCmd.Flags().StringP("status-id", "s", "", "Status ID")
+	cmds.RenderCmd.Flags().BoolP("verbose", "v", false, "Verbose output")
+	cmds.RenderCmd.Flags().String("output", "markdown", "Output format (html, text, markdown, json)")
+	cmds.RenderCmd.Flags().Bool("with-header", true, "Print header")
+	rootCmd.AddCommand(cmds.RenderCmd)
 
 	cmds.RegisterCmd.Flags().StringP("client-name", "n", "mastoid", "Client name")
 	cmds.RegisterCmd.Flags().StringP("redirect-uris", "r", "urn:ietf:wg:oauth:2.0:oob", "Redirect URIs")
@@ -56,6 +57,12 @@ func main() {
 	rootCmd.AddCommand(cmds.AuthorizeCmd)
 
 	rootCmd.AddCommand(cmds.VerifyCmd)
+
+	threadCmd, err := cmds.NewThreadCommand()
+	cobra.CheckErr(err)
+	command, err := cli.BuildCobraCommandFromGlazeCommand(threadCmd)
+	cobra.CheckErr(err)
+	rootCmd.AddCommand(command)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
