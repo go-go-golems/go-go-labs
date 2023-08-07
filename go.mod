@@ -3,6 +3,7 @@ module github.com/go-go-golems/go-go-labs
 go 1.20
 
 require (
+	github.com/BobuSumisu/aho-corasick v1.0.3
 	github.com/alecthomas/participle/v2 v2.0.0
 	github.com/go-go-golems/clay v0.0.18
 	github.com/go-go-golems/glazed v0.3.8
