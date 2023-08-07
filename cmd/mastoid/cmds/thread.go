@@ -14,7 +14,7 @@ import (
 )
 
 type ThreadCmd struct {
-	description *cmds.CommandDescription
+	*cmds.CommandDescription
 }
 
 func NewThreadCommand() (*ThreadCmd, error) {
@@ -24,7 +24,7 @@ func NewThreadCommand() (*ThreadCmd, error) {
 	}
 
 	return &ThreadCmd{
-		description: cmds.NewCommandDescription(
+		CommandDescription: cmds.NewCommandDescription(
 			"thread",
 			cmds.WithShort("Output thread as structured data"),
 			cmds.WithFlags(
@@ -45,10 +45,6 @@ func NewThreadCommand() (*ThreadCmd, error) {
 			cmds.WithLayers(glazedParameterLayer),
 		),
 	}, nil
-}
-
-func (c *ThreadCmd) Description() *cmds.CommandDescription {
-	return c.description
 }
 
 func (c *ThreadCmd) Run(

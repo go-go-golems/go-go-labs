@@ -15,7 +15,7 @@ import (
 )
 
 type TagsCommand struct {
-	description *cmds.CommandDescription
+	*cmds.CommandDescription
 }
 
 func NewTagsCommand() (*TagsCommand, error) {
@@ -25,7 +25,7 @@ func NewTagsCommand() (*TagsCommand, error) {
 	}
 
 	return &TagsCommand{
-		description: cmds.NewCommandDescription(
+		CommandDescription: cmds.NewCommandDescription(
 			"tags",
 			cmds.WithShort("Outputs the tags in a GTM file as a table"),
 			cmds.WithArguments(
@@ -41,10 +41,6 @@ func NewTagsCommand() (*TagsCommand, error) {
 			),
 		),
 	}, nil
-}
-
-func (c *TagsCommand) Description() *cmds.CommandDescription {
-	return c.description
 }
 
 func (c *TagsCommand) Run(

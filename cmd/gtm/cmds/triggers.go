@@ -16,7 +16,7 @@ import (
 )
 
 type TriggersCommand struct {
-	description *cmds.CommandDescription
+	*cmds.CommandDescription
 }
 
 func NewTriggersCommand() (*TriggersCommand, error) {
@@ -26,7 +26,7 @@ func NewTriggersCommand() (*TriggersCommand, error) {
 	}
 
 	return &TriggersCommand{
-		description: cmds.NewCommandDescription(
+		CommandDescription: cmds.NewCommandDescription(
 			"triggers",
 			cmds.WithShort("Output triggers from GTM file"),
 			cmds.WithArguments(
@@ -42,10 +42,6 @@ func NewTriggersCommand() (*TriggersCommand, error) {
 			),
 		),
 	}, nil
-}
-
-func (c *TriggersCommand) Description() *cmds.CommandDescription {
-	return c.description
 }
 
 func (c *TriggersCommand) Run(

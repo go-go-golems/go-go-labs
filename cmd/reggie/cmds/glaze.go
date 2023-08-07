@@ -17,8 +17,8 @@ import (
 )
 
 type RegexpMatchCommand struct {
-	description *cmds.CommandDescription
-	regexMap    map[string]*regexp.Regexp
+	*cmds.CommandDescription
+	regexMap map[string]*regexp.Regexp
 }
 
 func NewRegexpMatchCommand(regexMap map[string]*regexp.Regexp) (*RegexpMatchCommand, error) {
@@ -28,7 +28,7 @@ func NewRegexpMatchCommand(regexMap map[string]*regexp.Regexp) (*RegexpMatchComm
 	}
 
 	return &RegexpMatchCommand{
-		description: cmds.NewCommandDescription(
+		CommandDescription: cmds.NewCommandDescription(
 			"regexpMatch",
 			cmds.WithShort("Regexp Match command"),
 			cmds.WithArguments(
@@ -45,10 +45,6 @@ func NewRegexpMatchCommand(regexMap map[string]*regexp.Regexp) (*RegexpMatchComm
 		),
 		regexMap: regexMap,
 	}, nil
-}
-
-func (c *RegexpMatchCommand) Description() *cmds.CommandDescription {
-	return c.description
 }
 
 func (c *RegexpMatchCommand) Run(

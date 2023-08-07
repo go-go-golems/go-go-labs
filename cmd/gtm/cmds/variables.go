@@ -15,7 +15,7 @@ import (
 )
 
 type VariablesCommand struct {
-	description *cmds.CommandDescription
+	*cmds.CommandDescription
 }
 
 func NewVariablesCommand() (*VariablesCommand, error) {
@@ -25,7 +25,7 @@ func NewVariablesCommand() (*VariablesCommand, error) {
 	}
 
 	return &VariablesCommand{
-		description: cmds.NewCommandDescription(
+		CommandDescription: cmds.NewCommandDescription(
 			"variables",
 			cmds.WithShort("Outputs the variables in a GTM file as a table"),
 			cmds.WithArguments(
@@ -41,10 +41,6 @@ func NewVariablesCommand() (*VariablesCommand, error) {
 			),
 		),
 	}, nil
-}
-
-func (c *VariablesCommand) Description() *cmds.CommandDescription {
-	return c.description
 }
 
 func (c *VariablesCommand) Run(
