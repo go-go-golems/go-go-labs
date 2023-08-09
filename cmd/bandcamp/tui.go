@@ -18,13 +18,8 @@ var (
 	titleStyle       = lipgloss.NewStyle().MarginLeft(2)
 	searchInputStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("205"))
-	searchInputPromptStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("205"))
-	itemStyle         = lipgloss.NewStyle().PaddingLeft(4)
-	selectedItemStyle = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("170"))
-	paginationStyle   = list.DefaultStyles().PaginationStyle.PaddingLeft(4)
-	helpStyle         = list.DefaultStyles().HelpStyle.PaddingLeft(4).PaddingBottom(1)
-	quitTextStyle     = lipgloss.NewStyle().Margin(1, 0, 2, 4)
+	paginationStyle = list.DefaultStyles().PaginationStyle.PaddingLeft(4)
+	helpStyle       = list.DefaultStyles().HelpStyle.PaddingLeft(4).PaddingBottom(1)
 )
 
 func openURL(url string) error {
@@ -53,9 +48,11 @@ func (s *Result) Title() string {
 	case Album:
 		return fmt.Sprintf("%s - %s", s.BandName, s.Name)
 	case Band:
-		return fmt.Sprintf("%s", s.BandName)
+		return s.BandName
+	case All:
+		return fmt.Sprintf("%s - %s (%s)", s.BandName, s.Name, s.AlbumName)
 	default:
-		return fmt.Sprintf("%s", s.Name)
+		return s.Name
 	}
 }
 
@@ -402,18 +399,14 @@ func (m Model) View() string {
 	sections := []string{}
 
 	help_ := m.helpView()
-	availHeight := m.height
-	availHeight -= lipgloss.Height(help_)
 	sections = append(sections, help_)
 
 	if m.showSearch {
 		view_ := m.SearchInput.View()
 		sections = append(sections, view_)
-		availHeight -= lipgloss.Height(view_)
 	}
 
 	list_ := docStyle.Render(m.l.View())
-	availHeight -= lipgloss.Height(list_)
 
 	sections = append(sections, list_)
 

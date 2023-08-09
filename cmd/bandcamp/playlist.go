@@ -57,7 +57,7 @@ func (p *PlaylistSection) Render() (string, error) {
 	return out.String(), nil
 }
 
-func generatePlaylists(jsonData []byte) ([]string, error) {
+func GeneratePlaylists(jsonData []byte) ([]string, error) {
 	var playlists []PlaylistSection
 	err := json.Unmarshal(jsonData, &playlists)
 	if err != nil {
