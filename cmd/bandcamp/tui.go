@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -78,6 +79,7 @@ type KeyMap struct {
 	ShowFullHelp  key.Binding
 	CloseFullHelp key.Binding
 
+	ForceQuit key.Binding
 	Quit      key.Binding
 	OpenEntry key.Binding
 	Search    key.Binding
@@ -93,8 +95,12 @@ func DefaultKeyMap() KeyMap {
 			key.WithKeys("down", "j"),
 			key.WithHelp("↓/j", "Move cursor down"),
 		),
+		ForceQuit: key.NewBinding(
+			key.WithKeys("ctrl+c"),
+			key.WithHelp("ctrl+c", "Force quit"),
+		),
 		Quit: key.NewBinding(
-			key.WithKeys("q", "esc", "ctrl+c"),
+			key.WithKeys("q", "esc"),
 			key.WithHelp("q/esc/ctrl+c", "Quit"),
 		),
 		OpenEntry: key.NewBinding(
@@ -117,14 +123,14 @@ func DefaultKeyMap() KeyMap {
 			key.WithKeys("end", "G"),
 			key.WithHelp("G/end", "go to end"),
 		),
-		// Filtering.
+		// Searching
 		CancelWhileSearching: key.NewBinding(
 			key.WithKeys("esc"),
 			key.WithHelp("esc", "cancel"),
 		),
 		AcceptWhileSearching: key.NewBinding(
 			key.WithKeys("enter", "tab", "shift+tab", "ctrl+k", "up", "ctrl+j", "down"),
-			key.WithHelp("enter", "apply filter"),
+			key.WithHelp("enter", "run search"),
 		),
 		Search: key.NewBinding(
 			key.WithKeys("/"),
@@ -145,7 +151,10 @@ func DefaultKeyMap() KeyMap {
 
 type Model struct {
 	results []*Result
-	l       list.Model
+
+	client *Client
+
+	l list.Model
 	// TODO(manuel, 2023-08-09) We can actually use the help widget from the list by passing our own keys using AdditionalShortHelpKeys and such
 	// however, not sure if this allows us to override the whole filtering stuff
 	Help        help.Model
@@ -153,9 +162,13 @@ type Model struct {
 	height      int
 	width       int
 	KeyMap
+
+	// TODO(manuel, 2023-08-09) Add a spinner
+
+	showSearch bool
 }
 
-func NewModel(results []*Result) Model {
+func NewModel(client *Client, results []*Result) Model {
 	items := make([]list.Item, len(results))
 
 	for i, result := range results {
@@ -181,6 +194,7 @@ func NewModel(results []*Result) Model {
 	l.Styles.HelpStyle = helpStyle
 
 	return Model{
+		client:      client,
 		results:     results,
 		l:           l,
 		Help:        h,
@@ -199,20 +213,102 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch {
+		case key.Matches(msg, m.ForceQuit):
+			return m, tea.Quit
+		}
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.Help.Width = msg.Width
+		m.SearchInput.Width = msg.Width
+		m.height = msg.Height
+		availHeight := m.height
+		availHeight -= lipgloss.Height(m.Help.View(m))
+		if m.showSearch {
+			availHeight -= lipgloss.Height(m.SearchInput.View())
+		}
+		_, v := docStyle.GetFrameSize()
+		availHeight -= v
+		m.l.SetSize(msg.Width, availHeight)
+	}
+
+	if m.showSearch {
+		cmds_ := m.updateSearch(msg)
+		cmds = append(cmds, cmds_)
+	} else {
+		cmds_ := m.updateList(msg)
+		cmds = append(cmds, cmds_)
+	}
+
+	return m, tea.Batch(cmds...)
+}
+
+func (m *Model) updateSearch(msg tea.Msg) tea.Cmd {
+	var cmds []tea.Cmd
+
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch {
+		case key.Matches(msg, m.KeyMap.CancelWhileSearching):
+			m.showSearch = false
+			m.updateKeyBindings()
+
+		case key.Matches(msg, m.KeyMap.AcceptWhileSearching):
+			searchTerm := m.SearchInput.Value()
+			resp, err := m.client.Search(context.Background(), searchTerm, Track)
+			if err != nil {
+				return tea.Quit
+			}
+			items := make([]list.Item, len(resp.Auto.Results))
+
+			for i, result := range resp.Auto.Results {
+				items[i] = result
+			}
+
+			m.l.SetItems(items)
+
+			m.showSearch = false
+			m.updateKeyBindings()
+		}
+
+		newSearchInputModel, inputCmd := m.SearchInput.Update(msg)
+		searchChanged := newSearchInputModel.Value() != m.SearchInput.Value()
+		m.SearchInput = newSearchInputModel
+
+		if searchChanged {
+			m.KeyMap.AcceptWhileSearching.SetEnabled(m.SearchInput.Value() != "")
+		}
+		cmds = append(cmds, inputCmd)
+	}
+
+	return tea.Batch(cmds...)
+}
+
+func (m *Model) updateList(msg tea.Msg) tea.Cmd {
+	var cmds []tea.Cmd
+
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch {
 		case key.Matches(msg, m.KeyMap.Quit):
 			// finish
-			return m, tea.Quit
+			return tea.Quit
 		case key.Matches(msg, m.KeyMap.OpenEntry):
 			// open the selected item by using the os open for s.ItemURLPath
-			url := m.results[m.l.Cursor()].ItemURLPath
+			url := m.results[m.l.Index()].ItemURLPath
 			if err := openURL(url); err != nil {
-				return m, tea.Quit
+				return tea.Quit
 			}
 
 		case key.Matches(msg, m.KeyMap.ShowFullHelp):
 			fallthrough
 		case key.Matches(msg, m.KeyMap.CloseFullHelp):
 			m.Help.ShowAll = !m.Help.ShowAll
+
+		case key.Matches(msg, m.KeyMap.Search):
+			m.showSearch = true
+			m.SearchInput.CursorEnd()
+			m.SearchInput.Focus()
+			m.updateKeyBindings()
 
 			// forward to list
 		case key.Matches(msg, m.KeyMap.CursorUp):
@@ -230,20 +326,45 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.l = listModel
 			cmds = append(cmds, cmd)
 		}
-	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.Help.Width = msg.Width
-		m.SearchInput.Width = msg.Width
-		m.height = msg.Height
-		availHeight := m.height
-		availHeight -= lipgloss.Height(m.Help.View(m))
-		availHeight -= lipgloss.Height(m.SearchInput.View())
-		_, v := docStyle.GetFrameSize()
-		availHeight -= v
-		m.l.SetSize(msg.Width, availHeight)
 	}
 
-	return m, tea.Batch(cmds...)
+	return tea.Batch(cmds...)
+}
+
+func (m *Model) updateKeyBindings() {
+	if m.showSearch {
+		m.KeyMap.CursorUp.SetEnabled(false)
+		m.KeyMap.CursorDown.SetEnabled(false)
+		m.KeyMap.NextPage.SetEnabled(false)
+		m.KeyMap.PrevPage.SetEnabled(false)
+		m.KeyMap.GoToStart.SetEnabled(false)
+		m.KeyMap.GoToEnd.SetEnabled(false)
+		m.KeyMap.Search.SetEnabled(false)
+		m.KeyMap.CancelWhileSearching.SetEnabled(true)
+		m.KeyMap.AcceptWhileSearching.SetEnabled(m.SearchInput.Value() != "")
+		m.KeyMap.Quit.SetEnabled(false)
+		m.KeyMap.ShowFullHelp.SetEnabled(false)
+		m.KeyMap.CloseFullHelp.SetEnabled(false)
+	} else {
+		hasItems := len(m.results) != 0
+		m.KeyMap.CursorUp.SetEnabled(hasItems)
+		m.KeyMap.CursorDown.SetEnabled(hasItems)
+
+		hasPages := m.l.Paginator.TotalPages > 1
+		m.KeyMap.NextPage.SetEnabled(hasPages)
+		m.KeyMap.PrevPage.SetEnabled(hasPages)
+
+		m.KeyMap.GoToStart.SetEnabled(hasItems)
+		m.KeyMap.GoToEnd.SetEnabled(hasItems)
+
+		m.KeyMap.Search.SetEnabled(true)
+		m.KeyMap.CancelWhileSearching.SetEnabled(false)
+		m.KeyMap.AcceptWhileSearching.SetEnabled(false)
+		m.KeyMap.Quit.SetEnabled(true)
+
+		m.KeyMap.ShowFullHelp.SetEnabled(true)
+		m.KeyMap.CloseFullHelp.SetEnabled(true)
+	}
 }
 
 func (m Model) ShortHelp() []key.Binding {
@@ -285,9 +406,11 @@ func (m Model) View() string {
 	availHeight -= lipgloss.Height(help_)
 	sections = append(sections, help_)
 
-	view_ := m.SearchInput.View()
-	sections = append(sections, view_)
-	availHeight -= lipgloss.Height(view_)
+	if m.showSearch {
+		view_ := m.SearchInput.View()
+		sections = append(sections, view_)
+		availHeight -= lipgloss.Height(view_)
+	}
 
 	list_ := docStyle.Render(m.l.View())
 	availHeight -= lipgloss.Height(list_)

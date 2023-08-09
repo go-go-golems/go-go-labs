@@ -30,7 +30,7 @@ func main() {
 			}
 
 			results := searchResp.Auto.Results
-			p := tea.NewProgram(NewModel(results), tea.WithAltScreen())
+			p := tea.NewProgram(NewModel(client, results), tea.WithAltScreen())
 			if _, err := p.Run(); err != nil {
 				fmt.Printf("Alas, there's been an error: %v", err)
 				os.Exit(1)
