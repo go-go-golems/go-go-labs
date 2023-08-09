@@ -65,9 +65,22 @@ func (s *Result) Description() string {
 type KeyMap struct {
 	CursorUp   key.Binding
 	CursorDown key.Binding
-	Quit       key.Binding
-	Open       key.Binding
-	Search     key.Binding
+	NextPage   key.Binding
+	PrevPage   key.Binding
+	GoToStart  key.Binding
+	GoToEnd    key.Binding
+
+	// Keybindings used when setting a filter.
+	CancelWhileSearching key.Binding
+	AcceptWhileSearching key.Binding
+
+	// Help toggle keybindings.
+	ShowFullHelp  key.Binding
+	CloseFullHelp key.Binding
+
+	Quit      key.Binding
+	OpenEntry key.Binding
+	Search    key.Binding
 }
 
 func DefaultKeyMap() KeyMap {
@@ -84,24 +97,61 @@ func DefaultKeyMap() KeyMap {
 			key.WithKeys("q", "esc", "ctrl+c"),
 			key.WithHelp("q/esc/ctrl+c", "Quit"),
 		),
-		Open: key.NewBinding(
+		OpenEntry: key.NewBinding(
 			key.WithKeys("o"),
-			key.WithHelp("o", "Open"),
+			key.WithHelp("o", "OpenEntry"),
+		),
+		PrevPage: key.NewBinding(
+			key.WithKeys("left", "h", "pgup", "b", "u"),
+			key.WithHelp("←/h/pgup", "prev page"),
+		),
+		NextPage: key.NewBinding(
+			key.WithKeys("right", "l", "pgdown", "f", "d"),
+			key.WithHelp("→/l/pgdn", "next page"),
+		),
+		GoToStart: key.NewBinding(
+			key.WithKeys("home", "g"),
+			key.WithHelp("g/home", "go to start"),
+		),
+		GoToEnd: key.NewBinding(
+			key.WithKeys("end", "G"),
+			key.WithHelp("G/end", "go to end"),
+		),
+		// Filtering.
+		CancelWhileSearching: key.NewBinding(
+			key.WithKeys("esc"),
+			key.WithHelp("esc", "cancel"),
+		),
+		AcceptWhileSearching: key.NewBinding(
+			key.WithKeys("enter", "tab", "shift+tab", "ctrl+k", "up", "ctrl+j", "down"),
+			key.WithHelp("enter", "apply filter"),
 		),
 		Search: key.NewBinding(
 			key.WithKeys("/"),
 			key.WithHelp("/", "Search"),
+		),
+		// Toggle help.
+		ShowFullHelp: key.NewBinding(
+			key.WithKeys("?"),
+			key.WithHelp("?", "more"),
+		),
+		CloseFullHelp: key.NewBinding(
+			key.WithKeys("?"),
+			key.WithHelp("?", "close help"),
 		),
 	}
 
 }
 
 type Model struct {
-	results     []*Result
-	cursor      int
-	l           list.Model
+	results []*Result
+	l       list.Model
+	// TODO(manuel, 2023-08-09) We can actually use the help widget from the list by passing our own keys using AdditionalShortHelpKeys and such
+	// however, not sure if this allows us to override the whole filtering stuff
 	Help        help.Model
 	SearchInput textinput.Model
+	height      int
+	width       int
 	KeyMap
 }
 
@@ -144,50 +194,63 @@ func (m Model) Init() tea.Cmd {
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
+	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "enter":
+		switch {
+		case key.Matches(msg, m.KeyMap.Quit):
 			// finish
 			return m, tea.Quit
-		case "up":
-			m.cursor--
-			if m.cursor < 0 {
-				m.cursor = len(m.results) - 1
-			}
-			cmd = nil
-		case "down":
-			m.cursor++
-			if m.cursor >= len(m.results) {
-				m.cursor = 0
-			}
-			cmd = nil
-		case "o":
+		case key.Matches(msg, m.KeyMap.OpenEntry):
 			// open the selected item by using the os open for s.ItemURLPath
-			cmd = nil
-			url := m.results[m.cursor].ItemURLPath
+			url := m.results[m.l.Cursor()].ItemURLPath
 			if err := openURL(url); err != nil {
 				return m, tea.Quit
 			}
 
+		case key.Matches(msg, m.KeyMap.ShowFullHelp):
+			fallthrough
+		case key.Matches(msg, m.KeyMap.CloseFullHelp):
+			m.Help.ShowAll = !m.Help.ShowAll
+
+			// forward to list
+		case key.Matches(msg, m.KeyMap.CursorUp):
+			fallthrough
+		case key.Matches(msg, m.KeyMap.CursorDown):
+			fallthrough
+		case key.Matches(msg, m.KeyMap.NextPage):
+			fallthrough
+		case key.Matches(msg, m.KeyMap.PrevPage):
+			fallthrough
+		case key.Matches(msg, m.KeyMap.GoToStart):
+			fallthrough
+		case key.Matches(msg, m.KeyMap.GoToEnd):
+			listModel, cmd := m.l.Update(msg)
+			m.l = listModel
+			cmds = append(cmds, cmd)
 		}
 	case tea.WindowSizeMsg:
-		h, v := docStyle.GetFrameSize()
-		m.l.SetSize(msg.Width-h, msg.Height-v)
+		m.width = msg.Width
+		m.Help.Width = msg.Width
+		m.SearchInput.Width = msg.Width
+		m.height = msg.Height
+		availHeight := m.height
+		availHeight -= lipgloss.Height(m.Help.View(m))
+		availHeight -= lipgloss.Height(m.SearchInput.View())
+		_, v := docStyle.GetFrameSize()
+		availHeight -= v
+		m.l.SetSize(msg.Width, availHeight)
 	}
 
-	// Use the list's built in update method to handle list events
-	m.l, cmd = m.l.Update(msg)
-
-	return m, cmd
+	return m, tea.Batch(cmds...)
 }
+
 func (m Model) ShortHelp() []key.Binding {
 	return []key.Binding{
 		m.CursorUp,
 		m.CursorDown,
-		m.Open,
+		m.OpenEntry,
 		m.Quit,
 	}
 }
@@ -197,7 +260,14 @@ func (m Model) FullHelp() [][]key.Binding {
 		{
 			m.CursorUp,
 			m.CursorDown,
-			m.Open,
+			m.NextPage,
+			m.PrevPage,
+			m.GoToStart,
+			m.GoToEnd,
+			m.Search,
+			m.ShowFullHelp,
+
+			m.OpenEntry,
 			m.Quit,
 		},
 	}
@@ -208,7 +278,21 @@ func (m Model) helpView() string {
 }
 
 func (m Model) View() string {
-	//availHeight := m.height
-	//help
-	return docStyle.Render(m.l.View())
+	sections := []string{}
+
+	help_ := m.helpView()
+	availHeight := m.height
+	availHeight -= lipgloss.Height(help_)
+	sections = append(sections, help_)
+
+	view_ := m.SearchInput.View()
+	sections = append(sections, view_)
+	availHeight -= lipgloss.Height(view_)
+
+	list_ := docStyle.Render(m.l.View())
+	availHeight -= lipgloss.Height(list_)
+
+	sections = append(sections, list_)
+
+	return lipgloss.JoinVertical(lipgloss.Left, sections...)
 }
