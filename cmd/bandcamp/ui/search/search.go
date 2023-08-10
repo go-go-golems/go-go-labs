@@ -1,7 +1,6 @@
-package main
+package search
 
 import (
-	"context"
 	"fmt"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -9,6 +8,8 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/go-go-golems/go-go-labs/cmd/bandcamp/pkg"
+	"github.com/go-go-golems/go-go-labs/cmd/bandcamp/ui"
 	"os/exec"
 	"runtime"
 )
@@ -37,19 +38,21 @@ func openURL(url string) error {
 	return cmd.Start()
 }
 
+type Result pkg.Result
+
 func (s *Result) FilterValue() string {
 	return fmt.Sprintf("%d", s.ID)
 }
 
 func (s *Result) Title() string {
-	switch SearchType(s.Type) {
-	case Track:
+	switch pkg.SearchType(s.Type) {
+	case pkg.Track:
 		return fmt.Sprintf("%s - %s (%s)", s.BandName, s.Name, s.AlbumName)
-	case Album:
+	case pkg.Album:
 		return fmt.Sprintf("%s - %s", s.BandName, s.Name)
-	case Band:
+	case pkg.Band:
 		return s.BandName
-	case All:
+	case pkg.All:
 		return fmt.Sprintf("%s - %s (%s)", s.BandName, s.Name, s.AlbumName)
 	default:
 		return s.Name
@@ -78,8 +81,10 @@ type KeyMap struct {
 
 	ForceQuit key.Binding
 	Quit      key.Binding
-	OpenEntry key.Binding
-	Search    key.Binding
+
+	OpenEntry   key.Binding
+	SelectEntry key.Binding
+	Search      key.Binding
 }
 
 func DefaultKeyMap() KeyMap {
@@ -133,6 +138,10 @@ func DefaultKeyMap() KeyMap {
 			key.WithKeys("/"),
 			key.WithHelp("/", "Search"),
 		),
+		SelectEntry: key.NewBinding(
+			key.WithKeys("enter"),
+			key.WithHelp("enter", "Select track"),
+		),
 		// Toggle help.
 		ShowFullHelp: key.NewBinding(
 			key.WithKeys("?"),
@@ -149,27 +158,51 @@ func DefaultKeyMap() KeyMap {
 type Model struct {
 	results []*Result
 
-	client *Client
+	client *pkg.Client
 
 	l list.Model
 	// TODO(manuel, 2023-08-09) We can actually use the help widget from the list by passing our own keys using AdditionalShortHelpKeys and such
 	// however, not sure if this allows us to override the whole filtering stuff
-	Help        help.Model
-	SearchInput textinput.Model
-	height      int
-	width       int
+	Help             help.Model
+	SearchInput      textinput.Model
+	OnSearchCmd      func(string) tea.Cmd
+	OnSelectEntryCmd func(*pkg.Result) tea.Cmd
+
+	height int
+	width  int
 	KeyMap
 
 	// TODO(manuel, 2023-08-09) Add a spinner
 
-	showSearch bool
+	ShowSearch bool
 }
 
-func NewModel(client *Client, results []*Result) Model {
+func (m Model) GetResults() []*pkg.Result {
+	ret := make([]*pkg.Result, len(m.results))
+	for i, r := range m.results {
+		ret[i] = (*pkg.Result)(r)
+	}
+
+	return ret
+}
+
+func (m Model) GetSelectedResult() *pkg.Result {
+	idx := m.l.Index()
+	if idx < 0 || idx >= len(m.results) {
+		return nil
+	}
+
+	return (*pkg.Result)(m.results[idx])
+}
+
+func NewModel(client *pkg.Client, results []*pkg.Result) Model {
 	items := make([]list.Item, len(results))
+	results_ := make([]*Result, len(results))
 
 	for i, result := range results {
-		items[i] = result
+		r := Result(*result)
+		items[i] = &r
+		results_[i] = &r
 	}
 
 	h := help.New()
@@ -192,12 +225,16 @@ func NewModel(client *Client, results []*Result) Model {
 
 	return Model{
 		client:      client,
-		results:     results,
+		results:     results_,
 		l:           l,
 		Help:        h,
 		SearchInput: searchInput,
 		KeyMap:      DefaultKeyMap(),
 	}
+}
+
+func (m Model) GetSearchTerm() string {
+	return m.SearchInput.Value()
 }
 
 func (m Model) Init() tea.Cmd {
@@ -220,15 +257,27 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		availHeight := m.height
 		availHeight -= lipgloss.Height(m.Help.View(m))
-		if m.showSearch {
+		if m.ShowSearch {
 			availHeight -= lipgloss.Height(m.SearchInput.View())
 		}
 		_, v := docStyle.GetFrameSize()
 		availHeight -= v
 		m.l.SetSize(msg.Width, availHeight)
+
+	case ui.UpdateSearchResultsMsg:
+		items := make([]list.Item, len(msg.Results))
+		results := make([]*Result, len(msg.Results))
+
+		for i, result := range msg.Results {
+			items[i] = (*Result)(result)
+			results[i] = (*Result)(result)
+		}
+
+		m.results = results
+		cmds = append(cmds, m.l.SetItems(items))
 	}
 
-	if m.showSearch {
+	if m.ShowSearch {
 		cmds_ := m.updateSearch(msg)
 		cmds = append(cmds, cmds_)
 	} else {
@@ -243,28 +292,37 @@ func (m *Model) updateSearch(msg tea.Msg) tea.Cmd {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
+	case ui.UpdateSearchResultsMsg:
+		items := make([]list.Item, len(msg.Results))
+		for i, result := range msg.Results {
+			items[i] = (*Result)(result)
+		}
+		m.l.SetItems(items)
+
+		m.ShowSearch = false
+		m.updateKeyBindings()
+
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, m.KeyMap.CancelWhileSearching):
-			m.showSearch = false
+			m.ShowSearch = false
+			m.SearchInput.Blur()
 			m.updateKeyBindings()
+
+			return nil
 
 		case key.Matches(msg, m.KeyMap.AcceptWhileSearching):
 			searchTerm := m.SearchInput.Value()
-			resp, err := m.client.Search(context.Background(), searchTerm, Track)
-			if err != nil {
-				return tea.Quit
-			}
-			items := make([]list.Item, len(resp.Auto.Results))
 
-			for i, result := range resp.Auto.Results {
-				items[i] = result
-			}
-
-			m.l.SetItems(items)
-
-			m.showSearch = false
+			m.SearchInput.Blur()
+			m.ShowSearch = false
 			m.updateKeyBindings()
+
+			if m.OnSearchCmd != nil {
+				return m.OnSearchCmd(searchTerm)
+			}
+
+			return nil
 		}
 
 		newSearchInputModel, inputCmd := m.SearchInput.Update(msg)
@@ -289,11 +347,17 @@ func (m *Model) updateList(msg tea.Msg) tea.Cmd {
 		case key.Matches(msg, m.KeyMap.Quit):
 			// finish
 			return tea.Quit
+
 		case key.Matches(msg, m.KeyMap.OpenEntry):
 			// open the selected item by using the os open for s.ItemURLPath
 			url := m.results[m.l.Index()].ItemURLPath
 			if err := openURL(url); err != nil {
 				return tea.Quit
+			}
+
+		case key.Matches(msg, m.SelectEntry):
+			if m.OnSelectEntryCmd != nil {
+				return m.OnSelectEntryCmd((*pkg.Result)(m.results[m.l.Index()]))
 			}
 
 		case key.Matches(msg, m.KeyMap.ShowFullHelp):
@@ -302,9 +366,10 @@ func (m *Model) updateList(msg tea.Msg) tea.Cmd {
 			m.Help.ShowAll = !m.Help.ShowAll
 
 		case key.Matches(msg, m.KeyMap.Search):
-			m.showSearch = true
+			m.ShowSearch = true
 			m.SearchInput.CursorEnd()
 			m.SearchInput.Focus()
+			m.SearchInput.SetValue("")
 			m.updateKeyBindings()
 
 			// forward to list
@@ -329,7 +394,7 @@ func (m *Model) updateList(msg tea.Msg) tea.Cmd {
 }
 
 func (m *Model) updateKeyBindings() {
-	if m.showSearch {
+	if m.ShowSearch {
 		m.KeyMap.CursorUp.SetEnabled(false)
 		m.KeyMap.CursorDown.SetEnabled(false)
 		m.KeyMap.NextPage.SetEnabled(false)
@@ -391,7 +456,7 @@ func (m Model) FullHelp() [][]key.Binding {
 	}
 }
 
-func (m Model) helpView() string {
+func (m *Model) helpView() string {
 	return helpStyle.Render(m.Help.View(m))
 }
 
@@ -401,7 +466,7 @@ func (m Model) View() string {
 	help_ := m.helpView()
 	sections = append(sections, help_)
 
-	if m.showSearch {
+	if m.ShowSearch {
 		view_ := m.SearchInput.View()
 		sections = append(sections, view_)
 	}

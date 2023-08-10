@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/go-go-golems/go-go-labs/cmd/bandcamp/pkg"
+	main_ui "github.com/go-go-golems/go-go-labs/cmd/bandcamp/ui/main"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"os"
@@ -16,7 +18,7 @@ func main() {
 		Long:  `Search for music on bandcamp`,
 		Run: func(cmd *cobra.Command, args []string) {
 
-			client := NewClient()
+			client := pkg.NewClient()
 
 			filter, _ := cmd.Flags().GetString("filter")
 
@@ -24,13 +26,13 @@ func main() {
 				log.Fatal().Msg("please provide a search keyword")
 			}
 
-			searchResp, err := client.Search(context.Background(), args[0], SearchType(filter))
+			searchResp, err := client.Search(context.Background(), args[0], pkg.SearchType(filter))
 			if err != nil {
 				log.Fatal().Err(err).Msg("failed to search")
 			}
 
 			results := searchResp.Auto.Results
-			p := tea.NewProgram(NewModel(client, results), tea.WithAltScreen())
+			p := tea.NewProgram(main_ui.NewModel(client), tea.WithAltScreen())
 			if _, err := p.Run(); err != nil {
 				fmt.Printf("Alas, there's been an error: %v", err)
 				os.Exit(1)
@@ -38,8 +40,8 @@ func main() {
 
 			selectedResult := results[0]
 
-			playlist := &PlaylistSection{
-				Tracks: []*Result{
+			playlist := &pkg.PlaylistSection{
+				Tracks: []*pkg.Result{
 					selectedResult,
 				},
 				LinkColor:       "white",
@@ -51,23 +53,6 @@ func main() {
 				log.Fatal().Err(err).Msg("failed to render playlist")
 			}
 			fmt.Println(s)
-
-			//for _, result := range searchResp.Auto.Results {
-			//	switch result.Type {
-			//	case "a":
-			//		fmt.Printf("Type: Album\n")
-			//	case "t":
-			//		fmt.Printf("Type: Track\n")
-			//	case "b":
-			//		fmt.Printf("Type: Band\n")
-			//	default:
-			//		fmt.Printf("Type: %s\n", result.Type)
-			//	}
-			//	fmt.Printf("Album Name: %s\n", result.AlbumName)
-			//	fmt.Printf("Band Name: %s\n", result.BandName)
-			//	fmt.Printf("Name: %s\n", result.Name)
-			//	fmt.Printf("URL: %s%s\n\n", result.ItemURLRoot, result.ItemURLPath)
-			//}
 		},
 	}
 
