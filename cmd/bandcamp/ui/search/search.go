@@ -1,6 +1,7 @@
 package search
 
 import (
+	"context"
 	"fmt"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -256,14 +257,14 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case ui.UpdateSearchResultsMsg:
 		items := make([]list.Item, len(msg.Results))
 		results := make([]*Result, len(msg.Results))
-
 		for i, result := range msg.Results {
 			items[i] = (*Result)(result)
 			results[i] = (*Result)(result)
 		}
-
+		cmd := m.l.SetItems(items)
 		m.results = results
-		cmds = append(cmds, m.l.SetItems(items))
+		cmds = append(cmds, cmd)
+		m.updateKeyBindings()
 	}
 
 	if m.ShowSearch {
@@ -281,15 +282,6 @@ func (m *Model) updateSearch(msg tea.Msg) tea.Cmd {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
-	case ui.UpdateSearchResultsMsg:
-		items := make([]list.Item, len(msg.Results))
-		for i, result := range msg.Results {
-			items[i] = (*Result)(result)
-		}
-		m.l.SetItems(items)
-
-		m.ShowSearch = false
-		m.updateKeyBindings()
 
 	case tea.KeyMsg:
 		switch {
@@ -311,7 +303,9 @@ func (m *Model) updateSearch(msg tea.Msg) tea.Cmd {
 				return m.OnSearchCmd(searchTerm)
 			}
 
-			return nil
+			return func() tea.Msg {
+				return m.SearchBandcamp(searchTerm)
+			}
 		}
 
 		newSearchInputModel, inputCmd := m.SearchInput.Update(msg)
@@ -325,6 +319,15 @@ func (m *Model) updateSearch(msg tea.Msg) tea.Cmd {
 	}
 
 	return tea.Batch(cmds...)
+}
+
+func (m Model) SearchBandcamp(searchTerm string) tea.Msg {
+	resp, err := m.client.Search(context.Background(), searchTerm, pkg.FilterTrack)
+	if err != nil {
+		return ui.ErrMsg{Err: err}
+	}
+
+	return ui.UpdateSearchResultsMsg{Results: resp.Auto.Results}
 }
 
 func (m *Model) updateList(msg tea.Msg) tea.Cmd {

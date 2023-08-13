@@ -182,7 +182,7 @@ type Model struct {
 	err error
 }
 
-func (m *Model) updateListItems() {
+func (m *Model) updateListItems() tea.Cmd {
 	items := make([]list.Item, len(m.Playlist.Tracks))
 	tracks_ := make([]*Track, len(m.Playlist.Tracks))
 
@@ -192,7 +192,7 @@ func (m *Model) updateListItems() {
 		items[i] = &t
 	}
 
-	m.l.SetItems(items)
+	return m.l.SetItems(items)
 }
 
 func NewModel(playlist *pkg.Playlist) Model {
@@ -227,6 +227,19 @@ func NewModel(playlist *pkg.Playlist) Model {
 
 	client := pkg.NewClient()
 	s := search.NewModel(client, []*pkg.Result{})
+	s.OnSelectEntryCmd = func(result *pkg.Result) tea.Cmd {
+		track := &pkg.Track{
+			BackgroundColor: "black",
+			LinkColor:       "white",
+			AlbumID:         result.AlbumID,
+			Name:            result.Name,
+			BandName:        result.BandName,
+			ItemURLPath:     result.ItemURLPath,
+		}
+		return func() tea.Msg {
+			return ui.InsertPlaylistEntryMsg{Track: track}
+		}
+	}
 
 	m := Model{
 		Playlist: playlist,
@@ -260,6 +273,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.l.SetSize(msg.Width, msg.Height)
 		m.search.SetSize(msg.Width, msg.Height)
 		m.filepicker.Height = msg.Height
+
+	case ui.InsertPlaylistEntryMsg:
+		m.Playlist.InsertTrack(msg.Track, m.l.Index())
+		m.state = stateList
+		cmd := m.updateListItems()
+		return m, cmd
 	}
 
 	switch m.state {
@@ -295,15 +314,19 @@ func (m *Model) updateList(msg tea.Msg) []tea.Cmd {
 		case key.Matches(msg, m.KeyMap.MoveEntryUp):
 			newIndex := m.Playlist.MoveEntryUp(m.l.Index())
 			// updateIndex
-			m.updateListItems()
+			cmd := m.updateListItems()
+			cmds = append(cmds, cmd)
 			m.l.Select(newIndex)
 		case key.Matches(msg, m.KeyMap.MoveEntryDown):
 			newIndex := m.Playlist.MoveEntryDown(m.l.Index())
-			m.updateListItems()
+			cmd := m.updateListItems()
+			cmds = append(cmds, cmd)
 			m.l.Select(newIndex)
+
 		case key.Matches(msg, m.KeyMap.DeleteEntry):
 			m.Playlist.DeleteEntry(m.l.Index())
-			m.updateListItems()
+			cmd := m.updateListItems()
+			cmds = append(cmds, cmd)
 
 		case key.Matches(msg, m.KeyMap.OpenSearch):
 			m.state = stateSearch

@@ -101,6 +101,11 @@ func (p *Playlist) DeleteEntry(index int) {
 	p.Tracks = append(p.Tracks[:index], p.Tracks[index+1:]...)
 }
 
+func (p *Playlist) InsertTrack(track *Track, index int) {
+	p.Tracks = append(p.Tracks[:index], append([]*Track{track}, p.Tracks[index:]...)...)
+
+}
+
 func OpenURL(url string) error {
 	var cmd *exec.Cmd
 

@@ -30,7 +30,7 @@ func main() {
 				log.Fatal().Err(err).Msg("failed to search")
 			}
 
-			results := searchResp.Auto.Results
+			results := searchResp.Auto.Results[:3]
 			tracks_ := make([]*pkg.Track, len(results))
 
 			for i, result := range results {

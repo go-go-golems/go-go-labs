@@ -15,3 +15,7 @@ type ErrMsg struct {
 }
 
 type ClearErrorMsg struct{}
+
+type InsertPlaylistEntryMsg struct {
+	Track *pkg.Track
+}
