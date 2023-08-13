@@ -3,27 +3,34 @@ package pkg
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
+	"os"
+	"os/exec"
+	"runtime"
 	"text/template"
 )
 
-type PlaylistSection struct {
-	LinkColor       string    `json:"linkColor"`
-	BackgroundColor string    `json:"backgroundColor"`
-	Tracks          []*Result `json:"tracks"`
+type Track struct {
+	BackgroundColor string `json:"background_color"`
+	LinkColor       string `json:"link_color"`
+	AlbumID         int64  `json:"album_id"`
+	Name            string `json:"name"`
+	BandName        string `json:"band_name"`
+	ItemURLPath     string `json:"item_url_path"`
 }
 
 type Playlist struct {
-	Sections []*PlaylistSection `json:"sections"`
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Tracks      []*Track `json:"tracks"`
 }
 
 const iframeTmpl = `<iframe
    style="border: 0; width: 100%%; height: 42px; background-color: {{.BackgroundColor}};" 
-   src="https://bandcamp.com/EmbeddedPlayer/album={{.Track.AlbumID}}/size=small/bgcol={{.BackgroundColor}}/linkcol={{.LinkColor}}/transparent=true/" seamless>
-     <a href="https://bandcamp.com/{{.Track.ItemURLPath}}">{{.Track.Name}} by {{.Track.BandName}}</a>
+   src="https://bandcamp.com/EmbeddedPlayer/album={{.AlbumID}}/size=small/bgcol={{.BackgroundColor}}/linkcol={{.LinkColor}}/transparent=true/" seamless>
+     <a href="https://bandcamp.com/{{.ItemURLPath}}">{{.Name}} by {{.BandName}}</a>
 </iframe>`
 
-func (p *PlaylistSection) Render() (string, error) {
+func (p *Playlist) Render() (string, error) {
 	var out bytes.Buffer
 
 	tmpl, err := template.New("playlist").Parse(iframeTmpl)
@@ -34,18 +41,8 @@ func (p *PlaylistSection) Render() (string, error) {
 	for _, track := range p.Tracks {
 
 		// A struct that fulfills the template
-		data := struct {
-			BackgroundColor string
-			LinkColor       string
-			Track           *Result
-		}{
-			BackgroundColor: p.BackgroundColor,
-			LinkColor:       p.LinkColor,
-			Track:           track,
-		}
-
 		// Apply the data to the template
-		if err := tmpl.Execute(&out, data); err != nil {
+		if err := tmpl.Execute(&out, track); err != nil {
 			return "", err
 		}
 
@@ -57,25 +54,64 @@ func (p *PlaylistSection) Render() (string, error) {
 	return out.String(), nil
 }
 
-func GeneratePlaylists(jsonData []byte) ([]string, error) {
-	var playlists []PlaylistSection
-	err := json.Unmarshal(jsonData, &playlists)
+func LoadFromFile(filename string) (*Playlist, error) {
+	b, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
+
 	}
-	var result []string
-	for _, playlist := range playlists {
-		for _, track := range playlist.Tracks {
-			iframe := fmt.Sprintf(`<iframe style="border: 0; width: 100%%; height: 42px; background-color: %s;" src="https://bandcamp.com/EmbeddedPlayer/album=%d/size=small/bgcol=%s/linkcol=%s/transparent=true/" seamless><a href="https://bandcamp.com/%s">%s by %s</a></iframe>`,
-				playlist.BackgroundColor,
-				track.AlbumID,
-				playlist.BackgroundColor,
-				playlist.LinkColor,
-				track.ItemURLPath,
-				track.AlbumName,
-				track.BandName)
-			result = append(result, iframe)
-		}
+
+	p := &Playlist{}
+	if err := json.Unmarshal(b, &p); err != nil {
+		return nil, err
 	}
-	return result, nil
+
+	return p, nil
+}
+
+func (p *Playlist) SaveToFile(filename string) error {
+	b, err := json.Marshal(p)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(filename, b, 0644)
+}
+
+// MoveEntryUp moves an entry up in the playlist and returns the new index
+func (p *Playlist) MoveEntryUp(index int) int {
+	if index == 0 {
+		return 0
+	}
+
+	p.Tracks[index], p.Tracks[index-1] = p.Tracks[index-1], p.Tracks[index]
+	return index - 1
+}
+
+func (p *Playlist) MoveEntryDown(index int) int {
+	if index == len(p.Tracks)-1 {
+		return index
+	}
+
+	p.Tracks[index], p.Tracks[index+1] = p.Tracks[index+1], p.Tracks[index]
+	return index + 1
+}
+
+func (p *Playlist) DeleteEntry(index int) {
+	p.Tracks = append(p.Tracks[:index], p.Tracks[index+1:]...)
+}
+
+func OpenURL(url string) error {
+	var cmd *exec.Cmd
+
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+	case "darwin":
+		cmd = exec.Command("open", url)
+	default: // for linux and unix
+		cmd = exec.Command("xdg-open", url)
+	}
+
+	return cmd.Start()
 }

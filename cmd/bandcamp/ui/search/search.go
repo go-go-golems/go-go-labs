@@ -10,8 +10,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/go-go-golems/go-go-labs/cmd/bandcamp/pkg"
 	"github.com/go-go-golems/go-go-labs/cmd/bandcamp/ui"
-	"os/exec"
-	"runtime"
 )
 
 var (
@@ -23,21 +21,6 @@ var (
 	helpStyle       = list.DefaultStyles().HelpStyle.PaddingLeft(4).PaddingBottom(1)
 )
 
-func openURL(url string) error {
-	var cmd *exec.Cmd
-
-	switch runtime.GOOS {
-	case "windows":
-		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
-	case "darwin":
-		cmd = exec.Command("open", url)
-	default: // for linux and unix
-		cmd = exec.Command("xdg-open", url)
-	}
-
-	return cmd.Start()
-}
-
 type Result pkg.Result
 
 func (s *Result) FilterValue() string {
@@ -46,13 +29,13 @@ func (s *Result) FilterValue() string {
 
 func (s *Result) Title() string {
 	switch pkg.SearchType(s.Type) {
-	case pkg.Track:
+	case pkg.FilterTrack:
 		return fmt.Sprintf("%s - %s (%s)", s.BandName, s.Name, s.AlbumName)
-	case pkg.Album:
+	case pkg.FilterAlbum:
 		return fmt.Sprintf("%s - %s", s.BandName, s.Name)
-	case pkg.Band:
+	case pkg.FilterBand:
 		return s.BandName
-	case pkg.All:
+	case pkg.FilterAll:
 		return fmt.Sprintf("%s - %s (%s)", s.BandName, s.Name, s.AlbumName)
 	default:
 		return s.Name
@@ -161,6 +144,7 @@ type Model struct {
 	client *pkg.Client
 
 	l list.Model
+
 	// TODO(manuel, 2023-08-09) We can actually use the help widget from the list by passing our own keys using AdditionalShortHelpKeys and such
 	// however, not sure if this allows us to override the whole filtering stuff
 	Help             help.Model
@@ -241,7 +225,23 @@ func (m Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *Model) SetSize(width, height int) {
+	m.width = width
+	m.Help.Width = width
+	m.SearchInput.Width = width
+	m.height = height
+	availHeight := m.height
+	availHeight -= lipgloss.Height(m.Help.View(m))
+	if m.ShowSearch {
+		availHeight -= lipgloss.Height(m.SearchInput.View())
+	}
+	_, v := docStyle.GetFrameSize()
+	availHeight -= v
+	m.l.SetSize(width, availHeight)
+
+}
+
+func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
@@ -251,18 +251,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.Help.Width = msg.Width
-		m.SearchInput.Width = msg.Width
-		m.height = msg.Height
-		availHeight := m.height
-		availHeight -= lipgloss.Height(m.Help.View(m))
-		if m.ShowSearch {
-			availHeight -= lipgloss.Height(m.SearchInput.View())
-		}
-		_, v := docStyle.GetFrameSize()
-		availHeight -= v
-		m.l.SetSize(msg.Width, availHeight)
+		m.SetSize(msg.Width, msg.Height)
 
 	case ui.UpdateSearchResultsMsg:
 		items := make([]list.Item, len(msg.Results))
@@ -351,7 +340,7 @@ func (m *Model) updateList(msg tea.Msg) tea.Cmd {
 		case key.Matches(msg, m.KeyMap.OpenEntry):
 			// open the selected item by using the os open for s.ItemURLPath
 			url := m.results[m.l.Index()].ItemURLPath
-			if err := openURL(url); err != nil {
+			if err := pkg.OpenURL(url); err != nil {
 				return tea.Quit
 			}
 

@@ -6,6 +6,12 @@ type UpdateSearchResultsMsg struct {
 	Results []*pkg.Result
 }
 
+type SelectEntryMsg struct {
+	Result *pkg.Result
+}
+
 type ErrMsg struct {
 	Err error
 }
+
+type ClearErrorMsg struct{}

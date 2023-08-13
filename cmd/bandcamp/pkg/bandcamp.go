@@ -12,10 +12,10 @@ import (
 type SearchType string
 
 const (
-	Album SearchType = "a"
-	Band  SearchType = "b"
-	Track SearchType = "t"
-	All   SearchType = ""
+	FilterAlbum SearchType = "a"
+	FilterBand  SearchType = "b"
+	FilterTrack SearchType = "t"
+	FilterAll   SearchType = ""
 )
 
 // Client is a simple HTTP client.

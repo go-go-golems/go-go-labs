@@ -2,16 +2,17 @@ package main_ui
 
 import (
 	"context"
-	"fmt"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/go-go-golems/go-go-labs/cmd/bandcamp/pkg"
 	"github.com/go-go-golems/go-go-labs/cmd/bandcamp/ui"
+	"github.com/go-go-golems/go-go-labs/cmd/bandcamp/ui/playlist"
 	"github.com/go-go-golems/go-go-labs/cmd/bandcamp/ui/search"
 )
 
 type Model struct {
-	Search search.Model
-	client *pkg.Client
+	Search   search.Model
+	Playlist playlist.Model
+	client   *pkg.Client
 }
 
 func NewModel(client *pkg.Client) Model {
@@ -26,8 +27,7 @@ func NewModel(client *pkg.Client) Model {
 	}
 	searchModel.OnSelectEntryCmd = func(result *pkg.Result) tea.Cmd {
 		return func() tea.Msg {
-			fmt.Println("selected result", result)
-			return tea.Quit()
+			return ui.SelectEntryMsg{Result: result}
 		}
 	}
 	res.Search = searchModel
@@ -35,7 +35,7 @@ func NewModel(client *pkg.Client) Model {
 }
 
 func (m Model) SearchBandcamp(searchTerm string) tea.Msg {
-	resp, err := m.client.Search(context.Background(), searchTerm, pkg.Track)
+	resp, err := m.client.Search(context.Background(), searchTerm, pkg.FilterTrack)
 	if err != nil {
 		return ui.ErrMsg{Err: err}
 	}
