@@ -6,6 +6,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/go-go-golems/go-go-labs/cmd/bandcamp/pkg"
 	"github.com/go-go-golems/go-go-labs/cmd/bandcamp/ui"
 	"github.com/go-go-golems/go-go-labs/cmd/bandcamp/ui/search"
@@ -40,133 +41,6 @@ func (s *Track) Description() string {
 	return s.ItemURLPath
 }
 
-type KeyMap struct {
-	CursorUp   key.Binding
-	CursorDown key.Binding
-	NextPage   key.Binding
-	PrevPage   key.Binding
-	GoToStart  key.Binding
-	GoToEnd    key.Binding
-
-	// Help toggle keybindings.
-	ShowFullHelp  key.Binding
-	CloseFullHelp key.Binding
-
-	CancelSearch     key.Binding
-	CancelFilePicker key.Binding
-
-	ForceQuit key.Binding
-	Quit      key.Binding
-
-	OpenEntry   key.Binding
-	DeleteEntry key.Binding
-	OpenSearch  key.Binding
-	AssignColor key.Binding
-
-	MoveEntryUp   key.Binding
-	MoveEntryDown key.Binding
-
-	Export key.Binding
-
-	Save key.Binding
-	Load key.Binding
-}
-
-func DefaultKeyMap() KeyMap {
-	return KeyMap{
-		CursorUp: key.NewBinding(
-			key.WithKeys("up", "k"),
-			key.WithHelp("↑/k", "Move cursor up"),
-		),
-		CursorDown: key.NewBinding(
-			key.WithKeys("down", "j"),
-			key.WithHelp("↓/j", "Move cursor down"),
-		),
-		ForceQuit: key.NewBinding(
-			key.WithKeys("ctrl+c"),
-			key.WithHelp("ctrl+c", "Force quit"),
-		),
-		Quit: key.NewBinding(
-			key.WithKeys("q", "esc"),
-			key.WithHelp("q/esc/ctrl+c", "Quit"),
-		),
-		PrevPage: key.NewBinding(
-			key.WithKeys("left", "h", "pgup", "b", "u"),
-			key.WithHelp("←/h/pgup", "prev page"),
-		),
-		NextPage: key.NewBinding(
-			key.WithKeys("right", "l", "pgdown", "f", "d"),
-			key.WithHelp("→/l/pgdn", "next page"),
-		),
-		GoToStart: key.NewBinding(
-			key.WithKeys("home", "g"),
-			key.WithHelp("g/home", "go to start"),
-		),
-		GoToEnd: key.NewBinding(
-			key.WithKeys("end", "G"),
-			key.WithHelp("G/end", "go to end"),
-		),
-
-		OpenEntry: key.NewBinding(
-			key.WithKeys("o"),
-			key.WithHelp("o", "OpenEntry"),
-		),
-
-		MoveEntryUp: key.NewBinding(
-			key.WithKeys("shift+up"),
-			key.WithHelp("shift+up", "Move entry up"),
-		),
-		MoveEntryDown: key.NewBinding(
-			key.WithKeys("shift+down"),
-			key.WithHelp("shift+down", "Move entry down"),
-		),
-
-		// Toggle help.
-		ShowFullHelp: key.NewBinding(
-			key.WithKeys("?"),
-			key.WithHelp("?", "more"),
-		),
-		CloseFullHelp: key.NewBinding(
-			key.WithKeys("?"),
-			key.WithHelp("?", "close help"),
-		),
-
-		DeleteEntry: key.NewBinding(
-			key.WithKeys("delete", "x"),
-			key.WithHelp("delete/x", "remove entry"),
-		),
-		OpenSearch: key.NewBinding(
-			key.WithKeys("/"),
-			key.WithHelp("/", "search"),
-		),
-		AssignColor: key.NewBinding(
-			key.WithKeys("c"),
-			key.WithHelp("c", "assign color"),
-		),
-		Export: key.NewBinding(
-			key.WithKeys("e"),
-			key.WithHelp("e", "export"),
-		),
-		Save: key.NewBinding(
-			key.WithKeys("s"),
-			key.WithHelp("s", "save"),
-		),
-		Load: key.NewBinding(
-			key.WithKeys("l"),
-			key.WithHelp("l", "load"),
-		),
-
-		CancelSearch: key.NewBinding(
-			key.WithKeys("esc", "q"),
-			key.WithHelp("esc/q", "cancel search"),
-		),
-		CancelFilePicker: key.NewBinding(
-			key.WithKeys("esc", "q"),
-			key.WithHelp("esc/q", "cancel file picker"),
-		),
-	}
-}
-
 type Model struct {
 	Playlist *pkg.Playlist
 
@@ -191,55 +65,63 @@ func (m *Model) updateListItems() tea.Cmd {
 		tracks_[i] = &t
 		items[i] = &t
 	}
+	hasItems := len(items) > 0
 
+	m.KeyMap.AssignColor.SetEnabled(hasItems)
+	m.KeyMap.MoveEntryDown.SetEnabled(hasItems)
+	m.KeyMap.MoveEntryUp.SetEnabled(hasItems)
+	m.KeyMap.DeleteEntry.SetEnabled(hasItems)
+	m.KeyMap.OpenEntry.SetEnabled(hasItems)
+
+	if m.l.Index() >= len(items) {
+		m.l.Select(len(items) - 1)
+	}
 	return m.l.SetItems(items)
 }
+
+var (
+	playlistNameStyle = ui.MainTitleStyle
+	titleStyle        = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("230"))
+	appStyle = lipgloss.NewStyle().
+			Margin(1, 1, 1, 1)
+)
 
 func NewModel(playlist *pkg.Playlist) Model {
 	l := list.New(nil, list.NewDefaultDelegate(), 0, 0)
 
 	keymap := DefaultKeyMap()
 
-	l.Title = playlist.Title
+	l.DisableQuitKeybindings()
+	l.Styles.Title = titleStyle
+	l.Title = fmt.Sprintf(
+		"%s%s",
+		"Edit Playlist: ",
+		playlistNameStyle.Render(playlist.Title))
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
 	l.AdditionalShortHelpKeys = func() []key.Binding {
 		return []key.Binding{
-			keymap.MoveEntryUp,
-			keymap.MoveEntryDown,
-
 			keymap.AssignColor,
+			keymap.DeleteEntry,
 			keymap.OpenSearch,
-			keymap.Export,
-			keymap.Save,
-			keymap.Load,
-
-			keymap.ShowFullHelp,
 			keymap.Quit,
 		}
 	}
 	l.AdditionalFullHelpKeys = func() []key.Binding {
 		return []key.Binding{
-			keymap.CloseFullHelp,
+			keymap.MoveEntryUp,
+			keymap.MoveEntryDown,
+
+			keymap.Export,
+			keymap.Save,
+			keymap.Load,
 		}
 	}
 	l.SetShowHelp(true)
 
 	client := pkg.NewClient()
 	s := search.NewModel(client, []*pkg.Result{})
-	s.OnSelectEntryCmd = func(result *pkg.Result) tea.Cmd {
-		track := &pkg.Track{
-			BackgroundColor: "black",
-			LinkColor:       "white",
-			AlbumID:         result.AlbumID,
-			Name:            result.Name,
-			BandName:        result.BandName,
-			ItemURLPath:     result.ItemURLPath,
-		}
-		return func() tea.Msg {
-			return ui.InsertPlaylistEntryMsg{Track: track}
-		}
-	}
 
 	m := Model{
 		Playlist: playlist,
@@ -270,9 +152,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case tea.WindowSizeMsg:
-		m.l.SetSize(msg.Width, msg.Height)
-		m.search.SetSize(msg.Width, msg.Height)
-		m.filepicker.Height = msg.Height
+		h, v := appStyle.GetFrameSize()
+		newWidth := msg.Width - h
+		newHeight := msg.Height - v
+		m.l.SetSize(newWidth, newHeight)
+		m.search.SetSize(newWidth, newHeight)
+		m.filepicker.Height = newHeight
 
 	case ui.InsertPlaylistEntryMsg:
 		m.Playlist.InsertTrack(msg.Track, m.l.Index())
@@ -331,7 +216,9 @@ func (m *Model) updateList(msg tea.Msg) []tea.Cmd {
 		case key.Matches(msg, m.KeyMap.OpenSearch):
 			m.state = stateSearch
 			// NOTE(manuel, 2023-08-13) trigger opening the search bar
+			m.search.SetShowSearch(true)
 			cmds = append(cmds, m.search.Init())
+
 		case key.Matches(msg, m.KeyMap.Export):
 			m.state = stateFilePickerExport
 			cmds = append(cmds, m.filepicker.Init())
@@ -372,13 +259,25 @@ func (m *Model) updateList(msg tea.Msg) []tea.Cmd {
 func (m *Model) updateSearch(msg tea.Msg) []tea.Cmd {
 	var cmds []tea.Cmd
 
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch {
-		case key.Matches(msg, m.KeyMap.CancelSearch):
-			m.state = stateList
-			return cmds
+	switch v := msg.(type) {
+	case search.SelectEntryMsg:
+		track := &pkg.Track{
+			BackgroundColor: "black",
+			LinkColor:       "white",
+			AlbumID:         v.Result.AlbumID,
+			Name:            v.Result.Name,
+			BandName:        v.Result.BandName,
+			ItemURLPath:     v.Result.ItemURLPath,
 		}
+		m.state = stateList
+		m.updateListItems()
+		return []tea.Cmd{
+			func() tea.Msg {
+				return ui.InsertPlaylistEntryMsg{Track: track}
+			},
+		}
+	case search.CloseSearchMsg:
+		m.state = stateList
 	}
 
 	searchModel, cmd := m.search.Update(msg)
@@ -422,20 +321,22 @@ func (m *Model) updateFilePicker(msg tea.Msg) []tea.Cmd {
 }
 
 func (m Model) View() string {
+	res := ""
+
 	switch m.state {
 	case stateList:
-		return m.l.View()
+		res = m.l.View()
 
 	case stateSearch:
-		return m.search.View()
+		res = m.search.View()
 
 	case stateFilePickerExport:
 		fallthrough
 	case stateFilePickerLoad:
 		fallthrough
 	case stateFilePickerSave:
-		return m.filepicker.View()
+		res = m.filepicker.View()
 	}
 
-	return "DEFAULT\n"
+	return appStyle.Render(res)
 }
