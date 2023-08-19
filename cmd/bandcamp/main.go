@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/ThreeDotsLabs/watermill/message"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/go-go-golems/go-go-labs/cmd/bandcamp/pkg"
+	"github.com/go-go-golems/go-go-labs/cmd/bandcamp/pkg/machinery"
 	"github.com/go-go-golems/go-go-labs/cmd/bandcamp/ui/playlist"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -16,8 +19,25 @@ func main() {
 		Use:   "bancamp_search",
 		Short: "Search bandcamp", Long: `Search for music on bandcamp`,
 		Run: func(cmd *cobra.Command, args []string) {
-
 			client := pkg.NewClient()
+			machine, err := machinery.NewMachine()
+			httpServer := machinery.NewHTTPServer()
+			cobra.CheckErr(err)
+
+			machine.Router.AddNoPublisherHandler(
+				"httpServer",
+				"playlist",
+				machine.PubSub,
+				func(msg *message.Message) error {
+					playlist := &pkg.Playlist{}
+					if err := json.Unmarshal(msg.Payload, playlist); err != nil {
+						return err
+					}
+
+					httpServer.HandlePlaylist(playlist)
+					return nil
+				},
+			)
 
 			filter, _ := cmd.Flags().GetString("filter")
 
@@ -43,6 +63,9 @@ func main() {
 					ItemURLPath:     result.ItemURLPath,
 				}
 			}
+
+			// TODO(manuel, 2023-08-16) A cool feature would be to expose the playlist
+			// as a render webpage immediately, so that one can see the final result.
 
 			playlist_ := &pkg.Playlist{
 				Title:       "Summer Playlist",

@@ -11,6 +11,7 @@ import (
 	"github.com/go-go-golems/go-go-labs/cmd/bandcamp/ui"
 	"github.com/go-go-golems/go-go-labs/cmd/bandcamp/ui/search"
 	"github.com/pkg/errors"
+	"os"
 	"time"
 )
 
@@ -120,15 +121,22 @@ func NewModel(playlist *pkg.Playlist) Model {
 	}
 	l.SetShowHelp(true)
 
+	fp := filepicker.New()
+	fp.AllowedTypes = []string{"json"}
+	// get current directory
+	curDir, _ := os.Getwd()
+	fp.CurrentDirectory = curDir
+
 	client := pkg.NewClient()
 	s := search.NewModel(client, []*pkg.Result{})
 
 	m := Model{
-		Playlist: playlist,
-		l:        l,
-		KeyMap:   keymap,
-		search:   s,
-		state:    stateList,
+		Playlist:   playlist,
+		l:          l,
+		KeyMap:     keymap,
+		search:     s,
+		filepicker: fp,
+		state:      stateList,
 	}
 	m.updateListItems()
 	return m
@@ -295,26 +303,26 @@ func (m *Model) updateFilePicker(msg tea.Msg) []tea.Cmd {
 		switch {
 		case key.Matches(msg, m.KeyMap.CancelFilePicker):
 			m.state = stateList
-
-		default:
-			filePickerModel, cmd := m.filepicker.Update(msg)
-			cmds = append(cmds, cmd)
-			m.filepicker = filePickerModel
-
-			if didSelect, path := m.filepicker.DidSelectFile(msg); didSelect {
-				// Get the path of the selected file.
-				m.selectedFile = path
-
-				// TODO(manuel, 2023-08-13) Actually handle what it means to select a file
-			}
-
-			if didSelect, path := m.filepicker.DidSelectDisabledFile(msg); didSelect {
-				// Let's clear the selectedFile and display an error.
-				m.err = errors.New(path + " is not valid.")
-				m.selectedFile = ""
-				cmds = append(cmds, tea.Batch(cmd, ui.ClearErrorAfter(2*time.Second)))
-			}
+			return nil
 		}
+	}
+
+	filePickerModel, cmd := m.filepicker.Update(msg)
+	cmds = append(cmds, cmd)
+	m.filepicker = filePickerModel
+
+	if didSelect, path := m.filepicker.DidSelectFile(msg); didSelect {
+		// Get the path of the selected file.
+		m.selectedFile = path
+
+		// TODO(manuel, 2023-08-13) Actually handle what it means to select a file
+	}
+
+	if didSelect, path := m.filepicker.DidSelectDisabledFile(msg); didSelect {
+		// Let's clear the selectedFile and display an error.
+		m.err = errors.New(path + " is not valid.")
+		m.selectedFile = ""
+		cmds = append(cmds, tea.Batch(cmd, ui.ClearErrorAfter(2*time.Second)))
 	}
 
 	return cmds

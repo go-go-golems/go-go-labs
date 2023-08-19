@@ -3,6 +3,9 @@ package pkg
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/ThreeDotsLabs/watermill"
+	"github.com/ThreeDotsLabs/watermill/message"
+	"github.com/rs/zerolog/log"
 	"os"
 	"os/exec"
 	"runtime"
@@ -22,6 +25,8 @@ type Playlist struct {
 	Title       string   `json:"title"`
 	Description string   `json:"description"`
 	Tracks      []*Track `json:"tracks"`
+
+	publisher message.Publisher
 }
 
 const iframeTmpl = `<iframe
@@ -85,6 +90,7 @@ func (p *Playlist) MoveEntryUp(index int) int {
 	}
 
 	p.Tracks[index], p.Tracks[index-1] = p.Tracks[index-1], p.Tracks[index]
+	p.sendUpdate()
 	return index - 1
 }
 
@@ -94,16 +100,37 @@ func (p *Playlist) MoveEntryDown(index int) int {
 	}
 
 	p.Tracks[index], p.Tracks[index+1] = p.Tracks[index+1], p.Tracks[index]
+	p.sendUpdate()
 	return index + 1
+}
+
+func (p *Playlist) ToJSON() []byte {
+	b, err := json.Marshal(p)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to marshal playlist")
+		return []byte{}
+	}
+	return b
 }
 
 func (p *Playlist) DeleteEntry(index int) {
 	p.Tracks = append(p.Tracks[:index], p.Tracks[index+1:]...)
+	p.sendUpdate()
 }
 
 func (p *Playlist) InsertTrack(track *Track, index int) {
 	p.Tracks = append(p.Tracks[:index], append([]*Track{track}, p.Tracks[index:]...)...)
+	p.sendUpdate()
+}
 
+func (p *Playlist) sendUpdate() {
+	if p.publisher != nil {
+		err := p.publisher.Publish("playlist", message.NewMessage(watermill.NewUUID(), p.ToJSON()))
+		if err != nil {
+			log.Error().Err(err).Msg("failed to publish delete message")
+			return
+		}
+	}
 }
 
 func OpenURL(url string) error {
