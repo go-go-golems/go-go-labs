@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Counter</title>
+    <script src="https://unpkg.com/htmx.org"></script>
+</head>
+<body>
+COUNTER:
+<div id="counter" hx-swap="innerHTML"></div>
+<script>
+    console.log("initialize")
+    var socket = new WebSocket("ws://localhost:8080/ws");
+
+    socket.onmessage = function(event) {
+        console.log("got message", event)
+        var counter = document.getElementById('counter');
+        counter.innerHTML = event.data;
+    };
+</script>
+</body>
+</html>
