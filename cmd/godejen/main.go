@@ -2,129 +2,106 @@ package main
 
 import (
 	"bytes"
+	"context"
 	_ "embed"
 	"fmt"
 	"github.com/dave/jennifer/jen"
-	"github.com/go-go-golems/glazed/pkg/cmds"
 	cmds2 "github.com/go-go-golems/sqleton/pkg/cmds"
-	"github.com/iancoleman/strcase"
+	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
+	"io/ioutil"
 )
 
-//go:embed "ps.yaml"
-var psYaml []byte
-
-func LoadPS() (*cmds2.SqlCommand, error) {
-	loader := &cmds2.SqlCommandLoader{
-		DBConnectionFactory: nil,
-	}
-
-	// create reader from psYaml
-	r := bytes.NewReader(psYaml)
-	cmds_, err := loader.LoadCommandFromYAML(r)
-	if err != nil {
-		return nil, err
-	}
-	if len(cmds_) != 1 {
-		return nil, fmt.Errorf("expected exactly one command, got %d", len(cmds_))
-	}
-	return cmds_[0].(*cmds2.SqlCommand), nil
-}
-
-func GenerateCommandCode(cmd *cmds.CommandDescription, query string) {
-	f := jen.NewFile("main")
-
-	// 1. Define the constant for the query.
-	f.Const().Id(strcase.ToCamel(cmd.Name) + "CommandQuery").Op("=").Lit(query)
-
-	// 2. Define struct.
-	f.Type().Id(strcase.ToCamel(cmd.Name) + "Command").Struct(
-		jen.Op("*").Id("SqlCommand"),
-	)
-
-	// 3. Define struct.
-	psCommandParameters := jen.Type().Id(strcase.ToCamel(cmd.Name) + "CommandParameters").StructFunc(func(g *jen.Group) {
-		for _, flag := range cmd.Flags {
-			g.Id(strcase.ToCamel(flag.Name)).Id(string(flag.Type)).Tag(
-				map[string]string{"glazed.parameter": strcase.ToSnake(flag.Name)})
+var rootCmd = &cobra.Command{
+	Use:   "program [file...]",
+	Short: "A program to load YAML from files and pass the parsed command to GenerateCommandCode",
+	Long:  `This is a program to load YAML files passed in as parameters and pass each parsed command to GenerateCommandCode`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		res, err := processFiles(context.Background(), args)
+		if err != nil {
+			return err
 		}
-	})
 
-	f.Add(psCommandParameters)
+		for path, file := range res {
+			fmt.Printf("File: %s\n", path)
+			fmt.Println(file.GoString())
+		}
 
-	// 4. Define Run method.
-	f.Func().Params(jen.Id("p").Op("*").Id(strcase.ToCamel(cmd.Name)+"Command")).Id("Run").
-		Params(
-			jen.Id("ctx").Qual("context", "Context"),
-			jen.Id("db").Op("*").Qual("github.com/jmoiron/sqlx", "DB"),
-			jen.Id("params").Op("*").Id(strcase.ToCamel(cmd.Name)+"CommandParameters"),
-			jen.Id("gp").Id("middlewares.Processor"),
-		).Error().Block(
-		jen.List(jen.Id(strcase.ToCamel(cmd.Name)), jen.Id("err")).Op(":=").Id("parameters").Dot("StructToMap").Call(jen.Id("params")),
-		jen.If(jen.Id("err").Op("!=").Nil()).Block(
-			jen.Return(jen.Id("err")),
-		),
-		jen.Id("err").Op("=").Id("p").Dot("SqlCommand").Dot("RunQueryIntoGlaze").Call(jen.Id("ctx"), jen.Id("db"), jen.Id(strcase.ToCamel(cmd.Name)), jen.Id("gp")),
-		jen.If(jen.Id("err").Op("!=").Nil()).Block(
-			jen.Return(jen.Id("err")),
-		),
-		jen.Return(jen.Nil()),
-	)
-
-	// 5. Define New function.
-	f.Func().Id("New"+strcase.ToCamel(cmd.Name)+"Command").Params().
-		Params(jen.Op("*").Id(strcase.ToCamel(cmd.Name)+"Command"), jen.Error()).
-		BlockFunc(func(g *jen.Group) {
-			g.Var().Id("flagDefs").Op("=").
-				Index().Op("*").
-				Qual("github.com/go-go-golems/glazed/pkg/cmds/parameters", "ParameterDefinition").
-				ValuesFunc(func(g *jen.Group) {
-					for _, flag := range cmd.Flags {
-						def := jen.Id("parameters").Dot("NewParameterDefinition").Call(
-							jen.Add(
-								jen.Line(),
-								jen.Lit(flag.Name),
-							),
-							jen.Add(
-								jen.Line(),
-								jen.Lit(string(flag.Type)),
-							),
-							jen.Add(
-								jen.Line(),
-								jen.Id("parameters").Dot("WithHelp").Call(jen.Lit(flag.Help)),
-							),
-							jen.Line(),
-						)
-						g.Add(jen.Line(), def)
-					}
-				})
-
-			// Add other contents for this block...
-			g.Id("desc").Op(":=").Id("cmds").Dot("NewCommandDescription").Call(
-				jen.Lit(cmd.Name),
-				jen.Id("cmds").Dot("WithFlags").Call(jen.Id("flagDefs")),
-			)
-			g.List(jen.Id(strcase.ToCamel(cmd.Name)+"SqlCommand"), jen.Id("err")).Op(":=").Id("NewSqlCommand").Call(
-				jen.Id("desc"),
-				jen.Id("WithQuery").Call(jen.Id(strcase.ToCamel(cmd.Name)+"CommandQuery")),
-			)
-			g.If(jen.Id("err").Op("!=").Nil()).Block(
-				jen.Return(jen.Nil(), jen.Id("err")),
-			)
-			g.Return(jen.Op("&").Id(strcase.ToCamel(cmd.Name)+"Command").Values(jen.Dict{
-				jen.Id("SqlCommand"): jen.Id(strcase.ToCamel(cmd.Name) + "SqlCommand"),
-			}), jen.Nil())
-		})
-
-	fmt.Printf("%#v", f) // Print the generated code
+		return nil
+	},
 }
 
 func main() {
-	//genStaticPsYAML()
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
+	}
+}
 
-	cmd, err := LoadPS()
-	if err != nil {
-		panic(err)
+type FileResult struct {
+	Path string
+	File *jen.File
+}
+
+func processFiles(ctx context.Context, files []string) (map[string]*jen.File, error) {
+	// Use errgroup with context cancellation
+	g, ctx := errgroup.WithContext(ctx)
+	resultChan := make(chan FileResult, len(files))
+
+	defer close(resultChan)
+
+	s := &SqlCommandCodeGenerator{
+		PackageName: "main",
+		SplitFiles:  false,
 	}
 
-	GenerateCommandCode(cmd.Description(), cmd.Query)
+	for _, fileName := range files {
+		// passing fileName to avoid the go routine range variable issue
+		file := fileName
+		g.Go(func() error {
+			// Check for context cancellation
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+			}
+
+			psYaml, err := ioutil.ReadFile(file)
+			if err != nil {
+				return err
+			}
+
+			loader := &cmds2.SqlCommandLoader{
+				DBConnectionFactory: nil,
+			}
+
+			// create reader from psYaml
+			r := bytes.NewReader(psYaml)
+			cmds_, err := loader.LoadCommandFromYAML(r)
+			if err != nil {
+				return err
+			}
+			if len(cmds_) != 1 {
+				return fmt.Errorf("expected exactly one command, got %d", len(cmds_))
+			}
+			cmd := cmds_[0].(*cmds2.SqlCommand)
+
+			f := s.GenerateCommandCode(cmd)
+			// send the result to the result channel
+			resultChan <- FileResult{Path: file, File: f}
+
+			return nil
+		})
+	}
+
+	// Wait for all files to be processed
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	results := make(map[string]*jen.File)
+	for fr := range resultChan {
+		results[fr.Path] = fr.File
+	}
+
+	return results, nil
 }
