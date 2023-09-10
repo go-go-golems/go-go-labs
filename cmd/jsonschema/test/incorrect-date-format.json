@@ -1,0 +1,15 @@
+{
+  "bookID": 2,
+  "title": "Another Book",
+  "author": {
+    "firstName": "Jane",
+    "lastName": "Doe"
+  },
+  "publishedDate": "10-09-2021",
+  "ISBN": "9781234567890",
+  "genres": ["Romance", "Drama"],
+  "ratings": [
+    {"user": "eve", "score": 4}
+  ],
+  "isAvailable": false
+}

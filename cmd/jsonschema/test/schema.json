@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "bookID": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "title": {
+      "type": "string"
+    },
+    "author": {
+      "type": "object",
+      "properties": {
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" }
+      },
+      "required": ["firstName", "lastName"]
+    },
+    "publishedDate": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-1][0-9]-[0-3][0-9]$"
+    },
+    "ISBN": {
+      "type": "string",
+      "pattern": "^(97(8|9))?\\d{9}(\\d|X)$"
+    },
+    "genres": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "ratings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "user": { "type": "string" },
+          "score": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5
+          }
+        },
+        "required": ["user", "score"]
+      }
+    },
+    "isAvailable": {
+      "type": "boolean"
+    },
+    "reviews": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "user": { "type": "string" },
+          "text": { "type": "string" }
+        },
+        "required": ["user", "text"]
+      }
+    }
+  },
+  "required": ["bookID", "title", "author", "publishedDate", "ISBN", "genres", "ratings", "isAvailable"]
+}

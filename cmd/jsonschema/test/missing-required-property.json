@@ -1,0 +1,15 @@
+{
+  "title": "Sample Book",
+  "author": {
+    "firstName": "John",
+    "lastName": "Doe"
+  },
+  "publishedDate": "2021-09-10",
+  "ISBN": "9781234567890",
+  "genres": ["Fiction", "Mystery"],
+  "ratings": [
+    {"user": "alice", "score": 5},
+    {"user": "bob", "score": 3}
+  ],
+  "isAvailable": true
+}
