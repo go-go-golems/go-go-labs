@@ -1,0 +1,48 @@
+{
+  "botanicalName": "Coreopsis verticillata 'Zagreb'",
+  "commonName": "Zagreb Threadleaf Coreopsis",
+  "phylogeneticDivision": "Magnoliophyta (Flowering Plants)",
+  "phylogeneticClass": "Magnoliopsida (Dicotyledons)",
+  "phylogeneticOrder": "Asterales",
+  "phylogeneticFamily": "Asteraceae (Aster Family)",
+  "phylogeneticGenus": "Coreopsis",
+  "species": "verticillata",
+  "ecommerceCategories": ["Perennials", "Flowering Plants"],
+  "positiveTraits": [
+    "Long blooming period",
+    "Drought tolerant",
+    "Attracts butterflies and bees",
+    "Low maintenance",
+    "Deer resistant"
+  ],
+  "interestingFacts": [
+    "The name 'Zagreb' refers to the city in Croatia where this variety was discovered.",
+    "Threadleaf Coreopsis is native to North America.",
+    "The flowers of Zagreb Threadleaf Coreopsis are bright yellow with a vibrant center.",
+    "This plant is a favorite among pollinators due to its nectar-rich flowers.",
+    "Zagreb Threadleaf Coreopsis is a great choice for rock gardens and borders."
+  ],
+  "interestToTheCustomer": "Zagreb Threadleaf Coreopsis is a stunning perennial that will add vibrant color to your garden. Its long blooming period and ability to attract butterflies and bees make it a must-have for any pollinator-friendly garden. With its low maintenance requirements and deer resistance, this plant is perfect for busy gardeners who want a beautiful and hassle-free garden.",
+  "interestToTheCustomerTraits": [
+    "Adds vibrant color to the garden",
+    "Attracts butterflies and bees",
+    "Low maintenance",
+    "Deer resistant",
+    "Perfect for pollinator-friendly gardens"
+  ],
+  "overviewParagraph": "Zagreb Threadleaf Coreopsis, also known as Coreopsis verticillata 'Zagreb', is a stunning perennial that will brighten up any garden. With its vibrant yellow flowers and delicate thread-like foliage, this plant is sure to catch the eye. It is a member of the Asteraceae family and is native to North America. Zagreb Threadleaf Coreopsis is a popular choice among gardeners due to its long blooming period and ability to attract butterflies and bees.",
+  "detailedParagraph": "Zagreb Threadleaf Coreopsis is a compact perennial that typically reaches a height of 1 to 2 feet and a width of 1 to 2 feet. It has fine, thread-like leaves that give it a delicate appearance. The flowers are bright yellow with a vibrant center, creating a striking contrast against the foliage. This plant blooms from early summer to fall, providing a continuous display of color in the garden. It is a low maintenance plant that thrives in full sun to partial shade and is drought tolerant once established. Zagreb Threadleaf Coreopsis is also deer resistant, making it a great choice for gardens where deer are a problem. It is a versatile plant that can be used in borders, rock gardens, or as a groundcover.",
+  "sunlight": "Full Sun; Partial Sun",
+  "sunlightDescription": "Zagreb Threadleaf Coreopsis thrives in full sun to partial sun. It requires at least 6 hours of direct sunlight per day to ensure optimal growth and blooming.",
+  "waterDescription": "Zagreb Threadleaf Coreopsis is a drought tolerant plant once established. It prefers well-drained soil and does not require frequent watering. However, during periods of prolonged drought, it is beneficial to provide supplemental water to help the plant thrive.",
+  "waterNeeds": ["Low"],
+  "fertilizing": ["Low"],
+  "fertilizingDescription": "Zagreb Threadleaf Coreopsis has low fertilizing needs. A light application of balanced fertilizer in early spring is sufficient to promote healthy growth and blooming.",
+  "specialFeatures": ["Attracts Butterflies", "Deer Resistant"],
+  "matureHeight": [10, 18],
+  "matureWidth": [12, 24],
+  "growthRate": "Moderate",
+  "growthRateDescription": "Zagreb Threadleaf Coreopsis has a moderate growth rate. It will establish and fill out its space within a few growing seasons, providing a beautiful and colorful display in the garden.",
+  "USAGrowingLocations": ["Northeast", "Midwest", "Southeast", "Southwest", "West"],
+  "growingZones": ["3-9"]
+}

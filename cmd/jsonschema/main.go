@@ -5,8 +5,13 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/spf13/cobra"
 	"github.com/xeipuuv/gojsonschema"
 )
+
+var onlyInvalid bool
+var printDetails bool
+var verbose bool
 
 func validateJSON(schemaFile, jsonFile string) error {
 	schemaLoader := gojsonschema.NewReferenceLoader("file://" + schemaFile)
@@ -18,8 +23,12 @@ func validateJSON(schemaFile, jsonFile string) error {
 	}
 
 	if result.Valid() {
-		fmt.Println("The JSON is valid against the schema.")
+		if !onlyInvalid {
+			fmt.Printf("%s is valid\n", jsonFile)
+			fmt.Println("The JSON is valid against the schema.")
+		}
 	} else {
+		fmt.Printf("%s is invalid\n", jsonFile)
 		fmt.Println("The JSON is NOT valid. See errors:")
 		for _, desc := range result.Errors() {
 			v := desc.Value()
@@ -32,25 +41,42 @@ func validateJSON(schemaFile, jsonFile string) error {
 				s = string(b)
 			}
 
-			fmt.Printf("- %s, value: %v\n", desc, s)
+			if printDetails {
+				fmt.Printf("- %s, value: %v\n", desc, s)
+			} else {
+				fmt.Printf("- %s\n", desc)
+			}
 		}
+		fmt.Println()
 	}
 
 	return nil
 }
 
-func main() {
-	if len(os.Args) < 3 {
-		fmt.Println("Usage: validator <schema.json> <document.json...>")
-		os.Exit(1)
-	}
-
-	schemaFile := os.Args[1]
-	for _, jsonFile := range os.Args[2:] {
-
-		fmt.Printf("Validating %s against %s\n", jsonFile, schemaFile)
-		if err := validateJSON(schemaFile, jsonFile); err != nil {
-			fmt.Printf("Error during validation: %s\n", err)
+var rootCmd = &cobra.Command{
+	Use:   "validator <schema.json> <document.json...>",
+	Short: "Validates JSON files against a schema",
+	Args:  cobra.MinimumNArgs(2),
+	Run: func(cmd *cobra.Command, args []string) {
+		schemaFile := args[0]
+		for _, jsonFile := range args[1:] {
+			if verbose {
+				fmt.Printf("Validating %s against %s\n", jsonFile, schemaFile)
+			}
+			if err := validateJSON(schemaFile, jsonFile); err != nil {
+				fmt.Printf("Error during validation: %s\n", err)
+			}
 		}
+	},
+}
+
+func main() {
+	rootCmd.Flags().BoolVar(&onlyInvalid, "only-invalid", false, "Only print invalid JSON results")
+	rootCmd.Flags().BoolVar(&printDetails, "print-details", false, "Print details of validation errors")
+	rootCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Verbose output")
+
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
 }

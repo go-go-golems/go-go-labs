@@ -1,0 +1,103 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "botanicalName": { "type": "string" },
+    "commonName": { "type": "string" },
+    "phylogeneticDivision": { "type": "string" },
+    "phylogeneticClass": { "type": "string" },
+    "phylogeneticOrder": { "type": "string" },
+    "phylogeneticFamily": { "type": "string" },
+    "phylogeneticGenus": { "type": "string" },
+    "species": { "type": "string" },
+    "ecommerceCategories": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "positiveTraits": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "interestingFacts": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "interestToTheCustomer": { "type": "string" },
+    "interestToTheCustomerTraits": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "overviewParagraph": { "type": "string" },
+    "detailedParagraph": { "type": "string" },
+    "sunlightDescription": { "type": "string" },
+    "sunlight": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "waterDescription": { "type": "string" },
+    "waterNeeds": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "fertilizing": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "fertilizingDescription": { "type": "string" },
+    "specialFeatures": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "matureHeight": {
+      "type": "array",
+      "items": { "type": "number" }
+    },
+    "matureWidth": {
+      "type": "array",
+      "items": { "type": "number" }
+    },
+    "growthRateDescription": { "type": "string" },
+    "growthRate": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "USAGrowingLocations": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "growingZones": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "required": [
+    "botanicalName",
+    "commonName",
+    "phylogeneticDivision",
+    "phylogeneticClass",
+    "phylogeneticOrder",
+    "phylogeneticFamily",
+    "phylogeneticGenus",
+    "species",
+    "ecommerceCategories",
+    "positiveTraits",
+    "interestingFacts",
+    "interestToTheCustomer",
+    "overviewParagraph",
+    "detailedParagraph",
+    "sunlightDescription",
+    "sunlight",
+    "waterDescription",
+    "waterNeeds",
+    "fertilizing",
+    "fertilizingDescription",
+    "specialFeatures",
+    "matureHeight",
+    "matureWidth",
+    "growthRateDescription",
+    "growthRate",
+    "USAGrowingLocations",
+    "growingZones"
+  ]
+}
+
