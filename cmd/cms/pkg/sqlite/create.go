@@ -2,7 +2,10 @@ package sqlite
 
 import (
 	"bytes"
+	"context"
 	"github.com/go-go-golems/go-go-labs/cmd/cms/pkg"
+	"github.com/jmoiron/sqlx"
+	"github.com/rs/zerolog/log"
 	"text/template"
 )
 
@@ -59,4 +62,50 @@ func GenerateSQLiteCreateTable(schema *pkg.Schema) (map[string][]string, error) 
 	}
 
 	return tableQueries, nil
+}
+
+// CreateSchema creates the schema in the database.
+// It generates all the SQL queries to CREATE the tables and indexes
+// and runs it inside a transaction.
+func CreateSchema(ctx context.Context, schema *pkg.Schema, db *sqlx.DB) error {
+	tableQueries, err := GenerateSQLiteCreateTable(schema)
+	if err != nil {
+		return err
+	}
+
+	// start a transaction
+	tx, err := db.Beginx()
+	if err != nil {
+		return err
+	}
+
+	// rollback if any errors
+	defer func() {
+		if p := recover(); p != nil {
+			err = tx.Rollback() //
+			log.Error().Err(err).Msg("rollback failed")
+		} else if err != nil {
+			err = tx.Rollback()
+			if err != nil {
+				log.Error().Err(err).Msg("rollback failed")
+			} // err is non-nil; don't change it
+		} else {
+			err = tx.Commit()
+			if err != nil {
+				log.Error().Err(err).Msg("commit failed")
+			}
+		}
+	}()
+
+	for _, queries := range tableQueries {
+		for _, query := range queries {
+			_, err := tx.ExecContext(ctx, query)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+
 }
