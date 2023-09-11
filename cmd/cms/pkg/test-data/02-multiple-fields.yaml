@@ -1,0 +1,8 @@
+tables:
+  users:
+    fields:
+      - name: name
+        type: string
+      - name: age
+        type: int
+main-table: users

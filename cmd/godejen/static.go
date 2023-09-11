@@ -6,6 +6,7 @@ import (
 	"github.com/iancoleman/strcase"
 )
 
+//lint:ignore U1000 Ignore unused function temporarily for debugging
 func genStaticPsYAML() {
 	f := jen.NewFile("main") // this is the package name
 

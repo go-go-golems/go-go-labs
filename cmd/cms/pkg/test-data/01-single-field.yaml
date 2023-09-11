@@ -1,0 +1,6 @@
+tables:
+  users:
+    fields:
+      - name: name
+        type: string
+main-table: users
