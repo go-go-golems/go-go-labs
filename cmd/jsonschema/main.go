@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -21,7 +22,17 @@ func validateJSON(schemaFile, jsonFile string) error {
 	} else {
 		fmt.Println("The JSON is NOT valid. See errors:")
 		for _, desc := range result.Errors() {
-			fmt.Printf("- %s\n", desc)
+			v := desc.Value()
+			// serialize value to JSON
+			b, err := json.Marshal(v)
+			var s string
+			if err != nil {
+				s = fmt.Sprintf("%v", v)
+			} else {
+				s = string(b)
+			}
+
+			fmt.Printf("- %s, value: %v\n", desc, s)
 		}
 	}
 
@@ -30,7 +41,7 @@ func validateJSON(schemaFile, jsonFile string) error {
 
 func main() {
 	if len(os.Args) < 3 {
-		fmt.Println("Usage: validator <schema.json> <document.json>")
+		fmt.Println("Usage: validator <schema.json> <document.json...>")
 		os.Exit(1)
 	}
 
