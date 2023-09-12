@@ -5,6 +5,7 @@ import (
 	"context"
 	"github.com/go-go-golems/go-go-labs/cmd/cms/pkg"
 	"github.com/jmoiron/sqlx"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"text/template"
 )
@@ -33,6 +34,13 @@ func GenerateSQLiteCreateTable(schema *pkg.Schema) (map[string][]string, error) 
 		newFields := make([]pkg.Field, 0)
 
 		newFields = append(newFields, table.Fields...)
+
+		if table.IsList {
+			if table.ValueField == nil {
+				return nil, errors.New("value field not found")
+			}
+			newFields = append(newFields, *table.ValueField)
+		}
 
 		// if this is a secondary table, add the parent_id field
 		if tableName != schema.MainTable {

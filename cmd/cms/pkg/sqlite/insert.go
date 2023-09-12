@@ -23,6 +23,13 @@ func InsertData(ctx context.Context, db *sqlx.DB, schema *pkg.Schema, data map[s
 		newFields := make([]pkg.Field, 0)
 		newFields = append(newFields, table.Fields...)
 
+		if table.IsList {
+			if table.ValueField == nil {
+				return -1, errors.New("value field not found")
+			}
+			newFields = append(newFields, *table.ValueField)
+		}
+
 		// for secondary tables, we need to insert the parent_id
 		if tableName != schema.MainTable {
 			t := true
@@ -37,32 +44,32 @@ func InsertData(ctx context.Context, db *sqlx.DB, schema *pkg.Schema, data map[s
 		var SQL bytes.Buffer
 		err := tpl.Execute(&SQL, tableData)
 		if err != nil {
-			return 0, err
+			return -1, err
 		}
 		tableQueries[tableName] = SQL.String()
 	}
 
 	tx, err := db.Beginx()
 	if err != nil {
-		return 0, err
+		return -1, err
 	}
 
 	var id int64
 	// first, create the main table to get the parent id
 	query, ok := tableQueries[schema.MainTable]
 	if !ok {
-		return 0, errors.New("main table not found")
+		return -1, errors.New("main table not found")
 	}
 	res, err := tx.NamedExecContext(ctx, query, data)
 	if err != nil {
 		_ = tx.Rollback()
-		return 0, err
+		return -1, err
 	}
 
 	id64, err := res.LastInsertId()
 	if err != nil {
 		_ = tx.Rollback()
-		return 0, err
+		return -1, err
 	}
 	id = id64
 
@@ -72,7 +79,7 @@ func InsertData(ctx context.Context, db *sqlx.DB, schema *pkg.Schema, data map[s
 		} else {
 			tableDefinition, ok := schema.Tables[tableName]
 			if !ok {
-				return 0, errors.New("table not found")
+				return -1, errors.New("table not found")
 			}
 
 			// for secondary table, we need to:
@@ -84,23 +91,26 @@ func InsertData(ctx context.Context, db *sqlx.DB, schema *pkg.Schema, data map[s
 			if tableDefinition.IsList {
 				l, err := cast.CastListToInterfaceList(data[tableName])
 				if err != nil {
-					return 0, err
+					return -1, err
 				}
+
 				row := map[string]interface{}{
 					"parent_id": id,
 				}
 
-				_, err = tx.NamedExecContext(ctx, query, row)
-				if err != nil {
-					_ = tx.Rollback()
-					return 0, err
-				}
+				for _, v := range l {
+					row[tableDefinition.ValueField.Name] = v
+					_, err = tx.NamedExecContext(ctx, query, row)
+					if err != nil {
+						_ = tx.Rollback()
+						return -1, err
+					}
 
-				_ = l
+				}
 			} else {
 				v, ok := data[tableName].([]map[string]interface{})
 				if !ok {
-					return 0, errors.New("data not found")
+					return -1, errors.New("data not found")
 				}
 
 				for _, row := range v {
@@ -108,7 +118,7 @@ func InsertData(ctx context.Context, db *sqlx.DB, schema *pkg.Schema, data map[s
 					_, err := tx.NamedExecContext(ctx, query, row)
 					if err != nil {
 						_ = tx.Rollback()
-						return 0, err
+						return -1, err
 					}
 				}
 			}
@@ -117,7 +127,7 @@ func InsertData(ctx context.Context, db *sqlx.DB, schema *pkg.Schema, data map[s
 	}
 
 	if err := tx.Commit(); err != nil {
-		return 0, err
+		return -1, err
 	}
 
 	return id, nil

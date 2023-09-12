@@ -86,9 +86,15 @@ func TestGenerateSQLiteCreateTable(t *testing.T) {
 					columns = append(columns, column)
 				}
 
-				// Check the columns
-				for _, field := range schema.Tables[tableName].Fields {
+				fieldsToTest := []pkg.Field{}
+				fieldsToTest = append(fieldsToTest, schema.Tables[tableName].Fields...)
+				if schema.Tables[tableName].IsList {
+					require.NotNil(t, schema.Tables[tableName].ValueField, "value field not found")
+					fieldsToTest = append(fieldsToTest, *schema.Tables[tableName].ValueField)
+				}
 
+				// Check the columns
+				for _, field := range fieldsToTest {
 					// Find the column
 					var column map[string]interface{}
 					for _, col := range columns {

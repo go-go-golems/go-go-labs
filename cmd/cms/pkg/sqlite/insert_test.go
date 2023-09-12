@@ -3,6 +3,7 @@ package sqlite
 import (
 	"context"
 	"fmt"
+	"github.com/go-go-golems/glazed/pkg/helpers/cast"
 	"github.com/go-go-golems/go-go-labs/cmd/cms/pkg"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
@@ -125,29 +126,54 @@ func TestInsertData(t *testing.T) {
 				require.NoError(t, err, "failed to query table:"+tableName)
 
 				idx := 0
-				dataRows, ok := tc.data[tableName].([]map[string]interface{})
-				require.True(t, ok, "failed to get data for table:"+tableName)
 
-				// Assert that the data matches what was inserted
-				for rows.Next() {
-					result := map[string]interface{}{}
-					err = rows.MapScan(result)
-					require.NoError(t, err, "failed to scan row for table:"+tableName)
+				if table.IsList {
+					dataRows, err := cast.CastListToInterfaceList(tc.data[tableName])
+					require.NoError(t, err, "failed to cast data for table:"+tableName)
 
-					// check that parent_id is the same
-					assert.Equal(t, id, result["parent_id"])
+					// Assert that the data matches what was inserted
+					for rows.Next() {
+						result := map[string]interface{}{}
+						err = rows.MapScan(result)
+						require.NoError(t, err, "failed to scan row for table:"+tableName)
 
-					require.GreaterOrEqual(t, len(dataRows), idx, fmt.Sprintf("not enough rows for table: %s", tableName))
-					data := dataRows[idx]
+						// check that parent_id is the same
+						assert.Equal(t, id, result["parent_id"])
 
-					for _, field := range table.Fields {
-						value, ok := data[field.Name]
-						require.True(t, ok, "field not found: "+field.Name)
+						require.GreaterOrEqual(t, len(dataRows), idx, fmt.Sprintf("not enough rows for table: %s", tableName))
+						data := dataRows[idx]
 
-						assert.Equal(t, value, result[field.Name], "wrong value for field: "+field.Name)
+						field := table.ValueField
+						require.Equal(t, data, result[field.Name], "wrong value for field: "+field.Name)
+
+						idx++
 					}
 
-					idx++
+				} else {
+					dataRows, ok := tc.data[tableName].([]map[string]interface{})
+					require.True(t, ok, "failed to get data for table:"+tableName)
+
+					// Assert that the data matches what was inserted
+					for rows.Next() {
+						result := map[string]interface{}{}
+						err = rows.MapScan(result)
+						require.NoError(t, err, "failed to scan row for table:"+tableName)
+
+						// check that parent_id is the same
+						assert.Equal(t, id, result["parent_id"])
+
+						require.GreaterOrEqual(t, len(dataRows), idx, fmt.Sprintf("not enough rows for table: %s", tableName))
+						data := dataRows[idx]
+
+						for _, field := range table.Fields {
+							value, ok := data[field.Name]
+							require.True(t, ok, "field not found: "+field.Name)
+
+							assert.Equal(t, value, result[field.Name], "wrong value for field: "+field.Name)
+						}
+
+						idx++
+					}
 				}
 			}
 		})
