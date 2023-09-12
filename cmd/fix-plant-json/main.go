@@ -107,5 +107,6 @@ func run(cmd *cobra.Command, args []string) {
 }
 
 func main() {
-	rootCmd.Execute()
+	err := rootCmd.Execute()
+	cobra.CheckErr(err)
 }
