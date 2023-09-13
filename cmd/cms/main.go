@@ -105,8 +105,11 @@ func main() {
 				log.Fatalf("Failed to list objects: %v", err)
 			}
 
-			fmt.Println("Listing all objects")
-			fmt.Println(response)
+			fmt.Printf("Listing objects %d-%d", response.Offset, response.Offset+len(response.Data)-1)
+			// serialize response to json
+			res, err := json.MarshalIndent(&response, "", "  ")
+			cobra.CheckErr(err)
+			fmt.Println(string(res))
 		},
 	}
 

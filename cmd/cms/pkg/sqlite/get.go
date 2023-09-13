@@ -14,6 +14,8 @@ type QueryData struct {
 	Fields    []pkg.Field
 	TableName string
 	IdField   string
+	Limit     int
+	Offset    int
 }
 
 // SQLite query template for getting all objects from table.

@@ -21,15 +21,15 @@ type PaginationResponse struct {
 	Offset int
 }
 
-const listObjectsTpl = `SELECT id,{{range $i, $field := .Fields}}{{if $i}}, {{end}}{{.Name}}{{end}} FROM {{.TableName}} LIMIT ? OFFSET ?`
+const listObjectsTpl = `SELECT id,{{range $i, $field := .Fields}}{{if $i}}, {{end}}{{.Name}}{{end}} FROM {{.TableName}} {{ if .Limit }} LIMIT ? OFFSET ? {{ end }}`
 
 var listObjectsParsedTemplate *template.Template
 
-func generateSQLiteList(queryData QueryData, limit, offset int) (string, []interface{}, error) {
+func generateSQLiteList(queryData QueryData) (string, error) {
 	if listObjectsParsedTemplate == nil {
 		tmpl, err := template.New("query").Parse(listObjectsTpl)
 		if err != nil {
-			return "", nil, fmt.Errorf("parse template: %w", err)
+			return "", fmt.Errorf("parse template: %w", err)
 		}
 		listObjectsParsedTemplate = tmpl
 	}
@@ -37,36 +37,38 @@ func generateSQLiteList(queryData QueryData, limit, offset int) (string, []inter
 	queryBuilder := &strings.Builder{}
 	err := listObjectsParsedTemplate.Execute(queryBuilder, queryData)
 	if err != nil {
-		return "", nil, fmt.Errorf("execute template: %w", err)
+		return "", fmt.Errorf("execute template: %w", err)
 	}
 
 	query := queryBuilder.String()
-	return query, []interface{}{limit, offset}, nil
+	return query, nil
 }
 
-func GenerateSQLiteListObjectsMainTable(schema *pkg.Schema, limit, offset int) (string, []interface{}, error) {
+func GenerateSQLiteListObjectsMainTable(schema *pkg.Schema, limit, offset int) (string, error) {
 	mainTable, ok := schema.Tables[schema.MainTable]
 	if !ok {
-		return "", nil, fmt.Errorf("main table %q not found in schema", schema.MainTable)
+		return "", fmt.Errorf("main table %q not found in schema", schema.MainTable)
 	}
 
 	queryData := QueryData{
 		Fields:    mainTable.Fields,
 		TableName: schema.MainTable,
+		Limit:     limit,
+		Offset:    offset,
 	}
 
-	return generateSQLiteList(queryData, limit, offset)
+	return generateSQLiteList(queryData)
 }
 
-const listObjectsSecondaryTpl = `SELECT parent_id,{{range $i, $field := .Fields}}{{if $i}}, {{end}}{{.Name}}{{end}} FROM {{.TableName}} WHERE parent_id IN (?)`
+const listObjectsSecondaryTpl = `SELECT parent_id,{{range $i, $field := .Fields}}{{if $i}}, {{end}}{{.Name}}{{end}} FROM {{.TableName}} WHERE parent_id IN `
 
 var listObjectsSecondaryParsedTemplate *template.Template
 
-func generateSQLiteListSecondary(queryData QueryData, ids []int64) (string, []interface{}, error) {
+func generateSQLiteListSecondary(queryData QueryData, ids []int64) (string, error) {
 	if listObjectsSecondaryParsedTemplate == nil {
 		tmpl, err := template.New("query").Parse(listObjectsSecondaryTpl)
 		if err != nil {
-			return "", nil, fmt.Errorf("parse template: %w", err)
+			return "", fmt.Errorf("parse template: %w", err)
 		}
 		listObjectsSecondaryParsedTemplate = tmpl
 	}
@@ -74,20 +76,27 @@ func generateSQLiteListSecondary(queryData QueryData, ids []int64) (string, []in
 	queryBuilder := &strings.Builder{}
 	err := listObjectsSecondaryParsedTemplate.Execute(queryBuilder, queryData)
 	if err != nil {
-		return "", nil, fmt.Errorf("execute template: %w", err)
+		return "", fmt.Errorf("execute template: %w", err)
 	}
 
 	query := queryBuilder.String()
-	return query, []interface{}{ids}, nil
+
+	// convert ids into "(1,2,4,5,6)" string
+	ids_ := make([]string, 0)
+	for _, id := range ids {
+		ids_ = append(ids_, fmt.Sprintf("%d", id))
+	}
+	idsString := fmt.Sprintf("(%s)", strings.Join(ids_, ","))
+
+	return query + idsString, nil
 }
 
 func GenerateSQLiteListObjectsSecondaryTable(schema *pkg.Schema, name string, ids []int64) (
 	string,
-	[]interface{},
 	error,
 ) {
 	if name == schema.MainTable {
-		return "", nil, errors.New("main table is not a secondary table")
+		return "", errors.New("main table is not a secondary table")
 	}
 
 	fields := make([]pkg.Field, 0)
@@ -96,7 +105,7 @@ func GenerateSQLiteListObjectsSecondaryTable(schema *pkg.Schema, name string, id
 
 	if table.IsList {
 		if table.ValueField == nil {
-			return "", nil, errors.New("value field not found")
+			return "", errors.New("value field not found")
 		}
 		fields = append(fields, *table.ValueField)
 	} else {
@@ -127,12 +136,12 @@ func ListObjects(
 		_ = tx.Rollback()
 	}(tx)
 
-	query, args, err := GenerateSQLiteListObjectsMainTable(schema, paginationRequest.Limit, paginationRequest.Offset)
+	query, err := GenerateSQLiteListObjectsMainTable(schema, paginationRequest.Limit, paginationRequest.Offset)
 	if err != nil {
 		return nil, fmt.Errorf("generate query: %w", err)
 	}
 
-	rows, err := tx.QueryxContext(ctx, query, args...)
+	rows, err := tx.QueryxContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("query: %w", err)
 	}
@@ -143,11 +152,14 @@ func ListObjects(
 	var ids []int64
 	results := make(map[int64]map[string]interface{}, 0)
 	for rows.Next() {
-		var id int64
 		result := make(map[string]interface{})
-		err := rows.Scan(&id, &result)
+		err := rows.MapScan(result)
 		if err != nil {
 			return nil, fmt.Errorf("scan: %w", err)
+		}
+		id, ok := result["id"].(int64)
+		if !ok {
+			return nil, fmt.Errorf("id is not an int64")
 		}
 		ids = append(ids, id)
 		results[id] = result
@@ -156,17 +168,25 @@ func ListObjects(
 		return nil, fmt.Errorf("rows: %w", err)
 	}
 
+	if len(ids) == 0 {
+		return &PaginationResponse{
+			Total:  0,
+			Data:   nil,
+			Offset: paginationRequest.Offset,
+		}, nil
+	}
+
 	for tableName, table := range schema.Tables {
 		if tableName == schema.MainTable {
 			continue
 		}
 
-		query, args, err = GenerateSQLiteListObjectsSecondaryTable(schema, tableName, ids)
+		query, err := GenerateSQLiteListObjectsSecondaryTable(schema, tableName, ids)
 		if err != nil {
 			return nil, fmt.Errorf("generate query: %w", err)
 		}
 
-		rows, err := tx.QueryxContext(ctx, query, args...)
+		rows, err := tx.QueryxContext(ctx, query)
 		if err != nil {
 			return nil, fmt.Errorf("query: %w", err)
 		}
