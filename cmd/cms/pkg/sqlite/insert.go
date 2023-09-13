@@ -19,6 +19,12 @@ func InsertData(ctx context.Context, db *sqlx.DB, schema *pkg.Schema, data map[s
 
 	tableQueries := make(map[string]string, len(schema.Tables))
 
+	// clone data
+	data_ := make(map[string]interface{}, len(data))
+	for k, v := range data {
+		data_[k] = v
+	}
+
 	for tableName, table := range schema.Tables {
 		newFields := make([]pkg.Field, 0)
 		newFields = append(newFields, table.Fields...)
@@ -60,7 +66,13 @@ func InsertData(ctx context.Context, db *sqlx.DB, schema *pkg.Schema, data map[s
 	if !ok {
 		return -1, errors.New("main table not found")
 	}
-	res, err := tx.NamedExecContext(ctx, query, data)
+	for _, field := range schema.Tables[schema.MainTable].Fields {
+		_, ok := data_[field.Name]
+		if !ok {
+			data_[field.Name] = nil
+		}
+	}
+	res, err := tx.NamedExecContext(ctx, query, data_)
 	if err != nil {
 		_ = tx.Rollback()
 		return -1, err
@@ -89,7 +101,11 @@ func InsertData(ctx context.Context, db *sqlx.DB, schema *pkg.Schema, data map[s
 
 			// check if the table is a list
 			if tableDefinition.IsList {
-				l, err := cast.CastListToInterfaceList(data[tableName])
+				_, ok := data_[tableName]
+				if !ok {
+					continue
+				}
+				l, err := cast.CastListToInterfaceList(data_[tableName])
 				if err != nil {
 					return -1, err
 				}
@@ -108,14 +124,33 @@ func InsertData(ctx context.Context, db *sqlx.DB, schema *pkg.Schema, data map[s
 
 				}
 			} else {
-				v, ok := data[tableName].([]map[string]interface{})
+				v__, ok := data_[tableName]
 				if !ok {
-					return -1, errors.New("data not found")
+					continue
+				}
+				v_, err := cast.CastListToInterfaceList(v__)
+				if err != nil {
+					return -1, errors.New("%v is not a list")
+				}
+				v, ok := cast.CastList[map[string]interface{}, interface{}](v_)
+				if !ok {
+					return -1, errors.New("%v is not a list of objects")
 				}
 
 				for _, row := range v {
-					row["parent_id"] = id
-					_, err := tx.NamedExecContext(ctx, query, row)
+					// clone map
+					row_ := make(map[string]interface{}, len(row))
+					for k, v := range row {
+						row_[k] = v
+					}
+					for _, field := range tableDefinition.Fields {
+						_, ok := row_[field.Name]
+						if !ok {
+							row_[field.Name] = nil
+						}
+					}
+					row_["parent_id"] = id
+					_, err := tx.NamedExecContext(ctx, query, row_)
 					if err != nil {
 						_ = tx.Rollback()
 						return -1, err

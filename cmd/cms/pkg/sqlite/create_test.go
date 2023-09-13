@@ -45,7 +45,7 @@ func TestGenerateSQLiteCreateTable(t *testing.T) {
 			require.NoError(t, err)
 
 			// Parse the schema
-			schema, err := pkg.ParseSchema(data)
+			schema, err := pkg.ParseSchemaFromYAML(data)
 			require.NoError(t, err)
 
 			// Generate the SQL

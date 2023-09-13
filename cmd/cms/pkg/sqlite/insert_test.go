@@ -6,7 +6,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/helpers/cast"
 	"github.com/go-go-golems/go-go-labs/cmd/cms/pkg"
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/jmoiron/sqlx"
@@ -16,23 +16,23 @@ import (
 
 func TestInsertData(t *testing.T) {
 	testCases := []struct {
-		name     string
-		filePath string
-		data     map[string]interface{}
+		name   string
+		schema string
+		data   map[string]interface{}
 	}{
 		{
-			name:     "single field",
-			filePath: "../test-data/01-single-field.yaml",
-			data:     map[string]interface{}{"name": "John"},
+			name:   "single field",
+			schema: "../test-data/01-single-field.yaml",
+			data:   map[string]interface{}{"name": "John"},
 		},
 		{
-			name:     "multiple fields",
-			filePath: "../test-data/02-multiple-fields.yaml",
-			data:     map[string]interface{}{"name": "John", "age": int64(18)},
+			name:   "multiple fields",
+			schema: "../test-data/02-multiple-fields.yaml",
+			data:   map[string]interface{}{"name": "John", "age": int64(18)},
 		},
 		{
-			name:     "multiple tables",
-			filePath: "../test-data/03-multiple-tables.yaml",
+			name:   "multiple tables",
+			schema: "../test-data/03-multiple-tables.yaml",
 			data: map[string]interface{}{
 				"name": "John",
 				"age":  int64(18),
@@ -44,8 +44,8 @@ func TestInsertData(t *testing.T) {
 			},
 		},
 		{
-			name:     "additional field properties",
-			filePath: "../test-data/04-additional-field-properties.yaml",
+			name:   "additional field properties",
+			schema: "../test-data/04-additional-field-properties.yaml",
 			data: map[string]interface{}{
 				"name": "John",
 				"age":  int64(18),
@@ -57,8 +57,8 @@ func TestInsertData(t *testing.T) {
 			},
 		},
 		{
-			name:     "plant",
-			filePath: "../test-data/05-plant.yaml",
+			name:   "plant",
+			schema: "../test-data/05-plant.yaml",
 			data: map[string]interface{}{
 				"name":           "Rose",
 				"botanical_name": "Rosa",
@@ -66,15 +66,32 @@ func TestInsertData(t *testing.T) {
 				"categories":     []string{"Flowering", "Perennial"},
 			},
 		},
+		{
+			name:   "plant2",
+			schema: "../test-data/06-plant2.yaml",
+			data: map[string]interface{}{
+				"name":           "Rose",
+				"botanical_name": "Rosa",
+				"rating":         int64(3),
+				"sunlight_needs": []string{"Full Sun", "Partial Shade"},
+				"categories":     []string{"Flowering", "Perennial"},
+				"special_features": []map[string]interface{}{
+					{"feature": "fragrant", "description": "Smells nice"},
+					{"feature": "edible", "description": "Tastes good"},
+				},
+			},
+
+			// TODO(manuel, 2023-09-13) We need to test for insertion errors
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Parse the schema from the test file
-			schemaBytes, err := ioutil.ReadFile(tc.filePath)
+			schemaBytes, err := os.ReadFile(tc.schema)
 			require.NoError(t, err)
 
-			schema, err := pkg.ParseSchema(schemaBytes)
+			schema, err := pkg.ParseSchemaFromYAML(schemaBytes)
 			require.NoError(t, err)
 
 			// Create an in-memory SQLite database

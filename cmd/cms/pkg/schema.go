@@ -18,36 +18,6 @@ import (
 // - For list fields, the value of the list item is stored in a column named `value` in the respective secondary table.
 // - For object fields, every column of the secondary table represents one key of the object. There is supposed to be only one row.
 // - For object list fields, the table is the same as for object fields, but there can be multiple rows.
-//
-// For example, an object for users with a list of addresses would have the schema.
-//
-// tables:
-//
-//		users:
-//		  fields:
-//		    - name: name
-//		      type: string
-//			  unique: true
-//		    - name: age
-//		      type: int
-//		      index: true
-//		addresses:
-//		  fields:
-//		    - name: street
-//		      type: string
-//		    - name: city
-//		      type: string
-//		    - name: country
-//		      type: string
-//		      index: true
-//	 categories:
-//	   value-field:
-//	     name: category
-//	     type: string
-//	   is-list: true
-//	   help: "A list of categories"
-//
-// main-table: users
 type Schema struct {
 	Tables    map[string]Table `yaml:"tables"`
 	MainTable string           `yaml:"main-table"`
@@ -94,7 +64,7 @@ type CMSObject struct {
 	Layout *Layout `yaml:"layout"`
 }
 
-func ParseSchema(input []byte) (*Schema, error) {
+func ParseSchemaFromYAML(input []byte) (*Schema, error) {
 	schema := &Schema{
 		Tables: make(map[string]Table),
 	}

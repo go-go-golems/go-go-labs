@@ -1,0 +1,21 @@
+{
+  "name": "Roslinae",
+  "botanical_name": "Tulipapa Roslinae",
+  "sunlight_needs": [
+    "Full Sun",
+    "Partial Shade"
+  ],
+  "categories": [
+    "Flowering",
+    "Bulb"
+  ],
+  "special_features": [
+    {
+      "feature": "fragrant"
+    },
+    {
+      "feature": "edible",
+      "description": "Don't eat it"
+    }
+  ]
+}
