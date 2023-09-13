@@ -6,7 +6,6 @@ import (
 	"github.com/go-go-golems/go-go-labs/cmd/cms/pkg"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
-	"github.com/rs/zerolog/log"
 	"strings"
 	"text/template"
 )
@@ -88,28 +87,17 @@ func GetObject(
 	ctx context.Context,
 	db *sqlx.DB,
 	schema *pkg.Schema,
-	id int,
+	id int64,
 ) (map[string]interface{}, error) {
 	tx, err := db.BeginTxx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("begin tx: %w", err)
 	}
-	defer func() {
-		if p := recover(); p != nil {
-			err = tx.Rollback() //
-			log.Error().Err(err).Msg("rollback failed")
-		} else if err != nil {
-			err = tx.Rollback()
-			if err != nil {
-				log.Error().Err(err).Msg("rollback failed")
-			} // err is non-nil; don't change it
-		} else {
-			err = tx.Commit() // err is nil; if Commit returns error update err
-			if err != nil {
-				log.Error().Err(err).Msg("commit failed")
-			}
-		}
-	}()
+
+	defer func(tx *sqlx.Tx) {
+		// only a read transaction, so we can rollback
+		_ = tx.Rollback()
+	}(tx)
 
 	query, err := GenerateSQLiteGetObjectMainTable(schema)
 	if err != nil {
@@ -167,6 +155,9 @@ func GetObject(
 					return nil, fmt.Errorf("scan: %w", err)
 				}
 				additionalResults = append(additionalResults, results[table.ValueField.Name])
+			}
+			if err := rows.Err(); err != nil {
+				return nil, fmt.Errorf("rows: %w", err)
 			}
 
 			results[tableName] = additionalResults

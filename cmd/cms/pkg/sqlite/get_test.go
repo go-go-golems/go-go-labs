@@ -96,7 +96,7 @@ func TestGetObject(t *testing.T) {
 				id := ids[idx]
 
 				// Get the object
-				object, err := GetObject(ctx, db, schema, int(id))
+				object, err := GetObject(ctx, db, schema, id)
 				require.NoError(t, err)
 
 				// delete id field

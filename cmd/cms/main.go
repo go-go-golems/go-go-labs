@@ -100,7 +100,7 @@ func main() {
 				Limit:  limit,
 			}
 
-			response, err := sqlite.GenerateSQLiteListObjects(context.Background(), db, schema, paginationRequest)
+			response, err := sqlite.ListObjects(context.Background(), db, schema, paginationRequest)
 			if err != nil {
 				log.Fatalf("Failed to list objects: %v", err)
 			}
@@ -122,7 +122,11 @@ func main() {
 				_ = db.Close()
 			}(db)
 
-			id, _ := strconv.Atoi(args[0])
+			// parse id as int64
+			id, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				log.Fatalf("Failed to parse ID: %v", err)
+			}
 
 			object, err := sqlite.GetObject(context.Background(), db, schema, id)
 			if err != nil {
