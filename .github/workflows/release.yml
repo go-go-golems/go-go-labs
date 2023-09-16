@@ -1,8 +1,9 @@
 on:
   push:
+    # don't run for go-go-labs
     # run only against tags
-    tags:
-      - '*'
+#    tags:
+#      - '*'
 
 permissions:
   contents: write
