@@ -22,7 +22,7 @@ func drawBorderedMessage(msg string) string {
 	//Width(width - 4)
 
 	w := wordwrap.NewWriter(width - 4)
-	_, err = fmt.Fprintf(w, msg)
+	_, err = w.Write([]byte(msg))
 	if err != nil {
 		panic(err)
 	}
