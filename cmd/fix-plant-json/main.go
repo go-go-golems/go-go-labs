@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
 
@@ -69,7 +69,7 @@ func fixGrowingZones(data map[string]interface{}) {
 
 func run(cmd *cobra.Command, args []string) {
 	for _, filepath := range args {
-		fileBytes, err := ioutil.ReadFile(filepath)
+		fileBytes, err := os.ReadFile(filepath)
 		if err != nil {
 			fmt.Printf("Error reading the file %s: %s\n", filepath, err)
 			continue
@@ -96,7 +96,7 @@ func run(cmd *cobra.Command, args []string) {
 		if dryRun {
 			fmt.Printf("Corrected JSON for file %s:\n%s\n", filepath, string(fixedJSON))
 		} else {
-			err := ioutil.WriteFile(filepath, fixedJSON, 0644)
+			err := os.WriteFile(filepath, fixedJSON, 0644)
 			if err != nil {
 				fmt.Printf("Error writing corrected JSON to file %s: %s\n", filepath, err)
 				continue

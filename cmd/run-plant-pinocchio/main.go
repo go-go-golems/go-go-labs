@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -13,7 +12,7 @@ import (
 )
 
 func isValidJSON(filepath string) bool {
-	data, err := ioutil.ReadFile(filepath)
+	data, err := os.ReadFile(filepath)
 	if err != nil {
 		return false
 	}
