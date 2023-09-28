@@ -53,7 +53,7 @@ func NewSummarizeCommand() (*SummarizeCommand, error) {
 				),
 				parameters.NewParameterDefinition(
 					"text",
-					parameters.ParameterTypeString,
+					parameters.ParameterTypeStringFromFile,
 					parameters.WithHelp("Text to summarize"),
 					// NOTE(manuel, 2023-09-27) This exclusive with is pretty cool as an idea
 					//parameters.WithExclusiveWith("url"),
