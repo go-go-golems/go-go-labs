@@ -100,6 +100,6 @@ func parseCSS(cssStr string) Selectors {
 }
 
 func printValues(name string, valStr string, selector string, prop string, mediaRule string) {
-	_, _ = fmt.Printf("%s\n\tvalStr: %s\n\tselector: %s\n\tprop: %s\n\tmediaRule: %s\n",
-		name, valStr, selector, prop, mediaRule)
+	//_, _ = fmt.Printf("%s\n\tvalStr: %s\n\tselector: %s\n\tprop: %s\n\tmediaRule: %s\n",
+	//	name, valStr, selector, prop, mediaRule)
 }
