@@ -30,5 +30,11 @@ func main() {
 	cobra.CheckErr(err)
 	rootCmd.AddCommand(command)
 
+	summarizeCmd, err := NewSummarizeCommand()
+	cobra.CheckErr(err)
+	command, err = cli.BuildCobraCommandFromWriterCommand(summarizeCmd)
+	cobra.CheckErr(err)
+	rootCmd.AddCommand(command)
+
 	_ = rootCmd.Execute()
 }
