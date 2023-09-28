@@ -42,7 +42,7 @@ func processLine(line, outputDir string, wg *sync.WaitGroup) {
 		} else {
 			fmt.Printf("Invalid JSON already exists for %s. Removing...\n", name)
 			// Remove the invalid JSON file
-			os.Remove(outputFilePath)
+			_ = os.Remove(outputFilePath)
 		}
 	}
 
@@ -97,7 +97,9 @@ func main() {
 		fmt.Printf("Error reading file: %v\n", err)
 		return
 	}
-	defer file.Close()
+	defer func(file *os.File) {
+		_ = file.Close()
+	}(file)
 
 	scanner := bufio.NewScanner(file)
 	var wg sync.WaitGroup
