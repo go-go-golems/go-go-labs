@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/tdewolff/parse/v2"
 	"github.com/tdewolff/parse/v2/css"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -20,7 +19,7 @@ func main() {
 	}
 
 	filePath := os.Args[1]
-	fileContent, err := ioutil.ReadFile(filePath)
+	fileContent, err := os.ReadFile(filePath)
 	if err != nil {
 		fmt.Println("Error reading file:", err)
 		return
