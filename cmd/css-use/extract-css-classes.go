@@ -17,7 +17,6 @@ import (
 
 type ExtractCSSClassesCommand struct {
 	*cmds.CommandDescription
-	fileList []parameters.FileData
 }
 
 func NewExtractCSSClassesCommand() (*ExtractCSSClassesCommand, error) {

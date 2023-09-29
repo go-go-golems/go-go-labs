@@ -91,6 +91,9 @@ func parseCSS(cssStr string) Selectors {
 		case css.CommentGrammar:
 			continue
 
+		case css.ErrorGrammar, css.TokenGrammar:
+			// printValues("ErrorGrammar/TokenGrammar", valStr, selector, prop, mediaRule)
+
 		default:
 			fmt.Println("Unknown grammar type:", gt)
 		}

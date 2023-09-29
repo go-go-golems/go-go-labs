@@ -125,6 +125,9 @@ func parseCSS(cssStr string) map[string]map[string]string {
 		case css.CommentGrammar:
 			continue
 
+		case css.ErrorGrammar, css.TokenGrammar:
+			fmt.Println("ErrorGrammar/TokenGrammar:", valStr)
+
 		default:
 			fmt.Println("Unknown grammar type:", gt)
 		}

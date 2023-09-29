@@ -36,5 +36,11 @@ func main() {
 	cobra.CheckErr(err)
 	rootCmd.AddCommand(command)
 
+	fastGPTCmd, err := NewFastGPTCommand()
+	cobra.CheckErr(err)
+	command, err = cli.BuildCobraCommandFromWriterCommand(fastGPTCmd)
+	cobra.CheckErr(err)
+	rootCmd.AddCommand(command)
+
 	_ = rootCmd.Execute()
 }

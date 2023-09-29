@@ -85,7 +85,7 @@ func NewEnrichWebCommand() (*EnrichWebCommand, error) {
 
 	return &EnrichWebCommand{
 		CommandDescription: cmds.NewCommandDescription(
-			"enrich-web",
+			"enrich",
 			cmds.WithShort("Fetch enrichment results for web content"),
 			cmds.WithFlags(
 				parameters.NewParameterDefinition(
