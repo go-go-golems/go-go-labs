@@ -10,7 +10,7 @@ type MockWriter struct {
 	data []byte
 }
 
-func (mw *MockWriter) Write(p []byte) (n int, err error) {
+func (mw *MockWriter) Write(p []byte) (int, error) {
 	mw.data = append(mw.data, p...)
 	return len(p), nil
 }

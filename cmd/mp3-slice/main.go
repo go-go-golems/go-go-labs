@@ -4,13 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"github.com/go-go-golems/go-go-labs/cmd/mp3-slice/mp3lib"
-	"log"
 	"os"
 	"path/filepath"
-	"strconv"
-	"time"
-
-	"github.com/Vernacular-ai/godub"
 )
 
 func ensureDirExists(dirPath string) error {
@@ -77,57 +72,4 @@ func main() {
 	}
 
 	fmt.Println("MP3 slicing complete.")
-}
-
-func mainGoDub() {
-	if len(os.Args) < 3 {
-		fmt.Println("Usage: go run split.go <path_to_mp3_file> <segment_length_in_seconds>")
-		os.Exit(1)
-	}
-
-	mp3FilePath := os.Args[1]
-	segmentLengthInSeconds, err := strconv.Atoi(os.Args[2])
-	if err != nil {
-		log.Fatalf("Invalid segment length: %s", os.Args[2])
-	}
-
-	segment, err := godub.NewLoader().Load(mp3FilePath)
-	if err != nil {
-		log.Fatalf("Failed to load MP3 file: %v", err)
-	}
-
-	totalDuration := segment.Duration()
-	segmentDuration := time.Duration(segmentLengthInSeconds) * time.Second
-
-	fmt.Printf("Total duration: %d\n", totalDuration)
-	fmt.Printf("Segment duration: %d\n", segmentDuration)
-
-	start := time.Duration(0)
-	counter := 1
-
-	for start < totalDuration {
-		end := start + segmentDuration
-		if end > totalDuration {
-			end = totalDuration
-		}
-
-		fmt.Printf("Slicing from %d to %d\n", start, end)
-		slicedSegment, err := segment.Slice(start/time.Millisecond, end/time.Millisecond)
-		if err != nil {
-			log.Fatalf("Failed to slice the segment: %v", err)
-		}
-
-		outFileName := fmt.Sprintf("output_%03d.mp3", counter)
-		outFilePath := filepath.Join(filepath.Dir(mp3FilePath), outFileName)
-
-		err = godub.NewExporter(outFilePath).WithDstFormat("mp3").Export(slicedSegment)
-		if err != nil {
-			log.Fatalf("Failed to export the sliced segment: %v", err)
-		}
-
-		fmt.Printf("Saved segment %d to %s\n", counter, outFilePath)
-
-		start = end
-		counter++
-	}
 }

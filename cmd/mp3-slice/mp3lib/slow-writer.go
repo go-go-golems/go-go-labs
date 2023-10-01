@@ -31,7 +31,7 @@ func NewSlowWriter(w io.Writer, durationPerKilobyte time.Duration) *SlowWriter {
 
 // Write writes the provided byte slice to the underlying writer in chunks,
 // and sleeps between chunks to simulate a slower writing process.
-func (sw *SlowWriter) Write(p []byte) (n int, err error) {
+func (sw *SlowWriter) Write(p []byte) (int, error) {
 	chunkSize := 1024
 	totalWritten := 0
 
