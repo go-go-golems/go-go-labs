@@ -6,11 +6,11 @@ require (
 	github.com/BobuSumisu/aho-corasick v1.0.3
 	github.com/PuerkitoBio/goquery v1.8.0
 	github.com/ThreeDotsLabs/watermill v1.3.3
+	github.com/Vernacular-ai/godub v0.1.6
 	github.com/alecthomas/participle/v2 v2.0.0
 	github.com/blevesearch/bleve v1.0.14
 	github.com/charmbracelet/bubbles v0.16.1
 	github.com/charmbracelet/bubbletea v0.24.1
-	github.com/charmbracelet/glamour v0.6.0
 	github.com/charmbracelet/lipgloss v0.7.1
 	github.com/dave/jennifer v1.7.0
 	github.com/go-go-golems/clay v0.0.22
@@ -26,7 +26,6 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.29.1
 	github.com/spf13/cobra v1.7.0
-	github.com/spf13/viper v1.16.0
 	github.com/tdewolff/parse/v2 v2.6.8
 	github.com/weaviate/weaviate v1.19.13-0.20230706120536-85b5f0f4fa43
 	github.com/weaviate/weaviate-go-client/v4 v4.9.0
@@ -82,6 +81,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.6.0 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/bytedance/sonic v1.8.0 // indirect
+	github.com/charmbracelet/glamour v0.6.0 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
 	github.com/containerd/console v1.0.4-0.20230313162750-1ae8d489ac81 // indirect
 	github.com/couchbase/vellum v1.0.2 // indirect
@@ -110,6 +110,7 @@ require (
 	github.com/goccy/go-json v0.10.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
+	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/gorilla/css v1.0.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/hashicorp/yamux v0.0.0-20180604194846-3520598351bb // indirect
@@ -162,8 +163,10 @@ require (
 	github.com/spf13/cast v1.5.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/spf13/viper v1.16.0 // indirect
 	github.com/steveyen/gtreap v0.1.0 // indirect
 	github.com/subosito/gotenv v1.4.2 // indirect
+	github.com/tink-ab/tempfile v0.0.0-20180226111222-33beb0518f1a // indirect
 	github.com/tinylib/msgp v1.1.0 // indirect
 	github.com/tj/go-naturaldate v1.3.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
