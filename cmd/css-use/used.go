@@ -80,8 +80,8 @@ func (c *UsedCommand) Run(
 		sort.Strings(alphabeticalKeys)
 		for _, key := range alphabeticalKeys {
 			row := types.NewRow(
-				types.MRP("file", url),
 				types.MRP("class", key),
+				types.MRP("file", url),
 			)
 			if err := gp.AddRow(ctx, row); err != nil {
 				return err

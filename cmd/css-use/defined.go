@@ -199,11 +199,20 @@ func outputRules(
 			continue
 		}
 
-		// split selector and filter out .class_names
-		selectorParts := strings.Split(rule.Selector, " ")
+		selectorParts := strings.FieldsFunc(rule.Selector, func(r rune) bool {
+			return r == '>' || r == ':' || r == ' '
+		})
+
 		for _, selectorPart := range selectorParts {
-			if strings.HasPrefix(selectorPart, ".") {
-				classes[selectorPart[1:]] = true
+			startsWithDot := strings.HasPrefix(selectorPart, ".")
+			dotParts := strings.Split(selectorPart, ".")
+			for idx, dotPart := range dotParts {
+				if idx == 0 && !startsWithDot {
+					continue
+				}
+				if dotPart != "" {
+					classes[dotPart] = true
+				}
 			}
 		}
 	}
@@ -218,8 +227,8 @@ func outputRules(
 
 		for _, class := range classes_ {
 			row := types.NewRow(
-				types.MRP("file", path),
 				types.MRP("class", class),
+				types.MRP("file", path),
 			)
 			if err := gp.AddRow(ctx, row); err != nil {
 				return err

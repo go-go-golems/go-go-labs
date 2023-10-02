@@ -39,6 +39,12 @@ func NewFindUnusedClassesCommand() (*FindUnusedClassesCommand, error) {
 					parameters.WithHelp("Path to the defined.json file"),
 					parameters.WithRequired(true),
 				),
+				parameters.NewParameterDefinition(
+					"check-all-unused",
+					parameters.ParameterTypeBool,
+					parameters.WithHelp("Check if all classes in a file are unused"),
+					parameters.WithDefault(false),
+				),
 			),
 			cmds.WithLayers(
 				glazedParameterLayer,
@@ -70,13 +76,48 @@ func (c *FindUnusedClassesCommand) Run(
 		usedMap[class] = true
 	}
 
+	// Structures to keep track of counts
+	fileToTotalClasses := make(map[string]int)
+	fileToUsedClasses := make(map[string]map[string]interface{})
+	classToFiles := make(map[string][]string)
+
+	// Count the total number of classes per file
+	for _, entry := range defined {
+		file := entry["file"].(string)
+		fileToTotalClasses[file]++
+		class := entry["class"].(string)
+		classToFiles[class] = append(classToFiles[class], file)
+	}
+
+	// Count the number of used classes per file
+	for _, entry := range used {
+		class_ := entry["class"].(string)
+		for _, file := range classToFiles[class_] {
+			if _, found := fileToUsedClasses[file]; !found {
+				fileToUsedClasses[file] = make(map[string]interface{})
+			}
+			fileToUsedClasses[file][class_] = true
+		}
+	}
+
+	checkAllUnused := ps["check-all-unused"].(bool)
+
 	for _, entry := range defined {
 		class := entry["class"].(string)
 		if _, found := usedMap[class]; !found {
+			filename := entry["file"].(string)
 			row := types.NewRow(
 				types.MRP("class", class),
-				types.MRP("file", entry["file"].(string)),
+				types.MRP("file", filename),
 			)
+
+			if checkAllUnused {
+				totalClasses := fileToTotalClasses[filename]
+				usedClasses := len(fileToUsedClasses[filename])
+				row.Set("total_classes", totalClasses)
+				row.Set("used_classes", usedClasses)
+				row.Set("all_unused", usedClasses == 0)
+			}
 			if err := gp.AddRow(ctx, row); err != nil {
 				return err
 			}
