@@ -21,6 +21,10 @@ type DefinedCommand struct {
 	*cmds.CommandDescription
 }
 
+// This would be good to transform into something that keeps track of the output
+// processor, the flags, probably as a helper class, to avoid having to pass arguments all
+// over.
+
 func NewDefinedCommand() (*DefinedCommand, error) {
 	glazedParameterLayer, err := settings.NewGlazedParameterLayers()
 	if err != nil {
