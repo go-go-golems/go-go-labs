@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path"
 	"strings"
 )
 
@@ -133,4 +134,40 @@ func ReaderUrlOrFile(url string) (io.ReadCloser, error) {
 		reader = file
 	}
 	return reader, nil
+}
+
+func containsAny(haystack []string, needles []string) bool {
+	for _, needle := range needles {
+		if contains(haystack, needle) {
+			return true
+		}
+	}
+	return false
+}
+
+func containsAnyGlob(globHaystack []string, needles []string) bool {
+	for _, needle := range needles {
+		if containsGlob(globHaystack, needle) {
+			return true
+		}
+	}
+	return false
+}
+
+func contains(haystack []string, needle string) bool {
+	for _, item := range haystack {
+		if item == needle {
+			return true
+		}
+	}
+	return false
+}
+
+func containsGlob(globHaystack []string, needle string) bool {
+	for _, glob := range globHaystack {
+		if match, _ := path.Match(glob, needle); match {
+			return true
+		}
+	}
+	return false
 }
