@@ -2,41 +2,45 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
-	"io"
-	"net/http"
+	"github.com/go-go-golems/glazed/pkg/settings"
 	"sort"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
-type ParseHTMLCommand struct {
+type UsedCommand struct {
 	*cmds.CommandDescription
 }
 
-func NewParseHTMLCommand() (*ParseHTMLCommand, error) {
+func NewUsedCommand() (*UsedCommand, error) {
+	glazedLayer, err := settings.NewGlazedParameterLayers()
+	if err != nil {
+		return nil, err
+	}
+
 	argURL := parameters.NewParameterDefinition(
 		"url",
 		parameters.ParameterTypeString,
 		parameters.WithHelp("The URL of the HTML page to be parsed."),
 	)
 
-	return &ParseHTMLCommand{
+	return &UsedCommand{
 		CommandDescription: cmds.NewCommandDescription(
-			"parse-html",
+			"used",
 			cmds.WithShort("Parses an HTML page and lists all CSS classes used in it."),
 			cmds.WithArguments(argURL),
+			cmds.WithLayers(glazedLayer),
 		),
 	}, nil
 }
 
-func (c *ParseHTMLCommand) Run(
+func (c *UsedCommand) Run(
 	ctx context.Context,
 	parsedLayers map[string]*layers.ParsedParameterLayer,
 	ps map[string]interface{},
@@ -44,20 +48,15 @@ func (c *ParseHTMLCommand) Run(
 ) error {
 	url := ps["url"].(string)
 
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	reader, err2 := ReaderUrlOrFile(url)
+	if err2 != nil {
+		return err2
 	}
-	client := &http.Client{Transport: tr}
+	defer func() {
+		_ = reader.Close()
+	}()
 
-	resp, err := client.Get(url)
-	if err != nil {
-		return err
-	}
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(resp.Body)
-
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	doc, err := goquery.NewDocumentFromReader(reader)
 	if err != nil {
 		return err
 	}

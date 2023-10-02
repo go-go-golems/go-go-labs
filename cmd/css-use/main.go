@@ -19,14 +19,14 @@ func main() {
 
 	helpSystem.SetupCobraRootCommand(rootCmd)
 
-	parseHtmlCmd, err := NewParseHTMLCommand()
+	parseHtmlCmd, err := NewUsedCommand()
 	cobra.CheckErr(err)
 	command, err := cli.BuildCobraCommandFromGlazeCommand(parseHtmlCmd)
 	cobra.CheckErr(err)
 
 	rootCmd.AddCommand(command)
 
-	extractCSSClassesCmd, err := NewExtractCSSClassesCommand()
+	extractCSSClassesCmd, err := NewDefinedCommand()
 	cobra.CheckErr(err)
 	command, err = cli.BuildCobraCommandFromGlazeCommand(extractCSSClassesCmd)
 	cobra.CheckErr(err)

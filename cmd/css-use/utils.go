@@ -2,10 +2,15 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
 	"fmt"
 	"github.com/tdewolff/parse/v2"
 	"github.com/tdewolff/parse/v2/css"
 	orderedmap "github.com/wk8/go-ordered-map/v2"
+	"io"
+	"net/http"
+	"os"
+	"strings"
 )
 
 type Rules = *orderedmap.OrderedMap[string, string]
@@ -105,4 +110,27 @@ func parseCSS(cssStr string) Selectors {
 func printValues(name string, valStr string, selector string, prop string, mediaRule string) {
 	//_, _ = fmt.Printf("%s\n\tvalStr: %s\n\tselector: %s\n\tprop: %s\n\tmediaRule: %s\n",
 	//	name, valStr, selector, prop, mediaRule)
+}
+
+func ReaderUrlOrFile(url string) (io.ReadCloser, error) {
+	var reader io.ReadCloser
+	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		client := &http.Client{Transport: tr}
+
+		resp, err := client.Get(url)
+		if err != nil {
+			return nil, err
+		}
+		reader = resp.Body
+	} else {
+		file, err := os.Open(url)
+		if err != nil {
+			return nil, err
+		}
+		reader = file
+	}
+	return reader, nil
 }
