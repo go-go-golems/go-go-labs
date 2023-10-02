@@ -32,5 +32,11 @@ func main() {
 	cobra.CheckErr(err)
 	rootCmd.AddCommand(command)
 
+	FindUnusedClassesCmd, err := NewFindUnusedClassesCommand()
+	cobra.CheckErr(err)
+	command, err = cli.BuildCobraCommandFromGlazeCommand(FindUnusedClassesCmd)
+	cobra.CheckErr(err)
+	rootCmd.AddCommand(command)
+
 	_ = rootCmd.Execute()
 }

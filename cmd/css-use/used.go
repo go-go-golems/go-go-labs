@@ -28,7 +28,7 @@ func NewUsedCommand() (*UsedCommand, error) {
 		CommandDescription: cmds.NewCommandDescription(
 			"used",
 			cmds.WithShort("Parses an HTML page and lists all CSS classes used in it."),
-			cmds.WithFlags(
+			cmds.WithArguments(
 				parameters.NewParameterDefinition(
 					"files",
 					parameters.ParameterTypeStringList,

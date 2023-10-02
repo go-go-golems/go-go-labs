@@ -6,13 +6,11 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
-	"github.com/go-go-golems/glazed/pkg/helpers/cast"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
 	"golang.org/x/net/html"
 	"io"
-	"os"
 	"sort"
 	"strings"
 )
@@ -37,18 +35,6 @@ func NewDefinedCommand() (*DefinedCommand, error) {
 			cmds.WithShort("Parse provided HTML files and extract CSS classes."),
 			cmds.WithFlags(
 				parameters.NewParameterDefinition(
-					"files",
-					parameters.ParameterTypeFileList,
-					parameters.WithHelp("List of HTML files to parse for CSS classes."),
-					parameters.WithDefault([]*parameters.FileData{}),
-				),
-				parameters.NewParameterDefinition(
-					"urls",
-					parameters.ParameterTypeStringList,
-					parameters.WithHelp("List of URLs to parse for CSS classes."),
-					parameters.WithDefault([]string{}),
-				),
-				parameters.NewParameterDefinition(
 					"with_selector",
 					parameters.ParameterTypeBool,
 					parameters.WithHelp("Include CSS selectors in output."),
@@ -59,6 +45,14 @@ func NewDefinedCommand() (*DefinedCommand, error) {
 					parameters.ParameterTypeBool,
 					parameters.WithHelp("Include CSS rules in output."),
 					parameters.WithDefault(false),
+				),
+			),
+			cmds.WithArguments(
+				parameters.NewParameterDefinition(
+					"files",
+					parameters.ParameterTypeStringList,
+					parameters.WithHelp("List of HTML files (or URLs) to parse for CSS classes."),
+					parameters.WithDefault([]string{}),
 				),
 			),
 			cmds.WithLayers(glazedParameterLayer),
@@ -75,33 +69,7 @@ func (c *DefinedCommand) Run(
 	withSelector := ps["with_selector"].(bool)
 	withRules := ps["with_rules"].(bool)
 
-	fileList, ok := cast.CastList2[*parameters.FileData, interface{}](ps["files"])
-	if !ok {
-		return fmt.Errorf("files argument is not a list of files")
-	}
-
-	for _, fileData := range fileList {
-		fileContent, err := os.ReadFile(fileData.Path)
-		if err != nil {
-			return fmt.Errorf("Error reading file %s: %w", fileData.Path, err)
-		}
-
-		reader := strings.NewReader(string(fileContent))
-
-		err = ParseAndOutputFile(
-			ctx,
-			fileData.Path,
-			reader,
-			gp,
-			withSelector,
-			withRules,
-		)
-		if err != nil {
-			return err
-		}
-	}
-
-	urls := ps["urls"].([]string)
+	urls := ps["files"].([]string)
 
 	for _, url := range urls {
 		reader, err := ReaderUrlOrFile(url)
