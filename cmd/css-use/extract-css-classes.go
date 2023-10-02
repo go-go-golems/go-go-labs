@@ -83,9 +83,17 @@ func (c *DefinedCommand) Run(
 		}
 
 		reader := strings.NewReader(string(fileContent))
-		err2 := outputDefinedCSSClassesFromHTML(ctx, reader, fileData.Path, gp, withSelector, withRules)
-		if err2 != nil {
-			return err2
+
+		err = ParseAndOutputFile(
+			ctx,
+			fileData.Path,
+			reader,
+			gp,
+			withSelector,
+			withRules,
+		)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -100,40 +108,71 @@ func (c *DefinedCommand) Run(
 			_ = reader.Close()
 		}()
 
-		// if url ends with css, go straight to parsing CSS
-		if strings.HasSuffix(url, ".css") {
-			cssContent, err := io.ReadAll(reader)
-			if err != nil {
-				return fmt.Errorf("error reading CSS from %s: %w", url, err)
-			}
-
-			err = outputDefinedCSSClassesFromCSS(ctx, string(cssContent), url, gp, withSelector, withRules)
-			if err != nil {
-				return err
-			}
-			continue
-		}
-
-		err = outputDefinedCSSClassesFromHTML(ctx, reader, url, gp, withSelector, withRules)
+		err = ParseAndOutputFile(
+			ctx,
+			url,
+			reader,
+			gp,
+			withSelector,
+			withRules,
+		)
 		if err != nil {
 			return err
 		}
+
 	}
 
 	return nil
 }
 
-func outputDefinedCSSClassesFromHTML(
+func ParseAndOutputFile(
 	ctx context.Context,
+	url string,
 	reader io.Reader,
-	path string,
 	gp middlewares.Processor,
 	withSelector bool,
 	withRules bool,
 ) error {
+	// if url ends with css, go straight to parsing CSS
+	if strings.HasSuffix(url, ".css") {
+		cssContent, err := io.ReadAll(reader)
+		if err != nil {
+			return fmt.Errorf("error reading CSS from %s: %w", url, err)
+		}
+		rules, err := GetRules(string(cssContent))
+		if err != nil {
+			return err
+		}
+
+		err = outputRules(ctx, rules, url, gp, withSelector, withRules)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	rules, err := GetRulesFromHTML(reader)
+	if err != nil {
+		return err
+	}
+
+	err = outputRules(ctx, rules, url, gp, withSelector, withRules)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func GetRulesFromHTML(
+	reader io.Reader,
+) ([]CSSRule, error) {
+	ret := []CSSRule{}
+
 	doc, err := html.Parse(reader)
 	if err != nil {
-		return fmt.Errorf("error parsing HTML from %s: %w", path, err)
+		return nil, err
 	}
 
 	var cssContents []string
@@ -153,32 +192,34 @@ func outputDefinedCSSClassesFromHTML(
 	f(doc)
 
 	for _, cssContent := range cssContents {
-		err = outputDefinedCSSClassesFromCSS(ctx, cssContent, path, gp, withSelector, withRules)
+		rules, err := GetRules(cssContent)
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, rules...)
 	}
-	return nil
+
+	return ret, nil
 }
 
-func outputDefinedCSSClassesFromCSS(
+func outputRules(
 	ctx context.Context,
-	cssContent string,
+	rules []CSSRule,
 	path string,
 	gp middlewares.Processor,
 	withSelectors bool,
 	withRules bool,
 ) error {
-	selectors := parseCSS(cssContent)
-
 	classes := map[string]interface{}{}
 
-	for p := selectors.Oldest(); p != nil; p = p.Next() {
-		selector, rules := p.Key, p.Value
+	for _, rule := range rules {
 		if withSelectors {
 			row := types.NewRow(
 				types.MRP("file", path),
-				types.MRP("selector", selector),
+				types.MRP("selector", rule.Selector),
 			)
 			if withRules {
-				row.Set("rules", rules)
+				row.Set("rules", rule.Rules)
 			}
 			if err := gp.AddRow(ctx, row); err != nil {
 				return err
@@ -187,7 +228,7 @@ func outputDefinedCSSClassesFromCSS(
 		}
 
 		// split selector and filter out .class_names
-		selectorParts := strings.Split(selector, " ")
+		selectorParts := strings.Split(rule.Selector, " ")
 		for _, selectorPart := range selectorParts {
 			if strings.HasPrefix(selectorPart, ".") {
 				classes[selectorPart[1:]] = true
@@ -222,15 +263,19 @@ type CSSRule struct {
 	Rules    string
 }
 
-func GetDefinedCSSRules(cssContent string) ([]CSSRule, error) {
+func GetRules(cssContent string) ([]CSSRule, error) {
 	selectors := parseCSS(cssContent)
 
 	var cssRules []CSSRule
 	for p := selectors.Oldest(); p != nil; p = p.Next() {
 		selector, rules := p.Key, p.Value
+		ruleBody := ""
+		for r := rules.Oldest(); r != nil; r = r.Next() {
+			ruleBody += fmt.Sprintf("%s: %s; ", r.Key, r.Value)
+		}
 		cssRules = append(cssRules, CSSRule{
 			Selector: selector,
-			Rules:    rules,
+			Rules:    ruleBody,
 		})
 	}
 
