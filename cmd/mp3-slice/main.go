@@ -61,7 +61,7 @@ func main() {
 			endSec = length
 		}
 
-		outputFilePath := filepath.Join(*outputDir, fmt.Sprintf("slice_%d.mp3", i+1))
+		outputFilePath := filepath.Join(*outputDir, fmt.Sprintf("slice_%.2d.mp3", i+1))
 		err := mp3lib.ExtractSectionToFile(*mp3FilePath, outputFilePath, startSec, endSec)
 		if err != nil {
 			fmt.Printf("Error extracting segment from %d to %d seconds: %v\n", startSec, endSec, err)
