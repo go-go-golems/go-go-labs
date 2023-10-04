@@ -242,27 +242,6 @@ func (zd *ZendeskConfig) getJobStatus(jobID string) (*JobStatus, error) {
 	}
 }
 
-func (zd *ZendeskConfig) deleteTicketById(ticketId int) error {
-	endpoint := fmt.Sprintf("%s/api/v2/tickets/%d.json", zd.Domain, ticketId)
-
-	headers := map[string]string{
-		"Authorization": "Basic " + basicAuth(zd.Email, zd.ApiToken),
-	}
-
-	response, err := grequests.Delete(endpoint, &grequests.RequestOptions{
-		Headers: headers,
-	})
-	if err != nil {
-		return err
-	}
-
-	if response.StatusCode != 200 {
-		return fmt.Errorf("failed to delete ticket with ID %d. Status: %s", ticketId, response.String())
-	}
-
-	return nil
-}
-
 func (zd *ZendeskConfig) bulkDeleteTickets(ticketIds []int) (*JobStatus, error) {
 	endpoint := fmt.Sprintf("%s/api/v2/tickets/destroy_many.json?ids=%s", zd.Domain, strings.Join(convertIntsToStrings(ticketIds), ","))
 

@@ -146,69 +146,72 @@ func (c *GetTicketsCommand) Run(
 	}
 
 	count := 0
-	// Logic for fetching ticket data
-	var tickets []Ticket
+
+	addTicketRow := func(ticket Ticket) error {
+		row := types.NewRow(
+			types.MRP("id", ticket.ID),
+			types.MRP("status", ticket.Status),
+			types.MRP("created_at", ticket.CreatedAt),
+			types.MRP("subject", ticket.Subject),
+			types.MRP("allow_attachments", ticket.AllowAttachments),
+			types.MRP("allow_channelback", ticket.AllowChannelback),
+			types.MRP("assignee_id", ticket.AssigneeID),
+			types.MRP("brand_id", ticket.BrandID),
+			types.MRP("collaborator_ids", ticket.CollaboratorIDs),
+			types.MRP("custom_fields", ticket.CustomFields),
+			types.MRP("custom_status_id", ticket.CustomStatusID),
+			types.MRP("description", ticket.Description),
+			types.MRP("due_at", ticket.DueAt),
+			types.MRP("email_cc_ids", ticket.EmailCCIDs),
+			types.MRP("external_id", ticket.ExternalID),
+			types.MRP("fields", ticket.Fields),
+			types.MRP("follower_ids", ticket.FollowerIDs),
+			types.MRP("followup_ids", ticket.FollowupIDs),
+			types.MRP("forum_topic_id", ticket.ForumTopicID),
+			types.MRP("from_messaging_channel", ticket.FromMessagingChannel),
+			types.MRP("generated_timestamp", ticket.GeneratedTimestamp),
+			types.MRP("group_id", ticket.GroupID),
+			types.MRP("has_incidents", ticket.HasIncidents),
+			types.MRP("is_public", ticket.IsPublic),
+			types.MRP("organization_id", ticket.OrganizationID),
+			types.MRP("priority", ticket.Priority),
+			types.MRP("problem_id", ticket.ProblemID),
+			types.MRP("raw_subject", ticket.RawSubject),
+			types.MRP("recipient", ticket.Recipient),
+			types.MRP("requester_id", ticket.RequesterID),
+			types.MRP("satisfaction_rating", ticket.SatisfactionRating),
+			types.MRP("sharing_agreement_ids", ticket.SharingAgreementIDs),
+			types.MRP("submitter_id", ticket.SubmitterID),
+			types.MRP("tags", ticket.Tags),
+			types.MRP("type", ticket.Type),
+			types.MRP("updated_at", ticket.UpdatedAt),
+			types.MRP("url", ticket.URL),
+			types.MRP("via", ticket.Via),
+		)
+		if err := gp.AddRow(ctx, row); err != nil {
+			return err
+		}
+
+		count++
+
+		if limit > 0 && count >= limit {
+			return ErrFinish{}
+		}
+		return nil
+	}
+
 	if ticketId != "" {
 		ticket := zd.getTicketById(ticketId)
-		tickets = append(tickets, ticket)
+		err := addTicketRow(ticket)
+		if err != nil {
+			return err
+		}
 	} else {
-		// Convert startDate to Unix timestamp, as required by getIncrementalTickets
 		_, err := zd.getIncrementalTickets(Query{
 			StartDate: startDate,
 			EndDate:   endDate,
 			Limit:     limit,
-			Callback: func(ticket Ticket) error {
-				row := types.NewRow(
-					types.MRP("id", ticket.ID),
-					types.MRP("status", ticket.Status),
-					types.MRP("created_at", ticket.CreatedAt),
-					types.MRP("subject", ticket.Subject),
-					types.MRP("allow_attachments", ticket.AllowAttachments),
-					types.MRP("allow_channelback", ticket.AllowChannelback),
-					types.MRP("assignee_id", ticket.AssigneeID),
-					types.MRP("brand_id", ticket.BrandID),
-					types.MRP("collaborator_ids", ticket.CollaboratorIDs),
-					types.MRP("custom_fields", ticket.CustomFields),
-					types.MRP("custom_status_id", ticket.CustomStatusID),
-					types.MRP("description", ticket.Description),
-					types.MRP("due_at", ticket.DueAt),
-					types.MRP("email_cc_ids", ticket.EmailCCIDs),
-					types.MRP("external_id", ticket.ExternalID),
-					types.MRP("fields", ticket.Fields),
-					types.MRP("follower_ids", ticket.FollowerIDs),
-					types.MRP("followup_ids", ticket.FollowupIDs),
-					types.MRP("forum_topic_id", ticket.ForumTopicID),
-					types.MRP("from_messaging_channel", ticket.FromMessagingChannel),
-					types.MRP("generated_timestamp", ticket.GeneratedTimestamp),
-					types.MRP("group_id", ticket.GroupID),
-					types.MRP("has_incidents", ticket.HasIncidents),
-					types.MRP("is_public", ticket.IsPublic),
-					types.MRP("organization_id", ticket.OrganizationID),
-					types.MRP("priority", ticket.Priority),
-					types.MRP("problem_id", ticket.ProblemID),
-					types.MRP("raw_subject", ticket.RawSubject),
-					types.MRP("recipient", ticket.Recipient),
-					types.MRP("requester_id", ticket.RequesterID),
-					types.MRP("satisfaction_rating", ticket.SatisfactionRating),
-					types.MRP("sharing_agreement_ids", ticket.SharingAgreementIDs),
-					types.MRP("submitter_id", ticket.SubmitterID),
-					types.MRP("tags", ticket.Tags),
-					types.MRP("type", ticket.Type),
-					types.MRP("updated_at", ticket.UpdatedAt),
-					types.MRP("url", ticket.URL),
-					types.MRP("via", ticket.Via),
-				)
-				if err := gp.AddRow(ctx, row); err != nil {
-					return err
-				}
-
-				count++
-
-				if limit > 0 && count >= limit {
-					return ErrFinish{}
-				}
-				return nil
-			},
+			Callback:  addTicketRow,
 		})
 
 		if err != nil && err.Error() != "finish" {
