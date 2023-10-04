@@ -41,12 +41,6 @@ The tool looks for the following environment variables to authenticate with the 
 
 You can also pass these values as flags for one-off usage.
 
-## Installation
-
-```
-go get github.com/yourname/zendesk
-```
-
 ## Contributing
 
 Contributions are welcome! Please open an issue or PR if you would like to contribute.
