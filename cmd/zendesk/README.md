@@ -121,8 +121,6 @@ Some ideas for improvements:
 
 - Add ability to update tickets
 - Filter ticket exports
-- Output tickets to JSON/CSV
-- Improve test coverage
 
 ## License
 
