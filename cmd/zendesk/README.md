@@ -27,8 +27,8 @@ zendesk delete-tickets --ids 36001234567
 # Bulk delete tickets from a file
 zendesk delete-tickets --tickets-file tickets.json
 
-# Multithreaded bulk ticket deletion
-zendesk delete-tickets --ids 36001234567,36001234568,36001234569 --workers 10
+# Multithreaded bulk ticket deletion (in chunks of 100)
+zendesk delete-tickets --tickets-file tickets.json --workers 10
 ```
 
 ### Authentication
