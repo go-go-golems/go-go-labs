@@ -14,7 +14,7 @@ import (
 	openai "github.com/sashabaranov/go-openai"
 )
 
-const authToken = "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"
+var authToken = "XXX"
 
 func transcribeFile(client *openai.Client, mp3FilePath string, out chan<- string, wg *sync.WaitGroup) {
 	defer wg.Done()
@@ -42,6 +42,13 @@ func main() {
 	dirPath := flag.String("d", "", "Path to the directory containing MP3 files")
 	workers := flag.Int("w", 4, "Number of parallel workers")
 	flag.Parse()
+
+	authToken = os.Getenv("OPENAI_API_KEY")
+
+	if authToken == "" {
+		fmt.Println("Please set OPENAI_API_KEY environment variable.")
+		os.Exit(1)
+	}
 
 	if *dirPath == "" {
 		fmt.Println("Please specify a directory path containing MP3 files using -d flag.")
