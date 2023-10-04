@@ -11,6 +11,7 @@ require (
 	github.com/charmbracelet/bubbles v0.16.1
 	github.com/charmbracelet/bubbletea v0.24.1
 	github.com/charmbracelet/lipgloss v0.7.1
+	github.com/chromedp/chromedp v0.9.2
 	github.com/dave/jennifer v1.7.0
 	github.com/go-go-golems/clay v0.0.22
 	github.com/go-go-golems/glazed v0.4.8
@@ -20,10 +21,13 @@ require (
 	github.com/hashicorp/go-hclog v1.2.0
 	github.com/hashicorp/go-plugin v1.4.10
 	github.com/iancoleman/strcase v0.3.0
+	github.com/levigross/grequests v0.0.0-20221222020224-9eee758d18d5
+	github.com/mattn/go-sqlite3 v1.14.17
 	github.com/mmcdole/gofeed v1.2.1
 	github.com/muesli/reflow v0.3.0
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.29.1
+	github.com/sashabaranov/go-openai v1.15.4
 	github.com/spf13/cobra v1.7.0
 	github.com/tdewolff/parse/v2 v2.6.8
 	github.com/weaviate/weaviate v1.19.13-0.20230706120536-85b5f0f4fa43
@@ -82,6 +86,8 @@ require (
 	github.com/bytedance/sonic v1.8.0 // indirect
 	github.com/charmbracelet/glamour v0.6.0 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
+	github.com/chromedp/cdproto v0.0.0-20230802225258-3cf4e6d46a89 // indirect
+	github.com/chromedp/sysutil v1.0.0 // indirect
 	github.com/containerd/console v1.0.4-0.20230313162750-1ae8d489ac81 // indirect
 	github.com/couchbase/vellum v1.0.2 // indirect
 	github.com/dlclark/regexp2 v1.8.1 // indirect
@@ -106,9 +112,13 @@ require (
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.11.2 // indirect
 	github.com/go-sql-driver/mysql v1.7.1 // indirect
+	github.com/gobwas/httphead v0.1.0 // indirect
+	github.com/gobwas/pool v0.2.1 // indirect
+	github.com/gobwas/ws v1.2.1 // indirect
 	github.com/goccy/go-json v0.10.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
+	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/gorilla/css v1.0.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/hashicorp/yamux v0.0.0-20180604194846-3520598351bb // indirect
@@ -134,7 +144,6 @@ require (
 	github.com/mattn/go-isatty v0.0.18 // indirect
 	github.com/mattn/go-localereader v0.0.1 // indirect
 	github.com/mattn/go-runewidth v0.0.14 // indirect
-	github.com/mattn/go-sqlite3 v1.14.17 // indirect
 	github.com/microcosm-cc/bluemonday v1.0.21 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-testing-interface v0.0.0-20171004221916-a61a99592b77 // indirect
