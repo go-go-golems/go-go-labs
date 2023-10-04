@@ -1,3 +1,5 @@
+.env
+.envrc
 credentials.json
 
 # Binaries for programs and plugins

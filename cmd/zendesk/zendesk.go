@@ -2,8 +2,14 @@ package main
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"github.com/levigross/grequests"
+	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
+	"strconv"
+	"strings"
+	"time"
 )
 
 func (zd *ZendeskConfig) getTicketById(id string) Ticket {
@@ -98,8 +104,16 @@ type Source struct {
 	To   map[string]interface{} `json:"to"`
 }
 
+type Query struct {
+	StartDate time.Time
+	EndDate   time.Time
+	Limit     int
+	Callback  func(Ticket) error
+}
+
 // getIncrementalTickets fetches tickets that changed since the provided startTime using cursor-based incremental exports.
-func (zd *ZendeskConfig) getIncrementalTickets(startTime int64, limit int) []Ticket {
+func (zd *ZendeskConfig) getIncrementalTickets(query Query) ([]Ticket, error) {
+	startTime := query.StartDate.Unix()
 	endpoint := fmt.Sprintf("%s/api/v2/incremental/tickets/cursor.json?start_time=%d", zd.Domain, startTime)
 
 	headers := map[string]string{
@@ -114,22 +128,8 @@ func (zd *ZendeskConfig) getIncrementalTickets(startTime int64, limit int) []Tic
 			Headers: headers,
 		})
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
-
-		//if count == 0 {
-		//	var result struct {
-		//		Tickets     []interface{} `json:"tickets"`
-		//		AfterCursor string        `json:"after_cursor"`
-		//		EndOfStream bool          `json:"end_of_stream"`
-		//	}
-		//	err := response.JSON(&result)
-		//	if err != nil {
-		//		panic(err)
-		//	}
-		//	fmt.Println(result.Tickets[0])
-		//	continue
-		//}
 
 		var result struct {
 			Tickets     []Ticket `json:"tickets"`
@@ -137,13 +137,45 @@ func (zd *ZendeskConfig) getIncrementalTickets(startTime int64, limit int) []Tic
 			EndOfStream bool     `json:"end_of_stream"`
 		}
 		if err := response.JSON(&result); err != nil {
-			panic(err)
+			return nil, err
 		}
 
-		allTickets = append(allTickets, result.Tickets...)
+		oneSkipped := false
+		for _, ticket := range result.Tickets {
+			createdAt, err1 := time.Parse(time.RFC3339, ticket.CreatedAt)
+			updatedAt, err2 := time.Parse(time.RFC3339, ticket.UpdatedAt)
+
+			if err1 != nil || err2 != nil {
+				// Handle the error, e.g., skip the ticket or return an error
+				continue
+			}
+
+			if createdAt.Before(query.StartDate) && updatedAt.Before(query.StartDate) {
+				continue
+			}
+			if createdAt.After(query.EndDate) && updatedAt.After(query.EndDate) {
+				oneSkipped = true
+				continue
+			}
+
+			if query.Callback != nil {
+				err := query.Callback(ticket)
+				if err != nil {
+					return nil, err
+				}
+				continue
+			}
+
+			allTickets = append(allTickets, ticket)
+		}
 
 		count += len(result.Tickets)
-		if limit > 0 && count >= limit {
+		if query.Limit > 0 && count >= query.Limit {
+			break
+		}
+
+		if oneSkipped {
+			log.Warn().Msg("One or more tickets were skipped due to being outside the specified time range")
 			break
 		}
 
@@ -155,10 +187,122 @@ func (zd *ZendeskConfig) getIncrementalTickets(startTime int64, limit int) []Tic
 		endpoint = fmt.Sprintf("%s/api/v2/incremental/tickets/cursor.json?cursor=%s", zd.Domain, result.AfterCursor)
 	}
 
-	return allTickets
+	return allTickets, nil
 }
 
 func basicAuth(username, password string) string {
 	auth := username + "/token:" + password
 	return base64.StdEncoding.EncodeToString([]byte(auth))
+}
+
+type JobStatus struct {
+	ID       string `json:"id"`
+	Message  string `json:"message"`
+	Progress int    `json:"progress"`
+	Status   string `json:"status"`
+	Total    int    `json:"total"`
+	URL      string `json:"url"`
+}
+
+func (zd *ZendeskConfig) getJobStatus(jobID string) (*JobStatus, error) {
+	endpoint := fmt.Sprintf("%s/api/v2/job_statuses/%s.json", zd.Domain, jobID)
+	headers := map[string]string{
+		"Authorization": "Basic " + basicAuth(zd.Email, zd.ApiToken),
+	}
+
+	for {
+		response, err := grequests.Get(endpoint, &grequests.RequestOptions{
+			Headers: headers,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		if response.StatusCode != 200 {
+			return nil, fmt.Errorf("failed to fetch job status. Status: %s", response.String())
+		}
+
+		var result struct {
+			JobStatus JobStatus `json:"job_status"`
+		}
+
+		if err := json.Unmarshal(response.Bytes(), &result); err != nil {
+			return nil, err
+		}
+
+		switch result.JobStatus.Status {
+		case "completed", "failed":
+			return &result.JobStatus, nil
+		case "queued", "working":
+			// Polling interval. Adjust as needed.
+			time.Sleep(5 * time.Second)
+		default:
+			return nil, errors.New("unexpected job status")
+		}
+	}
+}
+
+func (zd *ZendeskConfig) deleteTicketById(ticketId int) error {
+	endpoint := fmt.Sprintf("%s/api/v2/tickets/%d.json", zd.Domain, ticketId)
+
+	headers := map[string]string{
+		"Authorization": "Basic " + basicAuth(zd.Email, zd.ApiToken),
+	}
+
+	response, err := grequests.Delete(endpoint, &grequests.RequestOptions{
+		Headers: headers,
+	})
+	if err != nil {
+		return err
+	}
+
+	if response.StatusCode != 200 {
+		return fmt.Errorf("failed to delete ticket with ID %d. Status: %s", ticketId, response.String())
+	}
+
+	return nil
+}
+
+func (zd *ZendeskConfig) bulkDeleteTickets(ticketIds []int) (*JobStatus, error) {
+	endpoint := fmt.Sprintf("%s/api/v2/tickets/destroy_many.json?ids=%s", zd.Domain, strings.Join(convertIntsToStrings(ticketIds), ","))
+
+	headers := map[string]string{
+		"Authorization": "Basic " + basicAuth(zd.Email, zd.ApiToken),
+	}
+
+	response, err := grequests.Delete(endpoint, &grequests.RequestOptions{
+		Headers: headers,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Check and handle rate limit
+	if response.StatusCode == 429 {
+		retryAfter, _ := strconv.Atoi(response.Header.Get("Retry-After"))
+		fmt.Printf("Rate limit exceeded. Retrying after %d seconds.\n", retryAfter)
+		time.Sleep(time.Duration(retryAfter) * time.Second)
+		return zd.bulkDeleteTickets(ticketIds)
+	}
+
+	if response.StatusCode != 200 {
+		return nil, fmt.Errorf("failed to bulk delete tickets. Status: %s", response.String())
+	}
+
+	var respBody struct {
+		JobStatus *JobStatus `json:"job_status"`
+	}
+	if err := json.Unmarshal(response.Bytes(), &respBody); err != nil {
+		return nil, err
+	}
+
+	return respBody.JobStatus, nil
+}
+
+func convertIntsToStrings(ints []int) []string {
+	strs := make([]string, len(ints))
+	for i, v := range ints {
+		strs[i] = fmt.Sprintf("%d", v)
+	}
+	return strs
 }

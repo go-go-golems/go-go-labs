@@ -29,9 +29,14 @@ func NewGetTicketsCommand() (*GetTicketsCommand, error) {
 			cmds.WithShort("Fetch tickets from Zendesk"),
 			cmds.WithFlags(
 				parameters.NewParameterDefinition(
-					"start-time",
+					"start-date",
 					parameters.ParameterTypeDate,
 					parameters.WithHelp("Specify the start time from when you want to start fetching tickets."),
+				),
+				parameters.NewParameterDefinition(
+					"end-date",
+					parameters.ParameterTypeDate,
+					parameters.WithHelp("Specify the end time until when you want to fetch tickets."),
 				),
 				parameters.NewParameterDefinition(
 					"domain",
@@ -67,6 +72,12 @@ func NewGetTicketsCommand() (*GetTicketsCommand, error) {
 	}, nil
 }
 
+type ErrFinish struct{}
+
+func (e ErrFinish) Error() string {
+	return "finish"
+}
+
 func (c *GetTicketsCommand) Run(
 	ctx context.Context,
 	parsedLayers map[string]*layers.ParsedParameterLayer,
@@ -74,14 +85,23 @@ func (c *GetTicketsCommand) Run(
 	gp middlewares.Processor,
 ) error {
 	// Extract flags from ps map
-	startTime_, ok := ps["start-time"]
+	startDate_, ok := ps["start-date"]
 
-	var startTime time.Time
+	var startDate time.Time
 	if ok {
-		startTime = startTime_.(time.Time)
+		startDate = startDate_.(time.Time)
 	} else {
 		// set to 2010-01-01 per default
-		startTime = time.Date(2010, 1, 1, 0, 0, 0, 0, time.UTC)
+		startDate = time.Date(2010, 1, 1, 0, 0, 0, 0, time.UTC)
+	}
+
+	endDate_, ok := ps["end-date"]
+	var endDate time.Time
+	if ok {
+		endDate = endDate_.(time.Time)
+	} else {
+		// set to now per default
+		endDate = time.Now()
 	}
 
 	domain_, ok := ps["domain"]
@@ -125,32 +145,74 @@ func (c *GetTicketsCommand) Run(
 		ApiToken: apiToken,
 	}
 
+	count := 0
 	// Logic for fetching ticket data
 	var tickets []Ticket
 	if ticketId != "" {
 		ticket := zd.getTicketById(ticketId)
 		tickets = append(tickets, ticket)
 	} else {
-		// Convert startTime to Unix timestamp, as required by getIncrementalTickets
-		date := startTime.Unix()
-		tickets = zd.getIncrementalTickets(date, limit)
-	}
+		// Convert startDate to Unix timestamp, as required by getIncrementalTickets
+		_, err := zd.getIncrementalTickets(Query{
+			StartDate: startDate,
+			EndDate:   endDate,
+			Limit:     limit,
+			Callback: func(ticket Ticket) error {
+				row := types.NewRow(
+					types.MRP("id", ticket.ID),
+					types.MRP("status", ticket.Status),
+					types.MRP("created_at", ticket.CreatedAt),
+					types.MRP("subject", ticket.Subject),
+					types.MRP("allow_attachments", ticket.AllowAttachments),
+					types.MRP("allow_channelback", ticket.AllowChannelback),
+					types.MRP("assignee_id", ticket.AssigneeID),
+					types.MRP("brand_id", ticket.BrandID),
+					types.MRP("collaborator_ids", ticket.CollaboratorIDs),
+					types.MRP("custom_fields", ticket.CustomFields),
+					types.MRP("custom_status_id", ticket.CustomStatusID),
+					types.MRP("description", ticket.Description),
+					types.MRP("due_at", ticket.DueAt),
+					types.MRP("email_cc_ids", ticket.EmailCCIDs),
+					types.MRP("external_id", ticket.ExternalID),
+					types.MRP("fields", ticket.Fields),
+					types.MRP("follower_ids", ticket.FollowerIDs),
+					types.MRP("followup_ids", ticket.FollowupIDs),
+					types.MRP("forum_topic_id", ticket.ForumTopicID),
+					types.MRP("from_messaging_channel", ticket.FromMessagingChannel),
+					types.MRP("generated_timestamp", ticket.GeneratedTimestamp),
+					types.MRP("group_id", ticket.GroupID),
+					types.MRP("has_incidents", ticket.HasIncidents),
+					types.MRP("is_public", ticket.IsPublic),
+					types.MRP("organization_id", ticket.OrganizationID),
+					types.MRP("priority", ticket.Priority),
+					types.MRP("problem_id", ticket.ProblemID),
+					types.MRP("raw_subject", ticket.RawSubject),
+					types.MRP("recipient", ticket.Recipient),
+					types.MRP("requester_id", ticket.RequesterID),
+					types.MRP("satisfaction_rating", ticket.SatisfactionRating),
+					types.MRP("sharing_agreement_ids", ticket.SharingAgreementIDs),
+					types.MRP("submitter_id", ticket.SubmitterID),
+					types.MRP("tags", ticket.Tags),
+					types.MRP("type", ticket.Type),
+					types.MRP("updated_at", ticket.UpdatedAt),
+					types.MRP("url", ticket.URL),
+					types.MRP("via", ticket.Via),
+				)
+				if err := gp.AddRow(ctx, row); err != nil {
+					return err
+				}
 
-	count := 0
-	// Create and add rows of ticket data using the GlazeProcessor
-	for _, ticket := range tickets {
-		row := types.NewRow(
-			types.MRP("id", ticket.ID),
-			types.MRP("status", ticket.Status),
-			types.MRP("created_at", ticket.CreatedAt),
-			types.MRP("subject", ticket.Subject),
-		)
-		if err := gp.AddRow(ctx, row); err != nil {
+				count++
+
+				if limit > 0 && count >= limit {
+					return ErrFinish{}
+				}
+				return nil
+			},
+		})
+
+		if err != nil && err.Error() != "finish" {
 			return err
-		}
-		count++
-		if count >= limit {
-			break
 		}
 	}
 
