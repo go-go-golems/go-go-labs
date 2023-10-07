@@ -3,13 +3,13 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 )
 
 func main() {
 	// Reading piped data (if any)
-	pipedData, _ := ioutil.ReadAll(os.Stdin)
+	pipedData, _ := io.ReadAll(os.Stdin)
 	fmt.Printf("Received piped data: %s\n", pipedData)
 
 	// Now, we want to read user input from the terminal

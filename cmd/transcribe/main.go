@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -56,7 +55,7 @@ func main() {
 	}
 
 	// Read the directory
-	files, err := ioutil.ReadDir(*dirPath)
+	files, err := os.ReadDir(*dirPath)
 	if err != nil {
 		log.Fatalf("Failed to read the directory: %v", err)
 	}
