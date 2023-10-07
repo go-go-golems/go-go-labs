@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"github.com/Masterminds/sprig"
 	"strings"
+	"text/template"
 	"time"
 )
 
@@ -12,14 +15,123 @@ type Renderer struct {
 	RenameRoles  map[string]string
 }
 
+type TemplateData struct {
+	Title         string
+	CreateTime    string
+	URL           string
+	Concise       bool
+	WithMetadata  bool
+	Conversations []ConversationData
+}
+
+type ConversationData struct {
+	ID              string
+	Role            string
+	AuthorMetadata  map[string]interface{}
+	ContentType     string
+	Status          string
+	EndTurn         bool
+	Weight          float64
+	Recipient       string
+	Parts           []string
+	Children        []string
+	MessageMetadata map[string]interface{}
+	Skip            bool
+}
+
 func (r *Renderer) PrintConversation(url string, response ServerResponseData, linearConversation []Conversation) {
-	fmt.Printf("# %s\n\n", response.Title)
-	createTime := time.Unix(int64(response.CreateTime), 0)
-	fmt.Printf("Created at: %s\n", createTime.Format(time.RFC3339))
-	fmt.Printf("URL: %s\n\n", url)
+	var buf bytes.Buffer
+
+	const tpl = `
+# {{.Title}}
+Created at: {{.CreateTime}}
+URL: {{.URL}}
+
+{{range .Conversations -}}
+{{  template "messageDetails" (list $ .) -}}
+{{end -}}
+`
+
+	const messageDetailsTemplate = `
+{{- $ := index . 0 -}}
+{{ with (index . 1) -}}
+{{if not .Skip -}}
+{{if not $.Concise -}}
+### Message Details:
+{{template "verboseMessageDetails" .}}
+{{else -}}
+**{{.Role}}**: {{ range .Parts -}}
+{{.}}
+{{end -}}
+{{end }}
+---
+{{end }}
+{{end -}}
+`
+
+	const verboseMessageDetailsSubTemplate = `
+- **ID**: {{.ID}}
+- **Author Role**: {{.Role}}
+{{template "authorMetadata" .}}
+- **Content Type**: {{.ContentType}}
+- **Status**: {{.Status}}
+- **End Turn**: {{.EndTurn}}
+- **Weight**: {{.Weight}}
+- **Recipient**: {{.Recipient}}
+{{if .Children}}
+- **Children IDs**:
+{{range .Children}}
+  - {{.}}
+{{end}}
+{{end}}
+- **Parts**:
+{{range .Parts}}
+  - {{.}}
+{{end}}
+{{template "messageMetadata" .}}
+`
+
+	const authorMetadataSubTemplate = `
+{{if $.WithMetadata}}
+- **Author Metadata**:
+{{range $key, $value := .AuthorMetadata}}
+  - {{$key}}: {{$value}}
+{{end}}
+{{end}}
+`
+
+	const messageMetadataSubTemplate = `
+{{if $.WithMetadata}}
+- **Message Metadata**:
+{{range $key, $value := .MessageMetadata}}
+  - {{$key}}: {{$value}}
+{{end}}
+{{end}}
+`
+
+	// Parsing the templates
+	t := template.Must(template.New("messageDetails").Funcs(sprig.FuncMap()).Parse(messageDetailsTemplate))
+	t, _ = t.New("verboseMessageDetails").Parse(verboseMessageDetailsSubTemplate)
+	t, _ = t.New("authorMetadata").Parse(authorMetadataSubTemplate)
+	t, _ = t.New("messageMetadata").Parse(messageMetadataSubTemplate)
+	t, _ = t.New("conversation").Parse(tpl)
+	//
+	data := TemplateData{
+		Title:        response.Title,
+		CreateTime:   time.Unix(int64(response.CreateTime), 0).Format(time.RFC3339),
+		URL:          url,
+		Concise:      r.Concise,
+		WithMetadata: r.WithMetadata,
+	}
+
 	for _, conversation := range linearConversation {
 		parts := conversation.Message.Content.Parts
 		if len(parts) == 0 {
+			continue
+		}
+
+		partContent := strings.Join(parts, "\n")
+		if strings.TrimSpace(partContent) == "" {
 			continue
 		}
 
@@ -30,63 +142,27 @@ func (r *Renderer) PrintConversation(url string, response ServerResponseData, li
 			}
 		}
 
-		content := strings.Join(parts, "\n")
-		if content == "" {
-			continue
+		convoData := ConversationData{
+			ID:              conversation.Message.ID,
+			Role:            role,
+			AuthorMetadata:  conversation.Message.Author.Metadata,
+			ContentType:     conversation.Message.Content.ContentType,
+			Status:          conversation.Message.Status,
+			EndTurn:         conversation.Message.EndTurn,
+			Weight:          conversation.Message.Weight,
+			Recipient:       conversation.Message.Recipient,
+			Parts:           parts,
+			Children:        conversation.Children,
+			MessageMetadata: conversation.Message.Metadata,
+			Skip:            false,
 		}
-
-		if !r.Concise {
-			fmt.Println("### Message Details:")
-			fmt.Printf("- **ID**: %s\n", conversation.Message.ID)
-
-			fmt.Printf("- **Author Role**: %s\n", role)
-		} else {
-			fmt.Printf("**%s**: ", role)
-		}
-
-		if r.WithMetadata && !r.Concise {
-			if len(conversation.Message.Author.Metadata) > 0 {
-				fmt.Println("- **Author Metadata**:")
-				for key, value := range conversation.Message.Author.Metadata {
-					fmt.Printf("  - %s: %v\n", key, value)
-				}
-			}
-		}
-
-		if !r.Concise {
-			fmt.Printf("- **Content Type**: %s\n", conversation.Message.Content.ContentType)
-			fmt.Printf("- **Status**: %s\n", conversation.Message.Status)
-			fmt.Printf("- **End Turn**: %v\n", conversation.Message.EndTurn)
-			fmt.Printf("- **Weight**: %f\n", conversation.Message.Weight)
-			fmt.Printf("- **Recipient**: %s\n", conversation.Message.Recipient)
-			if len(conversation.Children) > 0 {
-				fmt.Println("- **Children IDs**:")
-				for _, child := range conversation.Children {
-					fmt.Printf("  - %s\n", child)
-				}
-			}
-		}
-
-		if !r.Concise {
-			fmt.Println("- **Parts**: ")
-			for _, part := range parts {
-				fmt.Printf("  - %s\n", part)
-			}
-		} else {
-			for _, part := range parts {
-				fmt.Printf("%s\n", part)
-			}
-		}
-
-		if r.WithMetadata && !r.Concise {
-			if len(conversation.Message.Metadata) > 0 {
-				fmt.Println("- **Message Metadata**:")
-				for key, value := range conversation.Message.Metadata {
-					fmt.Printf("  - %s: %v\n", key, value)
-				}
-			}
-		}
-
-		fmt.Printf("\n---\n\n")
+		data.Conversations = append(data.Conversations, convoData)
 	}
+
+	if err := t.Execute(&buf, data); err != nil {
+		fmt.Println("Error executing template:", err)
+		return
+	}
+
+	fmt.Println(buf.String())
 }

@@ -7,7 +7,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
-	"github.com/go-go-golems/glazed/pkg/settings"
+	"github.com/go-go-golems/glazed/pkg/helpers/cast"
 	"github.com/pkg/errors"
 	"io"
 	"net/http"
@@ -15,19 +15,14 @@ import (
 	"strings"
 )
 
-type GPTToMarkdownCommand struct {
+type RenderCommand struct {
 	*cmds.CommandDescription
 }
 
-func NewGPTToMarkdownCommand() (*GPTToMarkdownCommand, error) {
-	glazedParameterLayer, err := settings.NewGlazedParameterLayers()
-	if err != nil {
-		return nil, errors.Wrap(err, "could not create Glazed parameter layer")
-	}
-
-	return &GPTToMarkdownCommand{
+func NewRenderCommand() (*RenderCommand, error) {
+	return &RenderCommand{
 		CommandDescription: cmds.NewCommandDescription(
-			"gpt-to-markdown",
+			"render",
 			cmds.WithShort("Converts GPT HTML to markdown"),
 			cmds.WithArguments(
 				parameters.NewParameterDefinition(
@@ -62,15 +57,12 @@ func NewGPTToMarkdownCommand() (*GPTToMarkdownCommand, error) {
 					}),
 				),
 			),
-			cmds.WithLayers(
-				glazedParameterLayer,
-			),
 		),
 	}, nil
 
 }
 
-func (cmd *GPTToMarkdownCommand) RunIntoWriter(
+func (cmd *RenderCommand) RunIntoWriter(
 	ctx context.Context,
 	parsedLayers map[string]*layers.ParsedParameterLayer,
 	ps map[string]interface{},
@@ -80,7 +72,10 @@ func (cmd *GPTToMarkdownCommand) RunIntoWriter(
 	urls := ps["urls"].([]string)
 	concise := ps["concise"].(bool)
 	withMetadata := ps["with-metadata"].(bool)
-	renameRoles := ps["rename-roles"].(map[string]string)
+	renameRoles, ok := cast.CastInterfaceToStringMap[string, interface{}](ps["rename-roles"])
+	if !ok {
+		return errors.New("Failed to cast rename-roles to map[string]string")
+	}
 
 	if len(urls) == 0 {
 		return errors.New("No URLs provided")
