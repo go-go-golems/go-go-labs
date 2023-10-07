@@ -127,9 +127,15 @@ func printConversation(linearConversation []Conversation, withMetadata bool, con
 	}
 }
 
+// TODO(manuel, 2023-10-06) Add an option for renaming the roles to make summarization easier for claude
 func main() {
 	var htmlContent []byte
 	var err error
+
+	if len(os.Args) < 2 {
+		fmt.Println("Usage: gpt-to-markdown <html-file>")
+		os.Exit(1)
+	}
 
 	if strings.HasPrefix(os.Args[1], "http://") || strings.HasPrefix(os.Args[1], "https://") {
 		// Download the content from the internet
