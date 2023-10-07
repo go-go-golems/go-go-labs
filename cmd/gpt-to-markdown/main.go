@@ -120,7 +120,7 @@ func printConversation(linearConversation []Conversation, withMetadata bool, con
 		}
 
 		if !concise {
-			fmt.Println("\n---\n")
+			fmt.Printf("\n---\n\n")
 		} else {
 			fmt.Println()
 		}
