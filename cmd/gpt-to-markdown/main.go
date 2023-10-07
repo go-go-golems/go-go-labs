@@ -8,126 +8,15 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
-type NextData struct {
-	Props struct {
-		PageProps struct {
-			SharedConversationId string `json:"sharedConversationId"`
-			ServerResponse       struct {
-				ServerResponseData `json:"data"`
-			} `json:"serverResponse"`
-			Model           map[string]interface{} `json:"model"`
-			ModerationState map[string]interface{} `json:"moderation_state"`
-		} `json:"pageProps"`
-	} `json:"props"`
-}
+// TODO add flag for only exporting the assistant responses
+// TODO add flag for exporting the source blocks
+// TODO add flag for adding the messages as comments in the source blocks (if we can detect their type, for example)
 
-type ServerResponseData struct {
-	Title              string         `json:"title"`
-	CreateTime         float64        `json:"create_time"`
-	UpdateTime         float64        `json:"update_time"`
-	LinearConversation []Conversation `json:"linear_conversation"`
-}
-
-type Author struct {
-	Role     string                 `json:"role"`
-	Metadata map[string]interface{} `json:"metadata"`
-}
-
-type Content struct {
-	ContentType string   `json:"content_type"`
-	Parts       []string `json:"parts"`
-}
-
-type Message struct {
-	ID        string                 `json:"id"`
-	Author    Author                 `json:"author"`
-	Content   Content                `json:"content"`
-	Status    string                 `json:"status"`
-	EndTurn   bool                   `json:"end_turn"`
-	Weight    float64                `json:"weight"`
-	Metadata  map[string]interface{} `json:"metadata"`
-	Recipient string                 `json:"recipient"`
-}
-
-type Conversation struct {
-	ID       string                 `json:"id"`
-	Message  Message                `json:"message"`
-	Parent   string                 `json:"parent"`
-	Children []string               `json:"children"`
-	Metadata map[string]interface{} `json:"metadata"`
-}
-
-func printConversation(linearConversation []Conversation, withMetadata bool, concise bool) {
-	for _, conversation := range linearConversation {
-		parts := conversation.Message.Content.Parts
-		if len(parts) == 0 {
-			continue
-		}
-
-		if !concise {
-			fmt.Println("### Message Details:")
-			fmt.Printf("- **ID**: %s\n", conversation.Message.ID)
-			fmt.Printf("- **Author Role**: %s\n", conversation.Message.Author.Role)
-		} else {
-			fmt.Printf("**%s**: ", conversation.Message.Author.Role)
-		}
-
-		if withMetadata && !concise {
-			if len(conversation.Message.Author.Metadata) > 0 {
-				fmt.Println("- **Author Metadata**:")
-				for key, value := range conversation.Message.Author.Metadata {
-					fmt.Printf("  - %s: %v\n", key, value)
-				}
-			}
-		}
-
-		if !concise {
-			fmt.Printf("- **Content Type**: %s\n", conversation.Message.Content.ContentType)
-			fmt.Printf("- **Status**: %s\n", conversation.Message.Status)
-			fmt.Printf("- **End Turn**: %v\n", conversation.Message.EndTurn)
-			fmt.Printf("- **Weight**: %f\n", conversation.Message.Weight)
-			fmt.Printf("- **Recipient**: %s\n", conversation.Message.Recipient)
-			if len(conversation.Children) > 0 {
-				fmt.Println("- **Children IDs**:")
-				for _, child := range conversation.Children {
-					fmt.Printf("  - %s\n", child)
-				}
-			}
-		}
-
-		if !concise {
-			fmt.Println("- **Parts**: ")
-			for _, part := range parts {
-				fmt.Printf("  - %s\n", part)
-			}
-		} else {
-			for _, part := range parts {
-				fmt.Printf("%s\n", part)
-			}
-		}
-
-		if withMetadata && !concise {
-			if len(conversation.Message.Metadata) > 0 {
-				fmt.Println("- **Message Metadata**:")
-				for key, value := range conversation.Message.Metadata {
-					fmt.Printf("  - %s: %v\n", key, value)
-				}
-			}
-		}
-
-		if !concise {
-			fmt.Printf("\n---\n\n")
-		} else {
-			fmt.Println()
-		}
-	}
-}
-
-// TODO(manuel, 2023-10-06) Add an option for renaming the roles to make summarization easier for claude
 func main() {
 	var htmlContent []byte
 	var err error
@@ -173,8 +62,25 @@ func main() {
 		log.Fatal(err)
 	}
 
+	renameRoles := map[string]string{
+		"user":      "john",
+		"assistant": "claire",
+		"system":    "george",
+	}
+
+	renderer := &Renderer{
+		RenameRoles:  renameRoles,
+		Concise:      true,
+		WithMetadata: false,
+	}
+
 	// Print the parsed data
-	fmt.Printf("Shared Conversation ID: %s\n", data.Props.PageProps.SharedConversationId)
 	linearConversation := data.Props.PageProps.ServerResponse.LinearConversation
-	printConversation(linearConversation, false, true)
+	fmt.Printf("# %s\n\n", data.Props.PageProps.ServerResponse.Title)
+	createTime := time.Unix(int64(data.Props.PageProps.ServerResponse.CreateTime), 0)
+	fmt.Printf("Created at: %s\n", createTime.Format(time.RFC3339))
+	//fmt.Printf("Shared Conversation ID: %s\n", data.Props.PageProps.SharedConversationId)
+	fmt.Printf("URL: %s\n\n", os.Args[1])
+
+	renderer.PrintConversation(linearConversation)
 }
