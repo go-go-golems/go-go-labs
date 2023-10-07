@@ -56,6 +56,30 @@ func NewRenderCommand() (*RenderCommand, error) {
 						"system":    "george",
 					}),
 				),
+				parameters.NewParameterDefinition(
+					"output-json",
+					parameters.ParameterTypeBool,
+					parameters.WithHelp("Output JSON"),
+					parameters.WithDefault(false),
+				),
+				parameters.NewParameterDefinition(
+					"output-as-array",
+					parameters.ParameterTypeBool,
+					parameters.WithHelp("Output as array"),
+					parameters.WithDefault(false),
+				),
+				parameters.NewParameterDefinition(
+					"full-json",
+					parameters.ParameterTypeBool,
+					parameters.WithHelp("Output full JSON"),
+					parameters.WithDefault(false),
+				),
+				parameters.NewParameterDefinition(
+					"only-conversations",
+					parameters.ParameterTypeBool,
+					parameters.WithHelp("Only conversations in JSON output"),
+					parameters.WithDefault(false),
+				),
 			),
 		),
 	}, nil
@@ -72,6 +96,8 @@ func (cmd *RenderCommand) RunIntoWriter(
 	urls := ps["urls"].([]string)
 	concise := ps["concise"].(bool)
 	withMetadata := ps["with-metadata"].(bool)
+	outputJson := ps["output-json"].(bool)
+
 	renameRoles, ok := cast.CastInterfaceToStringMap[string, interface{}](ps["rename-roles"])
 	if !ok {
 		return errors.New("Failed to cast rename-roles to map[string]string")
@@ -80,6 +106,11 @@ func (cmd *RenderCommand) RunIntoWriter(
 	if len(urls) == 0 {
 		return errors.New("No URLs provided")
 	}
+
+	outputAsArray := ps["output-as-array"].(bool)
+	onlyConversations := ps["only-conversations"].(bool)
+	fullJson := ps["full-json"].(bool)
+	outputJsons := make([]interface{}, len(urls))
 
 	for _, url := range urls {
 		var htmlContent []byte
@@ -104,6 +135,33 @@ func (cmd *RenderCommand) RunIntoWriter(
 		}
 
 		scriptContent := doc.Find("#__NEXT_DATA__").Text()
+
+		if outputJson {
+			if fullJson {
+				data := map[string]interface{}{}
+				err = json.Unmarshal([]byte(scriptContent), &data)
+				if err != nil {
+					return err
+				}
+
+				outputJsons = append(outputJsons, data)
+				continue
+			}
+
+			var data NextData
+			err = json.Unmarshal([]byte(scriptContent), &data)
+			if err != nil {
+				return err
+			}
+
+			if onlyConversations {
+				outputJsons = append(outputJsons, data.Props.PageProps.ServerResponse.ServerResponseData.LinearConversation)
+				continue
+			}
+
+			outputJsons = append(outputJsons, data.Props.PageProps.ServerResponse.ServerResponseData)
+		}
+
 		var data NextData
 		err = json.Unmarshal([]byte(scriptContent), &data)
 		if err != nil {
@@ -119,6 +177,23 @@ func (cmd *RenderCommand) RunIntoWriter(
 		linearConversation := data.Props.PageProps.ServerResponse.LinearConversation
 
 		renderer.PrintConversation(url, data.Props.PageProps.ServerResponse.ServerResponseData, linearConversation)
+	}
+
+	if outputJson {
+
+		encoder := json.NewEncoder(w)
+		encoder.SetIndent("", "  ")
+		if len(outputJsons) == 1 && !outputAsArray {
+			err := encoder.Encode(outputJsons[0])
+			if err != nil {
+				return err
+			}
+		} else {
+			err := encoder.Encode(outputJsons)
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
