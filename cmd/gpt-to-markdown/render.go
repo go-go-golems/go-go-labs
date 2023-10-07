@@ -93,14 +93,12 @@ URL: {{.URL}}
 {{end -}}
 `
 
-	const authorMetadataSubTemplate = `
-- **Author Metadata**: {{range $key, $value := .AuthorMetadata}}
+	const authorMetadataSubTemplate = `- **Author Metadata**: {{range $key, $value := .AuthorMetadata}}
   - {{$key}}: {{$value}}
 {{- end}}
 `
 
-	const messageMetadataSubTemplate = `
-- **Message Metadata**: {{range $key, $value := .MessageMetadata}}
+	const messageMetadataSubTemplate = `- **Message Metadata**: {{range $key, $value := .MessageMetadata}}
   - {{$key}}: {{$value}}
 {{- end}}
 `
