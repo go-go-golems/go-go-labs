@@ -1,0 +1,253 @@
+{
+  "props": {
+    "pageProps": {
+      "sharedConversationId": "5c2c3d78-a750-4402-aff0-4629f867180e",
+      "serverResponse": {
+        "type": "data",
+        "data": {
+          "title": "User request: Summarize conversation\nTitle: Summarize conversation",
+          "create_time": 1696632473.15381,
+          "update_time": 1696632475,
+          "mapping": {
+            "9d9a8287-3aa5-4dcb-bd18-9d787dd50a80": {
+              "id": "9d9a8287-3aa5-4dcb-bd18-9d787dd50a80",
+              "message": {
+                "id": "9d9a8287-3aa5-4dcb-bd18-9d787dd50a80",
+                "author": {
+                  "role": "assistant",
+                  "metadata": {}
+                },
+                "create_time": 1696632385.872335,
+                "content": {
+                  "content_type": "text",
+                  "parts": [
+                    "Hello! How can I assist you today?"
+                  ]
+                },
+                "status": "finished_successfully",
+                "end_turn": true,
+                "weight": 1,
+                "metadata": {
+                  "finish_details": {
+                    "type": "stop",
+                    "stop_tokens": [
+                      100260
+                    ]
+                  },
+                  "is_complete": true,
+                  "model_slug": "gpt-4-dalle",
+                  "parent_id": "aaa2cfca-32b6-4671-983c-79533bd4bf4a",
+                  "timestamp_": "absolute",
+                  "shared_conversation_id": "5c2c3d78-a750-4402-aff0-4629f867180e"
+                },
+                "recipient": "all"
+              },
+              "parent": "aaa2cfca-32b6-4671-983c-79533bd4bf4a",
+              "children": []
+            },
+            "aaa2cfca-32b6-4671-983c-79533bd4bf4a": {
+              "id": "aaa2cfca-32b6-4671-983c-79533bd4bf4a",
+              "message": {
+                "id": "aaa2cfca-32b6-4671-983c-79533bd4bf4a",
+                "author": {
+                  "role": "user",
+                  "metadata": {}
+                },
+                "create_time": 1696632383.407829,
+                "content": {
+                  "content_type": "text",
+                  "parts": [
+                    "test"
+                  ]
+                },
+                "status": "finished_successfully",
+                "weight": 1,
+                "metadata": {
+                  "timestamp_": "absolute",
+                  "shared_conversation_id": "5c2c3d78-a750-4402-aff0-4629f867180e"
+                },
+                "recipient": "all"
+              },
+              "parent": "d960d595-7d27-4e25-919b-8991e2deb497",
+              "children": [
+                "9d9a8287-3aa5-4dcb-bd18-9d787dd50a80"
+              ]
+            },
+            "d960d595-7d27-4e25-919b-8991e2deb497": {
+              "id": "d960d595-7d27-4e25-919b-8991e2deb497",
+              "message": {
+                "id": "d960d595-7d27-4e25-919b-8991e2deb497",
+                "author": {
+                  "role": "system",
+                  "metadata": {}
+                },
+                "content": {
+                  "content_type": "text",
+                  "parts": [
+                    ""
+                  ]
+                },
+                "status": "finished_successfully",
+                "end_turn": true,
+                "weight": 0,
+                "metadata": {
+                  "shared_conversation_id": "5c2c3d78-a750-4402-aff0-4629f867180e"
+                },
+                "recipient": "all"
+              },
+              "parent": "aaa1db98-1fbc-4354-940b-570dd22bad5b",
+              "children": [
+                "aaa2cfca-32b6-4671-983c-79533bd4bf4a"
+              ]
+            },
+            "aaa1db98-1fbc-4354-940b-570dd22bad5b": {
+              "id": "aaa1db98-1fbc-4354-940b-570dd22bad5b",
+              "children": [
+                "d960d595-7d27-4e25-919b-8991e2deb497"
+              ]
+            }
+          },
+          "moderation_results": [],
+          "current_node": "9d9a8287-3aa5-4dcb-bd18-9d787dd50a80",
+          "conversation_id": "5c2c3d78-a750-4402-aff0-4629f867180e",
+          "is_public": true,
+          "linear_conversation": [
+            {
+              "id": "aaa1db98-1fbc-4354-940b-570dd22bad5b",
+              "children": [
+                "d960d595-7d27-4e25-919b-8991e2deb497"
+              ]
+            },
+            {
+              "id": "d960d595-7d27-4e25-919b-8991e2deb497",
+              "message": {
+                "id": "d960d595-7d27-4e25-919b-8991e2deb497",
+                "author": {
+                  "role": "system",
+                  "metadata": {}
+                },
+                "content": {
+                  "content_type": "text",
+                  "parts": [
+                    ""
+                  ]
+                },
+                "status": "finished_successfully",
+                "end_turn": true,
+                "weight": 0,
+                "metadata": {
+                  "shared_conversation_id": "5c2c3d78-a750-4402-aff0-4629f867180e"
+                },
+                "recipient": "all"
+              },
+              "parent": "aaa1db98-1fbc-4354-940b-570dd22bad5b",
+              "children": [
+                "aaa2cfca-32b6-4671-983c-79533bd4bf4a"
+              ]
+            },
+            {
+              "id": "aaa2cfca-32b6-4671-983c-79533bd4bf4a",
+              "message": {
+                "id": "aaa2cfca-32b6-4671-983c-79533bd4bf4a",
+                "author": {
+                  "role": "user",
+                  "metadata": {}
+                },
+                "create_time": 1696632383.407829,
+                "content": {
+                  "content_type": "text",
+                  "parts": [
+                    "test"
+                  ]
+                },
+                "status": "finished_successfully",
+                "weight": 1,
+                "metadata": {
+                  "timestamp_": "absolute",
+                  "shared_conversation_id": "5c2c3d78-a750-4402-aff0-4629f867180e"
+                },
+                "recipient": "all"
+              },
+              "parent": "d960d595-7d27-4e25-919b-8991e2deb497",
+              "children": [
+                "9d9a8287-3aa5-4dcb-bd18-9d787dd50a80"
+              ]
+            },
+            {
+              "id": "9d9a8287-3aa5-4dcb-bd18-9d787dd50a80",
+              "message": {
+                "id": "9d9a8287-3aa5-4dcb-bd18-9d787dd50a80",
+                "author": {
+                  "role": "assistant",
+                  "metadata": {}
+                },
+                "create_time": 1696632385.872335,
+                "content": {
+                  "content_type": "text",
+                  "parts": [
+                    "Hello! How can I assist you today?"
+                  ]
+                },
+                "status": "finished_successfully",
+                "end_turn": true,
+                "weight": 1,
+                "metadata": {
+                  "finish_details": {
+                    "type": "stop",
+                    "stop_tokens": [
+                      100260
+                    ]
+                  },
+                  "is_complete": true,
+                  "model_slug": "gpt-4-dalle",
+                  "parent_id": "aaa2cfca-32b6-4671-983c-79533bd4bf4a",
+                  "timestamp_": "absolute",
+                  "shared_conversation_id": "5c2c3d78-a750-4402-aff0-4629f867180e"
+                },
+                "recipient": "all"
+              },
+              "parent": "aaa2cfca-32b6-4671-983c-79533bd4bf4a",
+              "children": []
+            }
+          ],
+          "has_user_editable_context": false,
+          "continue_conversation_url": "https://chat.openai.com/share/5c2c3d78-a750-4402-aff0-4629f867180e/continue",
+          "model": {
+            "slug": "gpt-4-dalle",
+            "max_tokens": 8192,
+            "title": "DALL·E 3",
+            "description": "Try out GPT-4 with DALL·E 3",
+            "tags": [
+              "gpt4",
+              "beta"
+            ]
+          },
+          "moderation_state": {
+            "has_been_moderated": false,
+            "has_been_blocked": false,
+            "has_been_accepted": false,
+            "has_been_auto_blocked": false,
+            "has_been_auto_moderated": false
+          }
+        }
+      },
+      "continueMode": false,
+      "moderationMode": false,
+      "plugins": null,
+      "chatPageProps": {}
+    },
+    "__N_SSP": true
+  },
+  "page": "/share/[[...shareParams]]",
+  "query": {
+    "shareParams": [
+      "5c2c3d78-a750-4402-aff0-4629f867180e"
+    ]
+  },
+  "buildId": "eXz8TB44zX2V5Anl_YnLB",
+  "assetPrefix": "https://cdn.oaistatic.com",
+  "isFallback": false,
+  "gssp": true,
+  "scriptLoader": []
+}
+
