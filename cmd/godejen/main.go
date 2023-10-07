@@ -9,7 +9,7 @@ import (
 	cmds2 "github.com/go-go-golems/sqleton/pkg/cmds"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
-	"io/ioutil"
+	"os"
 )
 
 var rootCmd = &cobra.Command{
@@ -65,7 +65,7 @@ func processFiles(ctx context.Context, files []string) (map[string]*jen.File, er
 			default:
 			}
 
-			psYaml, err := ioutil.ReadFile(file)
+			psYaml, err := os.ReadFile(file)
 			if err != nil {
 				return err
 			}
