@@ -53,60 +53,56 @@ URL: {{.URL}}
 `
 
 	const messageDetailsTemplate = `
-{{- $ := index . 0 -}}
+{{- $ := index . 0 -}}{{- $topLevel := $ -}}
 {{ with (index . 1) -}}
 {{if not .Skip -}}
 {{if not $.Concise -}}
 ### Message Details:
-{{template "verboseMessageDetails" .}}
+
+{{template "verboseMessageDetails" (list $topLevel .)}}
 {{else -}}
 **{{.Role}}**: {{ range .Parts -}}
 {{.}}
-{{end -}}
 {{end }}
+{{end -}}
 ---
 {{end }}
 {{end -}}
 `
 
 	const verboseMessageDetailsSubTemplate = `
+{{- $ := index . 0 -}}
+{{ with (index . 1) -}}
 - **ID**: {{.ID}}
 - **Author Role**: {{.Role}}
-{{template "authorMetadata" .}}
+{{if $.WithMetadata}}{{template "authorMetadata" .}}{{end -}}
 - **Content Type**: {{.ContentType}}
 - **Status**: {{.Status}}
 - **End Turn**: {{.EndTurn}}
 - **Weight**: {{.Weight}}
 - **Recipient**: {{.Recipient}}
-{{if .Children}}
-- **Children IDs**:
-{{range .Children}}
+{{if .Children -}}
+- **Children IDs**:{{range .Children }}
   - {{.}}
-{{end}}
-{{end}}
-- **Parts**:
-{{range .Parts}}
+{{- end -}}
+{{end }}
+- **Parts**: {{range .Parts}}
   - {{.}}
-{{end}}
-{{template "messageMetadata" .}}
+{{end -}}
+{{if $.WithMetadata}}{{template "messageMetadata" .}}{{end -}}
+{{end -}}
 `
 
 	const authorMetadataSubTemplate = `
-{{if $.WithMetadata}}
-- **Author Metadata**:
-{{range $key, $value := .AuthorMetadata}}
+- **Author Metadata**: {{range $key, $value := .AuthorMetadata}}
   - {{$key}}: {{$value}}
-{{end}}
-{{end}}
+{{- end}}
 `
 
 	const messageMetadataSubTemplate = `
-{{if $.WithMetadata}}
-- **Message Metadata**:
-{{range $key, $value := .MessageMetadata}}
+- **Message Metadata**: {{range $key, $value := .MessageMetadata}}
   - {{$key}}: {{$value}}
-{{end}}
-{{end}}
+{{- end}}
 `
 
 	// Parsing the templates
