@@ -27,7 +27,7 @@ func main() {
 		Short: "Shopper Approved products",
 	}
 
-	getProductReviewsCommand, err := cmds.NewGetProductReviewCommand()
+	getProductReviewsCommand, err := cmds.NewGetProductReviewsCommand()
 	cobra.CheckErr(err)
 	cobraCommand, err := cli.BuildCobraCommandFromGlazeCommand(getProductReviewsCommand)
 	cobra.CheckErr(err)
