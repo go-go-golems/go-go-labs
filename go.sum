@@ -224,10 +224,10 @@ github.com/glycerine/goconvey v0.0.0-20190410193231-58a59202ab31/go.mod h1:Ogl1T
 github.com/go-gl/glfw v0.0.0-20190409004039-e6da0acd62b1/go.mod h1:vR7hzQXu2zJy9AVAgeJqvqgH9Q5CA+iKCZ2gyEVpxRU=
 github.com/go-gl/glfw/v3.3/glfw v0.0.0-20191125211704-12ad95a8df72/go.mod h1:tQ2UAYgL5IevRw8kRxooKSPJfGvJ9fJQFa0TUsXzTg8=
 github.com/go-gl/glfw/v3.3/glfw v0.0.0-20200222043503-6f7a984d4dc4/go.mod h1:tQ2UAYgL5IevRw8kRxooKSPJfGvJ9fJQFa0TUsXzTg8=
-github.com/go-go-golems/clay v0.0.22 h1:DgS8PN7IU8rQetA3o5Rfu50Qj+0Po32pPpLHVxiU7e0=
-github.com/go-go-golems/clay v0.0.22/go.mod h1:N9idImzYUpWLZ7eMVAymHYt0cbYO2E99MqejejZOP8A=
-github.com/go-go-golems/glazed v0.4.8 h1:vqqaRAeL9hsdZ6odRXdTez2+qmWsfTESo7BxizkXOD0=
-github.com/go-go-golems/glazed v0.4.8/go.mod h1:HcUz88LiTEPK8cWD5pWup0rjwzIDH4loaZnMVuT4Qfc=
+github.com/go-go-golems/clay v0.0.25 h1:KrZ5luxWRDIvt78dugTGdog5NWii201fCgfNgQMIN/k=
+github.com/go-go-golems/clay v0.0.25/go.mod h1:KX8IIKGpt9FvbwgcEBVOZfPB22LcdjRhVpjk8sB0SBs=
+github.com/go-go-golems/glazed v0.4.17 h1:DZ1Ovszl8vJFJocHlj317m7y6uSDXNbC2geMQBKtXTE=
+github.com/go-go-golems/glazed v0.4.17/go.mod h1:hvndeie5yW10MHq2Z0A8q1TMlqNUFP75i45oDCOTjqs=
 github.com/go-go-golems/parka v0.4.12 h1:AIz3KKNr2+RqpplosikRw+78YxuUoGEhDQrk+pVqd5U=
 github.com/go-go-golems/parka v0.4.12/go.mod h1:TLcnuj+Q+F9RI7YW/0lUfwQ0lmhceVrH107zWhCgtks=
 github.com/go-go-golems/sqleton v0.1.72 h1:ssbFJfPwMqXI7v5BCs73a+8gkAESmTYzs/5VZ7yl0HE=
@@ -577,8 +577,6 @@ github.com/russross/blackfriday v1.5.2/go.mod h1:JO/DiYxRf+HjHt06OyowR9PTA263kcR
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/sahilm/fuzzy v0.1.0 h1:FzWGaw2Opqyu+794ZQ9SYifWv2EIXpwP4q8dY1kDAwI=
 github.com/sahilm/fuzzy v0.1.0/go.mod h1:VFvziUEIMCrT6A6tw2RFIXPXXmzXbOsSHF0DOI8ZK9Y=
-github.com/sashabaranov/go-openai v1.15.4 h1:BXCR0Uxk5RipeY4yBC7g6pBVfcjh8jwrMNOYdie6yuk=
-github.com/sashabaranov/go-openai v1.15.4/go.mod h1:lj5b/K+zjTSFxVLijLSTDZuP7adOgerWeFyZLUhAKRg=
 github.com/scylladb/termtables v0.0.0-20191203121021-c4c0b6d42ff4/go.mod h1:C1a7PQSMz9NShzorzCiG2fk9+xuCgLkPeCvMHYR2OWg=
 github.com/sirupsen/logrus v1.4.0/go.mod h1:LxeOpSwHxABJmUn/MG1IvRgCAasNZTLOkJPxbbu5VWo=
 github.com/sirupsen/logrus v1.4.1/go.mod h1:ni0Sbl8bgC9z8RoU9G6nDWqqs/fq4eDPysMBDgk/93Q=

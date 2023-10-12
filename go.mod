@@ -13,8 +13,8 @@ require (
 	github.com/charmbracelet/lipgloss v0.7.1
 	github.com/chromedp/chromedp v0.9.2
 	github.com/dave/jennifer v1.7.0
-	github.com/go-go-golems/clay v0.0.22
-	github.com/go-go-golems/glazed v0.4.8
+	github.com/go-go-golems/clay v0.0.25
+	github.com/go-go-golems/glazed v0.4.17
 	github.com/go-go-golems/sqleton v0.1.72
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/websocket v1.5.0
@@ -27,7 +27,6 @@ require (
 	github.com/muesli/reflow v0.3.0
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.29.1
-	github.com/sashabaranov/go-openai v1.15.4
 	github.com/spf13/cobra v1.7.0
 	github.com/tdewolff/parse/v2 v2.6.8
 	github.com/weaviate/weaviate v1.19.13-0.20230706120536-85b5f0f4fa43
@@ -39,6 +38,7 @@ require (
 	golang.org/x/net v0.12.0
 	golang.org/x/sync v0.2.0
 	golang.org/x/term v0.10.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -198,5 +198,4 @@ require (
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
