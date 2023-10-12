@@ -21,11 +21,6 @@ type ProductStatistics struct {
 		AverageRating     float64 `json:"average_rating"`
 		TotalWithComments int     `json:"total_with_comments"`
 	} `json:"site_totals,omitempty"`
-	ProductAggregates map[string]struct {
-		TotalReviews      int     `json:"total_reviews"`
-		AverageRating     float64 `json:"average_rating"`
-		TotalWithComments int     `json:"total_with_comments"`
-	} `json:"product_totals,omitempty"`
 }
 
 // AggregateRequestParams represents parameters for the API request to fetch aggregate product statistics.

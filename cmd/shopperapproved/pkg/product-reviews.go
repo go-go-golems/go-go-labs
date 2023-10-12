@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 )
 
 // Review represents a single product review.
@@ -43,9 +44,9 @@ type ReviewRequestParams struct {
 	// Page indicates which page you would like to request. The offset will be calculated by limit * page. Starts at 0.
 	Page *int
 	// From represents the date you would like to start the query with. It should be given in YYYY-MM-DD format. Defaults to 30 days prior to the current day.
-	From *string
+	From *time.Time
 	// To represents the date you would like to end the query with. It should be given in YYYY-MM-DD format. Defaults to the current date.
-	To *string
+	To *time.Time
 	// Sort indicates how you would like to sort the reviews. Values are newest, oldest, highest, lowest.
 	Sort *string
 	// Removed, if set to 1, will include reviews that have a 'removed' value equal to 1 if the review was removed and 0 if the review is active.
@@ -84,13 +85,13 @@ func WithPage(page int) ReviewRequestOption {
 	}
 }
 
-func WithFrom(from string) ReviewRequestOption {
+func WithFrom(from time.Time) ReviewRequestOption {
 	return func(params *ReviewRequestParams) {
 		params.From = &from
 	}
 }
 
-func WithTo(to string) ReviewRequestOption {
+func WithTo(to time.Time) ReviewRequestOption {
 	return func(params *ReviewRequestParams) {
 		params.To = &to
 	}
@@ -125,10 +126,11 @@ func (client *ShopperApprovedClient) FetchReviews(params *ReviewRequestParams) (
 		queryParams = append(queryParams, fmt.Sprintf("page=%d", *params.Page))
 	}
 	if params.From != nil {
-		queryParams = append(queryParams, fmt.Sprintf("from=%s", *params.From))
+		// format as YYYY-MM-DD
+		queryParams = append(queryParams, fmt.Sprintf("from=%s", params.From.Format("2006-01-02")))
 	}
 	if params.To != nil {
-		queryParams = append(queryParams, fmt.Sprintf("to=%s", *params.To))
+		queryParams = append(queryParams, fmt.Sprintf("to=%s", params.To.Format("2006-01-02")))
 	}
 	if params.Sort != nil {
 		queryParams = append(queryParams, fmt.Sprintf("sort=%s", *params.Sort))
@@ -185,10 +187,11 @@ func (client *ShopperApprovedClient) FetchAllProductReviews(params *ReviewReques
 		queryParams = append(queryParams, fmt.Sprintf("page=%d", *params.Page))
 	}
 	if params.From != nil {
-		queryParams = append(queryParams, fmt.Sprintf("from=%s", *params.From))
+		// format as YYYY-MM-DD
+		queryParams = append(queryParams, fmt.Sprintf("from=%s", params.From.Format("2006-01-02")))
 	}
 	if params.To != nil {
-		queryParams = append(queryParams, fmt.Sprintf("to=%s", *params.To))
+		queryParams = append(queryParams, fmt.Sprintf("to=%s", params.To.Format("2006-01-02")))
 	}
 	if params.Sort != nil {
 		queryParams = append(queryParams, fmt.Sprintf("sort=%s", *params.Sort))

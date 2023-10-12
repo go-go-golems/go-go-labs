@@ -11,6 +11,7 @@ import (
 	"github.com/go-go-golems/go-go-labs/cmd/shopperapproved/pkg"
 	"os"
 	"strconv"
+	"time"
 )
 import "github.com/pkg/errors"
 
@@ -101,11 +102,11 @@ func (c *GetProductReviewsCommand) Run(
 		return err
 	}
 
-	params.From, _, err = GetAndCastPtr[string](ps, "from", nil)
+	params.From, _, err = GetAndCastPtr[time.Time](ps, "from", nil)
 	if err != nil {
 		return err
 	}
-	params.To, _, err = GetAndCastPtr[string](ps, "to", nil)
+	params.To, _, err = GetAndCastPtr[time.Time](ps, "to", nil)
 	if err != nil {
 		return err
 	}
@@ -185,11 +186,11 @@ func (c *GetAllProductReviewsCommand) Run(
 		return err
 	}
 
-	params.From, _, err = GetAndCastPtr[string](ps, "from", nil)
+	params.From, _, err = GetAndCastPtr[time.Time](ps, "from", nil)
 	if err != nil {
 		return err
 	}
-	params.To, _, err = GetAndCastPtr[string](ps, "to", nil)
+	params.To, _, err = GetAndCastPtr[time.Time](ps, "to", nil)
 	if err != nil {
 		return err
 	}
