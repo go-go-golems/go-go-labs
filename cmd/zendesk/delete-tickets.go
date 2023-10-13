@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/go-go-golems/clay/pkg/workerpool"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/glazed/pkg/settings"
-	"github.com/go-go-golems/go-go-labs/cmd/zendesk/workerpool"
 	"github.com/pkg/errors"
 	"io"
 	"os"
