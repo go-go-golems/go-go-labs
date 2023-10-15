@@ -228,6 +228,8 @@ github.com/go-go-golems/clay v0.0.25 h1:KrZ5luxWRDIvt78dugTGdog5NWii201fCgfNgQMI
 github.com/go-go-golems/clay v0.0.25/go.mod h1:KX8IIKGpt9FvbwgcEBVOZfPB22LcdjRhVpjk8sB0SBs=
 github.com/go-go-golems/glazed v0.4.19 h1:RdBh0LcIH3RcSr+fFGGnXJ0BWheIE9+vacuhSNwle+w=
 github.com/go-go-golems/glazed v0.4.19/go.mod h1:hvndeie5yW10MHq2Z0A8q1TMlqNUFP75i45oDCOTjqs=
+github.com/go-go-golems/glazed v0.4.20 h1:ONxcMMSIpBinnxrU71kY3mtO7mmwBs5GJ+ZLmLRA/js=
+github.com/go-go-golems/glazed v0.4.20/go.mod h1:hvndeie5yW10MHq2Z0A8q1TMlqNUFP75i45oDCOTjqs=
 github.com/go-go-golems/parka v0.4.12 h1:AIz3KKNr2+RqpplosikRw+78YxuUoGEhDQrk+pVqd5U=
 github.com/go-go-golems/parka v0.4.12/go.mod h1:TLcnuj+Q+F9RI7YW/0lUfwQ0lmhceVrH107zWhCgtks=
 github.com/go-go-golems/sqleton v0.1.72 h1:ssbFJfPwMqXI7v5BCs73a+8gkAESmTYzs/5VZ7yl0HE=

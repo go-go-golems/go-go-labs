@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSE Client Example</title>
+    <style>
+        #status {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- A button to initiate the SSE stream -->
+<button onclick="startEvents()">Start Streaming Events</button>
+
+<!-- Container where the SSE messages will be displayed -->
+<div id="status"></div>
+
+<script>
+    // Function to initiate the SSE stream
+    function startEvents() {
+        // Ensure the browser supports EventSource
+        if (!!window.EventSource) {
+            var source = new EventSource('http://localhost:8080/events');
+
+            source.addEventListener('open', function (e) {
+                console.log("Connection was opened.")
+            })
+
+
+            // Handle an event message
+            source.addEventListener('message', function(e) {
+                var data = e.data;
+
+                // Update the status container with the new message
+                var statusDiv = document.getElementById('status');
+                statusDiv.innerHTML += data + '<br>';
+            }, false);
+
+            // Handle any errors that occur.
+            source.addEventListener('error', function(e) {
+                if (e.target.readyState == EventSource.CLOSED) {
+                    console.log("Connection was closed.");
+                } else if (e.target.readyState == EventSource.CONNECTING) {
+                    console.log("Not reconnecting, closing...");
+                } else {
+                    console.log("Error occurred:", e);
+                }
+                source.close()
+            }, false);
+        } else {
+            // The browser doesn't support SSEs
+            console.log("Your browser does not support server-sent events!");
+            alert("Your browser does not support server-sent events!");
+        }
+    }
+</script>
+</body>
+</html>

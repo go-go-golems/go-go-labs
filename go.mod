@@ -14,7 +14,7 @@ require (
 	github.com/chromedp/chromedp v0.9.2
 	github.com/dave/jennifer v1.7.0
 	github.com/go-go-golems/clay v0.0.25
-	github.com/go-go-golems/glazed v0.4.19
+	github.com/go-go-golems/glazed v0.4.20
 	github.com/go-go-golems/sqleton v0.1.72
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/websocket v1.5.0
