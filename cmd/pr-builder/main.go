@@ -17,13 +17,6 @@ func main() {
 		return
 	}
 
-	// Get the worktree.
-	w, err := r.Worktree()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
 	// Find the latest commit for the "origin/main" branch (the "remote" and "branch" might need adjusting depending on your settings).
 	ref, err := r.Reference(plumbing.ReferenceName("refs/remotes/origin/main"), true)
 	if err != nil {
@@ -46,10 +39,10 @@ func main() {
 	}
 
 	// Diff the working directory and the given tree.
-	changes, err := w.Diff(&git.DiffOptions{PathFilter: func(path string) bool {
-		// Optional: Use this filter to include/exclude files based on path.
-		return true // Returning true includes all files.
-	}})
+	head, _ := r.Head()
+	headCommit, _ := r.CommitObject(head.Hash())
+	headTree, _ := headCommit.Tree()
+	changes, err := tree.Diff(headTree)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -68,20 +61,18 @@ func main() {
 		}
 
 		var diffBuffer bytes.Buffer
-		if _, err := patch.WriteTo(&diffBuffer); err != nil {
+		err = patch.Encode(&diffBuffer)
+		if err != nil {
 			fmt.Println(err)
 			return
 		}
 
 		// Add the diff output to the map.
 		fileDiffs[change.From.Name] = diffBuffer.String()
-
-		// Free up the patch resources (recommended by the library).
-		patch.Free()
 	}
 
 	// Print the diff result.
 	for file, diff := range fileDiffs {
-		fmt.Fprintf(os.Stdout, "Changes to %s:\n%s\n", file, diff)
+		_, _ = fmt.Fprintf(os.Stdout, "Changes to %s:\n%s\n", file, diff)
 	}
 }
