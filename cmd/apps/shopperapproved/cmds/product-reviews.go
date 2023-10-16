@@ -8,7 +8,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
-	"github.com/go-go-golems/go-go-labs/cmd/shopperapproved/pkg"
+	pkg2 "github.com/go-go-golems/go-go-labs/cmd/apps/shopperapproved/pkg"
 	"os"
 	"strconv"
 	"time"
@@ -88,7 +88,7 @@ func (c *GetProductReviewsCommand) Run(
 	ps map[string]interface{},
 	gp middlewares.Processor,
 ) error {
-	params := &pkg.ReviewRequestParams{
+	params := &pkg2.ReviewRequestParams{
 		ProductID: ps["product-id"].(string),
 	}
 
@@ -174,7 +174,7 @@ func (c *GetAllProductReviewsCommand) Run(
 	ps map[string]interface{},
 	gp middlewares.Processor,
 ) error {
-	params := &pkg.ReviewRequestParams{}
+	params := &pkg2.ReviewRequestParams{}
 
 	var err error
 	params.Limit, _, err = GetAndCastPtr[int](ps, "limit", nil)
@@ -224,7 +224,7 @@ func (c *GetAllProductReviewsCommand) Run(
 	return nil
 }
 
-func getCredentials(ps map[string]interface{}) (*pkg.ShopperApprovedClient, error) {
+func getCredentials(ps map[string]interface{}) (*pkg2.ShopperApprovedClient, error) {
 	siteId, ok := ps["site-id"].(int)
 	if !ok {
 		siteId_ := os.Getenv("SHOPPER_APPROVED_SITE_ID")
@@ -245,7 +245,7 @@ func getCredentials(ps map[string]interface{}) (*pkg.ShopperApprovedClient, erro
 		}
 	}
 
-	client := &pkg.ShopperApprovedClient{
+	client := &pkg2.ShopperApprovedClient{
 		SiteID: siteId,
 		Token:  accessToken,
 	}

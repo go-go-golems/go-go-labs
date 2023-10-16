@@ -2,7 +2,7 @@ package machinery
 
 import (
 	"context"
-	"github.com/go-go-golems/go-go-labs/cmd/bandcamp/pkg"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/bandcamp/pkg"
 	"net/http"
 )
 

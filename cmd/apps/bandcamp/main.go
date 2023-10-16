@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"github.com/ThreeDotsLabs/watermill/message"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/go-go-golems/go-go-labs/cmd/bandcamp/pkg"
-	"github.com/go-go-golems/go-go-labs/cmd/bandcamp/pkg/machinery"
-	"github.com/go-go-golems/go-go-labs/cmd/bandcamp/ui/playlist"
+	pkg2 "github.com/go-go-golems/go-go-labs/cmd/apps/bandcamp/pkg"
+	machinery2 "github.com/go-go-golems/go-go-labs/cmd/apps/bandcamp/pkg/machinery"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/bandcamp/ui/playlist"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"os"
@@ -19,9 +19,9 @@ func main() {
 		Use:   "bancamp_search",
 		Short: "Search bandcamp", Long: `Search for music on bandcamp`,
 		Run: func(cmd *cobra.Command, args []string) {
-			client := pkg.NewClient()
-			machine, err := machinery.NewMachine()
-			httpServer := machinery.NewHTTPServer()
+			client := pkg2.NewClient()
+			machine, err := machinery2.NewMachine()
+			httpServer := machinery2.NewHTTPServer()
 			cobra.CheckErr(err)
 
 			machine.Router.AddNoPublisherHandler(
@@ -29,7 +29,7 @@ func main() {
 				"playlist",
 				machine.PubSub,
 				func(msg *message.Message) error {
-					playlist := &pkg.Playlist{}
+					playlist := &pkg2.Playlist{}
 					if err := json.Unmarshal(msg.Payload, playlist); err != nil {
 						return err
 					}
@@ -45,16 +45,16 @@ func main() {
 				log.Fatal().Msg("please provide a search keyword")
 			}
 
-			searchResp, err := client.Search(context.Background(), args[0], pkg.SearchType(filter))
+			searchResp, err := client.Search(context.Background(), args[0], pkg2.SearchType(filter))
 			if err != nil {
 				log.Fatal().Err(err).Msg("failed to search")
 			}
 
 			results := searchResp.Auto.Results[:3]
-			tracks_ := make([]*pkg.Track, len(results))
+			tracks_ := make([]*pkg2.Track, len(results))
 
 			for i, result := range results {
-				tracks_[i] = &pkg.Track{
+				tracks_[i] = &pkg2.Track{
 					BackgroundColor: "black",
 					LinkColor:       "white",
 					AlbumID:         result.AlbumID,
@@ -67,7 +67,7 @@ func main() {
 			// TODO(manuel, 2023-08-16) A cool feature would be to expose the playlist
 			// as a render webpage immediately, so that one can see the final result.
 
-			playlist_ := &pkg.Playlist{
+			playlist_ := &pkg2.Playlist{
 				Title:       "Summer Playlist",
 				Description: "Foobar playlist",
 				Tracks:      tracks_,

@@ -7,9 +7,9 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/go-go-golems/go-go-labs/cmd/bandcamp/pkg"
-	"github.com/go-go-golems/go-go-labs/cmd/bandcamp/ui"
-	"github.com/go-go-golems/go-go-labs/cmd/bandcamp/ui/search"
+	pkg2 "github.com/go-go-golems/go-go-labs/cmd/apps/bandcamp/pkg"
+	ui2 "github.com/go-go-golems/go-go-labs/cmd/apps/bandcamp/ui"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/bandcamp/ui/search"
 	"github.com/pkg/errors"
 	"os"
 	"time"
@@ -27,7 +27,7 @@ const (
 	stateSearch           state = iota
 )
 
-type Track pkg.Track
+type Track pkg2.Track
 
 func (s *Track) FilterValue() string {
 	return s.Name
@@ -43,7 +43,7 @@ func (s *Track) Description() string {
 }
 
 type Model struct {
-	Playlist *pkg.Playlist
+	Playlist *pkg2.Playlist
 
 	l list.Model
 
@@ -81,14 +81,14 @@ func (m *Model) updateListItems() tea.Cmd {
 }
 
 var (
-	playlistNameStyle = ui.MainTitleStyle
+	playlistNameStyle = ui2.MainTitleStyle
 	titleStyle        = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("230"))
 	appStyle = lipgloss.NewStyle().
 			Margin(1, 1, 1, 1)
 )
 
-func NewModel(playlist *pkg.Playlist) Model {
+func NewModel(playlist *pkg2.Playlist) Model {
 	l := list.New(nil, list.NewDefaultDelegate(), 0, 0)
 
 	keymap := DefaultKeyMap()
@@ -127,8 +127,8 @@ func NewModel(playlist *pkg.Playlist) Model {
 	curDir, _ := os.Getwd()
 	fp.CurrentDirectory = curDir
 
-	client := pkg.NewClient()
-	s := search.NewModel(client, []*pkg.Result{})
+	client := pkg2.NewClient()
+	s := search.NewModel(client, []*pkg2.Result{})
 
 	m := Model{
 		Playlist:   playlist,
@@ -167,7 +167,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.search.SetSize(newWidth, newHeight)
 		m.filepicker.Height = newHeight
 
-	case ui.InsertPlaylistEntryMsg:
+	case ui2.InsertPlaylistEntryMsg:
 		m.Playlist.InsertTrack(msg.Track, m.l.Index())
 		m.state = stateList
 		cmd := m.updateListItems()
@@ -201,7 +201,7 @@ func (m *Model) updateList(msg tea.Msg) []tea.Cmd {
 		switch {
 		case key.Matches(msg, m.KeyMap.OpenEntry):
 			url := m.Playlist.Tracks[m.l.Index()].ItemURLPath
-			if err := pkg.OpenURL(url); err != nil {
+			if err := pkg2.OpenURL(url); err != nil {
 				return cmds
 			}
 		case key.Matches(msg, m.KeyMap.MoveEntryUp):
@@ -269,7 +269,7 @@ func (m *Model) updateSearch(msg tea.Msg) []tea.Cmd {
 
 	switch v := msg.(type) {
 	case search.SelectEntryMsg:
-		track := &pkg.Track{
+		track := &pkg2.Track{
 			BackgroundColor: "black",
 			LinkColor:       "white",
 			AlbumID:         v.Result.AlbumID,
@@ -281,7 +281,7 @@ func (m *Model) updateSearch(msg tea.Msg) []tea.Cmd {
 		m.updateListItems()
 		return []tea.Cmd{
 			func() tea.Msg {
-				return ui.InsertPlaylistEntryMsg{Track: track}
+				return ui2.InsertPlaylistEntryMsg{Track: track}
 			},
 		}
 	case search.CloseSearchMsg:
@@ -322,7 +322,7 @@ func (m *Model) updateFilePicker(msg tea.Msg) []tea.Cmd {
 		// Let's clear the selectedFile and display an error.
 		m.err = errors.New(path + " is not valid.")
 		m.selectedFile = ""
-		cmds = append(cmds, tea.Batch(cmd, ui.ClearErrorAfter(2*time.Second)))
+		cmds = append(cmds, tea.Batch(cmd, ui2.ClearErrorAfter(2*time.Second)))
 	}
 
 	return cmds

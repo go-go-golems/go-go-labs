@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/help"
-	"github.com/go-go-golems/go-go-labs/cmd/gtm/cmds"
+	cmds2 "github.com/go-go-golems/go-go-labs/cmd/apps/gtm/cmds"
 	"github.com/spf13/cobra"
 )
 
@@ -16,19 +16,19 @@ func main() {
 	helpSystem := help.NewHelpSystem()
 	helpSystem.SetupCobraRootCommand(rootCmd)
 
-	tagsCommand, err := cmds.NewTagsCommand()
+	tagsCommand, err := cmds2.NewTagsCommand()
 	cobra.CheckErr(err)
 	command, err := cli.BuildCobraCommandFromGlazeCommand(tagsCommand)
 	cobra.CheckErr(err)
 	rootCmd.AddCommand(command)
 
-	variablesCommand, err := cmds.NewVariablesCommand()
+	variablesCommand, err := cmds2.NewVariablesCommand()
 	cobra.CheckErr(err)
 	command, err = cli.BuildCobraCommandFromGlazeCommand(variablesCommand)
 	cobra.CheckErr(err)
 	rootCmd.AddCommand(command)
 
-	triggersCommand, err := cmds.NewTriggersCommand()
+	triggersCommand, err := cmds2.NewTriggersCommand()
 	cobra.CheckErr(err)
 	command, err = cli.BuildCobraCommandFromGlazeCommand(triggersCommand)
 	cobra.CheckErr(err)

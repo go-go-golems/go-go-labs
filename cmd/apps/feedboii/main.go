@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/go-go-golems/glazed/pkg/cli"
-	"github.com/go-go-golems/go-go-labs/cmd/feedboii/cmds"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/feedboii/cmds"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"os"

@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/help"
-	"github.com/go-go-golems/go-go-labs/cmd/shopperapproved/cmds"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/shopperapproved/cmds"
 	"github.com/spf13/cobra"
 )
 

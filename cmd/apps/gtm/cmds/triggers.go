@@ -9,7 +9,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
-	"github.com/go-go-golems/go-go-labs/cmd/gtm/pkg"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/gtm/pkg"
 	"github.com/pkg/errors"
 	"os"
 	"strings"

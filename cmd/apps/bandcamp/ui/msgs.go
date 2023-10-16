@@ -1,13 +1,15 @@
 package ui
 
-import "github.com/go-go-golems/go-go-labs/cmd/bandcamp/pkg"
+import (
+	pkg2 "github.com/go-go-golems/go-go-labs/cmd/apps/bandcamp/pkg"
+)
 
 type UpdateSearchResultsMsg struct {
-	Results []*pkg.Result
+	Results []*pkg2.Result
 }
 
 type SelectEntryMsg struct {
-	Result *pkg.Result
+	Result *pkg2.Result
 }
 
 type ErrMsg struct {
@@ -17,5 +19,5 @@ type ErrMsg struct {
 type ClearErrorMsg struct{}
 
 type InsertPlaylistEntryMsg struct {
-	Track *pkg.Track
+	Track *pkg2.Track
 }
