@@ -47,6 +47,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		//exhaustive:ignore
 		switch msg.Type {
 		case tea.KeyEsc:
 			if m.textarea.Focused() {
