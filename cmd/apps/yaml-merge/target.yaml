@@ -1,0 +1,28 @@
+
+version: 2
+
+models:
+  - name: clean_orders_meta
+    description: foo
+    columns:
+      - name : order_id
+        description: "Internal order ID (numeric, unique)"
+        tests:
+          - unique
+          - not_null
+
+      - name: billing_email
+        description: "Billing email used at checkout"
+
+  - name: orders
+    columns:
+      - name: order_id
+        description: "Internal order ID (numeric, unique)"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('clean_orders_meta')
+              field: order_id
+
+  - name: shipment_labels
+    description: yo

@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	_ "embed"
-	"github.com/go-go-golems/go-go-labs/cmd/sqlc-folder/tutorial"
+	"github.com/go-go-golems/go-go-labs/cmd/tutorials/sqlc-folder/tutorial"
 	_ "github.com/mattn/go-sqlite3"
 	"log"
 )

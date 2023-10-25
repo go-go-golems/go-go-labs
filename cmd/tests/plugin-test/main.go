@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/go-go-golems/go-go-labs/cmd/experiments/plugin-test/shared"
+	"github.com/go-go-golems/go-go-labs/cmd/tests/plugin-test/shared"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 	"os"

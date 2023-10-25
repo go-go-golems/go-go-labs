@@ -10,7 +10,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
-	"github.com/go-go-golems/go-go-labs/cmd/mp3-slice/mp3lib"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/mp3-slice/mp3lib"
 	"github.com/pkg/errors"
 	"path/filepath"
 )
