@@ -73,6 +73,9 @@ func splitTokenIdsByDFA(dfa DFA, tokenIds []TokenId, tokenLimit int, codec token
 			log.Fatal().Msgf("Error decoding tail tokens: %v", err)
 		}
 		tokenString, err := codec.Decode([]TokenId{tokenId})
+		if err != nil {
+			log.Fatal().Msgf("Error decoding token: %v", err)
+		}
 
 		log.Debug().Uint("tokenId", tokenId).
 			Str("token", tokenString).

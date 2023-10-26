@@ -9,7 +9,7 @@ import (
 //    ParameterDefinition list to a struct
 
 type Foobar struct {
-	i int `json:"i"`
+	I int `json:"i"`
 }
 
 func ParameterDefinitionToStructMember(p *parameters.ParameterDefinition) *jen.Statement {
