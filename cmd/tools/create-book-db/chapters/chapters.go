@@ -117,11 +117,14 @@ func InsertChapter(db *sql.DB, chapter *Chapter) (int64, error) {
 	}
 
 	chapterID, err := res.LastInsertId()
+	if err != nil {
+		return -1, err
+	}
 
 	for _, toc := range chapter.Toc {
 		err := insertTocItem(db, chapterID, toc)
 		if err != nil {
-			return -1, errors.Wrapf(err, "Error inserting toc item %s", toc)
+			return -1, errors.Wrapf(err, "Error inserting toc item %v", toc)
 		}
 	}
 

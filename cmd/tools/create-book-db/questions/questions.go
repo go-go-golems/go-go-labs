@@ -7,7 +7,6 @@ import (
 	"time"
 )
 
-// Additional struct for Questions
 type Question struct {
 	ChapterName             string   `json:"chapterName"`
 	RelevancyScore          int      `json:"relevancyScore"`
@@ -102,29 +101,10 @@ func ReadQuestionFromFile(filename string) (*Question, error) {
 	return &q, nil
 }
 
-func createQuestionsTable(db *sql.DB) error {
-	questionsTable := `
-    CREATE TABLE IF NOT EXISTS Questions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        chapterID INTEGER,
-        chapterName TEXT NOT NULL,
-        relevancyScore INTEGER,
-        explanationForRelevance TEXT,
-        recommendationsToReader TEXT,
-        created_at TEXT,
-        comment TEXT,
-        filename TEXT,
-        FOREIGN KEY(chapterID) REFERENCES Chapters(id)
-    );`
-	_, err := db.Exec(questionsTable)
-	return err
-}
-
-// Inserting data into Questions table
 func InsertQuestion(db *sql.DB, q *Question) (int64, error) {
 	// Lookup chapterID by chapterName
 	var chapterID int64
-	err := db.QueryRow("SELECT id FROM Chapters WHERE name = ?", q.ChapterName).Scan(&chapterID)
+	err := db.QueryRow("SELECT id FROM Chapters WHERE title = ?", q.ChapterName).Scan(&chapterID)
 	if err != nil {
 		return 0, err
 	}
