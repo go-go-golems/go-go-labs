@@ -1,0 +1,11 @@
+{
+  "path": "example_source.py",
+  "changes": [
+    {
+      "comment": "Reorganize the script by moving misplaced_function above another_function",
+      "action": "move",
+      "content": "def misplaced_function():\n    print(\"This function is in the wrong location.\")",
+      "destination_above": "def another_function():"
+    }
+  ]
+}

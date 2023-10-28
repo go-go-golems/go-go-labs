@@ -1,0 +1,12 @@
+{
+  "path": "example_source.py",
+  "changes": [
+    {
+      "comment": "Introduce a new helper function after main_function",
+      "action": "insert",
+      "content": "def helper_function():\n    print(\"This is a new helper function.\")",
+      "destination_below": "def main_function():"
+    }
+  ]
+}
+

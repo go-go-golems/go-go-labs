@@ -1,0 +1,11 @@
+{
+  "path": "example_source.py",
+  "changes": [
+    {
+      "comment": "Remove unnecessary_function as it is no longer needed",
+      "action": "delete",
+      "content": "def unnecessary_function():\n    print(\"This function is not necessary.\")"
+    }
+  ]
+}
+

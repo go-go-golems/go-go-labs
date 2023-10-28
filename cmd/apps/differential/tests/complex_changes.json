@@ -1,0 +1,34 @@
+{
+  "path": "example_source.py",
+  "changes": [
+    {
+      "comment": "Update the outdated_function with improved logic",
+      "action": "replace",
+      "old": "def outdated_function():\n    print(\"This function is outdated.\")",
+      "new": "def improved_function():\n    print(\"This function has been improved.\")"
+    },
+    {
+      "comment": "Insert a new debugging function below the main_function",
+      "action": "insert",
+      "content": "def debugging_function():\n    print(\"Debugging details here.\")",
+      "destination_below": "def main_function():"
+    },
+    {
+      "comment": "Remove the unnecessary_function as it serves no purpose",
+      "action": "delete",
+      "content": "def unnecessary_function():\n    print(\"This function is not necessary.\")"
+    },
+    {
+      "comment": "Move the misplaced_function to a new location for better organization",
+      "action": "move",
+      "content": "def misplaced_function():\n    print(\"This function is misplaced.\")",
+      "destination_above": "def target_location():"
+    },
+    {
+      "comment": "Replace function_to_replace with a more efficient version",
+      "action": "replace",
+      "old": "def function_to_replace():\n    print(\"This function will be replaced.\")",
+      "new": "def efficient_function():\n    print(\"Enhanced and more efficient.\")"
+    }
+  ]
+}

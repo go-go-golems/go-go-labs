@@ -1,0 +1,11 @@
+{
+  "path": "example_source.py",
+  "changes": [
+    {
+      "comment": "Update the outdated_function to meet the new requirements",
+      "action": "replace",
+      "old": "def outdated_function():\n    print(\"This function is outdated.\")",
+      "new": "def updated_function():\n    print(\"Functionality has been updated.\")"
+    }
+  ]
+}
