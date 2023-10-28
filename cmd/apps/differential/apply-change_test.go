@@ -197,3 +197,206 @@ func TestApplyChange_ActionDelete(t *testing.T) {
 		})
 	}
 }
+
+func TestApplyChange_ActionMove(t *testing.T) {
+	tests := []struct {
+		name        string
+		sourceLines []string
+		change      Change
+		want        []string
+		wantErr     error
+	}{
+		{
+			name:        "Valid move to a new location",
+			sourceLines: []string{"line1", "line2", "line3", "line4"},
+			change:      Change{Action: ActionMove, Content: "line3", DestinationBelow: "line1"},
+			want:        []string{"line1", "line3", "line2", "line4"},
+			wantErr:     nil,
+		},
+		{
+			name:        "Move to the beginning",
+			sourceLines: []string{"line1", "line2", "line3"},
+			change:      Change{Action: ActionMove, Content: "line2", DestinationAbove: "line1"},
+			want:        []string{"line2", "line1", "line3"},
+			wantErr:     nil,
+		},
+		{
+			name:        "Move to the end",
+			sourceLines: []string{"line1", "line2", "line3"},
+			change:      Change{Action: ActionMove, Content: "line1", DestinationBelow: "line3"},
+			want:        []string{"line2", "line3", "line1"},
+			wantErr:     nil,
+		},
+		{
+			name:        "Non-existent content",
+			sourceLines: []string{"line1", "line2", "line3"},
+			change:      Change{Action: ActionMove, Content: "line4", DestinationBelow: "line2"},
+			want:        nil, // or []string{"line1", "line2", "line3"} if the function does not modify the input on error
+			wantErr:     &ErrCodeBlock{},
+		},
+		{
+			name:        "Non-existent destination",
+			sourceLines: []string{"line1", "line2", "line3"},
+			change:      Change{Action: ActionMove, Content: "line2", DestinationBelow: "line4"},
+			want:        nil, // or []string{"line1", "line2", "line3"} if the function does not modify the input on error
+			wantErr:     &ErrCodeBlock{},
+		},
+		{
+			name:        "Move multiple lines",
+			sourceLines: []string{"line1", "line2", "line3", "line4"},
+			change:      Change{Action: ActionMove, Content: "line1\nline2", DestinationBelow: "line4"},
+			want:        []string{"line3", "line4", "line1", "line2"},
+			wantErr:     nil,
+		},
+		{
+			name:        "Move with empty content",
+			sourceLines: []string{"line1", "", "line3"},
+			change:      Change{Action: ActionMove, Content: "", DestinationBelow: "line3"},
+			want:        []string{"line1", "line3", ""},
+			wantErr:     nil,
+		},
+		{
+			name:        "Move within empty source lines",
+			sourceLines: []string{},
+			change:      Change{Action: ActionMove, Content: "line1", DestinationBelow: "line3"},
+			want:        nil, // or []string{} if the function does not modify the input on error
+			wantErr:     &ErrCodeBlock{},
+		},
+		{
+			name:        "Moving content to its current location",
+			sourceLines: []string{"line1", "line2", "line3"},
+			change:      Change{Action: ActionMove, Content: "line2", DestinationBelow: "line1"},
+			want:        []string{"line1", "line2", "line3"}, // no change expected
+			wantErr:     nil,                                 // no error is expected here, as this is a valid operation, though it does nothing
+		},
+		{
+			name:        "Moving content to a position indicated by content above",
+			sourceLines: []string{"line1", "line2", "line3", "line4"},
+			change:      Change{Action: ActionMove, Content: "line4", DestinationAbove: "line2"},
+			want:        []string{"line1", "line4", "line2", "line3"}, // 'line4' should now be above 'line2'
+			wantErr:     nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := applyChange(tt.sourceLines, tt.change)
+
+			// Error handling: Check if the expected error matches the actual error
+			if (err != nil && tt.wantErr != nil && err.Error() != tt.wantErr.Error()) || (err == nil && tt.wantErr != nil) || (err != nil && tt.wantErr == nil) {
+				t.Errorf("applyChange() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			// In case of no error, check if the output matches the expected result
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("applyChange() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestApplyChange_ActionInsert(t *testing.T) {
+	tests := []struct {
+		name        string
+		sourceLines []string
+		change      Change
+		want        []string
+		wantErr     error
+	}{
+		{
+			name:        "Insert at the beginning",
+			sourceLines: []string{"line2", "line3"},
+			change:      Change{Action: ActionInsert, Content: "line1", DestinationAbove: "line2"},
+			want:        []string{"line1", "line2", "line3"},
+			wantErr:     nil,
+		},
+		{
+			name:        "Insert at the end",
+			sourceLines: []string{"line1", "line2"},
+			change:      Change{Action: ActionInsert, Content: "line3", DestinationBelow: "line2"},
+			want:        []string{"line1", "line2", "line3"},
+			wantErr:     nil,
+		},
+		{
+			name:        "Insert with non-existent destination",
+			sourceLines: []string{"line1", "line2"},
+			change:      Change{Action: ActionInsert, Content: "line3", DestinationBelow: "line4"},
+			want:        nil,             // Depending on the behavior, this could return the original lines unmodified.
+			wantErr:     &ErrCodeBlock{}, // Or any other error indicating the destination does not exist.
+		},
+		{
+			name:        "Insert in the middle",
+			sourceLines: []string{"line1", "line3"},
+			change:      Change{Action: ActionInsert, Content: "line2", DestinationBelow: "line1"},
+			want:        []string{"line1", "line2", "line3"},
+			wantErr:     nil,
+		},
+		{
+			name:        "Insert multiple lines",
+			sourceLines: []string{"line1", "line4"},
+			change:      Change{Action: ActionInsert, Content: "line2\nline3", DestinationBelow: "line1"},
+			want:        []string{"line1", "line2", "line3", "line4"},
+			wantErr:     nil,
+		},
+		{
+			name:        "Insert empty line",
+			sourceLines: []string{"line1", "line2"},
+			change:      Change{Action: ActionInsert, Content: "", DestinationBelow: "line1"},
+			want:        []string{"line1", "", "line2"},
+			wantErr:     nil,
+		},
+		{
+			name:        "Insert into empty source",
+			sourceLines: []string{},
+			change:      Change{Action: ActionInsert, Content: "line1", DestinationBelow: ""}, // Assuming destination below empty means at the start.
+			want:        []string{"line1"},
+			wantErr:     nil,
+		},
+		{
+			name:        "Insert with whitespace content",
+			sourceLines: []string{"line1", "line2"},
+			change:      Change{Action: ActionInsert, Content: "   ", DestinationBelow: "line1"},
+			want:        []string{"line1", "   ", "line2"},
+			wantErr:     nil,
+		},
+		{
+			name:        "Insert special characters",
+			sourceLines: []string{"line1", "line2"},
+			change:      Change{Action: ActionInsert, Content: "@#$%^", DestinationBelow: "line1"},
+			want:        []string{"line1", "@#$%^", "line2"},
+			wantErr:     nil,
+		},
+		{
+			name:        "Insert without specifying destination",
+			sourceLines: []string{"line1", "line2"},
+			change:      Change{Action: ActionInsert, Content: "line3"}, // No destination specified.
+			want:        nil,                                            // Behavior might depend on how the function handles missing destinations.
+			wantErr:     &ErrCodeBlock{},                                // Or another appropriate error.
+		},
+		{
+			name:        "Insert with both destinations specified",
+			sourceLines: []string{"line1", "line2", "line3"},
+			change:      Change{Action: ActionInsert, Content: "line1.5", DestinationAbove: "line2", DestinationBelow: "line1"},
+			want:        nil, // The behavior could be undefined, or the function could choose one of the destinations.
+			wantErr:     &ErrInvalidChange{"Cannot specify both destination_above and destination_below"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := applyChange(tt.sourceLines, tt.change)
+
+			// Error handling: Check if the expected error matches the actual error
+			if (err != nil && tt.wantErr != nil && err.Error() != tt.wantErr.Error()) || (err == nil && tt.wantErr != nil) || (err != nil && tt.wantErr == nil) {
+				t.Errorf("applyChange() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			// In case of no error, check if the output matches the expected result
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("applyChange() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

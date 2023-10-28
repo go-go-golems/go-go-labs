@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/go-go-golems/go-go-labs/cmd/apps/differential/kmp"
 	"os"
@@ -39,6 +38,14 @@ type ErrCodeBlock struct{}
 
 func (e *ErrCodeBlock) Error() string {
 	return "specified code block not found in the source"
+}
+
+type ErrInvalidChange struct {
+	msg string
+}
+
+func (e *ErrInvalidChange) Error() string {
+	return fmt.Sprintf("invalid change: %s", e.msg)
 }
 
 // findLocation is a function that identifies the position of a specific block of
@@ -95,6 +102,9 @@ func applyChange(sourceLines []string, change Change) ([]string, error) {
 			sourceLines = append(sourceLines[:startIdx], sourceLines[endIdx:]...)
 		} else if change.Action == ActionMove {
 			destination := change.DestinationAbove
+			if destination != "" && change.DestinationBelow != "" {
+				return nil, &ErrInvalidChange{"Cannot specify both destination_above and destination_below"}
+			}
 			if destination == "" {
 				destination = change.DestinationBelow
 			}
@@ -109,12 +119,23 @@ func applyChange(sourceLines []string, change Change) ([]string, error) {
 			segment := make([]string, endIdx-startIdx)
 			copy(segment, sourceLines[startIdx:endIdx])
 			sourceLines = append(sourceLines[:startIdx], sourceLines[endIdx:]...)
-			sourceLines = append(sourceLines[:moveIdx], append(segment, sourceLines[moveIdx:]...)...)
+			if len(sourceLines) < moveIdx {
+				sourceLines = append(sourceLines, segment...)
+			} else {
+				sourceLines = append(sourceLines[:moveIdx], append(segment, sourceLines[moveIdx:]...)...)
+			}
 		}
 
 	case ActionInsert:
+		if len(sourceLines) == 0 {
+			sourceLines = append(sourceLines, change.Content)
+			break
+		}
 		contentLines := strings.Split(change.Content, "\n")
 		destination := change.DestinationAbove
+		if destination != "" && change.DestinationBelow != "" {
+			return nil, &ErrInvalidChange{"Cannot specify both destination_above and destination_below"}
+		}
 		if destination == "" {
 			destination = change.DestinationBelow
 		}
@@ -129,7 +150,7 @@ func applyChange(sourceLines []string, change Change) ([]string, error) {
 		sourceLines = append(sourceLines[:insertIdx], append(contentLines, sourceLines[insertIdx:]...)...)
 
 	default:
-		return nil, errors.New("unsupported action: " + string(change.Action))
+		return nil, &ErrInvalidChange{"Unsupported action"}
 	}
 
 	return sourceLines, nil
