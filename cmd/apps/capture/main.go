@@ -83,10 +83,14 @@ func main() {
 		Short: "CLI tool to append file contents and metadata to foobar.md",
 		Long: `A simple CLI tool that takes a list of files along with title, description,
 and tags and appends them to a markdown file called foobar.md.`,
-		Args: cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			// Aggregate content from files
 			var contentBuilder strings.Builder
+
+			if len(args) == 0 && len(files) == 0 {
+				files = []string{"-"}
+				fmt.Printf("No files or stdin provided, reading from stdin...\n")
+			}
 
 			for i, file := range files {
 				if file != "-" {
