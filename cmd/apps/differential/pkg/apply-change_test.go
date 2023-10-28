@@ -515,12 +515,12 @@ func LoadCorpus(f *testing.F) {
 func FuzzApplyChange(f *testing.F) {
 	LoadCorpus(f)
 
-	f.Fuzz(func(t *testing.T, source string, action string, old string, new string, content string, destinationAbove string, destinationBelow string) {
+	f.Fuzz(func(t *testing.T, source string, action string, old string, new_ string, content string, destinationAbove string, destinationBelow string) {
 		change := Change{
 			Comment:          "Test change",
 			Action:           Action(action),
 			Old:              old,
-			New:              new,
+			New:              new_,
 			Content:          content,
 			DestinationAbove: destinationAbove,
 			DestinationBelow: destinationBelow,
