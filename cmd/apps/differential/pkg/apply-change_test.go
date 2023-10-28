@@ -1,8 +1,9 @@
-package main
+package pkg
 
 import (
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -102,9 +103,9 @@ func TestApplyChange(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := applyChange(tt.sourceLines, tt.change)
+			got, err := ApplyChange(tt.sourceLines, tt.change)
 			if !errors.Is(err, tt.wantErr) {
-				t.Errorf("applyChange() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ApplyChange() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			// check for nil == []string{}
@@ -115,7 +116,7 @@ func TestApplyChange(t *testing.T) {
 				got = []string{}
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("applyChange() = %v, want %v", got, tt.want)
+				t.Errorf("ApplyChange() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -182,17 +183,17 @@ func TestApplyChange_ActionDelete(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := applyChange(tt.sourceLines, tt.change)
+			got, err := ApplyChange(tt.sourceLines, tt.change)
 
 			// Error handling: Check if the expected error matches the actual error
 			if (err != nil && tt.wantErr != nil && err.Error() != tt.wantErr.Error()) || (err == nil && tt.wantErr != nil) || (err != nil && tt.wantErr == nil) {
-				t.Errorf("applyChange() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ApplyChange() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
 			// In case of no error, check if the output matches the expected result
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("applyChange() = %v, want %v", got, tt.want)
+				t.Errorf("ApplyChange() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -280,17 +281,17 @@ func TestApplyChange_ActionMove(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := applyChange(tt.sourceLines, tt.change)
+			got, err := ApplyChange(tt.sourceLines, tt.change)
 
 			// Error handling: Check if the expected error matches the actual error
 			if (err != nil && tt.wantErr != nil && err.Error() != tt.wantErr.Error()) || (err == nil && tt.wantErr != nil) || (err != nil && tt.wantErr == nil) {
-				t.Errorf("applyChange() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ApplyChange() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
 			// In case of no error, check if the output matches the expected result
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("applyChange() = %v, want %v", got, tt.want)
+				t.Errorf("ApplyChange() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -385,18 +386,131 @@ func TestApplyChange_ActionInsert(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := applyChange(tt.sourceLines, tt.change)
+			got, err := ApplyChange(tt.sourceLines, tt.change)
 
 			// Error handling: Check if the expected error matches the actual error
 			if (err != nil && tt.wantErr != nil && err.Error() != tt.wantErr.Error()) || (err == nil && tt.wantErr != nil) || (err != nil && tt.wantErr == nil) {
-				t.Errorf("applyChange() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ApplyChange() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
 			// In case of no error, check if the output matches the expected result
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("applyChange() = %v, want %v", got, tt.want)
+				t.Errorf("ApplyChange() = %v, want %v", got, tt.want)
 			}
 		})
 	}
+}
+
+// CorpusData represents the structure of data used in our fuzzing corpus.
+type CorpusData struct {
+	SourceLines []string
+	Change      Change
+}
+
+func LoadCorpus(f *testing.F) {
+	examples := []CorpusData{
+		{
+			SourceLines: []string{"line1", "line2", "line3"},
+			Change: Change{
+				Action:  ActionInsert,
+				Content: "new content",
+			},
+		},
+		{
+			SourceLines: []string{"function test() {}", "let a = 1;"},
+			Change: Change{
+				Action: ActionReplace,
+				Old:    "let a = 1;",
+				New:    "let a = 2;",
+			},
+		},
+		{
+			SourceLines: []string{"function test() {}", "let a = 1;"},
+			Change: Change{
+				Action: ActionDelete,
+				Old:    "let a = 1;",
+			},
+		},
+		{
+			SourceLines: []string{"function test() {}", "let a = 1;"},
+			Change: Change{
+				Action:           ActionMove,
+				Content:          "let a = 1;",
+				DestinationAbove: "function test() {}",
+			},
+		},
+		{
+			SourceLines: []string{"function test() {}", "let a = 1;"},
+			Change: Change{
+				Action:           ActionMove,
+				Content:          "let a = 1;",
+				DestinationBelow: "function test() {}",
+			},
+		},
+		// add some with new lines
+		{
+			SourceLines: []string{"function test() {}", "let a = 1;"},
+			Change: Change{
+				Action:  ActionInsert,
+				Content: "new content\nnew content",
+			},
+		},
+		{
+			SourceLines: []string{"function test() {}", "let a = 1;"},
+			Change: Change{
+				Action: ActionReplace,
+				Old:    "let a = 1;",
+				New:    "let a = 2;\nlet a = 3;",
+			},
+		},
+		{
+			SourceLines: []string{"function test() {}", "let a = 1;", "let a = 2;"},
+			Change: Change{
+				Action: ActionDelete,
+				Old:    "let a = 1;\nlet a = 2;",
+			},
+		},
+	}
+
+	// Serialize and save the examples to the corpus directory.
+	for _, example := range examples {
+		f.Add(
+			strings.Join(example.SourceLines, "\n"),
+			string(example.Change.Action),
+			example.Change.Old,
+			example.Change.New,
+			example.Change.Content,
+			example.Change.DestinationAbove,
+			example.Change.DestinationBelow)
+	}
+}
+
+// FuzzApplyChange is the function that the fuzzer will execute.
+func FuzzApplyChange(f *testing.F) {
+	LoadCorpus(f)
+
+	f.Fuzz(func(t *testing.T, source string, action string, old string, new string, content string, destinationAbove string, destinationBelow string) {
+		change := Change{
+			Comment:          "Test change",
+			Action:           Action(action),
+			Old:              old,
+			New:              new,
+			Content:          content,
+			DestinationAbove: destinationAbove,
+			DestinationBelow: destinationBelow,
+		}
+
+		sourceLines := strings.Split(source, "\n")
+
+		// We're not checking the result here, as we're not testing correctness.
+		// We're testing that the function can handle a variety of inputs without crashing.
+		_, err := ApplyChange(sourceLines, change)
+
+		// If you expect certain kinds of inputs to produce errors (and know what those errors are),
+		// you can handle them here.
+		if err != nil {
+			t.Skip() // We acknowledge the error but skip to allow the fuzzer to continue.
+		}
+	})
 }

@@ -1,4 +1,4 @@
-package main
+package pkg
 
 import (
 	"testing"
@@ -307,7 +307,7 @@ func TestFindLocation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			index, err := findLocation(tt.sourceLines, tt.locationLines)
+			index, err := FindLocation(tt.sourceLines, tt.locationLines)
 
 			if index != tt.expectedIndex {
 				t.Errorf("expected index %d, got %d", tt.expectedIndex, index)
