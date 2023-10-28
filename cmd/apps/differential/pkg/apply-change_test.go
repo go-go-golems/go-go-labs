@@ -210,70 +210,71 @@ func TestApplyChange_ActionMove(t *testing.T) {
 		{
 			name:        "Valid move to a new location",
 			sourceLines: []string{"line1", "line2", "line3", "line4"},
-			change:      Change{Action: ActionMove, Content: "line3", DestinationBelow: "line1"},
-			want:        []string{"line1", "line3", "line2", "line4"},
+			change:      Change{Action: ActionMove, Content: "line3", Above: "line1"},
+			want:        []string{"line3", "line1", "line2", "line4"},
 			wantErr:     nil,
 		},
 		{
 			name:        "Move to the beginning",
 			sourceLines: []string{"line1", "line2", "line3"},
-			change:      Change{Action: ActionMove, Content: "line2", DestinationAbove: "line1"},
+			change:      Change{Action: ActionMove, Content: "line2", Above: "line1"},
 			want:        []string{"line2", "line1", "line3"},
 			wantErr:     nil,
 		},
-		{
-			name:        "Move to the end",
-			sourceLines: []string{"line1", "line2", "line3"},
-			change:      Change{Action: ActionMove, Content: "line1", DestinationBelow: "line3"},
-			want:        []string{"line2", "line3", "line1"},
-			wantErr:     nil,
-		},
+		//{
+		//	name:        "Move to the end",
+		//	sourceLines: []string{"line1", "line2", "line3"},
+		//	change:      Change{Action: ActionAppend, Content: "line1"},
+		//	want:        []string{"line2", "line3", "line1"},
+		//	wantErr:     nil,
+		//},
+		// TODO(manuel, 2023-10-28) We don't support moving to the end rn
 		{
 			name:        "Non-existent content",
 			sourceLines: []string{"line1", "line2", "line3"},
-			change:      Change{Action: ActionMove, Content: "line4", DestinationBelow: "line2"},
+			change:      Change{Action: ActionMove, Content: "line4", Above: "line2"},
 			want:        nil, // or []string{"line1", "line2", "line3"} if the function does not modify the input on error
 			wantErr:     &ErrCodeBlock{},
 		},
 		{
 			name:        "Non-existent destination",
 			sourceLines: []string{"line1", "line2", "line3"},
-			change:      Change{Action: ActionMove, Content: "line2", DestinationBelow: "line4"},
+			change:      Change{Action: ActionMove, Content: "line2", Above: "line4"},
 			want:        nil, // or []string{"line1", "line2", "line3"} if the function does not modify the input on error
 			wantErr:     &ErrCodeBlock{},
 		},
 		{
 			name:        "Move multiple lines",
 			sourceLines: []string{"line1", "line2", "line3", "line4"},
-			change:      Change{Action: ActionMove, Content: "line1\nline2", DestinationBelow: "line4"},
-			want:        []string{"line3", "line4", "line1", "line2"},
+			change:      Change{Action: ActionMove, Content: "line1\nline2", Above: "line4"},
+			want:        []string{"line3", "line1", "line2", "line4"},
 			wantErr:     nil,
 		},
 		{
 			name:        "Move with empty content",
 			sourceLines: []string{"line1", "", "line3"},
-			change:      Change{Action: ActionMove, Content: "", DestinationBelow: "line3"},
-			want:        []string{"line1", "line3", ""},
+			change:      Change{Action: ActionMove, Content: "", Above: "line3"},
+			want:        []string{"line1", "", "line3"},
 			wantErr:     nil,
 		},
 		{
 			name:        "Move within empty source lines",
 			sourceLines: []string{},
-			change:      Change{Action: ActionMove, Content: "line1", DestinationBelow: "line3"},
+			change:      Change{Action: ActionMove, Content: "line1", Above: "line3"},
 			want:        nil, // or []string{} if the function does not modify the input on error
 			wantErr:     &ErrCodeBlock{},
 		},
 		{
 			name:        "Moving content to its current location",
 			sourceLines: []string{"line1", "line2", "line3"},
-			change:      Change{Action: ActionMove, Content: "line2", DestinationBelow: "line1"},
+			change:      Change{Action: ActionMove, Content: "line2", Above: "line3"},
 			want:        []string{"line1", "line2", "line3"}, // no change expected
 			wantErr:     nil,                                 // no error is expected here, as this is a valid operation, though it does nothing
 		},
 		{
 			name:        "Moving content to a position indicated by content above",
 			sourceLines: []string{"line1", "line2", "line3", "line4"},
-			change:      Change{Action: ActionMove, Content: "line4", DestinationAbove: "line2"},
+			change:      Change{Action: ActionMove, Content: "line4", Above: "line2"},
 			want:        []string{"line1", "line4", "line2", "line3"}, // 'line4' should now be above 'line2'
 			wantErr:     nil,
 		},
@@ -288,18 +289,11 @@ func TestApplyChange_ActionMove(t *testing.T) {
 				"line6",
 			},
 			change: Change{
-				Action:           ActionMove,
-				Content:          "line2\nline3",
-				DestinationBelow: "line5",
+				Action:  ActionMove,
+				Content: "line2\nline3",
+				Above:   "line6",
 			},
-			want: []string{
-				"line1",
-				"line4",
-				"line5",
-				"line2",
-				"line3",
-				"line6",
-			},
+			want:    []string{"line1", "line4", "line5", "line2", "line3", "line6"},
 			wantErr: nil,
 		},
 	}
@@ -333,79 +327,72 @@ func TestApplyChange_ActionInsert(t *testing.T) {
 		{
 			name:        "Insert at the beginning",
 			sourceLines: []string{"line2", "line3"},
-			change:      Change{Action: ActionInsert, Content: "line1", DestinationAbove: "line2"},
+			change:      Change{Action: ActionPrepend, Content: "line1"},
 			want:        []string{"line1", "line2", "line3"},
 			wantErr:     nil,
 		},
 		{
 			name:        "Insert at the end",
 			sourceLines: []string{"line1", "line2"},
-			change:      Change{Action: ActionInsert, Content: "line3", DestinationBelow: "line2"},
+			change:      Change{Action: ActionAppend, Content: "line3"},
 			want:        []string{"line1", "line2", "line3"},
 			wantErr:     nil,
 		},
 		{
 			name:        "Insert with non-existent destination",
 			sourceLines: []string{"line1", "line2"},
-			change:      Change{Action: ActionInsert, Content: "line3", DestinationBelow: "line4"},
+			change:      Change{Action: ActionInsert, Content: "line3", Above: "line4"},
 			want:        nil,             // Depending on the behavior, this could return the original lines unmodified.
 			wantErr:     &ErrCodeBlock{}, // Or any other error indicating the destination does not exist.
 		},
 		{
 			name:        "Insert in the middle",
 			sourceLines: []string{"line1", "line3"},
-			change:      Change{Action: ActionInsert, Content: "line2", DestinationBelow: "line1"},
+			change:      Change{Action: ActionInsert, Content: "line2", Above: "line3"},
 			want:        []string{"line1", "line2", "line3"},
 			wantErr:     nil,
 		},
 		{
 			name:        "Insert multiple lines",
 			sourceLines: []string{"line1", "line4"},
-			change:      Change{Action: ActionInsert, Content: "line2\nline3", DestinationBelow: "line1"},
+			change:      Change{Action: ActionInsert, Content: "line2\nline3", Above: "line4"},
 			want:        []string{"line1", "line2", "line3", "line4"},
 			wantErr:     nil,
 		},
 		{
 			name:        "Insert empty line",
 			sourceLines: []string{"line1", "line2"},
-			change:      Change{Action: ActionInsert, Content: "", DestinationBelow: "line1"},
+			change:      Change{Action: ActionInsert, Content: "", Above: "line2"},
 			want:        []string{"line1", "", "line2"},
 			wantErr:     nil,
 		},
 		{
 			name:        "Insert into empty source",
 			sourceLines: []string{},
-			change:      Change{Action: ActionInsert, Content: "line1", DestinationBelow: ""}, // Assuming destination below empty means at the start.
+			change:      Change{Action: ActionPrepend, Content: "line1"},
 			want:        []string{"line1"},
 			wantErr:     nil,
 		},
 		{
 			name:        "Insert with whitespace content",
 			sourceLines: []string{"line1", "line2"},
-			change:      Change{Action: ActionInsert, Content: "   ", DestinationBelow: "line1"},
+			change:      Change{Action: ActionInsert, Content: "   ", Above: "line2"},
 			want:        []string{"line1", "   ", "line2"},
 			wantErr:     nil,
 		},
 		{
 			name:        "Insert special characters",
 			sourceLines: []string{"line1", "line2"},
-			change:      Change{Action: ActionInsert, Content: "@#$%^", DestinationBelow: "line1"},
+			change:      Change{Action: ActionInsert, Content: "@#$%^", Above: "line2"},
 			want:        []string{"line1", "@#$%^", "line2"},
 			wantErr:     nil,
 		},
 		{
 			name:        "Insert without specifying destination",
 			sourceLines: []string{"line1", "line2"},
-			change:      Change{Action: ActionInsert, Content: "line3"}, // No destination specified.
-			want:        nil,                                            // Behavior might depend on how the function handles missing destinations.
-			wantErr:     &ErrCodeBlock{},                                // Or another appropriate error.
-		},
-		{
-			name:        "Insert with both destinations specified",
-			sourceLines: []string{"line1", "line2", "line3"},
-			change:      Change{Action: ActionInsert, Content: "line1.5", DestinationAbove: "line2", DestinationBelow: "line1"},
-			want:        nil, // The behavior could be undefined, or the function could choose one of the destinations.
-			wantErr:     &ErrInvalidChange{"Cannot specify both destination_above and destination_below"},
+			change:      Change{Action: ActionInsert, Content: "line3"}, // No destination specified implies appending.
+			want:        []string{"line1", "line2", "line3"},
+			wantErr:     nil, // No error expected if the function appends by default.
 		},
 	}
 
@@ -460,20 +447,25 @@ func LoadCorpus(f *testing.F) {
 		{
 			SourceLines: []string{"function test() {}", "let a = 1;"},
 			Change: Change{
-				Action:           ActionMove,
-				Content:          "let a = 1;",
-				DestinationAbove: "function test() {}",
+				Action:  ActionMove,
+				Content: "let a = 1;",
+				Above:   "function test() {}",
 			},
 		},
 		{
 			SourceLines: []string{"function test() {}", "let a = 1;"},
 			Change: Change{
-				Action:           ActionMove,
-				Content:          "let a = 1;",
-				DestinationBelow: "function test() {}",
+				Action:  ActionAppend,
+				Content: "new content\nnew content",
 			},
 		},
-		// add some with new lines
+		{
+			SourceLines: []string{"function test() {}", "let a = 1;"},
+			Change: Change{
+				Action:  ActionPrepend,
+				Content: "new content\nnew content",
+			},
+		},
 		{
 			SourceLines: []string{"function test() {}", "let a = 1;"},
 			Change: Change{
@@ -506,8 +498,7 @@ func LoadCorpus(f *testing.F) {
 			example.Change.Old,
 			example.Change.New,
 			example.Change.Content,
-			example.Change.DestinationAbove,
-			example.Change.DestinationBelow)
+			example.Change.Above)
 	}
 }
 
@@ -515,15 +506,14 @@ func LoadCorpus(f *testing.F) {
 func FuzzApplyChange(f *testing.F) {
 	LoadCorpus(f)
 
-	f.Fuzz(func(t *testing.T, source string, action string, old string, new_ string, content string, destinationAbove string, destinationBelow string) {
+	f.Fuzz(func(t *testing.T, source string, action string, old string, new_ string, content string, destinationAbove string) {
 		change := Change{
-			Comment:          "Test change",
-			Action:           Action(action),
-			Old:              old,
-			New:              new_,
-			Content:          content,
-			DestinationAbove: destinationAbove,
-			DestinationBelow: destinationBelow,
+			Comment: "Test change",
+			Action:  Action(action),
+			Old:     old,
+			New:     new_,
+			Content: content,
+			Above:   destinationAbove,
 		}
 
 		sourceLines := strings.Split(source, "\n")

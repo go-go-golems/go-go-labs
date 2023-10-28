@@ -3,8 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	json2 "github.com/go-go-golems/glazed/pkg/helpers/json"
+	yaml2 "github.com/go-go-golems/glazed/pkg/helpers/yaml"
 	"github.com/go-go-golems/go-go-labs/cmd/apps/differential/pkg"
 	"github.com/sergi/go-diff/diffmatchpatch"
+	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 
 	"os"
 	"strings"
@@ -18,12 +22,46 @@ type Options struct {
 	DontOverWrite      bool
 }
 
+func tryLoading(dslJSON string) (*pkg.DSL, error) {
+	var dsl pkg.DSL
+	dslJSON_ := json2.SanitizeJSONString(dslJSON, true)
+	if dslJSON_ != "" {
+		err := json.Unmarshal([]byte(dslJSON_), &dsl)
+		if err == nil {
+			return &dsl, nil
+		}
+	}
+
+	dslJSON_ = json2.SanitizeJSONString(dslJSON, false)
+	if dslJSON_ != "" {
+		err := json.Unmarshal([]byte(dslJSON_), &dsl)
+		if err == nil {
+			return &dsl, nil
+		}
+	}
+
+	dslYAML := yaml2.Clean(dslJSON, true)
+	if dslYAML != "" {
+		err := yaml.Unmarshal([]byte(dslYAML), &dsl)
+		if err == nil {
+			return &dsl, nil
+		}
+	}
+
+	dslYAML = yaml2.Clean(dslJSON, false)
+	if dslYAML != "" {
+		err := yaml.Unmarshal([]byte(dslYAML), &dsl)
+		if err == nil {
+			return &dsl, nil
+		}
+	}
+
+	return nil, fmt.Errorf("could not parse DSL")
+}
+
 // applyDSL reads the DSL, applies all changes, and writes the result back to the file.
 func applyDSL(dslJSON string, options Options) error {
-	var dsl pkg.DSL
-
-	// Parse the JSON input
-	err := json.Unmarshal([]byte(dslJSON), &dsl)
+	dsl, err := tryLoading(dslJSON)
 	if err != nil {
 		return err
 	}
@@ -41,6 +79,8 @@ func applyDSL(dslJSON string, options Options) error {
 	for _, change := range dsl.Changes {
 		sourceLines, err = pkg.ApplyChange(sourceLines, change)
 		if err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "Error applying change: %s\n%s\n", err, change.String())
+
 			return err // Or handle the error as you prefer
 		}
 	}
@@ -129,29 +169,55 @@ func findNonexistentFile(path string, suffix string) (string, error) {
 	return name, nil
 }
 
+var rootCmd = &cobra.Command{
+	Use:   "myprogram [flags] FILE [FILE...]",
+	Short: "A brief description of your program",
+	Long:  `A longer description of your program...`,
+	Run:   run,
+	Args:  cobra.MinimumNArgs(1), // Require at least one argument
+}
+
+var (
+	dryRun             bool
+	showDiff           bool
+	saveBackup         bool
+	askForConfirmation bool
+	dontOverWrite      bool
+)
+
+func init() {
+	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "dry run")
+	rootCmd.PersistentFlags().BoolVar(&showDiff, "show-diff", true, "show diff")
+	rootCmd.PersistentFlags().BoolVar(&saveBackup, "save-backup", true, "save backup")
+	rootCmd.PersistentFlags().BoolVar(&askForConfirmation, "ask-for-confirmation", true, "ask for confirmation")
+	rootCmd.PersistentFlags().BoolVar(&dontOverWrite, "dont-overwrite", false, "don't overwrite")
+}
+
+func run(cmd *cobra.Command, args []string) {
+	for _, dslFile := range args {
+		dslJSON, err := os.ReadFile(dslFile)
+		if err != nil {
+			fmt.Printf("Error reading DSL file %s: %s\n", dslFile, err)
+			continue // Skip to the next file on error
+		}
+
+		options := Options{
+			DryRun:             dryRun,
+			ShowDiff:           showDiff,
+			SaveBackup:         saveBackup,
+			AskForConfirmation: askForConfirmation,
+			DontOverWrite:      dontOverWrite,
+		}
+		err = applyDSL(string(dslJSON), options)
+		if err != nil {
+			fmt.Printf("Error applying DSL from file %s: %s\n", dslFile, err)
+		}
+	}
+}
+
 func main() {
-	// Assuming the DSL is passed as a file argument to the program
-	if len(os.Args) < 2 {
-		fmt.Println("Error: No DSL file provided")
-		return
-	}
-
-	dslFile := os.Args[1]
-	dslJSON, err := os.ReadFile(dslFile)
-	if err != nil {
-		fmt.Printf("Error reading DSL file: %s\n", err)
-		return
-	}
-
-	options := Options{
-		DryRun:             false,
-		ShowDiff:           true,
-		SaveBackup:         false,
-		AskForConfirmation: true,
-		DontOverWrite:      true,
-	}
-	err = applyDSL(string(dslJSON), options)
-	if err != nil {
-		fmt.Printf("Error applying DSL: %s\n", err)
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
 }

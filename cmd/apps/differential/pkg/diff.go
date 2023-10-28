@@ -4,23 +4,57 @@ import (
 	"fmt"
 	"github.com/go-go-golems/go-go-labs/cmd/apps/differential/kmp"
 	"strings"
+	"text/template"
 )
 
 // Change represents a single change in the DSL.
 type Change struct {
-	Comment          string `json:"comment"`
-	Action           Action `json:"action"`
-	Old              string `json:"old,omitempty"`
-	New              string `json:"new,omitempty"`
-	Content          string `json:"content,omitempty"`
-	DestinationAbove string `json:"destination_above,omitempty"`
-	DestinationBelow string `json:"destination_below,omitempty"`
+	Comment string `json:"comment" yaml:"comment"`
+	Action  Action `json:"action" yaml:"action"`
+	Old     string `json:"old,omitempty" yaml:"old,omitempty"`
+	New     string `json:"new,omitempty" yaml:"new,omitempty"`
+	Content string `json:"content,omitempty" yaml:"content,omitempty"`
+	Above   string `json:"above,omitempty" yaml:"above,omitempty"`
+}
+
+const changeStringTemplate = `
+{{ .Action }}: {{ .Comment }}
+
+{{ if .Old }}Old code:
+{{.Old}}
+{{- end }}
+
+{{ if .New }}New code:
+{{.New}}
+{{- end }}
+
+{{ if .Content }}Content:
+{{.Content}}
+{{- end }}
+
+{{ if .DestinationAbove }}Destination above:
+{{.DestinationAbove}}
+{{- end }}
+
+{{ if .DestinationBelow }}Destination below:
+{{.DestinationBelow}}
+{{- end }}
+`
+
+func (c *Change) String() string {
+	tpl := template.Must(template.New("change").Parse(changeStringTemplate))
+	var sb strings.Builder
+	err := tpl.Execute(&sb, c)
+	if err != nil {
+		return fmt.Sprintf("%s: %s", c.Action, c.Comment)
+	}
+	return sb.String()
 }
 
 // DSL represents the entire DSL document.
 type DSL struct {
-	Path    string   `json:"path"`
-	Changes []Change `json:"changes"`
+	Path    string   `json:"path" yaml:"path"`
+	Changes []Change `json:"changes" yaml:"changes"`
 }
 
 type Action string
@@ -30,6 +64,8 @@ const (
 	ActionDelete  Action = "delete"
 	ActionMove    Action = "move"
 	ActionInsert  Action = "insert"
+	ActionPrepend Action = "prepend"
+	ActionAppend  Action = "append"
 )
 
 type ErrCodeBlock struct{}
@@ -99,13 +135,7 @@ func ApplyChange(sourceLines []string, change Change) ([]string, error) {
 		} else if change.Action == ActionDelete {
 			sourceLines = append(sourceLines[:startIdx], sourceLines[endIdx:]...)
 		} else if change.Action == ActionMove {
-			destination := change.DestinationAbove
-			if destination != "" && change.DestinationBelow != "" {
-				return nil, &ErrInvalidChange{"Cannot specify both destination_above and destination_below"}
-			}
-			if destination == "" {
-				destination = change.DestinationBelow
-			}
+			destination := change.Above
 			destLines := strings.Split(destination, "\n")
 			segment := make([]string, endIdx-startIdx)
 			copy(segment, sourceLines[startIdx:endIdx])
@@ -117,9 +147,6 @@ func ApplyChange(sourceLines []string, change Change) ([]string, error) {
 				return nil, err
 			}
 
-			if change.DestinationBelow != "" {
-				moveIdx += len(destLines)
-			}
 			if len(sourceLines) < moveIdx {
 				sourceLines = append(sourceLines, segment...)
 			} else {
@@ -128,27 +155,31 @@ func ApplyChange(sourceLines []string, change Change) ([]string, error) {
 		}
 
 	case ActionInsert:
+		contentLines := strings.Split(change.Content, "\n")
 		if len(sourceLines) == 0 {
-			sourceLines = append(sourceLines, change.Content)
+			sourceLines = append(sourceLines, contentLines...)
 			break
 		}
-		contentLines := strings.Split(change.Content, "\n")
-		destination := change.DestinationAbove
-		if destination != "" && change.DestinationBelow != "" {
-			return nil, &ErrInvalidChange{"Cannot specify both destination_above and destination_below"}
-		}
+		destination := change.Above
+
 		if destination == "" {
-			destination = change.DestinationBelow
+			sourceLines = append(sourceLines, contentLines...)
+			break
 		}
 		destLines := strings.Split(destination, "\n")
 		insertIdx, err := FindLocation(sourceLines, destLines)
 		if err != nil {
 			return nil, err
 		}
-		if change.DestinationBelow != "" {
-			insertIdx += len(destLines)
-		}
 		sourceLines = append(sourceLines[:insertIdx], append(contentLines, sourceLines[insertIdx:]...)...)
+
+	case ActionPrepend:
+		contentLines := strings.Split(change.Content, "\n")
+		return append(contentLines, sourceLines...), nil
+
+	case ActionAppend:
+		contentLines := strings.Split(change.Content, "\n")
+		return append(sourceLines, contentLines...), nil
 
 	default:
 		return nil, &ErrInvalidChange{"Unsupported action"}
