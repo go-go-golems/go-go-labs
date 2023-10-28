@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/differential/kmp"
 	"os"
 	"strings"
 )
@@ -11,7 +12,7 @@ import (
 // Change represents a single change in the DSL.
 type Change struct {
 	Comment          string `json:"comment"`
-	Action           string `json:"action"`
+	Action           Action `json:"action"`
 	Old              string `json:"old,omitempty"`
 	New              string `json:"new,omitempty"`
 	Content          string `json:"content,omitempty"`
@@ -25,51 +26,77 @@ type DSL struct {
 	Changes []Change `json:"changes"`
 }
 
-// findLocation searches for the location of a specific block of code within the source code.
-// It returns the index of the first line of the code block in the source, or an error if not found.
-func findLocation(sourceLines []string, locationLines []string) (int, error) {
-	if len(locationLines) == 0 {
-		return -1, errors.New("specified code block not found in the source")
-	}
+type Action string
 
-	// Join lines for easier matching and find the context in the source.
-	sourceText := strings.Join(sourceLines, "\n")
-	locationText := strings.Join(locationLines, "\n")
+const (
+	ActionReplace Action = "replace"
+	ActionDelete  Action = "delete"
+	ActionMove    Action = "move"
+	ActionInsert  Action = "insert"
+)
 
-	locationIndex := strings.Index(sourceText, locationText)
+type ErrCodeBlock struct{}
 
-	if locationIndex == -1 {
-		return -1, errors.New("specified code block not found in the source")
-	}
-
-	// Calculate the line number in the source code.
-	// Lines are 1-indexed, so we add 1 to the result.
-	lineNumber := strings.Count(sourceText[:locationIndex], "\n")
-
-	return lineNumber, nil
+func (e *ErrCodeBlock) Error() string {
+	return "specified code block not found in the source"
 }
 
-// applyChange applies a single change to the source lines based on the action specified in the change.
+// findLocation is a function that identifies the position of a specific block of
+// code within a given source code. It takes two parameters: sourceLines and
+// locationLines, both of which are slices of strings.
+//
+// sourceLines represents the entire source code split into lines.
+// locationLines represents the block of code whose location is to be found.
+//
+// The function returns two values: the line number (or -1 if not found), and an error
+// if the string was not found.
+func findLocation(sourceLines []string, locationLines []string) (int, error) {
+	if len(locationLines) == 0 {
+		return -1, &ErrCodeBlock{}
+	}
+
+	l := kmp.KMPSearch(sourceLines, locationLines)
+	if l == -1 {
+		return -1, &ErrCodeBlock{}
+	}
+
+	return l, nil
+}
+
+// applyChange applies a specified change to a given set of source lines.
+//
+// It takes two parameters:
+// - sourceLines: A slice of strings representing the source lines to be modified.
+// - change: A Change struct detailing the change to be applied.
+//
+// The function supports four types of actions specified in the Change struct:
+// - ActionReplace: Replaces the old content with the new content in the source lines.
+// - ActionDelete: Removes the old content from the source lines.
+// - ActionMove: Moves the old content to a new location in the source lines.
+// - ActionInsert: Inserts new content at a specified location in the source lines.
+//
+// The function returns a slice of strings representing the modified source lines,
+// and an error if the action is unsupported or if there is an issue locating the
+// content or destination in the source lines.
 func applyChange(sourceLines []string, change Change) ([]string, error) {
 	switch change.Action {
-	case "replace", "delete", "move":
+	case ActionReplace, ActionDelete, ActionMove:
 		contentLines := strings.Split(change.Old, "\n")
-		if change.Action != "replace" {
+		if change.Action != ActionReplace {
 			contentLines = strings.Split(change.Content, "\n")
 		}
 		startIdx, err := findLocation(sourceLines, contentLines)
-		startIdx += 1
 		if err != nil {
 			return nil, err
 		}
 		endIdx := startIdx + len(contentLines)
 
-		if change.Action == "replace" {
+		if change.Action == ActionReplace {
 			newLines := strings.Split(change.New, "\n")
 			sourceLines = append(sourceLines[:startIdx], append(newLines, sourceLines[endIdx:]...)...)
-		} else if change.Action == "delete" {
+		} else if change.Action == ActionDelete {
 			sourceLines = append(sourceLines[:startIdx], sourceLines[endIdx:]...)
-		} else if change.Action == "move" {
+		} else if change.Action == ActionMove {
 			destination := change.DestinationAbove
 			if destination == "" {
 				destination = change.DestinationBelow
@@ -79,7 +106,6 @@ func applyChange(sourceLines []string, change Change) ([]string, error) {
 			if err != nil {
 				return nil, err
 			}
-			moveIdx += 1
 			if change.DestinationBelow != "" {
 				moveIdx += len(destLines)
 			}
@@ -89,7 +115,7 @@ func applyChange(sourceLines []string, change Change) ([]string, error) {
 			sourceLines = append(sourceLines[:moveIdx], append(segment, sourceLines[moveIdx:]...)...)
 		}
 
-	case "insert":
+	case ActionInsert:
 		contentLines := strings.Split(change.Content, "\n")
 		destination := change.DestinationAbove
 		if destination == "" {
@@ -100,14 +126,13 @@ func applyChange(sourceLines []string, change Change) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		insertIdx += 1
 		if change.DestinationBelow != "" {
 			insertIdx += len(destLines)
 		}
 		sourceLines = append(sourceLines[:insertIdx], append(contentLines, sourceLines[insertIdx:]...)...)
 
 	default:
-		return nil, errors.New("unsupported action: " + change.Action)
+		return nil, errors.New("unsupported action: " + string(change.Action))
 	}
 
 	return sourceLines, nil
