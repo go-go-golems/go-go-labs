@@ -6,6 +6,7 @@ require (
 	github.com/BobuSumisu/aho-corasick v1.0.3
 	github.com/PuerkitoBio/goquery v1.8.1
 	github.com/ThreeDotsLabs/watermill v1.3.3
+	github.com/alecthomas/kong v0.8.0
 	github.com/alecthomas/participle/v2 v2.0.0
 	github.com/blevesearch/bleve v1.0.14
 	github.com/charmbracelet/bubbles v0.16.1
@@ -17,7 +18,7 @@ require (
 	github.com/gin-gonic/gin v1.9.0
 	github.com/go-git/go-git/v5 v5.9.0
 	github.com/go-go-golems/clay v0.0.27
-	github.com/go-go-golems/glazed v0.4.23
+	github.com/go-go-golems/glazed v0.4.26
 	github.com/go-go-golems/sqleton v0.1.72
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/websocket v1.5.0
@@ -62,7 +63,6 @@ require (
 	github.com/acomagu/bufpipe v1.0.4 // indirect
 	github.com/adrg/frontmatter v0.2.0 // indirect
 	github.com/alecthomas/chroma/v2 v2.7.0 // indirect
-	github.com/alecthomas/kong v0.8.0 // indirect
 	github.com/andybalholm/cascadia v1.3.1 // indirect
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
