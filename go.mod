@@ -9,10 +9,12 @@ require (
 	github.com/alecthomas/participle/v2 v2.0.0
 	github.com/blevesearch/bleve v1.0.14
 	github.com/charmbracelet/bubbles v0.16.1
-	github.com/charmbracelet/bubbletea v0.24.1
+	github.com/charmbracelet/bubbletea v0.24.2
+	github.com/charmbracelet/gum v0.11.0
 	github.com/charmbracelet/lipgloss v0.9.1
 	github.com/chromedp/chromedp v0.9.2
 	github.com/dave/jennifer v1.7.0
+	github.com/gin-gonic/gin v1.9.0
 	github.com/go-git/go-git/v5 v5.9.0
 	github.com/go-go-golems/clay v0.0.27
 	github.com/go-go-golems/glazed v0.4.23
@@ -28,7 +30,9 @@ require (
 	github.com/muesli/reflow v0.3.0
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.30.0
+	github.com/sergi/go-diff v1.1.0
 	github.com/spf13/cobra v1.7.0
+	github.com/spf13/viper v1.16.0
 	github.com/tdewolff/parse/v2 v2.6.8
 	github.com/tiktoken-go/tokenizer v0.1.0
 	github.com/weaviate/weaviate v1.19.13-0.20230706120536-85b5f0f4fa43
@@ -57,8 +61,8 @@ require (
 	github.com/RoaringBitmap/roaring v0.4.23 // indirect
 	github.com/acomagu/bufpipe v1.0.4 // indirect
 	github.com/adrg/frontmatter v0.2.0 // indirect
-	github.com/alecthomas/chroma v0.10.0 // indirect
-	github.com/alecthomas/chroma/v2 v2.2.0 // indirect
+	github.com/alecthomas/chroma/v2 v2.7.0 // indirect
+	github.com/alecthomas/kong v0.8.0 // indirect
 	github.com/andybalholm/cascadia v1.3.1 // indirect
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
@@ -91,7 +95,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.6.0 // indirect
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/bytedance/sonic v1.8.5 // indirect
-	github.com/charmbracelet/glamour v0.6.0 // indirect
+	github.com/charmbracelet/glamour v0.6.1-0.20230531150759-6d5b52861a9d // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
 	github.com/chromedp/cdproto v0.0.0-20230802225258-3cf4e6d46a89 // indirect
 	github.com/chromedp/sysutil v1.0.0 // indirect
@@ -106,7 +110,6 @@ require (
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/gin-gonic/contrib v0.0.0-20221130124618-7e01895a63f2 // indirect
-	github.com/gin-gonic/gin v1.9.0 // indirect
 	github.com/glycerine/go-unsnap-stream v0.0.0-20181221182339-f9677308dec2 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.5.0 // indirect
@@ -156,10 +159,10 @@ require (
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
-	github.com/mattn/go-isatty v0.0.18 // indirect
+	github.com/mattn/go-isatty v0.0.19 // indirect
 	github.com/mattn/go-localereader v0.0.1 // indirect
 	github.com/mattn/go-runewidth v0.0.15 // indirect
-	github.com/microcosm-cc/bluemonday v1.0.21 // indirect
+	github.com/microcosm-cc/bluemonday v1.0.23 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-testing-interface v0.0.0-20171004221916-a61a99592b77 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
@@ -169,7 +172,7 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
 	github.com/mschoch/smat v0.2.0 // indirect
-	github.com/muesli/ansi v0.0.0-20211018074035-2e021307bc4b // indirect
+	github.com/muesli/ansi v0.0.0-20230316100256-276c6243b2f6 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/muesli/termenv v0.15.2 // indirect
 	github.com/oklog/run v1.0.0 // indirect
@@ -182,13 +185,11 @@ require (
 	github.com/richardlehane/msoleps v1.0.3 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/sahilm/fuzzy v0.1.1-0.20230530133925-c48e322e2a8f // indirect
-	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/skeema/knownhosts v1.2.0 // indirect
 	github.com/spf13/afero v1.9.5 // indirect
 	github.com/spf13/cast v1.5.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/spf13/viper v1.16.0 // indirect
 	github.com/steveyen/gtreap v0.1.0 // indirect
 	github.com/subosito/gotenv v1.4.2 // indirect
 	github.com/tinylib/msgp v1.1.0 // indirect

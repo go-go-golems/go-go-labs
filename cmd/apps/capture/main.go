@@ -1,12 +1,17 @@
 package main
 
-import "github.com/spf13/cobra"
+import (
+	"github.com/alecthomas/kong"
+	"github.com/go-go-golems/glazed/pkg/helpers"
+	"github.com/spf13/cobra"
+)
 
 // https://chat.openai.com/share/523b6523-8984-4a06-ba40-ddeb98cc019b
 
 import (
 	"bufio"
 	"fmt"
+	"github.com/charmbracelet/gum/write"
 	"github.com/go-go-golems/clay/pkg"
 	"github.com/spf13/viper"
 	"os"
@@ -70,6 +75,47 @@ func GetOutputFilename(cmd *cobra.Command) string {
 	return "log-{{DATE}}.md"
 }
 
+func NewEditorOptions() (*write.Options, error) {
+	var opts write.Options
+
+	vars := kong.Vars{
+		"defaultHeight":           "0",
+		"defaultWidth":            "0",
+		"defaultAlign":            "left",
+		"defaultBorder":           "none",
+		"defaultBorderForeground": "",
+		"defaultBorderBackground": "",
+		"defaultBackground":       "",
+		"defaultForeground":       "",
+		"defaultMargin":           "0 0",
+		"defaultPadding":          "0 0",
+		"defaultUnderline":        "false",
+		"defaultBold":             "false",
+		"defaultFaint":            "false",
+		"defaultItalic":           "false",
+		"defaultStrikethrough":    "false",
+	}
+
+	// Create a new Kong instance. We're not really parsing command-line arguments here,
+	// but using Kong to populate the struct based on the tags.
+	parser, err := kong.New(&opts, vars)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create parser: %w", err)
+	}
+
+	// Use Kong to apply the default values. The following call simulates parsing an empty
+	// command-line input, causing all values to fall back to their defaults as specified in struct tags.
+	_, err = parser.Parse([]string{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse default options: %w", err)
+	}
+
+	// At this point, 'opts' is populated with the default values.
+	// You can now apply any additional customizations specific to your application.
+
+	return &opts, nil
+}
+
 func main() {
 	var (
 		title       string
@@ -86,11 +132,6 @@ and tags and appends them to a markdown file called foobar.md.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			// Aggregate content from files
 			var contentBuilder strings.Builder
-
-			if len(args) == 0 && len(files) == 0 {
-				files = []string{"-"}
-				fmt.Printf("No files or stdin provided, reading from stdin...\n")
-			}
 
 			for i, file := range files {
 				if file != "-" {
@@ -117,6 +158,17 @@ and tags and appends them to a markdown file called foobar.md.`,
 			}
 
 			additionalContent := strings.Join(args, "\n")
+
+			if len(args) == 0 && len(files) == 0 {
+
+				// NewEditorOptions uses Kong to parse the default values from the Options struct tags.
+				opts, err := NewEditorOptions()
+				cobra.CheckErr(err)
+				// capture Stdout before this
+				output, err := helpers.CaptureOutput(opts.Run)
+				cobra.CheckErr(err)
+				additionalContent = output
+			}
 
 			currentDate := time.Now().Format("2006-01-02")
 			currentDateTime := time.Now().Format("2006-01-02 15:04:05")
