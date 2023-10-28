@@ -17,6 +17,7 @@ import (
 
 const mdTemplate = `
 ## {{.Title}} 
+
 Date: {{.CurrentDateTime}}
 
 {{- if .Descriptions -}}
@@ -38,14 +39,16 @@ Date: {{.CurrentDateTime}}
 {{if .FileContent -}}
 {{.FileContent}}
 {{- end -}}
+{{ .AdditionalContent -}}
 `
 
 type EntryData struct {
-	Title           string
-	Descriptions    []string
-	Tags            []string
-	FileContent     string
-	CurrentDateTime string
+	Title             string
+	Descriptions      []string
+	Tags              []string
+	FileContent       string
+	CurrentDateTime   string
+	AdditionalContent string
 }
 
 func GetOutputFilename(cmd *cobra.Command) string {
@@ -72,6 +75,7 @@ func main() {
 		title       string
 		description []string
 		tags        []string
+		files       []string
 	)
 
 	var rootCmd = &cobra.Command{
@@ -84,7 +88,7 @@ and tags and appends them to a markdown file called foobar.md.`,
 			// Aggregate content from files
 			var contentBuilder strings.Builder
 
-			for i, file := range args {
+			for i, file := range files {
 				if file != "-" {
 					contentBuilder.WriteString(fmt.Sprintf("### File: %s\n\n", file))
 				}
@@ -108,15 +112,18 @@ and tags and appends them to a markdown file called foobar.md.`,
 				}
 			}
 
+			additionalContent := strings.Join(args, "\n")
+
 			currentDate := time.Now().Format("2006-01-02")
 			currentDateTime := time.Now().Format("2006-01-02 15:04:05")
 
 			data := EntryData{
-				Title:           title,
-				Descriptions:    description,
-				Tags:            tags,
-				FileContent:     contentBuilder.String(),
-				CurrentDateTime: currentDateTime,
+				Title:             title,
+				Descriptions:      description,
+				Tags:              tags,
+				FileContent:       contentBuilder.String(),
+				CurrentDateTime:   currentDateTime,
+				AdditionalContent: additionalContent,
 			}
 
 			// Parse and execute the template
@@ -152,6 +159,12 @@ and tags and appends them to a markdown file called foobar.md.`,
 				return
 			}
 
+			print_, _ := cmd.Flags().GetBool("print")
+			if print_ {
+				fmt.Println(renderedContent.String())
+				fmt.Printf("\n---\n\n")
+			}
+
 			fmt.Printf("Content appended to %s successfully.\n", outputFilename)
 		},
 	}
@@ -159,6 +172,9 @@ and tags and appends them to a markdown file called foobar.md.`,
 	rootCmd.Flags().StringVarP(&title, "title", "t", "", "Title for the entry")
 	rootCmd.Flags().StringArrayVarP(&description, "description", "d", []string{}, "Description for the entry (repeatable)")
 	rootCmd.Flags().StringArrayVarP(&tags, "tags", "g", []string{}, "Tags for the entry (repeatable)")
+	rootCmd.Flags().StringArrayVarP(&files, "files", "f", []string{}, "List of files to include (repeatable)") // New flag for files
+	rootCmd.Flags().Bool("print", false, "Print the output")
+
 	rootCmd.Flags().StringP("output", "o", "", "Specify an output file (overrides the CAPTURE_OUTPUT environment variable and config file)")
 
 	_ = rootCmd.MarkFlagRequired("title")
