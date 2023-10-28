@@ -277,6 +277,31 @@ func TestApplyChange_ActionMove(t *testing.T) {
 			want:        []string{"line1", "line4", "line2", "line3"}, // 'line4' should now be above 'line2'
 			wantErr:     nil,
 		},
+		{
+			name: "Move content lower in the file",
+			sourceLines: []string{
+				"line1",
+				"line2",
+				"line3",
+				"line4",
+				"line5",
+				"line6",
+			},
+			change: Change{
+				Action:           ActionMove,
+				Content:          "line2\nline3",
+				DestinationBelow: "line5",
+			},
+			want: []string{
+				"line1",
+				"line4",
+				"line5",
+				"line2",
+				"line3",
+				"line6",
+			},
+			wantErr: nil,
+		},
 	}
 
 	for _, tt := range tests {

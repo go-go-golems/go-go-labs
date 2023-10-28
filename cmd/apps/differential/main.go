@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-go-golems/go-go-labs/cmd/apps/differential/pkg"
+	"github.com/sergi/go-diff/diffmatchpatch"
+
 	"os"
+	"strings"
 )
 
 // applyDSL reads the DSL, applies all changes, and writes the result back to the file.
@@ -24,7 +27,7 @@ func applyDSL(dslJSON string) error {
 	}
 
 	// Split the file content into lines
-	sourceLines := splitIntoLines(string(fileContent))
+	sourceLines := strings.Split(string(fileContent), "\n")
 
 	// Apply each change
 	for _, change := range dsl.Changes {
@@ -35,27 +38,50 @@ func applyDSL(dslJSON string) error {
 	}
 
 	// Join the lines back into a single string
-	updatedContent := joinLines(sourceLines)
+	updatedContent := strings.Join(sourceLines, "\n")
 
-	// Save the modified source file
-	err = os.WriteFile(dsl.Path, []byte(updatedContent), 0644)
+	// Create a new diffmatchpatch object.
+	dmp := diffmatchpatch.New()
+
+	// Calculate the difference between the two texts.
+	diffs := dmp.DiffMain(string(fileContent), updatedContent, false)
+
+	// Display the differences.
+	fmt.Println(dmp.DiffPrettyText(diffs))
+
+	// store original in backup file
+	//name := dsl.Path + ".bak"
+	//i := 0
+	//for {
+	//	// check that name does not exist
+	//	_, err = os.Stat(name)
+	//	if err == nil {
+	//		return fmt.Errorf("backup file %s already exists", name)
+	//	}
+	//
+	//	if os.IsNotExist(err) {
+	//		break
+	//	}
+	//
+	//	name = dsl.Path + fmt.Sprintf(".bak%d", i)
+	//	i++
+	//
+	//	if i > 100 {
+	//		return fmt.Errorf("could not find a backup file name")
+	//	}
+	//}
+	//
+	//err = os.WriteFile(name, fileContent, 0644)
+	//if err != nil {
+	//	return err
+	//}
+
+	err = os.WriteFile(dsl.Path+".new", []byte(updatedContent), 0644)
 	if err != nil {
 		return err
 	}
 
 	return nil
-}
-
-// splitIntoLines splits content into lines.
-func splitIntoLines(content string) []string {
-	// TODO: Implement splitting content into lines.
-	return nil
-}
-
-// joinLines joins lines into content.
-func joinLines(lines []string) string {
-	// TODO: Implement joining lines into a single string.
-	return ""
 }
 
 func main() {

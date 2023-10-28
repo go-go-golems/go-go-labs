@@ -107,16 +107,19 @@ func ApplyChange(sourceLines []string, change Change) ([]string, error) {
 				destination = change.DestinationBelow
 			}
 			destLines := strings.Split(destination, "\n")
+			segment := make([]string, endIdx-startIdx)
+			copy(segment, sourceLines[startIdx:endIdx])
+
+			sourceLines = append(sourceLines[:startIdx], sourceLines[endIdx:]...)
+
 			moveIdx, err := FindLocation(sourceLines, destLines)
 			if err != nil {
 				return nil, err
 			}
+
 			if change.DestinationBelow != "" {
 				moveIdx += len(destLines)
 			}
-			segment := make([]string, endIdx-startIdx)
-			copy(segment, sourceLines[startIdx:endIdx])
-			sourceLines = append(sourceLines[:startIdx], sourceLines[endIdx:]...)
 			if len(sourceLines) < moveIdx {
 				sourceLines = append(sourceLines, segment...)
 			} else {
