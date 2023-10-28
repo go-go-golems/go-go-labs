@@ -43,10 +43,7 @@ func (e *ErrCodeBlock) Error() string {
 
 // findLocation is a function that identifies the position of a specific block of
 // code within a given source code. It takes two parameters: sourceLines and
-// locationLines, both of which are slices of strings.
-//
-// sourceLines represents the entire source code split into lines.
-// locationLines represents the block of code whose location is to be found.
+// locationLines and uses KMPSearch to find the matching index.
 //
 // The function returns two values: the line number (or -1 if not found), and an error
 // if the string was not found.
@@ -85,9 +82,9 @@ func applyChange(sourceLines []string, change Change) ([]string, error) {
 		if change.Action != ActionReplace {
 			contentLines = strings.Split(change.Content, "\n")
 		}
-		startIdx, err := findLocation(sourceLines, contentLines)
-		if err != nil {
-			return nil, err
+		startIdx := kmp.KMPSearch(sourceLines, contentLines)
+		if startIdx == -1 {
+			return nil, &ErrCodeBlock{}
 		}
 		endIdx := startIdx + len(contentLines)
 
