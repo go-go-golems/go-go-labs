@@ -1,0 +1,31 @@
+application:
+  name: "My Bubbletea App"
+
+layout:
+  type: vertical # Since we want a vertical list of widgets
+
+widgets:
+  - type: textinput
+    label: "Enter your name"
+    placeholder: "Name"
+    tabstop: true  # widget can be focused by pressing TAB
+
+  - type: spinner
+    label: "Loading"
+    spinner_style: "dots"
+    tabstop: false  # widget can't be focused by pressing TAB
+
+  - type: list
+    label: "Select an option"
+    options:
+      - "Option 1"
+      - "Option 2"
+      - "Option 3"
+    tabstop: true  # widget can be focused by pressing TAB
+
+  - type: progress
+    label: "Progress"
+    progress: 50  # Let's say it's a percentage.
+    tabstop: false  # widget can't be focused by pressing TAB
+
+  # Add other widgets following the same pattern

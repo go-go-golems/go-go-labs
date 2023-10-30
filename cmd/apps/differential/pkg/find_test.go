@@ -17,14 +17,14 @@ func TestFindLocation(t *testing.T) {
 			sourceLines:   []string{},
 			locationLines: []string{"some code"},
 			expectedIndex: -1,
-			expectedError: &ErrCodeBlock{},
+			expectedError: &ErrCodeBlock{[]string{"some code"}},
 		},
 		{
 			name:          "WithEmptySourceLinesMultipleLocationLines",
 			sourceLines:   []string{},
 			locationLines: []string{"some code", "some other code"},
 			expectedIndex: -1,
-			expectedError: &ErrCodeBlock{},
+			expectedError: &ErrCodeBlock{[]string{"some code", "some other code"}},
 		},
 		{
 			name:          "WithEmptyLocationLines",
@@ -52,7 +52,7 @@ func TestFindLocation(t *testing.T) {
 			sourceLines:   []string{"some code"},
 			locationLines: []string{"other code"},
 			expectedIndex: -1,
-			expectedError: &ErrCodeBlock{},
+			expectedError: &ErrCodeBlock{[]string{"other code"}},
 		},
 		{
 			name:          "WithLocationFoundAtBeginning",
@@ -108,14 +108,14 @@ func TestFindLocation(t *testing.T) {
 			sourceLines:   []string{"line one", "line two", "line three"},
 			locationLines: []string{"line one", "non-matching line"},
 			expectedIndex: -1,
-			expectedError: &ErrCodeBlock{},
+			expectedError: &ErrCodeBlock{[]string{"line one", "non-matching line"}},
 		},
 		{
 			name:          "WithMismatchedOrderOfLines",
 			sourceLines:   []string{"line one", "line two", "line three"},
 			locationLines: []string{"line two", "line one"},
 			expectedIndex: -1,
-			expectedError: &ErrCodeBlock{},
+			expectedError: &ErrCodeBlock{[]string{"line two", "line one"}},
 		},
 		{
 			name:          "WithEscapeSequences",
@@ -129,7 +129,7 @@ func TestFindLocation(t *testing.T) {
 			sourceLines:   []string{"Case Sensitive"},
 			locationLines: []string{"case sensitive"},
 			expectedIndex: -1,
-			expectedError: &ErrCodeBlock{},
+			expectedError: &ErrCodeBlock{[]string{"case sensitive"}},
 		},
 		{
 			name:          "WithEmptyStringLines",
@@ -143,7 +143,7 @@ func TestFindLocation(t *testing.T) {
 			sourceLines:   []string{"line one", "line two", "line three"},
 			locationLines: []string{"line one", ""},
 			expectedIndex: -1,
-			expectedError: &ErrCodeBlock{},
+			expectedError: &ErrCodeBlock{[]string{"line one", ""}},
 		},
 		{
 			name: "WithMatchingEmptyLines",
@@ -218,7 +218,7 @@ func TestFindLocation(t *testing.T) {
 			sourceLines:   []string{"line one", "line two", "line three"},
 			locationLines: []string{"", "line two", ""},
 			expectedIndex: -1,
-			expectedError: &ErrCodeBlock{},
+			expectedError: &ErrCodeBlock{[]string{"", "line two", ""}},
 		},
 		{
 			name:          "WithEmptyLinesInBothSourceAndLocation",
@@ -232,7 +232,7 @@ func TestFindLocation(t *testing.T) {
 			sourceLines:   []string{"line one", "line two", "line three"},
 			locationLines: []string{"", "", ""},
 			expectedIndex: -1, // considering that completely empty location lines could be invalid
-			expectedError: &ErrCodeBlock{},
+			expectedError: &ErrCodeBlock{[]string{"", "", ""}},
 		},
 		{
 			name:          "WithSourceInterspersedEmptyLines",
@@ -246,14 +246,14 @@ func TestFindLocation(t *testing.T) {
 			sourceLines:   []string{"This is a line of code"},
 			locationLines: []string{"a line"},
 			expectedIndex: -1,
-			expectedError: &ErrCodeBlock{},
+			expectedError: &ErrCodeBlock{[]string{"a line"}},
 		},
 		{
 			name:          "WithLeadingOrTrailingSpaces",
 			sourceLines:   []string{"    indented line", "line with space    "},
 			locationLines: []string{"indented line", "line with space"},
-			expectedIndex: -1, // if spaces are significant in matches
-			expectedError: &ErrCodeBlock{},
+			expectedIndex: 0,
+			expectedError: nil,
 		},
 		{
 			name:          "WithNonStandardLineBreaks",
@@ -270,8 +270,8 @@ func TestFindLocation(t *testing.T) {
 				"line three",
 			},
 			locationLines: []string{"line two"},
-			expectedIndex: -1,
-			expectedError: &ErrCodeBlock{},
+			expectedIndex: 1,
+			expectedError: nil,
 		},
 		{
 			name: "WithPartialLineMatchAtBeginning",
@@ -281,7 +281,7 @@ func TestFindLocation(t *testing.T) {
 			},
 			locationLines: []string{"line"},
 			expectedIndex: -1,
-			expectedError: &ErrCodeBlock{},
+			expectedError: &ErrCodeBlock{[]string{"line"}},
 		},
 		{
 			name: "WithPartialLineMatchAtEnd",
@@ -291,7 +291,7 @@ func TestFindLocation(t *testing.T) {
 			},
 			locationLines: []string{"two"},
 			expectedIndex: -1,
-			expectedError: &ErrCodeBlock{},
+			expectedError: &ErrCodeBlock{[]string{"two"}},
 		},
 		{
 			name: "WithPartialLineMatchInMiddle",
@@ -301,13 +301,14 @@ func TestFindLocation(t *testing.T) {
 			},
 			locationLines: []string{"ne t"},
 			expectedIndex: -1,
-			expectedError: &ErrCodeBlock{},
+			expectedError: &ErrCodeBlock{[]string{"ne t"}},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			index, err := FindLocation(tt.sourceLines, tt.locationLines)
+			d := NewDifferential(tt.sourceLines)
+			index, err := d.FindLocation(tt.locationLines)
 
 			if index != tt.expectedIndex {
 				t.Errorf("expected index %d, got %d", tt.expectedIndex, index)

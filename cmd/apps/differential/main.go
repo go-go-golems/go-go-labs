@@ -75,9 +75,10 @@ func applyDSL(dslJSON string, options Options) error {
 	// Split the file content into lines
 	sourceLines := strings.Split(string(fileContent), "\n")
 
+	d := pkg.NewDifferential(sourceLines)
 	// Apply each change
 	for _, change := range dsl.Changes {
-		sourceLines, err = pkg.ApplyChange(sourceLines, change)
+		err = d.ApplyChange(change)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "Error applying change: %s\n%s\n", err, change.String())
 
@@ -86,7 +87,7 @@ func applyDSL(dslJSON string, options Options) error {
 	}
 
 	// Join the lines back into a single string
-	updatedContent := strings.Join(sourceLines, "\n")
+	updatedContent := strings.Join(d.SourceLines, "\n")
 
 	if options.ShowDiff || options.AskForConfirmation {
 		// Create a new diffmatchpatch object.

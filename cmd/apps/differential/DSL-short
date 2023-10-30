@@ -1,0 +1,99 @@
+# Differential DSL Guide
+
+## Purpose
+
+A YAML-based DSL for code modifications using a content-contextual method.
+
+## DSL Format
+
+```yaml
+path: <path_to_source_file>
+changes:
+  - comment: <change_reason>
+    action: <action_type>
+    # ...<additional_action_fields>
+```
+
+## Fields
+
+- `path`: Path to the source file.
+- `changes`: List of modifications with:
+  - `comment`: Reason for the change.
+  - `action`: Type of change ("insert", "delete", "move", "replace", "prepend", "append").
+  - Additional fields based on the action type.
+
+## Actions
+
+### Replace
+
+- `action`: "replace"
+- `old`: Original code block.
+- `new`: Replacement code block.
+
+### Insert
+
+- `action`: "insert"
+- `content`: Code to insert.
+- `above`: Context line for placement (refers to text lines).
+
+### Delete
+
+- `action`: "delete"
+- `content`: Code block to remove.
+
+### Move
+
+- `action`: "move"
+- `content`: Code block to move.
+- `above`: Context line for new placement (refers to text lines).
+
+### Prepend
+
+- `action`: "prepend"
+- `content`: Code to add at the start.
+
+### Append
+
+- `action`: "append"
+- `content`: Code to add at the end.
+
+## DSL Sample
+
+```yaml
+path: source_file.py
+changes:
+  - comment: Refactor for performance
+    action: replace
+    old: |
+      def outdated_function():
+          pass
+    new: |
+      def updated_function():
+          print('Enhanced')
+
+  - comment: Add init function
+    action: prepend
+    content: |
+      def initialize():
+          print('Starting')
+
+  - comment: Add cleanup at the end
+    action: append
+    content: |
+      def cleanup():
+          print('Shutting down')
+
+  - comment: Delete deprecated function
+    action: delete
+    content: |
+      def unnecessary_function():
+          pass
+
+  - comment: Reorganize code
+    action: move
+    content: |
+      def misplaced_function():
+          print('Operational')
+    above: |
+      def target_location():
+```

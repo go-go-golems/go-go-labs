@@ -68,10 +68,21 @@ const (
 	ActionAppend  Action = "append"
 )
 
-type ErrCodeBlock struct{}
+type ErrCodeBlock struct {
+	source []string
+}
 
-func (e *ErrCodeBlock) Error() string {
-	return "specified code block not found in the source"
+func (e ErrCodeBlock) Is(e_ error) bool {
+	// equal if ErroCodeBlock and lines are equal
+	if e2, ok := e_.(ErrCodeBlock); ok {
+		return strings.Join(e.source, "\n") == strings.Join(e2.source, "\n")
+	}
+
+	return false
+}
+
+func (e ErrCodeBlock) Error() string {
+	return fmt.Sprintf("specified code block not found in the source: %s", strings.Join(e.source, "\\n"))
 }
 
 type ErrInvalidChange struct {
@@ -82,29 +93,63 @@ func (e *ErrInvalidChange) Error() string {
 	return fmt.Sprintf("invalid change: %s", e.msg)
 }
 
+type Differential struct {
+	SourceLines         []string
+	sourceLinesStripped []string
+}
+
+func NewDifferential(sourceLines []string) *Differential {
+	// Strip the source lines of any leading or trailing whitespace
+	sourceLinesStripped := make([]string, len(sourceLines))
+	for i, line := range sourceLines {
+		sourceLinesStripped[i] = strings.TrimSpace(line)
+	}
+	return &Differential{
+		SourceLines:         sourceLines,
+		sourceLinesStripped: sourceLinesStripped,
+	}
+}
+
 // FindLocation is a function that identifies the position of a specific block of
-// code within a given source code. It takes two parameters: sourceLines and
+// code within a given source code. It takes two parameters: SourceLines and
 // locationLines and uses KMPSearch to find the matching index.
 //
 // The function returns two values: the line number (or -1 if not found), and an error
 // if the string was not found.
-func FindLocation(sourceLines []string, locationLines []string) (int, error) {
+func (d *Differential) FindLocation(locationLines []string) (int, error) {
+
 	if len(locationLines) == 0 {
-		return -1, &ErrCodeBlock{}
+		return -1, ErrCodeBlock{
+			source: locationLines,
+		}
 	}
 
-	l := kmp.KMPSearch(sourceLines, locationLines)
+	strippedLocationLines := make([]string, len(locationLines))
+	for i, line := range locationLines {
+		strippedLocationLines[i] = strings.TrimSpace(line)
+	}
+	l := kmp.KMPSearch(d.sourceLinesStripped, strippedLocationLines)
 	if l == -1 {
-		return -1, &ErrCodeBlock{}
+		return -1, ErrCodeBlock{
+			source: locationLines,
+		}
 	}
 
 	return l, nil
 }
 
+func (d *Differential) SetSourceLines(sourceLines []string) {
+	d.SourceLines = sourceLines
+	d.sourceLinesStripped = make([]string, len(sourceLines))
+	for i, line := range sourceLines {
+		d.sourceLinesStripped[i] = strings.TrimSpace(line)
+	}
+}
+
 // ApplyChange applies a specified change to a given set of source lines.
 //
 // It takes two parameters:
-// - sourceLines: A slice of strings representing the source lines to be modified.
+// - SourceLines: A slice of strings representing the source lines to be modified.
 // - change: A Change struct detailing the change to be applied.
 //
 // The function supports four types of actions specified in the Change struct:
@@ -116,74 +161,79 @@ func FindLocation(sourceLines []string, locationLines []string) (int, error) {
 // The function returns a slice of strings representing the modified source lines,
 // and an error if the action is unsupported or if there is an issue locating the
 // content or destination in the source lines.
-func ApplyChange(sourceLines []string, change Change) ([]string, error) {
+func (d *Differential) ApplyChange(change Change) error {
 	switch change.Action {
 	case ActionReplace, ActionDelete, ActionMove:
 		contentLines := strings.Split(change.Old, "\n")
 		if change.Action != ActionReplace {
 			contentLines = strings.Split(change.Content, "\n")
 		}
-		startIdx := kmp.KMPSearch(sourceLines, contentLines)
+		startIdx, err := d.FindLocation(contentLines)
+		if err != nil {
+			return err
+		}
 		if startIdx == -1 {
-			return nil, &ErrCodeBlock{}
+			return ErrCodeBlock{
+				source: contentLines,
+			}
 		}
 		endIdx := startIdx + len(contentLines)
 
 		if change.Action == ActionReplace {
 			newLines := strings.Split(change.New, "\n")
-			sourceLines = append(sourceLines[:startIdx], append(newLines, sourceLines[endIdx:]...)...)
+			d.SetSourceLines(append(d.SourceLines[:startIdx], append(newLines, d.SourceLines[endIdx:]...)...))
 		} else if change.Action == ActionDelete {
-			sourceLines = append(sourceLines[:startIdx], sourceLines[endIdx:]...)
+			d.SetSourceLines(append(d.SourceLines[:startIdx], d.SourceLines[endIdx:]...))
 		} else if change.Action == ActionMove {
 			destination := change.Above
 			destLines := strings.Split(destination, "\n")
 			segment := make([]string, endIdx-startIdx)
-			copy(segment, sourceLines[startIdx:endIdx])
+			copy(segment, d.SourceLines[startIdx:endIdx])
 
-			sourceLines = append(sourceLines[:startIdx], sourceLines[endIdx:]...)
+			d.SetSourceLines(append(d.SourceLines[:startIdx], d.SourceLines[endIdx:]...))
 
-			moveIdx, err := FindLocation(sourceLines, destLines)
+			moveIdx, err := d.FindLocation(destLines)
 			if err != nil {
-				return nil, err
+				return err
 			}
 
-			if len(sourceLines) < moveIdx {
-				sourceLines = append(sourceLines, segment...)
+			if len(d.SourceLines) < moveIdx {
+				d.SetSourceLines(append(d.SourceLines, segment...))
 			} else {
-				sourceLines = append(sourceLines[:moveIdx], append(segment, sourceLines[moveIdx:]...)...)
+				d.SetSourceLines(append(d.SourceLines[:moveIdx], append(segment, d.SourceLines[moveIdx:]...)...))
 			}
 		}
 
 	case ActionInsert:
 		contentLines := strings.Split(change.Content, "\n")
-		if len(sourceLines) == 0 {
-			sourceLines = append(sourceLines, contentLines...)
+		if len(d.SourceLines) == 0 {
+			d.SetSourceLines(append(d.SourceLines, contentLines...))
 			break
 		}
-		destination := change.Above
+		destination := strings.TrimSuffix(change.Above, "\n")
 
 		if destination == "" {
-			sourceLines = append(sourceLines, contentLines...)
+			d.SetSourceLines(append(d.SourceLines, contentLines...))
 			break
 		}
 		destLines := strings.Split(destination, "\n")
-		insertIdx, err := FindLocation(sourceLines, destLines)
+		insertIdx, err := d.FindLocation(destLines)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		sourceLines = append(sourceLines[:insertIdx], append(contentLines, sourceLines[insertIdx:]...)...)
+		d.SetSourceLines(append(d.SourceLines[:insertIdx], append(contentLines, d.SourceLines[insertIdx:]...)...))
 
 	case ActionPrepend:
 		contentLines := strings.Split(change.Content, "\n")
-		return append(contentLines, sourceLines...), nil
+		d.SetSourceLines(append(contentLines, d.SourceLines...))
 
 	case ActionAppend:
 		contentLines := strings.Split(change.Content, "\n")
-		return append(sourceLines, contentLines...), nil
+		d.SetSourceLines(append(d.SourceLines, contentLines...))
 
 	default:
-		return nil, &ErrInvalidChange{"Unsupported action"}
+		return &ErrInvalidChange{"Unsupported action"}
 	}
 
-	return sourceLines, nil
+	return nil
 }

@@ -27,13 +27,14 @@ func TestApplyChange(t *testing.T) {
 			sourceLines: []string{},
 			change:      Change{Action: ActionReplace, Old: "line1", New: "newLine"},
 			want:        []string{},
-			wantErr:     &ErrCodeBlock{},
+			wantErr:     ErrCodeBlock{source: []string{"line1"}},
 		},
+		// NOTE(manuel, 2023-10-30) this will replace the first matching whitespace line, it is a bit of special case
 		{
 			name:        "Replacing whitespace line",
 			sourceLines: []string{"\t", "    ", "line3"},
 			change:      Change{Action: ActionReplace, Old: "    ", New: "newLine"},
-			want:        []string{"\t", "newLine", "line3"},
+			want:        []string{"newLine", "    ", "line3"},
 			wantErr:     nil,
 		},
 		{
@@ -68,8 +69,7 @@ func TestApplyChange(t *testing.T) {
 			name:        "Non-existent content",
 			sourceLines: []string{"line1", "line2", "line3"},
 			change:      Change{Action: ActionReplace, Old: "line4", New: "newLine"},
-			want:        []string{},
-			wantErr:     &ErrCodeBlock{},
+			wantErr:     ErrCodeBlock{source: []string{"line4"}},
 		},
 		{
 			name:        "Mismatch with empty lines",
@@ -77,13 +77,6 @@ func TestApplyChange(t *testing.T) {
 			change:      Change{Action: ActionReplace, Old: "", New: "newLine"},
 			want:        []string{"newLine", "", "line3"},
 			wantErr:     nil, // or an error if the behavior should be different
-		},
-		{
-			name:        "Exact match requirement",
-			sourceLines: []string{"line1", " line2", "line3"}, // Note the whitespace
-			change:      Change{Action: ActionReplace, Old: "line2", New: "newLine"},
-			want:        []string{},
-			wantErr:     &ErrCodeBlock{},
 		},
 		{
 			name:        "Identical old and new content",
@@ -103,7 +96,9 @@ func TestApplyChange(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ApplyChange(tt.sourceLines, tt.change)
+			d := NewDifferential(tt.sourceLines)
+			err := d.ApplyChange(tt.change)
+			// check if err are of the same type
 			if !errors.Is(err, tt.wantErr) {
 				t.Errorf("ApplyChange() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -112,11 +107,13 @@ func TestApplyChange(t *testing.T) {
 			if tt.want == nil {
 				tt.want = []string{}
 			}
-			if got == nil {
-				got = []string{}
+			if d.SourceLines == nil {
+				d.SourceLines = []string{}
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ApplyChange() = %v, want %v", got, tt.want)
+			if err == nil {
+				if !reflect.DeepEqual(d.SourceLines, tt.want) {
+					t.Errorf("ApplyChange() = %v, want %v", d.SourceLines, tt.want)
+				}
 			}
 		})
 	}
@@ -141,8 +138,7 @@ func TestApplyChange_ActionDelete(t *testing.T) {
 			name:        "Non-existent content",
 			sourceLines: []string{"line1", "line2", "line3"},
 			change:      Change{Action: ActionDelete, Content: "line4"},
-			want:        nil, // or []string{"line1", "line2", "line3"} if the function does not modify the input on error
-			wantErr:     &ErrCodeBlock{},
+			wantErr:     ErrCodeBlock{source: []string{"line4"}},
 		},
 		{
 			name:        "Empty target content",
@@ -176,14 +172,14 @@ func TestApplyChange_ActionDelete(t *testing.T) {
 			name:        "Empty source lines",
 			sourceLines: []string{},
 			change:      Change{Action: ActionDelete, Content: "line1"},
-			want:        nil, // or []string{} if the function does not modify the input on error
-			wantErr:     &ErrCodeBlock{},
+			wantErr:     ErrCodeBlock{source: []string{"line1"}},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ApplyChange(tt.sourceLines, tt.change)
+			d := NewDifferential(tt.sourceLines)
+			err := d.ApplyChange(tt.change)
 
 			// Error handling: Check if the expected error matches the actual error
 			if (err != nil && tt.wantErr != nil && err.Error() != tt.wantErr.Error()) || (err == nil && tt.wantErr != nil) || (err != nil && tt.wantErr == nil) {
@@ -192,8 +188,10 @@ func TestApplyChange_ActionDelete(t *testing.T) {
 			}
 
 			// In case of no error, check if the output matches the expected result
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ApplyChange() = %v, want %v", got, tt.want)
+			if err == nil {
+				if !reflect.DeepEqual(d.SourceLines, tt.want) {
+					t.Errorf("ApplyChange() = %v, want %v", d.SourceLines, tt.want)
+				}
 			}
 		})
 	}
@@ -223,7 +221,7 @@ func TestApplyChange_ActionMove(t *testing.T) {
 		},
 		//{
 		//	name:        "Move to the end",
-		//	sourceLines: []string{"line1", "line2", "line3"},
+		//	SourceLines: []string{"line1", "line2", "line3"},
 		//	change:      Change{Action: ActionAppend, Content: "line1"},
 		//	want:        []string{"line2", "line3", "line1"},
 		//	wantErr:     nil,
@@ -234,14 +232,14 @@ func TestApplyChange_ActionMove(t *testing.T) {
 			sourceLines: []string{"line1", "line2", "line3"},
 			change:      Change{Action: ActionMove, Content: "line4", Above: "line2"},
 			want:        nil, // or []string{"line1", "line2", "line3"} if the function does not modify the input on error
-			wantErr:     &ErrCodeBlock{},
+			wantErr:     ErrCodeBlock{source: []string{"line4"}},
 		},
 		{
 			name:        "Non-existent destination",
 			sourceLines: []string{"line1", "line2", "line3"},
 			change:      Change{Action: ActionMove, Content: "line2", Above: "line4"},
 			want:        nil, // or []string{"line1", "line2", "line3"} if the function does not modify the input on error
-			wantErr:     &ErrCodeBlock{},
+			wantErr:     ErrCodeBlock{source: []string{"line4"}},
 		},
 		{
 			name:        "Move multiple lines",
@@ -262,7 +260,7 @@ func TestApplyChange_ActionMove(t *testing.T) {
 			sourceLines: []string{},
 			change:      Change{Action: ActionMove, Content: "line1", Above: "line3"},
 			want:        nil, // or []string{} if the function does not modify the input on error
-			wantErr:     &ErrCodeBlock{},
+			wantErr:     ErrCodeBlock{source: []string{"line1"}},
 		},
 		{
 			name:        "Moving content to its current location",
@@ -300,7 +298,8 @@ func TestApplyChange_ActionMove(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ApplyChange(tt.sourceLines, tt.change)
+			d := NewDifferential(tt.sourceLines)
+			err := d.ApplyChange(tt.change)
 
 			// Error handling: Check if the expected error matches the actual error
 			if (err != nil && tt.wantErr != nil && err.Error() != tt.wantErr.Error()) || (err == nil && tt.wantErr != nil) || (err != nil && tt.wantErr == nil) {
@@ -309,8 +308,10 @@ func TestApplyChange_ActionMove(t *testing.T) {
 			}
 
 			// In case of no error, check if the output matches the expected result
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ApplyChange() = %v, want %v", got, tt.want)
+			if err == nil {
+				if !reflect.DeepEqual(d.SourceLines, tt.want) {
+					t.Errorf("ApplyChange() = %v, want %v", d.SourceLines, tt.want)
+				}
 			}
 		})
 	}
@@ -342,8 +343,8 @@ func TestApplyChange_ActionInsert(t *testing.T) {
 			name:        "Insert with non-existent destination",
 			sourceLines: []string{"line1", "line2"},
 			change:      Change{Action: ActionInsert, Content: "line3", Above: "line4"},
-			want:        nil,             // Depending on the behavior, this could return the original lines unmodified.
-			wantErr:     &ErrCodeBlock{}, // Or any other error indicating the destination does not exist.
+			want:        nil,                                     // Depending on the behavior, this could return the original lines unmodified.
+			wantErr:     ErrCodeBlock{source: []string{"line4"}}, // Or any other error indicating the destination does not exist.
 		},
 		{
 			name:        "Insert in the middle",
@@ -398,7 +399,8 @@ func TestApplyChange_ActionInsert(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ApplyChange(tt.sourceLines, tt.change)
+			d := NewDifferential(tt.sourceLines)
+			err := d.ApplyChange(tt.change)
 
 			// Error handling: Check if the expected error matches the actual error
 			if (err != nil && tt.wantErr != nil && err.Error() != tt.wantErr.Error()) || (err == nil && tt.wantErr != nil) || (err != nil && tt.wantErr == nil) {
@@ -407,8 +409,10 @@ func TestApplyChange_ActionInsert(t *testing.T) {
 			}
 
 			// In case of no error, check if the output matches the expected result
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ApplyChange() = %v, want %v", got, tt.want)
+			if err == nil {
+				if !reflect.DeepEqual(d.SourceLines, tt.want) {
+					t.Errorf("ApplyChange() = %v, want %v", d.SourceLines, tt.want)
+				}
 			}
 		})
 	}
@@ -440,8 +444,8 @@ func LoadCorpus(f *testing.F) {
 		{
 			SourceLines: []string{"function test() {}", "let a = 1;"},
 			Change: Change{
-				Action: ActionDelete,
-				Old:    "let a = 1;",
+				Action:  ActionDelete,
+				Content: "let a = 1;",
 			},
 		},
 		{
@@ -484,8 +488,8 @@ func LoadCorpus(f *testing.F) {
 		{
 			SourceLines: []string{"function test() {}", "let a = 1;", "let a = 2;"},
 			Change: Change{
-				Action: ActionDelete,
-				Old:    "let a = 1;\nlet a = 2;",
+				Action:  ActionDelete,
+				Content: "let a = 1;\nlet a = 2;",
 			},
 		},
 	}
@@ -517,10 +521,11 @@ func FuzzApplyChange(f *testing.F) {
 		}
 
 		sourceLines := strings.Split(source, "\n")
+		d := NewDifferential(sourceLines)
 
 		// We're not checking the result here, as we're not testing correctness.
 		// We're testing that the function can handle a variety of inputs without crashing.
-		_, err := ApplyChange(sourceLines, change)
+		err := d.ApplyChange(change)
 
 		// If you expect certain kinds of inputs to produce errors (and know what those errors are),
 		// you can handle them here.
