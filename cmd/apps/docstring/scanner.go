@@ -48,12 +48,14 @@ func (s *Scanner) ParseAnnotations(input string) Docstring {
 			doc.Annotations[key] = append(doc.Annotations[key], value)
 		}
 
-		// Using the StripRegex to clean the line
-		if s.StripRegex != nil {
-			cleanedLine := s.StripRegex.ReplaceAllString(line, "")
-			contentLines = append(contentLines, cleanedLine)
-		} else {
-			contentLines = append(contentLines, line)
+		if !s.StartRegex.MatchString(line) && !s.EndRegex.MatchString(line) {
+			// Using the StripRegex to clean the line
+			if s.StripRegex != nil {
+				cleanedLine := s.StripRegex.ReplaceAllString(line, "")
+				contentLines = append(contentLines, cleanedLine)
+			} else {
+				contentLines = append(contentLines, line)
+			}
 		}
 	}
 
