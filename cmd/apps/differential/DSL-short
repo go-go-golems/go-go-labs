@@ -50,12 +50,12 @@ changes:
 ### Prepend
 
 - `action`: "prepend"
-- `content`: Code to add at the start.
+- `content`: Code to add at the start of the file. Only used for adding things as header.
 
 ### Append
 
 - `action`: "append"
-- `content`: Code to add at the end.
+- `content`: Code to add at the end of the file. Only used for adding things as footer.
 
 ## DSL Sample
 
