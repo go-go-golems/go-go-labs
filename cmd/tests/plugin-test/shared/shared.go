@@ -7,6 +7,7 @@ import (
 
 type Greeter interface {
 	Greet() string
+	Foobar(int, float64, string) string
 }
 
 type Foobar interface {
@@ -25,12 +26,38 @@ func (g *GreeterRPC) Greet() string {
 	return resp
 }
 
+func (g *GreeterRPC) Foobar(i int, f float64, s string) string {
+	var resp string
+	args := struct {
+		I int
+		F float64
+		S string
+	}{I: i, F: f, S: s}
+
+	err := g.client.Call("Plugin.Foobar", args, &resp)
+	if err != nil {
+		panic(err)
+	}
+
+	return resp
+}
+
 type GreeterRPCServer struct {
 	Impl Greeter
 }
 
 func (g *GreeterRPCServer) Greet(args interface{}, resp *string) error {
 	*resp = g.Impl.Greet()
+	return nil
+}
+
+// Foobar is the RPC accessible method that wraps the Greeter's Foobar method.
+func (g *GreeterRPCServer) Foobar(args *struct {
+	I int
+	F float64
+	S string
+}, resp *string) error {
+	*resp = g.Impl.Foobar(args.I, args.F, args.S)
 	return nil
 }
 
