@@ -87,12 +87,35 @@ var listCmd = &cobra.Command{
 	Short: "List all assistants",
 	Run: func(cmd *cobra.Command, args []string) {
 		apiKey := os.Getenv("OPENAI_API_KEY")
-		assistants, err := pkg.ListAssistants(apiKey)
-		if err != nil {
-			fmt.Println("Error listing assistants:", err)
-			return
+		after := "" // Initialize after to an empty string
+		limit := 20 // Set default limit or get from flags
+
+		for {
+			assistants, hasMore, err := pkg.ListAssistants(apiKey, after, limit)
+			if err != nil {
+				fmt.Println("Error listing assistants:", err)
+				return
+			}
+
+			for _, assistant := range assistants {
+				fmt.Printf("Assistant: %+v\n", assistant)
+			}
+
+			if !hasMore {
+				break
+			}
+
+			fmt.Print("Load more? (y/n): ")
+			var input string
+			_, _ = fmt.Scanln(&input)
+			if input != "y" {
+				break
+			}
+
+			if len(assistants) > 0 {
+				after = assistants[len(assistants)-1].ID
+			}
 		}
-		fmt.Printf("Assistants: %+v\n", assistants)
 	},
 }
 

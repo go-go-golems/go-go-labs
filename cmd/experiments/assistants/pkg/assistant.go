@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"io"
 	"net/http"
+	"strings"
 )
 
 type Assistant struct {
@@ -159,12 +160,31 @@ func DeleteAssistant(apiKey, assistantID string) error {
 	return nil
 }
 
-func ListAssistants(apiKey string) ([]*Assistant, error) {
+type PaginationResponse struct {
+	Object  string      `json:"object"`
+	Data    []Assistant `json:"data"`
+	FirstID string      `json:"first_id"`
+	LastID  string      `json:"last_id"`
+	HasMore bool        `json:"has_more"`
+}
+
+func ListAssistants(apiKey, after string, limit int) ([]Assistant, bool, error) {
 	url := "https://api.openai.com/v1/assistants"
+	if limit > 0 || after != "" {
+		url += "?"
+		queryParts := []string{}
+		if limit > 0 {
+			queryParts = append(queryParts, fmt.Sprintf("limit=%d", limit))
+		}
+		if after != "" {
+			queryParts = append(queryParts, "after="+after)
+		}
+		url += strings.Join(queryParts, "&")
+	}
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	req.Header.Set("Authorization", "Bearer "+apiKey)
@@ -173,22 +193,16 @@ func ListAssistants(apiKey string) ([]*Assistant, error) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	defer func(Body io.ReadCloser) {
 		_ = Body.Close()
 	}(resp.Body)
 
-	s, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
+	var page PaginationResponse
+	if err := json.NewDecoder(resp.Body).Decode(&page); err != nil {
+		return nil, false, err
 	}
 
-	var assistants []*Assistant
-	//if err := json.NewDecoder(resp.Body).Decode(&assistants); err != nil {
-	if err := json.Unmarshal(s, &assistants); err != nil {
-		return nil, err
-	}
-
-	return assistants, nil
+	return page.Data, page.HasMore, nil
 }
