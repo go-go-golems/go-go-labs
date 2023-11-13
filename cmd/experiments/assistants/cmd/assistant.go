@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/go-go-golems/glazed/pkg/cli"
+	"github.com/go-go-golems/go-go-labs/cmd/experiments/assistants/cmd/assistants"
 	"github.com/go-go-golems/go-go-labs/cmd/experiments/assistants/pkg"
 	"github.com/spf13/cobra"
 	"os"
@@ -82,47 +84,18 @@ var deleteCmd = &cobra.Command{
 	},
 }
 
-var listCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List all assistants",
-	Run: func(cmd *cobra.Command, args []string) {
-		apiKey := os.Getenv("OPENAI_API_KEY")
-		after := "" // Initialize after to an empty string
-		limit := 20 // Set default limit or get from flags
-
-		for {
-			assistants, hasMore, err := pkg.ListAssistants(apiKey, after, limit)
-			if err != nil {
-				fmt.Println("Error listing assistants:", err)
-				return
-			}
-
-			for _, assistant := range assistants {
-				fmt.Printf("Assistant: %+v\n", assistant)
-			}
-
-			if !hasMore {
-				break
-			}
-
-			fmt.Print("Load more? (y/n): ")
-			var input string
-			_, _ = fmt.Scanln(&input)
-			if input != "y" {
-				break
-			}
-
-			if len(assistants) > 0 {
-				after = assistants[len(assistants)-1].ID
-			}
-		}
-	},
-}
-
 func init() {
+	listAssistantsCmd, err := assistants.NewListAssistantsCommand()
+	if err != nil {
+		panic(err)
+	}
+	cobraCommand, err := cli.BuildCobraCommandFromGlazeCommand(listAssistantsCmd)
+	if err != nil {
+		panic(err)
+	}
+	AssistantCmd.AddCommand(cobraCommand)
 	AssistantCmd.AddCommand(createCmd)
 	AssistantCmd.AddCommand(retrieveCmd)
 	AssistantCmd.AddCommand(modifyCmd)
 	AssistantCmd.AddCommand(deleteCmd)
-	AssistantCmd.AddCommand(listCmd)
 }
