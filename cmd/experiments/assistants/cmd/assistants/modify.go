@@ -9,7 +9,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
-	"github.com/go-go-golems/go-go-labs/cmd/experiments/assistants/pkg"
+	"github.com/go-go-golems/go-go-labs/cmd/experiments/assistants/pkg/assistants"
 	"os"
 )
 
@@ -53,7 +53,7 @@ func (c *ModifyAssistantCommand) Run(
 	assistantID := ps["id"].(string)
 
 	// go through all flags and check if set and then update
-	updateData := pkg.Assistant{}
+	updateData := assistants.Assistant{}
 
 	if ps["name"] != nil {
 		updateData.Name = ps["name"].(string)
@@ -66,7 +66,7 @@ func (c *ModifyAssistantCommand) Run(
 	}
 	if ps["tools"] != nil {
 		// deserialize reserialize to Tool
-		var res []pkg.Tool
+		var res []assistants.Tool
 
 		s, err := json.Marshal(ps["tools"])
 		if err != nil {
@@ -87,7 +87,7 @@ func (c *ModifyAssistantCommand) Run(
 		updateData.Metadata = ps["metadata"].(map[string]interface{})
 	}
 
-	assistant, err := pkg.ModifyAssistant(apiKey, assistantID, updateData)
+	assistant, err := assistants.ModifyAssistant(apiKey, assistantID, updateData)
 	if err != nil {
 		return err
 	}

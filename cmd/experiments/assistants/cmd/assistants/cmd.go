@@ -1,8 +1,7 @@
-package cmd
+package assistants
 
 import (
 	"github.com/go-go-golems/glazed/pkg/cli"
-	"github.com/go-go-golems/go-go-labs/cmd/experiments/assistants/cmd/assistants"
 	"github.com/spf13/cobra"
 )
 
@@ -12,7 +11,7 @@ var AssistantCmd = &cobra.Command{
 }
 
 func init() {
-	listAssistantsCmd, err := assistants.NewListAssistantsCommand()
+	listAssistantsCmd, err := NewListAssistantsCommand()
 	if err != nil {
 		panic(err)
 	}
@@ -22,7 +21,7 @@ func init() {
 	}
 	AssistantCmd.AddCommand(cobraCommand)
 
-	createAssistantCmd, err := assistants.NewCreateAssistantCommand()
+	createAssistantCmd, err := NewCreateAssistantCommand()
 	if err != nil {
 		panic(err)
 	}
@@ -32,7 +31,7 @@ func init() {
 	}
 	AssistantCmd.AddCommand(cobraCommand)
 
-	retrieveAssistantCmd, err := assistants.NewRetrieveAssistantCommand()
+	retrieveAssistantCmd, err := NewRetrieveAssistantCommand()
 	if err != nil {
 		panic(err)
 	}
@@ -42,7 +41,7 @@ func init() {
 	}
 	AssistantCmd.AddCommand(cobraCommand)
 
-	modifyAssistantCmd, err := assistants.NewModifyAssistantCommand()
+	modifyAssistantCmd, err := NewModifyAssistantCommand()
 	if err != nil {
 		panic(err)
 	}
@@ -52,7 +51,7 @@ func init() {
 	}
 	AssistantCmd.AddCommand(cobraCommand)
 
-	deleteAssistantCmd, err := assistants.NewDeleteAssistantCommand()
+	deleteAssistantCmd, err := NewDeleteAssistantCommand()
 	if err != nil {
 		panic(err)
 	}

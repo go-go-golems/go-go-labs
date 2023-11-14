@@ -6,7 +6,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
-	"github.com/go-go-golems/go-go-labs/cmd/experiments/assistants/pkg"
+	"github.com/go-go-golems/go-go-labs/cmd/experiments/assistants/pkg/assistants"
 	"os"
 )
 
@@ -41,7 +41,7 @@ func (c *DeleteAssistantCommand) Run(
 	}
 
 	apiKey := os.Getenv("OPENAI_API_KEY")
-	err := pkg.DeleteAssistant(apiKey, assistantID)
+	err := assistants.DeleteAssistant(apiKey, assistantID)
 	if err != nil {
 		fmt.Println("Error deleting assistant:", err)
 		return err

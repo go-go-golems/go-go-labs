@@ -8,7 +8,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
-	"github.com/go-go-golems/go-go-labs/cmd/experiments/assistants/pkg"
+	"github.com/go-go-golems/go-go-labs/cmd/experiments/assistants/pkg/assistants"
 	"os"
 )
 
@@ -48,13 +48,13 @@ func (c *CreateAssistantCommand) Run(
 	gp middlewares.Processor,
 ) error {
 	apiKey := os.Getenv("OPENAI_API_KEY")
-	assistantData := pkg.Assistant{
+	assistantData := assistants.Assistant{
 		Name:         ps["name"].(string),
 		Model:        ps["model"].(string),
 		Instructions: ps["instructions"].(string),
 		// Set other fields from flags
 	}
-	assistant, err := pkg.CreateAssistant(apiKey, assistantData)
+	assistant, err := assistants.CreateAssistant(apiKey, assistantData)
 	if err != nil {
 		return err
 	}
@@ -72,7 +72,4 @@ func (c *CreateAssistantCommand) Run(
 		types.MRP("metadata", assistant.Metadata),
 	)
 	return gp.AddRow(ctx, row)
-}
-
-func init() {
 }

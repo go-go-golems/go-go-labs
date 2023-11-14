@@ -3,8 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/go-go-golems/go-go-labs/cmd/experiments/assistants/cmd"
-	"github.com/go-go-golems/go-go-labs/cmd/experiments/assistants/pkg"
+	"github.com/go-go-golems/go-go-labs/cmd/experiments/assistants/cmd/assistants"
+	"github.com/go-go-golems/go-go-labs/cmd/experiments/assistants/cmd/files"
+	"github.com/go-go-golems/go-go-labs/cmd/experiments/assistants/cmd/threads"
+	assistants2 "github.com/go-go-golems/go-go-labs/cmd/experiments/assistants/pkg/assistants"
 	"github.com/spf13/cobra"
 	"os"
 	"time"
@@ -18,62 +20,7 @@ const (
 	runsEndpoint       = openAIURL + "threads/%s/runs"
 )
 
-type Thread struct {
-	ID        string            `json:"id"`
-	Object    string            `json:"object"`
-	CreatedAt int64             `json:"created_at"` // Unix timestamp in seconds
-	Metadata  map[string]string `json:"metadata"`   // Map of up to 16 key-value pairs
-}
-
-type Message struct {
-	ID          string            `json:"id,omitempty"`
-	Object      string            `json:"object,omitempty"`
-	CreatedAt   int64             `json:"created_at"` // Unix timestamp in seconds
-	ThreadID    string            `json:"thread_id,omitempty"`
-	Role        string            `json:"role"`
-	Content     []ContentObject   `json:"content"`
-	AssistantID string            `json:"assistant_id,omitempty"`
-	RunID       string            `json:"run_id,omitempty"`
-	FileIDs     []string          `json:"file_ids,omitempty"`
-	Metadata    map[string]string `json:"metadata,omitempty"`
-}
-
-type ContentObject struct {
-	Type      string            `json:"type"`
-	Text      *TextContent      `json:"text,omitempty"`
-	ImageFile *ImageFileContent `json:"image_file,omitempty"`
-}
-
-type TextContent struct {
-	Value       string       `json:"value"`
-	Annotations []Annotation `json:"annotations,omitempty"`
-}
-
-type ImageFileContent struct {
-	FileID string `json:"file_id"`
-}
-
-type Annotation struct {
-	Type         string        `json:"type"`
-	Text         string        `json:"text"`
-	FileCitation *FileCitation `json:"file_citation,omitempty"`
-	FilePath     *FilePath     `json:"file_path,omitempty"`
-}
-
-type FileCitation struct {
-	FileID     string `json:"file_id"`
-	Quote      string `json:"quote"`
-	StartIndex int    `json:"start_index"`
-	EndIndex   int    `json:"end_index"`
-}
-
-type FilePath struct {
-	FileID     string `json:"file_id"`
-	StartIndex int    `json:"start_index"`
-	EndIndex   int    `json:"end_index"`
-}
-
-func runAssistant(apiKey, threadID string, run pkg.Run) (string, error) {
+func runAssistant(apiKey, threadID string, run assistants2.Run) (string, error) {
 	url := fmt.Sprintf(runsEndpoint, threadID)
 	runParameters := map[string]interface{}{
 		"assistant_id": run.AssistantID,
@@ -104,7 +51,7 @@ func runAssistant(apiKey, threadID string, run pkg.Run) (string, error) {
 	return runID, nil
 }
 
-func createAssistant(apiKey string, assistant pkg.Assistant) (string, error) {
+func createAssistant(apiKey string, assistant assistants2.Assistant) (string, error) {
 	response, err := doPostRequest(apiKey, assistantsEndpoint, assistant)
 	if err != nil {
 		return "", err
@@ -151,7 +98,7 @@ func createThread(apiKey string) (string, error) {
 	return threadID, nil
 }
 
-func addMessageToThread(apiKey, threadID string, message Message) (string, error) {
+func addMessageToThread(apiKey, threadID string, message assistants2.Message) (string, error) {
 	url := fmt.Sprintf(messagesEndpoint, threadID)
 	response, err := doPostRequest(apiKey, url, message)
 	if err != nil {
@@ -242,12 +189,14 @@ func printThreadMessages(apiKey, threadID string) error {
 
 func main() {
 	var rootCmd = &cobra.Command{Use: "assistant-cli"}
-	rootCmd.AddCommand(cmd.AssistantCmd)
+	rootCmd.AddCommand(assistants.AssistantCmd)
+	rootCmd.AddCommand(files.FilesCmd)
+	rootCmd.AddCommand(threads.ThreadCmd)
+
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-
 }
 
 func oldMain() {
@@ -258,7 +207,7 @@ func oldMain() {
 	}
 
 	// Step 1: Create an Assistant
-	assistant := pkg.Assistant{
+	assistant := assistants2.Assistant{
 		Name:         "Math Tutor",
 		Instructions: "You are a personal math tutor. Answer questions briefly, in a sentence or less.",
 		Model:        "gpt-4-1106-preview", // Replace with the model you want to use
@@ -277,13 +226,13 @@ func oldMain() {
 	}
 
 	// Step 3: Add a Message to the Thread
-	message := Message{
+	message := assistants2.Message{
 		ThreadID: threadID,
 		Role:     "user",
-		Content: []ContentObject{
+		Content: []assistants2.ContentObject{
 			{
 				Type: "text",
-				Text: &TextContent{
+				Text: &assistants2.TextContent{
 					Value: "I need to solve the equation `3x + 11 = 14`. Can you help me?",
 				},
 			},
@@ -298,7 +247,7 @@ func oldMain() {
 
 	// Step 4: Run the Assistant
 
-	run := pkg.Run{
+	run := assistants2.Run{
 		ThreadID:    threadID,
 		AssistantID: assistantID,
 	}

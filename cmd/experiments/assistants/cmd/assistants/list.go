@@ -7,7 +7,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
-	"github.com/go-go-golems/go-go-labs/cmd/experiments/assistants/pkg"
+	"github.com/go-go-golems/go-go-labs/cmd/experiments/assistants/pkg/assistants"
 	"os"
 	// Import other necessary packages
 )
@@ -41,7 +41,7 @@ func (c *ListAssistantsCommand) Run(
 	limit := 20 // Set default limit or get from flags
 
 	for {
-		assistants, hasMore, err := pkg.ListAssistants(apiKey, after, limit)
+		assistants, hasMore, err := assistants.ListAssistants(apiKey, after, limit)
 		if err != nil {
 			return err
 		}

@@ -8,7 +8,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
-	"github.com/go-go-golems/go-go-labs/cmd/experiments/assistants/pkg"
+	"github.com/go-go-golems/go-go-labs/cmd/experiments/assistants/pkg/assistants"
 	"os"
 )
 
@@ -47,7 +47,7 @@ func (c *RetrieveAssistantCommand) Run(
 	apiKey := os.Getenv("OPENAI_API_KEY")
 	assistantID := ps["assistantID"].(string)
 
-	assistant, err := pkg.RetrieveAssistant(apiKey, assistantID)
+	assistant, err := assistants.RetrieveAssistant(apiKey, assistantID)
 	if err != nil {
 		return err
 	}

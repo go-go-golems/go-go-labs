@@ -1,4 +1,4 @@
-package pkg
+package assistants
 
 type LastError struct {
 	Code    string `json:"code"`
