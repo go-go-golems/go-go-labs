@@ -142,7 +142,7 @@ func writeToFile(header Header, events []Event, partNumber int, inputfile string
 		fmt.Println("Error marshalling header:", err)
 		return
 	}
-	file.WriteString(string(headerBytes) + "\n")
+	_, _ = file.WriteString(string(headerBytes) + "\n")
 
 	// Calculate the timestamp offset to start at 0 for each new file.
 	// If there are no events, we set it to 0 by default.
@@ -164,6 +164,6 @@ func writeToFile(header Header, events []Event, partNumber int, inputfile string
 		eventStr = strings.ReplaceAll(eventStr, "\\u0008", "\\b")
 		eventStr = strings.ReplaceAll(eventStr, "\\u003e", ">")
 		eventStr = strings.ReplaceAll(eventStr, "\\u003c", "<")
-		file.WriteString(eventStr + "\n")
+		_, _ = file.WriteString(eventStr + "\n")
 	}
 }

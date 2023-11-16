@@ -79,6 +79,7 @@ func getLatestContent(db *sql.DB, path string) string {
 	return content
 }
 
+//nolint:unused
 func traverseAndCapture(path string, db *sql.DB) error {
 	err := filepath.Walk(path, func(currentPath string, info os.FileInfo, err error) error {
 		if err != nil {

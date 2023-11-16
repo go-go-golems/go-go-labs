@@ -51,6 +51,6 @@ func main() {
 	foobar := rawFoobar.(shared.Foobar)
 	logger.Info("Calling plugin")
 	greeting := greeter.Greet()
-	foobaring := foobar.Foobar()
+	foobaring := foobar.Foobar2()
 	logger.Info("Got response from plugin", "greeting", greeting, "foobar", foobaring)
 }

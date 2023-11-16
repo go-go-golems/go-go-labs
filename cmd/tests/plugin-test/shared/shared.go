@@ -11,7 +11,7 @@ type Greeter interface {
 }
 
 type Foobar interface {
-	Foobar() string
+	Foobar2() string
 }
 
 type GreeterRPC struct{ client *rpc.Client }
@@ -92,7 +92,7 @@ type FoobarRPCServer struct {
 }
 
 func (g *FoobarRPCServer) Foobar(args interface{}, resp *string) error {
-	*resp = g.Impl.Foobar()
+	*resp = g.Impl.Foobar2()
 	return nil
 }
 
@@ -119,6 +119,6 @@ func (g *BothRPCServer) Greet(args interface{}, resp *string) error {
 }
 
 func (g *BothRPCServer) Foobar(args interface{}, resp *string) error {
-	*resp = g.FoobarImpl.Foobar()
+	*resp = g.FoobarImpl.Foobar2()
 	return nil
 }

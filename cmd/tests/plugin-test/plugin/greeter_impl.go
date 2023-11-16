@@ -13,12 +13,16 @@ type GreeterHello struct {
 	logger hclog.Logger
 }
 
+func (g *GreeterHello) Foobar(i int, f float64, s string) string {
+	return "Foobar"
+}
+
 func (g *GreeterHello) Greet() string {
 	g.logger.Info("Hello!")
 	return "Hello!"
 }
 
-func (g *GreeterHello) Foobar() string {
+func (g *GreeterHello) Foobar2() string {
 	g.logger.Info("Foobar!")
 	return "Foobar!"
 }
