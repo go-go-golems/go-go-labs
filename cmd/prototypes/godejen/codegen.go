@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/dave/jennifer/jen"
+	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/sqleton/pkg/cmds"
 	"github.com/iancoleman/strcase"
 )
@@ -11,97 +12,166 @@ type SqlCommandCodeGenerator struct {
 	SplitFiles  bool
 }
 
-func (s *SqlCommandCodeGenerator) GenerateCommandCode(
-	cmd *cmds.SqlCommand,
-) *jen.File {
-	f := jen.NewFile(s.PackageName)
+const SqletonCmdsPath = "github.com/go-go-golems/sqleton/pkg/cmds"
+const GlazedCommandsPath = "github.com/go-go-golems/glazed/pkg/cmds"
+const GlazedMiddlewaresPath = "github.com/go-go-golems/glazed/pkg/middlewares"
+const GlazedParametersPath = "github.com/go-go-golems/glazed/pkg/cmds/parameters"
 
-	// 1. Define the constant for the query.
-	cmdName := strcase.ToLowerCamel(cmd.Name)
+func (s *SqlCommandCodeGenerator) defineRunMethod(f *jen.File, cmdName string) {
+	methodName := "Run"
+	receiver := strcase.ToCamel(cmdName) + "Command"
+	parametersStruct := strcase.ToCamel(cmdName) + "CommandParameters"
 
-	f.Const().Id(strcase.ToCamel(cmdName) + "CommandQuery").Op("=").Lit(cmd.Query)
-
-	// TODO(manuel, 2023-09-02) Add subqueries
-	f.Const().Id(strcase.ToCamel(cmdName) + "CommandSubQueries").Op("=").Lit(cmd.SubQueries)
-
-	// 2. Define struct.
-	f.Type().Id(strcase.ToCamel(cmdName) + "Command").Struct(
-		jen.Op("*").Id("SqlCommand"),
-	)
-
-	// 3. Define struct.
-	psCommandParameters := jen.Type().Id(strcase.ToCamel(cmdName) + "CommandParameters").StructFunc(func(g *jen.Group) {
-		for _, flag := range cmd.Flags {
-			g.Id(strcase.ToCamel(flag.Name)).Id(string(flag.Type)).Tag(
-				map[string]string{"glazed.parameter": strcase.ToSnake(flag.Name)})
-		}
-	})
-
-	f.Add(psCommandParameters)
-
-	// 4. Define Run method.
-	f.Func().Params(jen.Id("p").Op("*").Id(strcase.ToCamel(cmdName)+"Command")).Id("Run").
+	f.Func().Params(jen.Id("p").Op("*").Id(receiver)).Id(methodName).
 		Params(
 			jen.Id("ctx").Qual("context", "Context"),
 			jen.Id("db").Op("*").Qual("github.com/jmoiron/sqlx", "DB"),
-			jen.Id("params").Op("*").Id(strcase.ToCamel(cmdName)+"CommandParameters"),
-			jen.Id("gp").Id("middlewares.Processor"),
-		).Error().Block(
-		jen.List(jen.Id(strcase.ToCamel(cmdName)), jen.Id("err")).Op(":=").Id("parameters").Dot("StructToMap").Call(jen.Id("params")),
-		jen.If(jen.Id("err").Op("!=").Nil()).Block(
-			jen.Return(jen.Id("err")),
-		),
-		jen.Id("err").Op("=").Id("p").Dot("SqlCommand").Dot("RunQueryIntoGlaze").Call(jen.Id("ctx"), jen.Id("db"), jen.Id(strcase.ToCamel(cmdName)), jen.Id("gp")),
-		jen.If(jen.Id("err").Op("!=").Nil()).Block(
-			jen.Return(jen.Id("err")),
-		),
-		jen.Return(jen.Nil()),
-	)
+			jen.Id("params").Op("*").Id(parametersStruct),
+			jen.Id("gp").Qual(GlazedMiddlewaresPath, "Processor"),
+		).Error().
+		Block(
+			jen.List(jen.Id("queryParams"), jen.Err()).Op(":=").Id("parameters").Dot("StructToMap").Call(jen.Id("params")),
+			jen.If(jen.Err().Op("!=").Nil()).
+				Block(
+					jen.Return(jen.Err()),
+				),
+			jen.Err().Op("=").Id("p").Dot("SqlCommand").Dot("RunQueryIntoGlaze").Call(
+				jen.Id("ctx"), jen.Id("db"), jen.Id("queryParams"), jen.Id("gp"),
+			),
+			jen.If(jen.Err().Op("!=").Nil()).
+				Block(
+					jen.Return(jen.Err()),
+				),
+			jen.Return(jen.Nil()),
+		)
+}
 
-	// 5. Define New function.
-	f.Func().Id("New"+strcase.ToCamel(cmdName)+"Command").Params().
-		Params(jen.Op("*").Id(strcase.ToCamel(cmdName)+"Command"), jen.Error()).
-		BlockFunc(func(g *jen.Group) {
-			g.Var().Id("flagDefs").Op("=").
+func (s *SqlCommandCodeGenerator) defineNewFunction(f *jen.File, cmdName string, cmd *cmds.SqlCommand) {
+	funcName := "New" + strcase.ToCamel(cmdName) + "Command"
+	commandStruct := strcase.ToCamel(cmdName) + "Command"
+	queryConstName := strcase.ToCamel(cmdName) + "CommandQuery"
+
+	description := cmd.Description()
+
+	f.Func().Id(funcName).Params().
+		Params(jen.Op("*").Id(commandStruct), jen.Error()).
+		Block(
+			jen.Var().Id("flagDefs").Op("=").
 				Index().Op("*").
-				Qual("github.com/go-go-golems/glazed/pkg/cmds/parameters", "ParameterDefinition").
+				Qual(GlazedParametersPath, "ParameterDefinition").
 				ValuesFunc(func(g *jen.Group) {
 					for _, flag := range cmd.Flags {
-						def := jen.Id("parameters").Dot("NewParameterDefinition").Call(
-							jen.Add(
-								jen.Line(),
-								jen.Lit(flag.Name),
-							),
-							jen.Add(
-								jen.Line(),
-								jen.Lit(string(flag.Type)),
-							),
-							jen.Add(
-								jen.Line(),
-								jen.Id("parameters").Dot("WithHelp").Call(jen.Lit(flag.Help)),
-							),
-							jen.Line(),
+						g.Values(
+							jen.Dict{
+								jen.Id("Name"): jen.Lit(flag.Name),
+								jen.Id("Type"): jen.Lit(string(flag.Type)),
+								jen.Id("Help"): jen.Lit(flag.Help),
+								// Add other flag properties as needed
+							},
 						)
-						g.Add(jen.Line(), def)
 					}
-				})
+				}),
+			jen.Id("cmdDescription").Op(":=").Qual(GlazedCommandsPath, "NewCommandDescription").
+				Call(
+					jen.Lit(description.Name),
+					jen.Qual(GlazedCommandsPath, "WithShort").Call(jen.Lit(description.Short)),
+					jen.Qual(GlazedCommandsPath, "WithLong").Call(jen.Lit(description.Long)),
+					jen.Qual(GlazedCommandsPath, "WithFlags").Call(jen.Id("flagDefs").Op("...")),
+				),
+			jen.List(jen.Id("cmd_"), jen.Err()).Op(":=").
+				Qual(SqletonCmdsPath, "NewSqlCommand").Call(
+				jen.Id("cmdDescription"),
+				jen.Qual(SqletonCmdsPath, "WithQuery").Call(jen.Id(queryConstName)),
+			),
 
-			// Add other contents for this block...
-			g.Id("desc").Op(":=").Id("cmds").Dot("NewCommandDescription").Call(
-				jen.Lit(cmdName),
-				jen.Id("cmds").Dot("WithFlags").Call(jen.Id("flagDefs")),
-			)
-			g.List(jen.Id(strcase.ToCamel(cmdName)+"SqlCommand"), jen.Id("err")).Op(":=").Id("NewSqlCommand").Call(
-				jen.Id("desc"),
-				jen.Id("WithQuery").Call(jen.Id(strcase.ToCamel(cmdName)+"CommandQuery")),
-			)
-			g.If(jen.Id("err").Op("!=").Nil()).Block(
-				jen.Return(jen.Nil(), jen.Id("err")),
-			)
-			g.Return(jen.Op("&").Id(strcase.ToCamel(cmdName)+"Command").Values(jen.Dict{
-				jen.Id("SqlCommand"): jen.Id(strcase.ToCamel(cmdName) + "SqlCommand"),
-			}), jen.Nil())
-		})
+			jen.If(jen.Err().Op("!=").Nil()).Block(
+				jen.Return(jen.Nil(), jen.Err()),
+			),
+			jen.Return(jen.Op("&").Id(commandStruct).Values(jen.Dict{
+				jen.Id("SqlCommand"): jen.Id("cmd_"),
+			}), jen.Nil()),
+		)
+}
+
+func (s *SqlCommandCodeGenerator) defineConstants(f *jen.File, cmdName string, cmd *cmds.SqlCommand) {
+	// Define the constant for the main query.
+	queryConstName := strcase.ToCamel(cmdName) + "CommandQuery"
+	f.Const().Id(queryConstName).Op("=").Lit(cmd.Query)
+	// Define constants for subqueries if they exist.
+	if len(cmd.SubQueries) > 0 {
+		for name, subQuery := range cmd.SubQueries {
+			subQueryConstName := strcase.ToCamel(cmdName) + "CommandSubQuery" + name
+			f.Const().Id(subQueryConstName).Op("=").Lit(subQuery)
+		}
+	}
+}
+
+func (s *SqlCommandCodeGenerator) defineStruct(f *jen.File, cmdName string) {
+	structName := strcase.ToCamel(cmdName) + "Command"
+	f.Type().Id(structName).Struct(
+		jen.Op("*").Qual(SqletonCmdsPath, "SqlCommand"),
+	)
+}
+
+func flagTypeToGoTupe(s *jen.Statement, parameterType parameters.ParameterType) *jen.Statement {
+	switch parameterType {
+	case parameters.ParameterTypeFloat:
+		return s.Id("float64")
+	case parameters.ParameterTypeFloatList:
+		return s.Index().Id("float64")
+	case parameters.ParameterTypeInteger:
+		return s.Id("int")
+	case parameters.ParameterTypeIntegerList:
+		return s.Index().Id("int")
+	case parameters.ParameterTypeBool:
+		return s.Id("bool")
+	case parameters.ParameterTypeDate:
+		return s.Qual("time", "Time")
+	case parameters.ParameterTypeStringFromFile,
+		parameters.ParameterTypeStringFromFiles,
+		parameters.ParameterTypeChoice:
+		return s.Id("string")
+	case parameters.ParameterTypeStringList,
+		parameters.ParameterTypeStringListFromFile,
+		parameters.ParameterTypeStringListFromFiles,
+		parameters.ParameterTypeChoiceList:
+		return s.Index().Id("string")
+	case parameters.ParameterTypeFile:
+		return s.Qual(GlazedParametersPath, "FileData")
+	case parameters.ParameterTypeFileList:
+		return s.Index().Qual(GlazedParametersPath, "FileData")
+	case parameters.ParameterTypeObjectFromFile:
+		return s.Map(jen.Id("string")).Id("interface{}")
+	case parameters.ParameterTypeObjectListFromFile, parameters.ParameterTypeObjectListFromFiles:
+		return s.Index().Map(jen.Id("string")).Id("interface{}")
+	case parameters.ParameterTypeKeyValue:
+		return s.Map(jen.Id("string")).Id("string")
+	default:
+		return s.Id(string(parameterType))
+	}
+}
+
+func (s *SqlCommandCodeGenerator) defineParametersStruct(f *jen.File, cmdName string, flags []*parameters.ParameterDefinition) {
+	structName := strcase.ToCamel(cmdName) + "CommandParameters"
+	f.Type().Id(structName).StructFunc(func(g *jen.Group) {
+		for _, flag := range flags {
+			s := g.Id(strcase.ToCamel(flag.Name))
+			s = flagTypeToGoTupe(s, flag.Type)
+			s.Tag(map[string]string{"glazed.parameter": strcase.ToSnake(flag.Name)})
+		}
+	})
+}
+
+func (s *SqlCommandCodeGenerator) GenerateCommandCode(cmd *cmds.SqlCommand) *jen.File {
+	f := jen.NewFile(s.PackageName)
+	cmdName := strcase.ToLowerCamel(cmd.Name)
+
+	// Define constants, struct, and methods using helper functions.
+	s.defineConstants(f, cmdName, cmd)
+	s.defineStruct(f, cmdName)
+	s.defineParametersStruct(f, cmdName, cmd.Flags)
+	s.defineRunMethod(f, cmdName)
+	s.defineNewFunction(f, cmdName, cmd)
 
 	return f
 }

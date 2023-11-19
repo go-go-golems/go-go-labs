@@ -8,8 +8,8 @@ import (
 	"github.com/dave/jennifer/jen"
 	cmds2 "github.com/go-go-golems/sqleton/pkg/cmds"
 	"github.com/spf13/cobra"
-	"golang.org/x/sync/errgroup"
 	"os"
+	"strings"
 )
 
 var rootCmd = &cobra.Command{
@@ -23,8 +23,13 @@ var rootCmd = &cobra.Command{
 		}
 
 		for path, file := range res {
-			fmt.Printf("File: %s\n", path)
-			fmt.Println(file.GoString())
+			s := file.GoString()
+			// store in path.go after removing .yaml
+			p, _ := strings.CutSuffix(path, ".yaml")
+			p = p + ".go"
+
+			fmt.Println("Writing to", p)
+			_ = os.WriteFile(p, []byte(s), 0644)
 		}
 
 		return nil
@@ -43,64 +48,40 @@ type FileResult struct {
 }
 
 func processFiles(ctx context.Context, files []string) (map[string]*jen.File, error) {
-	// Use errgroup with context cancellation
-	g, ctx := errgroup.WithContext(ctx)
-	resultChan := make(chan FileResult, len(files))
-
-	defer close(resultChan)
-
 	s := &SqlCommandCodeGenerator{
 		PackageName: "main",
 		SplitFiles:  false,
 	}
 
+	results := make(map[string]*jen.File)
+
 	for _, fileName := range files {
 		// passing fileName to avoid the go routine range variable issue
 		file := fileName
-		g.Go(func() error {
-			// Check for context cancellation
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			default:
-			}
+		// Check for context cancellation
 
-			psYaml, err := os.ReadFile(file)
-			if err != nil {
-				return err
-			}
+		psYaml, err := os.ReadFile(file)
+		if err != nil {
+			return nil, err
+		}
 
-			loader := &cmds2.SqlCommandLoader{
-				DBConnectionFactory: nil,
-			}
+		loader := &cmds2.SqlCommandLoader{
+			DBConnectionFactory: nil,
+		}
 
-			// create reader from psYaml
-			r := bytes.NewReader(psYaml)
-			cmds_, err := loader.LoadCommandFromYAML(r)
-			if err != nil {
-				return err
-			}
-			if len(cmds_) != 1 {
-				return fmt.Errorf("expected exactly one command, got %d", len(cmds_))
-			}
-			cmd := cmds_[0].(*cmds2.SqlCommand)
+		// create reader from psYaml
+		r := bytes.NewReader(psYaml)
+		cmds_, err := loader.LoadCommandFromYAML(r)
+		if err != nil {
+			return nil, err
+		}
+		if len(cmds_) != 1 {
+			return nil, fmt.Errorf("expected exactly one command, got %d", len(cmds_))
+		}
+		cmd := cmds_[0].(*cmds2.SqlCommand)
 
-			f := s.GenerateCommandCode(cmd)
-			// send the result to the result channel
-			resultChan <- FileResult{Path: file, File: f}
-
-			return nil
-		})
-	}
-
-	// Wait for all files to be processed
-	if err := g.Wait(); err != nil {
-		return nil, err
-	}
-
-	results := make(map[string]*jen.File)
-	for fr := range resultChan {
-		results[fr.Path] = fr.File
+		f := s.GenerateCommandCode(cmd)
+		results[file] = f
 	}
 
 	return results, nil
