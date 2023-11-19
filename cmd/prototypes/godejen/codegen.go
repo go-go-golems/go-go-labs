@@ -16,6 +16,8 @@ const SqletonCmdsPath = "github.com/go-go-golems/sqleton/pkg/cmds"
 const GlazedCommandsPath = "github.com/go-go-golems/glazed/pkg/cmds"
 const GlazedMiddlewaresPath = "github.com/go-go-golems/glazed/pkg/middlewares"
 const GlazedParametersPath = "github.com/go-go-golems/glazed/pkg/cmds/parameters"
+const ClaySqlPath = "github.com/go-go-golems/clay/pkg/sql"
+const MapsHelpersPath = "github.com/go-go-golems/glazed/pkg/helpers/maps"
 
 func (s *SqlCommandCodeGenerator) defineRunMethod(f *jen.File, cmdName string) {
 	methodName := "Run"
@@ -30,18 +32,15 @@ func (s *SqlCommandCodeGenerator) defineRunMethod(f *jen.File, cmdName string) {
 			jen.Id("gp").Qual(GlazedMiddlewaresPath, "Processor"),
 		).Error().
 		Block(
-			jen.List(jen.Id("queryParams"), jen.Err()).Op(":=").Id("parameters").Dot("StructToMap").Call(jen.Id("params")),
-			jen.If(jen.Err().Op("!=").Nil()).
-				Block(
-					jen.Return(jen.Err()),
-				),
-			jen.Err().Op("=").Id("p").Dot("SqlCommand").Dot("RunQueryIntoGlaze").Call(
-				jen.Id("ctx"), jen.Id("db"), jen.Id("queryParams"), jen.Id("gp"),
+			jen.Id("ps").Op(":=").Qual(MapsHelpersPath, "StructToMap").Call(jen.Id("params"), jen.Lit(false)),
+			jen.List(jen.Id("renderedQuery"), jen.Err()).Op(":=").Qual(ClaySqlPath, "RenderQuery").Call(
+				jen.Id("ctx"), jen.Id("db"), jen.Id("p").Dot("Query"), jen.Id("p").Dot("SubQueries"), jen.Id("ps"),
 			),
-			jen.If(jen.Err().Op("!=").Nil()).
-				Block(
-					jen.Return(jen.Err()),
-				),
+			jen.If(jen.Err().Op("!=").Nil()).Block(jen.Return(jen.Err())),
+			jen.Err().Op("=").Qual(ClaySqlPath, "RunQueryIntoGlaze").Call(
+				jen.Id("ctx"), jen.Id("db"), jen.Id("renderedQuery"), jen.Index().Interface().Values(), jen.Id("gp"),
+			),
+			jen.If(jen.Err().Op("!=").Nil()).Block(jen.Return(jen.Err())),
 			jen.Return(jen.Nil()),
 		)
 }
@@ -78,17 +77,10 @@ func (s *SqlCommandCodeGenerator) defineNewFunction(f *jen.File, cmdName string,
 					jen.Qual(GlazedCommandsPath, "WithLong").Call(jen.Lit(description.Long)),
 					jen.Qual(GlazedCommandsPath, "WithFlags").Call(jen.Id("flagDefs").Op("...")),
 				),
-			jen.List(jen.Id("cmd_"), jen.Err()).Op(":=").
-				Qual(SqletonCmdsPath, "NewSqlCommand").Call(
-				jen.Id("cmdDescription"),
-				jen.Qual(SqletonCmdsPath, "WithQuery").Call(jen.Id(queryConstName)),
-			),
-
-			jen.If(jen.Err().Op("!=").Nil()).Block(
-				jen.Return(jen.Nil(), jen.Err()),
-			),
 			jen.Return(jen.Op("&").Id(commandStruct).Values(jen.Dict{
-				jen.Id("SqlCommand"): jen.Id("cmd_"),
+				jen.Id("CommandDescription"): jen.Id("cmdDescription"),
+				jen.Id("Query"):              jen.Id(queryConstName),
+				jen.Id("SubQueries"):         jen.Map(jen.String()).String().Values(),
 			}), jen.Nil()),
 		)
 }
@@ -109,7 +101,9 @@ func (s *SqlCommandCodeGenerator) defineConstants(f *jen.File, cmdName string, c
 func (s *SqlCommandCodeGenerator) defineStruct(f *jen.File, cmdName string) {
 	structName := strcase.ToCamel(cmdName) + "Command"
 	f.Type().Id(structName).Struct(
-		jen.Op("*").Qual(SqletonCmdsPath, "SqlCommand"),
+		jen.Op("*").Qual(GlazedCommandsPath, "CommandDescription"),
+		jen.Id("Query").String().Tag(map[string]string{"yaml": "query"}),
+		jen.Id("SubQueries").Map(jen.String()).String().Tag(map[string]string{"yaml": "subqueries,omitempty"}),
 	)
 }
 
