@@ -370,8 +370,8 @@ func TestApplyChange_ActionInsert(t *testing.T) {
 		{
 			name:        "Insert empty line",
 			sourceLines: []string{"line1", "line2"},
-			change:      Change{Action: ActionInsert, Content: "", Above: "line2"},
-			want:        []string{"line1", "line2"},
+			change:      Change{Action: ActionInsert, Content: "\n", Above: "line2"},
+			want:        []string{"line1", "", "line2"},
 			wantErr:     nil,
 		},
 		{
