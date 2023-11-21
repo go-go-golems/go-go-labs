@@ -354,6 +354,13 @@ func TestApplyChange_ActionInsert(t *testing.T) {
 			wantErr:     nil,
 		},
 		{
+			name:        "Insert in the middle (multiline)",
+			sourceLines: []string{"line1", "line3"},
+			change:      Change{Action: ActionInsert, Content: "line2\nfoobar\n", Above: "line3"},
+			want:        []string{"line1", "line2", "foobar", "line3"},
+			wantErr:     nil,
+		},
+		{
 			name:        "Insert multiple lines",
 			sourceLines: []string{"line1", "line4"},
 			change:      Change{Action: ActionInsert, Content: "line2\nline3", Above: "line4"},
@@ -364,7 +371,7 @@ func TestApplyChange_ActionInsert(t *testing.T) {
 			name:        "Insert empty line",
 			sourceLines: []string{"line1", "line2"},
 			change:      Change{Action: ActionInsert, Content: "", Above: "line2"},
-			want:        []string{"line1", "", "line2"},
+			want:        []string{"line1", "line2"},
 			wantErr:     nil,
 		},
 		{

@@ -32,6 +32,11 @@ flags:
   - name: full_info
     type: bool
     help: Show the full info
+subqueries:
+  foobar:
+    SELECT * FROM FOOBAR
+  blab:
+    SELECT * FROM BLAB
 query: |
   SELECT 
   Id,User,Host,db,Command,Time,State

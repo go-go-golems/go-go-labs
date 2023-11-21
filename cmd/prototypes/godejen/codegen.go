@@ -121,7 +121,8 @@ func flagTypeToGoTupe(s *jen.Statement, parameterType parameters.ParameterType) 
 		return s.Id("bool")
 	case parameters.ParameterTypeDate:
 		return s.Qual("time", "Time")
-	case parameters.ParameterTypeStringFromFile,
+	case parameters.ParameterTypeString,
+		parameters.ParameterTypeStringFromFile,
 		parameters.ParameterTypeStringFromFiles,
 		parameters.ParameterTypeChoice:
 		return s.Id("string")

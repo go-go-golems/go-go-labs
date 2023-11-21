@@ -206,6 +206,10 @@ func (d *Differential) ApplyChange(change Change) error {
 
 	case ActionInsert:
 		contentLines := strings.Split(change.Content, "\n")
+		// remove last empty line
+		if len(contentLines) > 0 && contentLines[len(contentLines)-1] == "" {
+			contentLines = contentLines[:len(contentLines)-1]
+		}
 		if len(d.SourceLines) == 0 {
 			d.SetSourceLines(append(d.SourceLines, contentLines...))
 			break

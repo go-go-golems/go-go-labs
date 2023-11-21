@@ -121,4 +121,12 @@ changes:
           print('Operational')
     above: |
       def target_location():
+      
+  - comment: Add new functionality
+    action: insert
+    content: |
+      def new_function():
+          print('New functionality')
+    above: |
+      def existing_function():
 ```

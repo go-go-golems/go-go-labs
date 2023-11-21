@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/dave/jennifer/jen"
 	cmds2 "github.com/go-go-golems/sqleton/pkg/cmds"
+	"github.com/go-go-golems/sqleton/pkg/codegen"
 	"github.com/spf13/cobra"
 	"os"
 	"strings"
@@ -42,15 +43,9 @@ func main() {
 	}
 }
 
-type FileResult struct {
-	Path string
-	File *jen.File
-}
-
 func processFiles(ctx context.Context, files []string) (map[string]*jen.File, error) {
-	s := &SqlCommandCodeGenerator{
+	s := &codegen.SqlCommandCodeGenerator{
 		PackageName: "main",
-		SplitFiles:  false,
 	}
 
 	results := make(map[string]*jen.File)
@@ -80,7 +75,10 @@ func processFiles(ctx context.Context, files []string) (map[string]*jen.File, er
 		}
 		cmd := cmds_[0].(*cmds2.SqlCommand)
 
-		f := s.GenerateCommandCode(cmd)
+		f, err := s.GenerateCommandCode(cmd)
+		if err != nil {
+			return nil, err
+		}
 		results[file] = f
 	}
 

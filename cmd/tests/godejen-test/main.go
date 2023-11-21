@@ -19,11 +19,7 @@ import (
 	"io"
 )
 
-//go:generate go run ../../prototypes/godejen/ ps.yaml
-
-var rootCmd = cobra.Command{
-	Use: "program [file...]",
-}
+//go:generate sqleton codegen ps.yaml
 
 type PsCommandWrap struct {
 	Command             *PsCommand
@@ -109,7 +105,7 @@ func (p *PsCommandWrap) Run(
 	if err != nil {
 		return err
 	}
-	return p.Command.Run(ctx, db, psParameters, gp)
+	return p.Command.RunIntoGlazed(ctx, db, psParameters, gp)
 }
 
 func main() {
