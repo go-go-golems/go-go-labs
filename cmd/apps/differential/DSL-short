@@ -30,11 +30,15 @@ changes:
 - `old`: Original code block.
 - `new`: Replacement code block.
 
+`old` has to match the original code *EXACTLY*.
+
 ### Insert
 
 - `action`: "insert"
 - `content`: Code to insert.
 - `above`: Context line for placement (refers to text lines).
+
+`above` has to match the original code *EXACTLY*.
 
 ### Delete
 
@@ -46,6 +50,8 @@ changes:
 - `action`: "move"
 - `content`: Code block to move.
 - `above`: Context line for new placement (refers to text lines).
+
+`above` has to match the original code *EXACTLY*.
 
 ### Prepend
 
@@ -105,3 +111,5 @@ changes:
     above: |
       def existing_function():
 ```
+
+Never modify code, use original code at all times.
