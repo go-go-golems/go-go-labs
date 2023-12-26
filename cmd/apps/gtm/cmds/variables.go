@@ -18,6 +18,8 @@ type VariablesCommand struct {
 	*cmds.CommandDescription
 }
 
+var _ cmds.GlazeCommand = (*VariablesCommand)(nil)
+
 func NewVariablesCommand() (*VariablesCommand, error) {
 	glazedParameterLayer, err := settings.NewGlazedParameterLayers()
 	if err != nil {
@@ -43,15 +45,19 @@ func NewVariablesCommand() (*VariablesCommand, error) {
 	}, nil
 }
 
-func (c *VariablesCommand) Run(
+type VariablesSettings struct {
+	File string `json:"file"`
+}
+
+func (c *VariablesCommand) RunIntoGlazeProcessor(
 	ctx context.Context,
-	parsedLayers map[string]*layers.ParsedParameterLayer,
-	ps map[string]interface{},
+	parsedLayers *layers.ParsedLayers,
 	gp middlewares.Processor,
 ) error {
-	filePath := ps["file"].(string)
+	s := &VariablesSettings{}
+	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
 
-	file, err := os.Open(filePath)
+	file, err := os.Open(s.File)
 	if err != nil {
 		return errors.Wrap(err, "could not open file")
 	}

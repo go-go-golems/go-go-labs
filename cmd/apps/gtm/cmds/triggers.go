@@ -19,6 +19,8 @@ type TriggersCommand struct {
 	*cmds.CommandDescription
 }
 
+var _ cmds.GlazeCommand = (*TriggersCommand)(nil)
+
 func NewTriggersCommand() (*TriggersCommand, error) {
 	glazedParameterLayer, err := settings.NewGlazedParameterLayers()
 	if err != nil {
@@ -44,15 +46,19 @@ func NewTriggersCommand() (*TriggersCommand, error) {
 	}, nil
 }
 
-func (c *TriggersCommand) Run(
+type TriggersSettings struct {
+	File string `json:"file"`
+}
+
+func (c *TriggersCommand) RunIntoGlazeProcessor(
 	ctx context.Context,
-	parsedLayers map[string]*layers.ParsedParameterLayer,
-	ps map[string]interface{},
+	parsedLayers *layers.ParsedLayers,
 	gp middlewares.Processor,
 ) error {
-	filePath := ps["file"].(string)
+	s := &TriggersSettings{}
+	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
 
-	data, err := os.ReadFile(filePath)
+	data, err := os.ReadFile(s.File)
 	if err != nil {
 		return errors.Wrap(err, "failed to read GTM file")
 	}
