@@ -19,6 +19,8 @@ type DefinedCommand struct {
 	*cmds.CommandDescription
 }
 
+var _ cmds.GlazeCommand = (*DefinedCommand)(nil)
+
 // This would be good to transform into something that keeps track of the output
 // processor, the flags, probably as a helper class, to avoid having to pass arguments all
 // over.
@@ -60,18 +62,24 @@ func NewDefinedCommand() (*DefinedCommand, error) {
 	}, nil
 }
 
-func (c *DefinedCommand) Run(
+type DefinedSettings struct {
+	WithSelector bool     `glazed.parameter:"with_selector"`
+	WithRules    bool     `glazed.parameter:"with_rules"`
+	File         []string `glazed.parameter:"files"`
+}
+
+func (c *DefinedCommand) RunIntoGlazeProcessor(
 	ctx context.Context,
-	parsedLayers map[string]*layers.ParsedParameterLayer,
-	ps map[string]interface{},
+	parsedLayers *layers.ParsedLayers,
 	gp middlewares.Processor,
 ) error {
-	withSelector := ps["with_selector"].(bool)
-	withRules := ps["with_rules"].(bool)
+	s := &DefinedSettings{}
+	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
+	if err != nil {
+		return err
+	}
 
-	urls := ps["files"].([]string)
-
-	for _, url := range urls {
+	for _, url := range s.File {
 		reader, err := ReaderUrlOrFile(url)
 		if err != nil {
 			return err
@@ -85,8 +93,8 @@ func (c *DefinedCommand) Run(
 			url,
 			reader,
 			gp,
-			withSelector,
-			withRules,
+			s.WithSelector,
+			s.WithRules,
 		)
 		if err != nil {
 			return err

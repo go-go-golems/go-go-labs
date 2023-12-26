@@ -5,7 +5,6 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
-	"github.com/go-go-golems/glazed/pkg/helpers/cast"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
@@ -15,6 +14,8 @@ import (
 type FindUnusedClassesCommand struct {
 	*cmds.CommandDescription
 }
+
+var _ cmds.GlazeCommand = (*FindUnusedClassesCommand)(nil)
 
 func NewFindUnusedClassesCommand() (*FindUnusedClassesCommand, error) {
 	glazedParameterLayer, err := settings.NewGlazedParameterLayers()
@@ -71,25 +72,28 @@ func NewFindUnusedClassesCommand() (*FindUnusedClassesCommand, error) {
 	}, nil
 }
 
-func (c *FindUnusedClassesCommand) Run(
+type FindUnusedClassesSettings struct {
+	Used                []map[string]interface{} `glazed.parameter:"used"`
+	Defined             []map[string]interface{} `glazed.parameter:"defined"`
+	CheckAllUnused      bool                     `glazed.parameter:"check-all-unused"`
+	FilterDefiningFiles []string                 `glazed.parameter:"filter-defining-files"`
+	FilterUsingFiles    []string                 `glazed.parameter:"filter-using-files"`
+	FilterClasses       []string                 `glazed.parameter:"filter-classes"`
+}
+
+func (c *FindUnusedClassesCommand) RunIntoGlazeProcessor(
 	ctx context.Context,
-	parsedLayers map[string]*layers.ParsedParameterLayer,
-	ps map[string]interface{},
+	parsedLayers *layers.ParsedLayers,
 	gp middlewares.Processor,
 ) error {
-	used_ := ps["used"].([]interface{})
-	used, ok := cast.CastList2[map[string]interface{}, interface{}](used_)
-	if !ok {
-		return errors.New("could not cast used")
-	}
-	defined_ := ps["defined"].([]interface{})
-	defined, ok := cast.CastList2[map[string]interface{}, interface{}](defined_)
-	if !ok {
-		return errors.New("could not cast defined")
+	s := &FindUnusedClassesSettings{}
+	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
+	if err != nil {
+		return err
 	}
 
 	usedMap := make(map[string]bool)
-	for _, entry := range used {
+	for _, entry := range s.Used {
 		class := entry["class"].(string)
 		usedMap[class] = true
 	}
@@ -100,18 +104,17 @@ func (c *FindUnusedClassesCommand) Run(
 	definedClassesToFiles := make(map[string][]string)
 
 	// Count the total number of classes per file
-	for _, entry := range defined {
+	for _, entry := range s.Defined {
 		file := entry["file"].(string)
 		fileToTotalClasses[file]++
 		class := entry["class"].(string)
 		definedClassesToFiles[class] = append(definedClassesToFiles[class], file)
 	}
 
-	filterUsingFiles := ps["filter-using-files"].([]string)
 	// Count the number of used classes per file
-	for _, entry := range used {
-		if len(filterUsingFiles) > 0 {
-			if !containsGlob(filterUsingFiles, entry["file"].(string)) {
+	for _, entry := range s.Used {
+		if len(s.FilterUsingFiles) > 0 {
+			if !containsGlob(s.FilterUsingFiles, entry["file"].(string)) {
 				continue
 			}
 		}
@@ -124,22 +127,17 @@ func (c *FindUnusedClassesCommand) Run(
 		}
 	}
 
-	checkAllUnused := ps["check-all-unused"].(bool)
-
-	filterDefiningFiles := ps["filter-defining-files"].([]string)
-	filterClasses := ps["filter-classes"].([]string)
-
-	for _, entry := range defined {
+	for _, entry := range s.Defined {
 		class := entry["class"].(string)
 		if _, found := usedMap[class]; !found {
 			filename := entry["file"].(string)
-			if len(filterDefiningFiles) > 0 {
-				if !containsGlob(filterDefiningFiles, filename) {
+			if len(s.FilterDefiningFiles) > 0 {
+				if !containsGlob(s.FilterDefiningFiles, filename) {
 					continue
 				}
 			}
-			if len(filterClasses) > 0 {
-				if !containsGlob(filterClasses, class) {
+			if len(s.FilterClasses) > 0 {
+				if !containsGlob(s.FilterClasses, class) {
 					continue
 				}
 			}
@@ -148,7 +146,7 @@ func (c *FindUnusedClassesCommand) Run(
 				types.MRP("file", filename),
 			)
 
-			if checkAllUnused {
+			if s.CheckAllUnused {
 				totalClasses := fileToTotalClasses[filename]
 				usedClasses := len(fileToUsedClasses[filename])
 				row.Set("total_classes", totalClasses)

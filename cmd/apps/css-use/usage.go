@@ -5,7 +5,6 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
-	"github.com/go-go-golems/glazed/pkg/helpers/cast"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
@@ -16,6 +15,8 @@ import (
 type FindUsageClassesCommand struct {
 	*cmds.CommandDescription
 }
+
+var _ cmds.GlazeCommand = (*FindUsageClassesCommand)(nil)
 
 func NewFindUsageClassesCommand() (*FindUsageClassesCommand, error) {
 	glazedParameterLayer, err := settings.NewGlazedParameterLayers()
@@ -66,27 +67,29 @@ func NewFindUsageClassesCommand() (*FindUsageClassesCommand, error) {
 	}, nil
 }
 
-func (c *FindUsageClassesCommand) Run(
+type FindUsageClassesSettings struct {
+	Used                []map[string]interface{} `json:"used"`
+	Defined             []map[string]interface{} `json:"defined"`
+	FilterDefiningFiles []string                 `json:"filter-defining-files"`
+	FilterUsingFiles    []string                 `json:"filter-using-files"`
+	FilterClasses       []string                 `json:"filter-classes"`
+}
+
+func (c *FindUsageClassesCommand) RunIntoGlazeProcessor(
 	ctx context.Context,
-	parsedLayers map[string]*layers.ParsedParameterLayer,
-	ps map[string]interface{},
+	parsedLayers *layers.ParsedLayers,
 	gp middlewares.Processor,
 ) error {
-	used_ := ps["used"].([]interface{})
-	used, ok := cast.CastList2[map[string]interface{}, interface{}](used_)
-	if !ok {
-		return errors.New("could not cast used")
-	}
-	defined_ := ps["defined"].([]interface{})
-	defined, ok := cast.CastList2[map[string]interface{}, interface{}](defined_)
-	if !ok {
-		return errors.New("could not cast defined")
+	s := &FindUsageClassesSettings{}
+	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
+	if err != nil {
+		return err
 	}
 
 	definedClassesToFiles := make(map[string][]string)
 	fileToDefinedClasses := make(map[string][]string)
 
-	for _, entry := range defined {
+	for _, entry := range s.Defined {
 		file := entry["file"].(string)
 		class := entry["class"].(string)
 		definedClassesToFiles[class] = append(definedClassesToFiles[class], file)
@@ -102,31 +105,27 @@ func (c *FindUsageClassesCommand) Run(
 
 	usedClassesToFiles := make(map[string][]string)
 
-	for _, entry := range used {
+	for _, entry := range s.Used {
 		class_ := entry["class"].(string)
 		file := entry["file"].(string)
 		usedClassesToFiles[class_] = append(usedClassesToFiles[class_], file)
 	}
 
-	filterDefiningFiles := ps["filter-defining-files"].([]string)
-	filterUsingFiles := ps["filter-using-files"].([]string)
-	filterClasses := ps["filter-classes"].([]string)
-
 	for file, classes := range fileToDefinedClasses {
 		for _, class := range classes {
 			filesUsingClass := usedClassesToFiles[class]
-			if len(filterDefiningFiles) > 0 {
-				if !containsGlob(filterDefiningFiles, file) {
+			if len(s.FilterDefiningFiles) > 0 {
+				if !containsGlob(s.FilterDefiningFiles, file) {
 					continue
 				}
 			}
-			if len(filterUsingFiles) > 0 {
-				if !containsAnyGlob(filterUsingFiles, filesUsingClass) {
+			if len(s.FilterUsingFiles) > 0 {
+				if !containsAnyGlob(s.FilterUsingFiles, filesUsingClass) {
 					continue
 				}
 			}
-			if len(filterClasses) > 0 {
-				if !containsGlob(filterClasses, class) {
+			if len(s.FilterClasses) > 0 {
+				if !containsGlob(s.FilterClasses, class) {
 					continue
 				}
 			}

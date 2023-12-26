@@ -18,6 +18,8 @@ type UsedCommand struct {
 	*cmds.CommandDescription
 }
 
+var _ cmds.GlazeCommand = (*UsedCommand)(nil)
+
 func NewUsedCommand() (*UsedCommand, error) {
 	glazedLayer, err := settings.NewGlazedParameterLayers()
 	if err != nil {
@@ -41,15 +43,22 @@ func NewUsedCommand() (*UsedCommand, error) {
 	}, nil
 }
 
-func (c *UsedCommand) Run(
+type UsedSettings struct {
+	Files []string `json:"files"`
+}
+
+func (c *UsedCommand) RunIntoGlazeProcessor(
 	ctx context.Context,
-	parsedLayers map[string]*layers.ParsedParameterLayer,
-	ps map[string]interface{},
+	parsedLayers *layers.ParsedLayers,
 	gp middlewares.Processor,
 ) error {
-	files := ps["files"].([]string)
+	s := &UsedSettings{}
+	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
+	if err != nil {
+		return err
+	}
 
-	for _, url := range files {
+	for _, url := range s.Files {
 		reader, err2 := ReaderUrlOrFile(url)
 		if err2 != nil {
 			return err2
