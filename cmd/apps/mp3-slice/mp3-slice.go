@@ -6,7 +6,6 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
-	"github.com/go-go-golems/glazed/pkg/helpers/cast"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
@@ -41,6 +40,7 @@ func NewSliceCommand() (*SliceCommand, error) {
 		parameters.ParameterTypeInteger,
 		parameters.WithHelp("Duration of each slice in seconds"),
 		parameters.WithRequired(true),
+		parameters.WithDefault(250),
 	)
 
 	outputDir := parameters.NewParameterDefinition(
@@ -64,54 +64,51 @@ func NewSliceCommand() (*SliceCommand, error) {
 // Ensure SliceCommand satisfies the GlazeCommand interface
 var _ cmds.GlazeCommand = &SliceCommand{}
 
-func (c *SliceCommand) Run(
+type SliceSettings struct {
+	File      string `json:"file"`
+	Duration  int    `json:"duration"`
+	OutputDir string `json:"output-dir"`
+}
+
+func (c *SliceCommand) RunIntoGlazeProcessor(
 	ctx context.Context,
-	parsedLayers map[string]*layers.ParsedParameterLayer,
-	ps map[string]interface{},
+	parsedLayers *layers.ParsedLayers,
 	gp middlewares.Processor,
 ) error {
+	s := &SliceSettings{}
+	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
+	if err != nil {
+		return err
+	}
 
 	// Extract flag values
-	mp3FilePath, _, err := cast.GetAndCast[string](ps, "file", "")
-	if err != nil {
-		return errors.Wrap(err, "Error getting mp3 file path")
-	}
-	duration, _, err := cast.GetAndCast[int](ps, "duration", 250)
-	if err != nil {
-		return errors.Wrap(err, "Error getting duration")
-	}
-	outputDir, _, err := cast.GetAndCast[string](ps, "output-dir", ".")
-	if err != nil {
-		return errors.Wrap(err, "Error getting output directory")
-	}
-
 	// Ensure the output directory exists
-	if err := ensureDirExists(outputDir); err != nil {
+	if err := ensureDirExists(s.OutputDir); err != nil {
 		return errors.Wrap(err, "Error ensuring output directory exists")
 	}
 
 	// Get the length of the MP3 file
-	length, err := mp3lib.GetLengthSeconds(mp3FilePath)
+	length, err := mp3lib.GetLengthSeconds(s.File)
 	if err != nil {
 		return errors.Wrap(err, "Error getting mp3 file length")
 	}
 
 	// Calculate the number of slices
-	numSlices := length / duration
-	if length%duration != 0 {
+	numSlices := length / s.Duration
+	if length%s.Duration != 0 {
 		numSlices++
 	}
 
 	// Start slicing the mp3 file
 	for i := 0; i < numSlices; i++ {
-		startSec := i * duration
-		endSec := startSec + duration
+		startSec := i * s.Duration
+		endSec := startSec + s.Duration
 		if endSec > length {
 			endSec = length
 		}
 
-		outputFilePath := filepath.Join(outputDir, fmt.Sprintf("slice_%.2d.mp3", i+1))
-		err := mp3lib.ExtractSectionToFile(mp3FilePath, outputFilePath, startSec, endSec)
+		outputFilePath := filepath.Join(s.OutputDir, fmt.Sprintf("slice_%.2d.mp3", i+1))
+		err := mp3lib.ExtractSectionToFile(s.File, outputFilePath, startSec, endSec)
 		if err != nil {
 			return errors.Wrapf(err, "Error extracting segment from %d to %d seconds", startSec, endSec)
 		}
