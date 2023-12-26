@@ -18,6 +18,8 @@ type DeleteTicketsCommand struct {
 	*cmds.CommandDescription
 }
 
+var _ cmds.WriterCommand = (*DeleteTicketsCommand)(nil)
+
 func NewDeleteTicketsCommand() (*DeleteTicketsCommand, error) {
 	glazedParameterLayer, err := settings.NewGlazedParameterLayers()
 	if err != nil {
@@ -68,86 +70,67 @@ func NewDeleteTicketsCommand() (*DeleteTicketsCommand, error) {
 	}, nil
 }
 
+type DeleteTicketSettings struct {
+	Ids         []int                    `glazed.parameter:"ids"`
+	TicketsFile []map[string]interface{} `glazed.parameter:"tickets-file"`
+	Domain      string                   `glazed.parameter:"domain"`
+	Email       string                   `glazed.parameter:"email"`
+	APIToken    string                   `glazed.parameter:"api-token"`
+	Workers     int                      `glazed.parameter:"workers"`
+}
+
 func (c *DeleteTicketsCommand) RunIntoWriter(
 	ctx context.Context,
-	parsedLayers map[string]*layers.ParsedParameterLayer,
-	ps map[string]interface{},
+	parsedLayers *layers.ParsedLayers,
 	w io.Writer,
 ) error {
-	// Extract flags from ps map
-	ticketIds_, ok := ps["ids"]
-	var ticketIds []int
-	if ok {
-		ticketIds = ticketIds_.([]int)
+	s := &DeleteTicketSettings{}
+	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
+	if err != nil {
+		return err
 	}
 
-	ticketsFromFile_, ok := ps["tickets-file"]
-	var ticketsFromFile []interface{}
-	if ok {
-		ticketsFromFile = ticketsFromFile_.([]interface{})
-		for _, ticket_ := range ticketsFromFile {
-			ticket, ok := ticket_.(map[string]interface{})
-			if !ok {
-				return fmt.Errorf("could not convert ticket to map[string]interface{}")
-			}
-			ticketId, ok := ticket["id"].(float64)
-			if !ok {
-				return fmt.Errorf("could not convert ticket ID to int")
-			}
-			ticketIds = append(ticketIds, int(ticketId))
+	for _, ticket_ := range s.TicketsFile {
+		ticketId, ok := ticket_["id"].(float64)
+		if !ok {
+			return fmt.Errorf("could not convert ticket ID to int")
 		}
+		s.Ids = append(s.Ids, int(ticketId))
 	}
 
-	if len(ticketIds) == 0 {
+	if len(s.Ids) == 0 {
 		return fmt.Errorf("no ticket IDs specified")
 	}
 
-	domain_, ok := ps["domain"]
-	var domain string
-	if ok {
-		domain = domain_.(string)
-	}
-	email_, ok := ps["email"]
-	var email string
-	if ok {
-		email = email_.(string)
-	}
-	apiToken_, ok := ps["api-token"]
-	var apiToken string
-	if ok {
-		apiToken = apiToken_.(string)
-	}
-
 	// If flags are not set, use environment variables
-	if domain == "" {
-		domain = os.Getenv("ZENDESK_DOMAIN")
+	if s.Domain == "" {
+		s.Domain = os.Getenv("ZENDESK_DOMAIN")
 	}
-	if email == "" {
-		email = os.Getenv("ZENDESK_EMAIL")
+	if s.Email == "" {
+		s.Email = os.Getenv("ZENDESK_EMAIL")
 	}
-	if apiToken == "" {
-		apiToken = os.Getenv("ZENDESK_API_TOKEN")
+	if s.APIToken == "" {
+		s.APIToken = os.Getenv("ZENDESK_API_TOKEN")
 	}
 
 	zd := &ZendeskConfig{
-		Domain:   domain,
-		Email:    email,
-		ApiToken: apiToken,
+		Domain:   s.Domain,
+		Email:    s.Email,
+		ApiToken: s.APIToken,
 	}
 
 	// split ticketIds in group of 100 tickets
 	var ticketIdGroups [][]int
-	for i := 0; i < len(ticketIds); i += 100 {
+	for i := 0; i < len(s.Ids); i += 100 {
 		end := i + 100
-		if end > len(ticketIds) {
-			end = len(ticketIds)
+		if end > len(s.Ids) {
+			end = len(s.Ids)
 		}
-		ticketIdGroups = append(ticketIdGroups, ticketIds[i:end])
+		ticketIdGroups = append(ticketIdGroups, s.Ids[i:end])
 	}
 
-	workers := ps["workers"].(int)
-	fmt.Printf("Using %d workers\n", workers)
-	pool := workerpool.New(workers) // For example, 5 workers
+	fmt.Printf("Using %d workers\n", s.Workers)
+	pool := workerpool.New(s.Workers) // For example, 5 workers
 	pool.Start()
 
 	total := 0
@@ -158,7 +141,7 @@ func (c *DeleteTicketsCommand) RunIntoWriter(
 			lastId := ticketIdGroupCopy[len(ticketIdGroupCopy)-1]
 			fmt.Printf("About to delete %d (%d/%d) tickets, first: %d, last: %d\n",
 				len(ticketIdGroupCopy),
-				total, len(ticketIds),
+				total, len(s.Ids),
 				firstId, lastId)
 
 			jobStatus, err := zd.bulkDeleteTickets(ticketIdGroupCopy)

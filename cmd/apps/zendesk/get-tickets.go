@@ -17,6 +17,8 @@ type GetTicketsCommand struct {
 	*cmds.CommandDescription
 }
 
+var _ cmds.GlazeCommand = (*GetTicketsCommand)(nil)
+
 func NewGetTicketsCommand() (*GetTicketsCommand, error) {
 	glazedParameterLayer, err := settings.NewGlazedParameterLayers()
 	if err != nil {
@@ -32,11 +34,13 @@ func NewGetTicketsCommand() (*GetTicketsCommand, error) {
 					"start-date",
 					parameters.ParameterTypeDate,
 					parameters.WithHelp("Specify the start time from when you want to start fetching tickets."),
+					parameters.WithDefault(time.Date(2010, 1, 1, 0, 0, 0, 0, time.UTC)),
 				),
 				parameters.NewParameterDefinition(
 					"end-date",
 					parameters.ParameterTypeDate,
 					parameters.WithHelp("Specify the end time until when you want to fetch tickets."),
+					parameters.WithDefault(time.Now()),
 				),
 				parameters.NewParameterDefinition(
 					"domain",
@@ -72,77 +76,49 @@ func NewGetTicketsCommand() (*GetTicketsCommand, error) {
 	}, nil
 }
 
+type GetSettings struct {
+	StartDate time.Time `glazed.parameter:"start-date"`
+	EndDate   time.Time `glazed.parameter:"end-date"`
+	Domain    string    `glazed.parameter:"domain"`
+	Email     string    `glazed.parameter:"email"`
+	ApiToken  string    `glazed.parameter:"api-token"`
+	Id        string    `glazed.parameter:"id"`
+	Limit     int       `glazed.parameter:"limit"`
+}
+
 type ErrFinish struct{}
 
 func (e ErrFinish) Error() string {
 	return "finish"
 }
 
-func (c *GetTicketsCommand) Run(
+func (c *GetTicketsCommand) RunIntoGlazeProcessor(
 	ctx context.Context,
-	parsedLayers map[string]*layers.ParsedParameterLayer,
-	ps map[string]interface{},
+	parsedLayers *layers.ParsedLayers,
 	gp middlewares.Processor,
 ) error {
-	// Extract flags from ps map
-	startDate_, ok := ps["start-date"]
-
-	var startDate time.Time
-	if ok {
-		startDate = startDate_.(time.Time)
-	} else {
-		// set to 2010-01-01 per default
-		startDate = time.Date(2010, 1, 1, 0, 0, 0, 0, time.UTC)
+	s := &GetSettings{}
+	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
+	if err != nil {
+		return err
 	}
-
-	endDate_, ok := ps["end-date"]
-	var endDate time.Time
-	if ok {
-		endDate = endDate_.(time.Time)
-	} else {
-		// set to now per default
-		endDate = time.Now()
-	}
-
-	domain_, ok := ps["domain"]
-	var domain string
-	if ok {
-		domain = domain_.(string)
-	}
-	email_, ok := ps["email"]
-	var email string
-	if ok {
-		email = email_.(string)
-	}
-	apiToken_, ok := ps["api-token"]
-	var apiToken string
-	if ok {
-		apiToken = apiToken_.(string)
-	}
-
-	ticketId_, ok := ps["id"]
-	var ticketId string
-	if ok {
-		ticketId = ticketId_.(string)
-	}
-	limit := ps["limit"].(int)
 
 	// If flags are not set, use environment variables
-	if domain == "" {
-		domain = os.Getenv("ZENDESK_DOMAIN")
+	if s.Domain == "" {
+		s.Domain = os.Getenv("ZENDESK_DOMAIN")
 	}
-	if email == "" {
-		email = os.Getenv("ZENDESK_EMAIL")
+	if s.Email == "" {
+		s.Email = os.Getenv("ZENDESK_EMAIL")
 	}
-	if apiToken == "" {
-		apiToken = os.Getenv("ZENDESK_API_TOKEN")
+	if s.ApiToken == "" {
+		s.ApiToken = os.Getenv("ZENDESK_API_TOKEN")
 	}
 
 	// Set up the ZendeskConfig with the parsed flags
 	zd := &ZendeskConfig{
-		Domain:   domain,
-		Email:    email,
-		ApiToken: apiToken,
+		Domain:   s.Domain,
+		Email:    s.Email,
+		ApiToken: s.ApiToken,
 	}
 
 	count := 0
@@ -194,23 +170,23 @@ func (c *GetTicketsCommand) Run(
 
 		count++
 
-		if limit > 0 && count >= limit {
+		if s.Limit > 0 && count >= s.Limit {
 			return ErrFinish{}
 		}
 		return nil
 	}
 
-	if ticketId != "" {
-		ticket := zd.getTicketById(ticketId)
+	if s.Id != "" {
+		ticket := zd.getTicketById(s.Id)
 		err := addTicketRow(ticket)
 		if err != nil {
 			return err
 		}
 	} else {
 		_, err := zd.getIncrementalTickets(Query{
-			StartDate: startDate,
-			EndDate:   endDate,
-			Limit:     limit,
+			StartDate: s.StartDate,
+			EndDate:   s.EndDate,
+			Limit:     s.Limit,
 			Callback:  addTicketRow,
 		})
 
