@@ -46,7 +46,7 @@ func NewVariablesCommand() (*VariablesCommand, error) {
 }
 
 type VariablesSettings struct {
-	File string `json:"file"`
+	File string `glazed.parameter:"file"`
 }
 
 func (c *VariablesCommand) RunIntoGlazeProcessor(

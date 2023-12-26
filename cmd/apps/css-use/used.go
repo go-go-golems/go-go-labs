@@ -44,7 +44,7 @@ func NewUsedCommand() (*UsedCommand, error) {
 }
 
 type UsedSettings struct {
-	Files []string `json:"files"`
+	Files []string `glazed.parameter:"files"`
 }
 
 func (c *UsedCommand) RunIntoGlazeProcessor(

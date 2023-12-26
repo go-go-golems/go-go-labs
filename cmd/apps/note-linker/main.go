@@ -65,7 +65,7 @@ type ListCmd struct {
 var _ cmds.GlazeCommand = (*ListCmd)(nil)
 
 type ListSettings struct {
-	Directories []string `json:"directories"`
+	Directories []string `glazed.parameter:"directories"`
 }
 
 func (l *ListCmd) RunIntoGlazeProcessor(

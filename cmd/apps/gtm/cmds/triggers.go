@@ -47,7 +47,7 @@ func NewTriggersCommand() (*TriggersCommand, error) {
 }
 
 type TriggersSettings struct {
-	File string `json:"file"`
+	File string `glazed.parameter:"file"`
 }
 
 func (c *TriggersCommand) RunIntoGlazeProcessor(

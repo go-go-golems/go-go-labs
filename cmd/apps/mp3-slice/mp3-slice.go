@@ -65,9 +65,9 @@ func NewSliceCommand() (*SliceCommand, error) {
 var _ cmds.GlazeCommand = &SliceCommand{}
 
 type SliceSettings struct {
-	File      string `json:"file"`
-	Duration  int    `json:"duration"`
-	OutputDir string `json:"output-dir"`
+	File      string `glazed.parameter:"file"`
+	Duration  int    `glazed.parameter:"duration"`
+	OutputDir string `glazed.parameter:"output-dir"`
 }
 
 func (c *SliceCommand) RunIntoGlazeProcessor(

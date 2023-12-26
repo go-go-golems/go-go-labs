@@ -68,11 +68,11 @@ func NewFindUsageClassesCommand() (*FindUsageClassesCommand, error) {
 }
 
 type FindUsageClassesSettings struct {
-	Used                []map[string]interface{} `json:"used"`
-	Defined             []map[string]interface{} `json:"defined"`
-	FilterDefiningFiles []string                 `json:"filter-defining-files"`
-	FilterUsingFiles    []string                 `json:"filter-using-files"`
-	FilterClasses       []string                 `json:"filter-classes"`
+	Used                []map[string]interface{} `glazed.parameter:"used"`
+	Defined             []map[string]interface{} `glazed.parameter:"defined"`
+	FilterDefiningFiles []string                 `glazed.parameter:"filter-defining-files"`
+	FilterUsingFiles    []string                 `glazed.parameter:"filter-using-files"`
+	FilterClasses       []string                 `glazed.parameter:"filter-classes"`
 }
 
 func (c *FindUsageClassesCommand) RunIntoGlazeProcessor(

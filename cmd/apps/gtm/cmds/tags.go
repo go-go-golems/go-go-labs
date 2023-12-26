@@ -46,7 +46,7 @@ func NewTagsCommand() (*TagsCommand, error) {
 }
 
 type TagsSettings struct {
-	File string `json:"file"`
+	File string `glazed.parameter:"file"`
 }
 
 func (c *TagsCommand) RunIntoGlazeProcessor(

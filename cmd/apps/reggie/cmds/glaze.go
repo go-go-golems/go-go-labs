@@ -24,7 +24,7 @@ type RegexpMatchCommand struct {
 var _ cmds.GlazeCommand = (*RegexpMatchCommand)(nil)
 
 type RegexpMatchSettings struct {
-	InputFile string `json:"inputFile"`
+	InputFile string `glazed.parameter:"inputFile"`
 }
 
 func NewRegexpMatchCommand(regexMap map[string]*regexp.Regexp) (*RegexpMatchCommand, error) {
