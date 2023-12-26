@@ -20,8 +20,9 @@ import (
 
 // Split a string into lines, additionally returning the size of the widest
 // line.
-func getLines(s string) (lines []string, widest int) {
-	lines = strings.Split(s, "\n")
+func getLines(s string) ([]string, int) {
+	lines := strings.Split(s, "\n")
+	widest := 0
 
 	for _, l := range lines {
 		w := ansi.PrintableRuneWidth(l)

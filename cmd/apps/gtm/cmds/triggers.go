@@ -57,6 +57,9 @@ func (c *TriggersCommand) RunIntoGlazeProcessor(
 ) error {
 	s := &TriggersSettings{}
 	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
+	if err != nil {
+		return err
+	}
 
 	data, err := os.ReadFile(s.File)
 	if err != nil {

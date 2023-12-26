@@ -56,6 +56,9 @@ func (c *VariablesCommand) RunIntoGlazeProcessor(
 ) error {
 	s := &VariablesSettings{}
 	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
+	if err != nil {
+		return err
+	}
 
 	file, err := os.Open(s.File)
 	if err != nil {

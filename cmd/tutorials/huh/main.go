@@ -1,17 +1,21 @@
 package main
 
 import (
-	"fmt"
-	"github.com/charmbracelet/huh"
 	"github.com/go-go-golems/clay/pkg/cmds"
 	cmds2 "github.com/go-go-golems/glazed/pkg/cmds"
+	"github.com/go-go-golems/glazed/pkg/cmds/loaders"
+)
+
+import (
+	"fmt"
+	"github.com/charmbracelet/huh"
 	"github.com/go-go-golems/glazed/pkg/cmds/alias"
 	"github.com/go-go-golems/glazed/pkg/cmds/layout"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/pkg/errors"
-	"os"
 )
 
+//nolint:unused
 var (
 	burger       string
 	toppings     []string
@@ -27,11 +31,12 @@ func main() {
 	//tutorialForm()
 
 	r := &cmds.RawCommandLoader{}
-	f, err := os.Open("cmd/tutorials/huh/ps.yaml")
+	filePath := "cmd/tutorials/huh/ps.yaml"
+	fs_, filePath, err := loaders.FileNameToFsFilePath(filePath)
 	if err != nil {
 		panic(err)
 	}
-	cmds, err := r.LoadCommandsFromReader(f, []cmds2.CommandDescriptionOption{}, []alias.Option{})
+	cmds, err := r.LoadCommands(fs_, filePath, []cmds2.CommandDescriptionOption{}, []alias.Option{})
 	if err != nil {
 		panic(err)
 	}
@@ -44,13 +49,11 @@ func main() {
 }
 
 func runFormForCommand(description *cmds2.CommandDescription) {
-	pds := map[string]*parameters.ParameterDefinition{}
-	for _, f := range description.Flags {
-		pds[f.Name] = f
+	defaultLayer, ok := description.GetDefaultLayer()
+	if !ok {
+		panic(errors.Errorf("expected default layer"))
 	}
-	for _, a := range description.Arguments {
-		pds[a.Name] = a
-	}
+	pds := defaultLayer.GetParameterDefinitions()
 
 	// leave layers out of it for now
 	//for _, layer := range description.Layers {
@@ -67,7 +70,7 @@ func runFormForCommand(description *cmds2.CommandDescription) {
 
 			for _, row := range section.Rows {
 				for _, input := range row.Inputs {
-					pd, ok := pds[input.Name]
+					pd, ok := pds.Get(input.Name)
 					if !ok {
 						continue
 					}
@@ -85,7 +88,7 @@ func runFormForCommand(description *cmds2.CommandDescription) {
 		}
 	} else {
 		fields := []huh.Field{}
-		for _, pd := range pds {
+		pds.ForEach(func(pd *parameters.ParameterDefinition) {
 			options := []layout.Option{}
 			for _, choice := range pd.Choices {
 				options = append(options, layout.Option{
@@ -105,7 +108,7 @@ func runFormForCommand(description *cmds2.CommandDescription) {
 			if field != nil {
 				fields = append(fields, field)
 			}
-		}
+		})
 		group := huh.NewGroup(fields...)
 		groups = append(groups, group)
 	}
@@ -175,9 +178,7 @@ func (c *CommandForm) makeFieldFromParameterDefinition(
 		vals := []string{}
 		if pd.Default != nil {
 			// clone the default values
-			for _, v := range pd.Default.([]string) {
-				vals = append(vals, v)
-			}
+			vals = append(vals, pd.Default.([]string)...)
 		}
 		c.values[input.Name] = &vals
 
@@ -216,6 +217,7 @@ func (c *CommandForm) makeFieldFromParameterDefinition(
 	return nil
 }
 
+//nolint:unused
 func tutorialForm() {
 	form := huh.NewForm(
 		huh.NewGroup(
