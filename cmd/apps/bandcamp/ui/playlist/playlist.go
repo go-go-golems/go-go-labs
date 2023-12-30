@@ -168,7 +168,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.filepicker.Height = newHeight
 
 	case ui2.InsertPlaylistEntryMsg:
-		m.Playlist.InsertTrack(msg.Track, m.l.Index())
+		insertIndex := m.l.Index()
+		if insertIndex < 0 {
+			insertIndex = 0
+		}
+		m.Playlist.InsertTrack(msg.Track, insertIndex)
 		m.state = stateList
 		cmd := m.updateListItems()
 		return m, cmd
@@ -178,9 +182,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case stateList:
 		cmds_ := m.updateList(msg)
 		cmds = append(cmds, cmds_...)
+
 	case stateSearch:
 		cmds_ := m.updateSearch(msg)
 		cmds = append(cmds, cmds_...)
+
 	case stateFilePickerExport:
 		fallthrough
 	case stateFilePickerLoad:
@@ -204,6 +210,7 @@ func (m *Model) updateList(msg tea.Msg) []tea.Cmd {
 			if err := pkg2.OpenURL(url); err != nil {
 				return cmds
 			}
+
 		case key.Matches(msg, m.KeyMap.MoveEntryUp):
 			newIndex := m.Playlist.MoveEntryUp(m.l.Index())
 			// updateIndex
