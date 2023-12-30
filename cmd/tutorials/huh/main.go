@@ -137,10 +137,14 @@ func (c *CommandForm) makeFieldFromParameterDefinition(
 ) huh.Field {
 	switch pd.Type {
 	case parameters.ParameterTypeInteger:
-		val := fmt.Sprintf("%d", pd.Default)
-		c.values[name] = &val
-		return huh.NewInput().Title(pd.Name).Description(pd.Help).
-			Value(&val)
+		ret := huh.NewInput().Title(pd.Name).Description(pd.Help)
+		if pd.Default != nil {
+			val := fmt.Sprintf("%d", pd.Default)
+			c.values[name] = &val
+			return ret.Value(&val)
+		}
+		c.values[name] = nil
+		return ret
 	case parameters.ParameterTypeFloat:
 		val := fmt.Sprintf("%f", pd.Default)
 		c.values[input.Name] = &val
@@ -150,7 +154,7 @@ func (c *CommandForm) makeFieldFromParameterDefinition(
 		parameters.ParameterTypeDate:
 		val := ""
 		if pd.Default != nil {
-			val = pd.Default.(string)
+			val = (*pd.Default).(string)
 		}
 		c.values[input.Name] = &val
 		return huh.NewInput().Title(pd.Name).Description(pd.Help).
@@ -163,7 +167,7 @@ func (c *CommandForm) makeFieldFromParameterDefinition(
 		}
 		val := ""
 		if pd.Default != nil {
-			val = pd.Default.(string)
+			val = (*pd.Default).(string)
 		}
 		c.values[input.Name] = &val
 		return huh.NewSelect[string]().Title(pd.Name).Description(pd.Help).
@@ -178,7 +182,7 @@ func (c *CommandForm) makeFieldFromParameterDefinition(
 		vals := []string{}
 		if pd.Default != nil {
 			// clone the default values
-			vals = append(vals, pd.Default.([]string)...)
+			vals = append(vals, (*pd.Default).([]string)...)
 		}
 		c.values[input.Name] = &vals
 
@@ -202,8 +206,8 @@ func (c *CommandForm) makeFieldFromParameterDefinition(
 		parameters.ParameterTypeStringListFromFiles:
 		val := ""
 		if pd.Default != nil {
-			if _, ok := pd.Default.(string); ok {
-				val = pd.Default.(string)
+			if _, ok := (*pd.Default).(string); ok {
+				val = (*pd.Default).(string)
 			} else {
 				val = fmt.Sprintf("%v", pd.Default)
 			}
