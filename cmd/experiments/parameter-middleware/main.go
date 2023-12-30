@@ -125,9 +125,8 @@ func WithEnv(env map[string]string) Middleware {
 
 			fmt.Println("WithEnv:", definitions.String())
 			for name, def := range env {
-				// could be that it was hidden, in which case we fail anyway
 				if _, ok := definitions[name]; !ok {
-					return errors.New("WithEnv: unknown parameter: " + name)
+					continue
 				}
 
 				fmt.Println("WithEnv: setting", name, def)
@@ -161,6 +160,26 @@ func WithHiddenDefinitions(toHide []string) Middleware {
 
 			// remove definitions before further parsing
 			return f(definitions, parsed)
+		}
+	}
+}
+
+func WithRestrictedParameters(allowed []string, m Middleware) Middleware {
+	return func(next HandlerFunc) HandlerFunc {
+		return func(definitions Definitions, parsed Parsed) error {
+			restoredNext := func(_ Definitions, parsed Parsed) error {
+				return next(definitions, parsed)
+			}
+
+			restricted := Definitions{}
+			for _, name := range allowed {
+				if _, ok := definitions[name]; !ok {
+					return errors.New("WithRestrictedParameters: unknown parameter: " + name)
+				}
+				restricted[name] = definitions[name]
+			}
+
+			return m(restoredNext)(restricted, parsed)
 		}
 	}
 }
@@ -207,6 +226,28 @@ func WithOverrides(overrides map[string]string) Middleware {
 			return nil
 		}
 	}
+}
+
+func runWithMiddlewares(middlewares []Middleware, definitions Definitions) error {
+	parsed := Parsed{}
+
+	handler := func(definitions Definitions, parsed Parsed) error {
+		return nil
+	}
+
+	for _, middleware := range middlewares {
+		handler = middleware(handler)
+	}
+
+	err := handler(definitions, parsed)
+	if err != nil {
+		return err
+	}
+
+	for name, parsedParameter := range parsed {
+		println(name, parsedParameter.Value, parsedParameter.Source)
+	}
+	return nil
 }
 
 func main() {
@@ -313,26 +354,19 @@ func main() {
 		log.Warn().Err(err).Msg("failed to run with middlewares")
 	}
 	fmt.Println("")
-}
 
-func runWithMiddlewares(middlewares []Middleware, definitions Definitions) error {
-	parsed := Parsed{}
-
-	handler := func(definitions Definitions, parsed Parsed) error {
-		return nil
+	fmt.Println("restricting env to foo")
+	fmt.Println("---")
+	definitions = fixedDefinitions.Clone()
+	middlewares = []Middleware{
+		WithRestrictedParameters([]string{"bar"}, WithOverrides(overrides)),
+		WithRestrictedParameters([]string{"foo", "quux"}, WithEnv(env)),
+		WithRestrictedParameters([]string{"bar"}, WithEnv(env)),
+		WithAllDefaults(definitions),
 	}
-
-	for _, middleware := range middlewares {
-		handler = middleware(handler)
-	}
-
-	err := handler(definitions, parsed)
+	err = runWithMiddlewares(middlewares, definitions)
 	if err != nil {
-		return err
+		log.Warn().Err(err).Msg("failed to run with middlewares")
 	}
-
-	for name, parsedParameter := range parsed {
-		println(name, parsedParameter.Value, parsedParameter.Source)
-	}
-	return nil
+	fmt.Println("")
 }
