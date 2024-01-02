@@ -65,7 +65,7 @@ func NewGetProductReviewsCommand() (*GetProductReviewsCommand, error) {
 				parameters.NewParameterDefinition("sort", parameters.ParameterTypeChoice, parameters.WithHelp("Sorting method: newest, oldest, highest, lowest")),
 				parameters.NewParameterDefinition("removed", parameters.ParameterTypeInteger, parameters.WithHelp("Include reviews that are removed or not")),
 			),
-			cmds.WithLayers(shopperApprovedLayer, glazedParameterLayer),
+			cmds.WithLayersList(shopperApprovedLayer, glazedParameterLayer),
 		),
 	}, nil
 }
@@ -149,7 +149,7 @@ func NewGetAllProductReviewsCommand() (*GetAllProductReviewsCommand, error) {
 				parameters.NewParameterDefinition("sort", parameters.ParameterTypeChoice, parameters.WithHelp("Sorting method: newest, oldest, highest, lowest")),
 				parameters.NewParameterDefinition("removed", parameters.ParameterTypeInteger, parameters.WithHelp("Include reviews that are removed or not")),
 			),
-			cmds.WithLayers(shopperApprovedLayer, glazedParameterLayer),
+			cmds.WithLayersList(shopperApprovedLayer, glazedParameterLayer),
 		),
 	}, nil
 }

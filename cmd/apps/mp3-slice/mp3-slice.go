@@ -56,7 +56,7 @@ func NewSliceCommand() (*SliceCommand, error) {
 			"slice",
 			cmds.WithShort("Slice an mp3 file into segments"),
 			cmds.WithFlags(mp3FilePath, duration, outputDir),
-			cmds.WithLayers(glazedParameterLayer),
+			cmds.WithLayersList(glazedParameterLayer),
 		),
 	}, nil
 }

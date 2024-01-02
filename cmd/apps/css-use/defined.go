@@ -57,7 +57,7 @@ func NewDefinedCommand() (*DefinedCommand, error) {
 					parameters.WithDefault([]string{}),
 				),
 			),
-			cmds.WithLayers(glazedParameterLayer),
+			cmds.WithLayersList(glazedParameterLayer),
 		),
 	}, nil
 }

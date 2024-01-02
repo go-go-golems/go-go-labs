@@ -119,7 +119,7 @@ func NewListCommand() (*ListCmd, error) {
 					parameters.WithRequired(true),
 				),
 			),
-			cmds.WithLayers(glazedParameterLayer),
+			cmds.WithLayersList(glazedParameterLayer),
 		),
 	}, nil
 }

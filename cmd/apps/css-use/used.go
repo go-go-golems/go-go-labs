@@ -38,7 +38,7 @@ func NewUsedCommand() (*UsedCommand, error) {
 					parameters.WithDefault([]string{}),
 				),
 			),
-			cmds.WithLayers(glazedLayer),
+			cmds.WithLayersList(glazedLayer),
 		),
 	}, nil
 }

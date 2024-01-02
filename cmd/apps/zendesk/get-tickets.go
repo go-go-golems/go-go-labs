@@ -69,7 +69,7 @@ func NewGetTicketsCommand() (*GetTicketsCommand, error) {
 					parameters.WithDefault(0),
 				),
 			),
-			cmds.WithLayers(
+			cmds.WithLayersList(
 				glazedParameterLayer,
 			),
 		),

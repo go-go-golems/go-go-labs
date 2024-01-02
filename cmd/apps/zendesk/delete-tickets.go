@@ -63,7 +63,7 @@ func NewDeleteTicketsCommand() (*DeleteTicketsCommand, error) {
 					parameters.WithDefault(8),
 				),
 			),
-			cmds.WithLayers(
+			cmds.WithLayersList(
 				glazedParameterLayer,
 			),
 		),

@@ -45,7 +45,7 @@ func NewRegexpMatchCommand(regexMap map[string]*regexp.Regexp) (*RegexpMatchComm
 					parameters.WithRequired(true),
 				),
 			),
-			cmds.WithLayers(
+			cmds.WithLayersList(
 				glazedParameterLayer,
 			),
 		),

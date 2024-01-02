@@ -38,7 +38,7 @@ func NewTagsCommand() (*TagsCommand, error) {
 					parameters.WithRequired(true),
 				),
 			),
-			cmds.WithLayers(
+			cmds.WithLayersList(
 				glazedParameterLayer,
 			),
 		),

@@ -38,7 +38,7 @@ func NewVariablesCommand() (*VariablesCommand, error) {
 					parameters.WithRequired(true),
 				),
 			),
-			cmds.WithLayers(
+			cmds.WithLayersList(
 				glazedParameterLayer,
 			),
 		),

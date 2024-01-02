@@ -39,7 +39,7 @@ func NewTriggersCommand() (*TriggersCommand, error) {
 					parameters.WithRequired(true),
 				),
 			),
-			cmds.WithLayers(
+			cmds.WithLayersList(
 				glazedParameterLayer,
 			),
 		),

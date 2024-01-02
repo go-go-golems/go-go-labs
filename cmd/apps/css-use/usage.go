@@ -60,7 +60,7 @@ func NewFindUsageClassesCommand() (*FindUsageClassesCommand, error) {
 					parameters.WithDefault([]string{}),
 				),
 			),
-			cmds.WithLayers(
+			cmds.WithLayersList(
 				glazedParameterLayer,
 			),
 		),
