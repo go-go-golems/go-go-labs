@@ -19,6 +19,9 @@ type GetProductReviewsCommand struct {
 	*cmds.CommandDescription
 }
 
+var _ cmds.GlazeCommand = (*GetProductReviewsCommand)(nil)
+var _ cmds.GlazeCommand = (*GetAllProductReviewsCommand)(nil)
+
 type GetAllProductReviewsCommand struct {
 	*cmds.CommandDescription
 }
@@ -26,11 +29,16 @@ type GetAllProductReviewsCommand struct {
 func NewShopperApprovedLayer() (layers.ParameterLayer, error) {
 	return layers.NewParameterLayer(
 		"shopper-approved", "Shopper Approved",
-		layers.WithFlags(
+		layers.WithParameterDefinitions(
 			parameters.NewParameterDefinition("site-id", parameters.ParameterTypeInteger, parameters.WithHelp("Shopper Approved site ID")),
 			parameters.NewParameterDefinition("access-token", parameters.ParameterTypeString, parameters.WithHelp("Shopper Approved access token")),
 		),
 	)
+}
+
+type ShopperApprovedSettings struct {
+	SiteID      *int    `glazed.parameter:"site-id"`
+	AccessToken *string `glazed.parameter:"access-token"`
 }
 
 func NewGetProductReviewsCommand() (*GetProductReviewsCommand, error) {
@@ -57,69 +65,47 @@ func NewGetProductReviewsCommand() (*GetProductReviewsCommand, error) {
 				parameters.NewParameterDefinition("sort", parameters.ParameterTypeChoice, parameters.WithHelp("Sorting method: newest, oldest, highest, lowest")),
 				parameters.NewParameterDefinition("removed", parameters.ParameterTypeInteger, parameters.WithHelp("Include reviews that are removed or not")),
 			),
-			cmds.WithLayers(shopperApprovedLayer, glazedParameterLayer),
+			cmds.WithLayersList(shopperApprovedLayer, glazedParameterLayer),
 		),
 	}, nil
 }
 
-func GetAndCast[T any](ps map[string]interface{}, name string, default_ T) (T, bool, error) {
-	if val, ok := ps[name]; ok {
-		if castedVal, ok := val.(T); ok {
-			return castedVal, true, nil
-		}
-		return default_, false, errors.Errorf("could not cast %s to %T", name, val)
-	}
-	return default_, false, nil
+type GetProductReviewsSettings struct {
+	ProductID string     `glazed.parameter:"product-id"`
+	Limit     *int       `glazed.parameter:"limit"`
+	Page      *int       `glazed.parameter:"page"`
+	From      *time.Time `glazed.parameter:"from"`
+	To        *time.Time `glazed.parameter:"to"`
+	Sort      *string    `glazed.parameter:"sort"`
+	Removed   *int       `glazed.parameter:"removed"`
 }
 
-func GetAndCastPtr[T any](ps map[string]interface{}, name string, default_ *T) (*T, bool, error) {
-	if val, ok := ps[name]; ok {
-		if castedVal, ok := val.(T); ok {
-			return &castedVal, true, nil
-		}
-		return default_, true, errors.Errorf("could not cast %s to %T", name, val)
-	}
-	return default_, false, nil
-}
-
-func (c *GetProductReviewsCommand) Run(
+func (c *GetProductReviewsCommand) RunIntoGlazeProcessor(
 	ctx context.Context,
-	parsedLayers map[string]*layers.ParsedParameterLayer,
-	ps map[string]interface{},
+	parsedLayers *layers.ParsedLayers,
 	gp middlewares.Processor,
 ) error {
+	s := &GetProductReviewsSettings{}
+	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
+	if err != nil {
+		return err
+	}
 	params := &pkg2.ReviewRequestParams{
-		ProductID: ps["product-id"].(string),
+		ProductID: s.ProductID,
+		Limit:     s.Limit,
+		Page:      s.Page,
+		From:      s.From,
+		To:        s.To,
+		Sort:      s.Sort,
+		Removed:   s.Removed,
 	}
 
-	var err error
-	params.Limit, _, err = GetAndCastPtr[int](ps, "limit", nil)
+	saSettings := &ShopperApprovedSettings{}
+	err = parsedLayers.InitializeStruct("shopper-approved", saSettings)
 	if err != nil {
 		return err
 	}
-	params.Page, _, err = GetAndCastPtr[int](ps, "page", nil)
-	if err != nil {
-		return err
-	}
-
-	params.From, _, err = GetAndCastPtr[time.Time](ps, "from", nil)
-	if err != nil {
-		return err
-	}
-	params.To, _, err = GetAndCastPtr[time.Time](ps, "to", nil)
-	if err != nil {
-		return err
-	}
-	params.Sort, _, err = GetAndCastPtr[string](ps, "sort", nil)
-	if err != nil {
-		return err
-	}
-	params.Removed, _, err = GetAndCastPtr[int](ps, "removed", nil)
-	if err != nil {
-		return err
-	}
-
-	client, err := getCredentials(ps)
+	client, err := getCredentials(saSettings)
 	if err != nil {
 		return err
 	}
@@ -163,47 +149,39 @@ func NewGetAllProductReviewsCommand() (*GetAllProductReviewsCommand, error) {
 				parameters.NewParameterDefinition("sort", parameters.ParameterTypeChoice, parameters.WithHelp("Sorting method: newest, oldest, highest, lowest")),
 				parameters.NewParameterDefinition("removed", parameters.ParameterTypeInteger, parameters.WithHelp("Include reviews that are removed or not")),
 			),
-			cmds.WithLayers(shopperApprovedLayer, glazedParameterLayer),
+			cmds.WithLayersList(shopperApprovedLayer, glazedParameterLayer),
 		),
 	}, nil
 }
 
-func (c *GetAllProductReviewsCommand) Run(
+func (c *GetAllProductReviewsCommand) RunIntoGlazeProcessor(
 	ctx context.Context,
-	parsedLayers map[string]*layers.ParsedParameterLayer,
-	ps map[string]interface{},
+	parsedLayers *layers.ParsedLayers,
 	gp middlewares.Processor,
 ) error {
-	params := &pkg2.ReviewRequestParams{}
-
-	var err error
-	params.Limit, _, err = GetAndCastPtr[int](ps, "limit", nil)
-	if err != nil {
-		return err
-	}
-	params.Page, _, err = GetAndCastPtr[int](ps, "page", nil)
+	s := &GetProductReviewsSettings{}
+	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
 	if err != nil {
 		return err
 	}
 
-	params.From, _, err = GetAndCastPtr[time.Time](ps, "from", nil)
-	if err != nil {
-		return err
+	params := &pkg2.ReviewRequestParams{
+		ProductID: s.ProductID,
+		Limit:     s.Limit,
+		Page:      s.Page,
+		From:      s.From,
+		To:        s.To,
+		Sort:      s.Sort,
+		Removed:   s.Removed,
 	}
-	params.To, _, err = GetAndCastPtr[time.Time](ps, "to", nil)
-	if err != nil {
-		return err
-	}
-	params.Sort, _, err = GetAndCastPtr[string](ps, "sort", nil)
-	if err != nil {
-		return err
-	}
-	params.Removed, _, err = GetAndCastPtr[int](ps, "removed", nil)
+
+	saSettings := &ShopperApprovedSettings{}
+	err = parsedLayers.InitializeStruct("shopper-approved", saSettings)
 	if err != nil {
 		return err
 	}
 
-	client, err := getCredentials(ps)
+	client, err := getCredentials(saSettings)
 	if err != nil {
 		return err
 	}
@@ -224,30 +202,29 @@ func (c *GetAllProductReviewsCommand) Run(
 	return nil
 }
 
-func getCredentials(ps map[string]interface{}) (*pkg2.ShopperApprovedClient, error) {
-	siteId, ok := ps["site-id"].(int)
-	if !ok {
+func getCredentials(approvedSettings *ShopperApprovedSettings) (*pkg2.ShopperApprovedClient, error) {
+	if approvedSettings.SiteID == nil {
 		siteId_ := os.Getenv("SHOPPER_APPROVED_SITE_ID")
 		if siteId_ == "" {
 			return nil, errors.New("siteId is required")
 		}
-		var err error
-		siteId, err = strconv.Atoi(siteId_)
+		siteId, err := strconv.Atoi(siteId_)
 		if err != nil {
 			return nil, errors.Wrap(err, "siteId is required")
 		}
+		approvedSettings.SiteID = &siteId
 	}
-	accessToken, ok := ps["access-token"].(string)
-	if !ok {
-		accessToken = os.Getenv("SHOPPER_APPROVED_ACCESS_TOKEN")
+	if approvedSettings.AccessToken == nil {
+		accessToken := os.Getenv("SHOPPER_APPROVED_ACCESS_TOKEN")
 		if accessToken == "" {
 			return nil, errors.New("accessToken is required")
 		}
+		approvedSettings.AccessToken = &accessToken
 	}
 
 	client := &pkg2.ShopperApprovedClient{
-		SiteID: siteId,
-		Token:  accessToken,
+		SiteID: *approvedSettings.SiteID,
+		Token:  *approvedSettings.AccessToken,
 	}
 	return client, nil
 }

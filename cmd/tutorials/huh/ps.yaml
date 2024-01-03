@@ -1,5 +1,34 @@
 name: ps
 short: Show full MySQL processlist
+
+layout:
+  - title: Simple section
+    rows:
+      - title: user db fields
+        description: This is a row with user db fields
+        inputs:
+          - name: mysql_user
+            label: user
+          - name: db
+          - name: info_like
+      - title: info fields
+        description: Info amount or so
+        inputs:
+          - name: short_info
+          - name: medium_info
+          - name: foobar
+  - title: Second section
+    rows:
+      - title: db fields
+        description: This is a row with more db fields
+        inputs:
+          - name: db_like
+          - name: state
+      - title: connection data
+        description: host information
+        inputs:
+          - name: hostname
+
 flags:
   - name: mysql_user
     type: stringList
@@ -32,11 +61,10 @@ flags:
   - name: full_info
     type: bool
     help: Show the full info
-subqueries:
-  foobar:
-    SELECT * FROM FOOBAR
-  blab:
-    SELECT * FROM BLAB
+  - name: foobar
+    type: intList
+    help: Filter by foobar
+    default: [1,2,3]
 query: |
   SELECT 
   Id,User,Host,db,Command,Time,State

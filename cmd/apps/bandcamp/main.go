@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/ThreeDotsLabs/watermill/message"
@@ -19,7 +18,6 @@ func main() {
 		Use:   "bancamp_search",
 		Short: "Search bandcamp", Long: `Search for music on bandcamp`,
 		Run: func(cmd *cobra.Command, args []string) {
-			client := pkg2.NewClient()
 			machine, err := machinery2.NewMachine()
 			httpServer := machinery2.NewHTTPServer()
 			cobra.CheckErr(err)
@@ -39,30 +37,7 @@ func main() {
 				},
 			)
 
-			filter, _ := cmd.Flags().GetString("filter")
-
-			if len(args) == 0 {
-				log.Fatal().Msg("please provide a search keyword")
-			}
-
-			searchResp, err := client.Search(context.Background(), args[0], pkg2.SearchType(filter))
-			if err != nil {
-				log.Fatal().Err(err).Msg("failed to search")
-			}
-
-			results := searchResp.Auto.Results[:3]
-			tracks_ := make([]*pkg2.Track, len(results))
-
-			for i, result := range results {
-				tracks_[i] = &pkg2.Track{
-					BackgroundColor: "black",
-					LinkColor:       "white",
-					AlbumID:         result.AlbumID,
-					Name:            result.Name,
-					BandName:        result.BandName,
-					ItemURLPath:     result.ItemURLPath,
-				}
-			}
+			tracks_ := make([]*pkg2.Track, 0)
 
 			// TODO(manuel, 2023-08-16) A cool feature would be to expose the playlist
 			// as a render webpage immediately, so that one can see the final result.

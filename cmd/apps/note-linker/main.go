@@ -62,15 +62,24 @@ type ListCmd struct {
 	*cmds.CommandDescription
 }
 
-func (l *ListCmd) Run(
+var _ cmds.GlazeCommand = (*ListCmd)(nil)
+
+type ListSettings struct {
+	Directories []string `glazed.parameter:"directories"`
+}
+
+func (l *ListCmd) RunIntoGlazeProcessor(
 	ctx context.Context,
-	parsedLayers map[string]*layers.ParsedParameterLayer,
-	ps map[string]interface{},
+	parsedLayers *layers.ParsedLayers,
 	gp middlewares.Processor,
 ) error {
-	directories := ps["directories"].([]string)
+	s := &ListSettings{}
+	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
+	if err != nil {
+		return err
+	}
 
-	for _, directory := range directories {
+	for _, directory := range s.Directories {
 		fileNames, err := findAllMarkdownFiles(directory)
 		if err != nil {
 			return err
@@ -110,7 +119,7 @@ func NewListCommand() (*ListCmd, error) {
 					parameters.WithRequired(true),
 				),
 			),
-			cmds.WithLayers(glazedParameterLayer),
+			cmds.WithLayersList(glazedParameterLayer),
 		),
 	}, nil
 }

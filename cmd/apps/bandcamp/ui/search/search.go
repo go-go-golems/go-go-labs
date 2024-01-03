@@ -8,30 +8,30 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	pkg2 "github.com/go-go-golems/go-go-labs/cmd/apps/bandcamp/pkg"
-	ui2 "github.com/go-go-golems/go-go-labs/cmd/apps/bandcamp/ui"
+	bandcamp "github.com/go-go-golems/go-go-labs/cmd/apps/bandcamp/pkg"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/bandcamp/ui"
 )
-
-type Result pkg2.Result
 
 type CloseSearchMsg struct{}
 type SelectEntryMsg struct {
-	Result *pkg2.Result
+	Result *bandcamp.Result
 }
+
+type Result bandcamp.Result
 
 func (s *Result) FilterValue() string {
 	return fmt.Sprintf("%d", s.ID)
 }
 
 func (s *Result) Title() string {
-	switch pkg2.SearchType(s.Type) {
-	case pkg2.FilterTrack:
+	switch bandcamp.SearchType(s.Type) {
+	case bandcamp.FilterTrack:
 		return fmt.Sprintf("%s - %s (%s)", s.BandName, s.Name, s.AlbumName)
-	case pkg2.FilterAlbum:
+	case bandcamp.FilterAlbum:
 		return fmt.Sprintf("%s - %s", s.BandName, s.Name)
-	case pkg2.FilterBand:
+	case bandcamp.FilterBand:
 		return s.BandName
-	case pkg2.FilterAll:
+	case bandcamp.FilterAll:
 		return fmt.Sprintf("%s - %s (%s)", s.BandName, s.Name, s.AlbumName)
 	default:
 		return s.Name
@@ -85,7 +85,7 @@ func DefaultKeyMap() KeyMap {
 }
 
 var (
-	titleStyle             = ui2.MainTitleStyle
+	titleStyle             = ui.MainTitleStyle
 	titleBarStyle          = lipgloss.NewStyle().Padding(0, 0, 1, 2)
 	searchInputPromptStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("205"))
@@ -96,11 +96,12 @@ var (
 type Model struct {
 	results []*Result
 
-	client *pkg2.Client
+	client *bandcamp.Client
 
 	l list.Model
 
-	// TODO(manuel, 2023-08-09) We can actually use the help widget from the list by passing our own keys using AdditionalShortHelpKeys and such
+	// TODO(manuel, 2023-08-09) We can actually use the help widget from the list
+	// by passing our own keys using AdditionalShortHelpKeys and such
 	// however, not sure if this allows us to override the whole filtering stuff
 	SearchInput textinput.Model
 
@@ -113,25 +114,25 @@ type Model struct {
 	width      int
 }
 
-func (m Model) GetResults() []*pkg2.Result {
-	ret := make([]*pkg2.Result, len(m.results))
+func (m Model) GetResults() []*bandcamp.Result {
+	ret := make([]*bandcamp.Result, len(m.results))
 	for i, r := range m.results {
-		ret[i] = (*pkg2.Result)(r)
+		ret[i] = (*bandcamp.Result)(r)
 	}
 
 	return ret
 }
 
-func (m Model) GetSelectedResult() *pkg2.Result {
+func (m Model) GetSelectedResult() *bandcamp.Result {
 	idx := m.l.Index()
 	if idx < 0 || idx >= len(m.results) {
 		return nil
 	}
 
-	return (*pkg2.Result)(m.results[idx])
+	return (*bandcamp.Result)(m.results[idx])
 }
 
-func NewModel(client *pkg2.Client, results []*pkg2.Result) Model {
+func NewModel(client *bandcamp.Client, results []*bandcamp.Result) Model {
 	items := make([]list.Item, len(results))
 	results_ := make([]*Result, len(results))
 
@@ -241,7 +242,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.SetSize(msg.Width, msg.Height)
 
-	case ui2.UpdateSearchResultsMsg:
+	case ui.UpdateSearchResultsMsg:
 		items := make([]list.Item, len(msg.Results))
 		results := make([]*Result, len(msg.Results))
 		for i, result := range msg.Results {
@@ -303,12 +304,12 @@ func (m *Model) updateSearch(msg tea.Msg) tea.Cmd {
 }
 
 func (m Model) SearchBandcamp(searchTerm string) tea.Msg {
-	resp, err := m.client.Search(context.Background(), searchTerm, pkg2.FilterTrack)
+	resp, err := m.client.Search(context.Background(), searchTerm, bandcamp.FilterTrack)
 	if err != nil {
-		return ui2.ErrMsg{Err: err}
+		return ui.ErrMsg{Err: err}
 	}
 
-	return ui2.UpdateSearchResultsMsg{Results: resp.Auto.Results}
+	return ui.UpdateSearchResultsMsg{Results: resp.Auto.Results}
 }
 
 func (m *Model) updateList(msg tea.Msg) tea.Cmd {
@@ -330,7 +331,7 @@ func (m *Model) updateList(msg tea.Msg) tea.Cmd {
 				return nil
 			}
 			url := m.results[m.l.Index()].ItemURLPath
-			if err := pkg2.OpenURL(url); err != nil {
+			if err := bandcamp.OpenURL(url); err != nil {
 				return tea.Quit
 			}
 
@@ -340,7 +341,7 @@ func (m *Model) updateList(msg tea.Msg) tea.Cmd {
 					return CloseSearchMsg{}
 				}
 				return SelectEntryMsg{
-					Result: (*pkg2.Result)(m.results[m.l.Index()]),
+					Result: (*bandcamp.Result)(m.results[m.l.Index()]),
 				}
 			}
 

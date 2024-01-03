@@ -26,6 +26,8 @@ type FeedCommand struct {
 	*cmds.CommandDescription
 }
 
+var _ cmds.GlazeCommand = (*FeedCommand)(nil)
+
 func NewFeedCommand() (*FeedCommand, error) {
 	glazedParameterLayer, err := settings.NewGlazedParameterLayers()
 	if err != nil {
@@ -60,7 +62,7 @@ func NewFeedCommand() (*FeedCommand, error) {
 					parameters.WithDefault(0),
 				),
 			),
-			cmds.WithLayers(
+			cmds.WithLayersList(
 				glazedParameterLayer,
 			),
 		),
@@ -73,26 +75,29 @@ type Download struct {
 	PodcastTitle string
 }
 
+type FeedSettings struct {
+	FeedUrls  []string `glazed.parameter:"feed-url"`
+	Download  bool     `glazed.parameter:"download"`
+	OutputDir string   `glazed.parameter:"output-dir"`
+	Limit     int      `glazed.parameter:"limit"`
+}
+
 // TODO(manuel, 2023-10-12) Add bubbletea UI for download progress
 
-func (f *FeedCommand) Run(
+func (f *FeedCommand) RunIntoGlazeProcessor(
 	ctx context.Context,
-	parsedLayers map[string]*layers.ParsedParameterLayer,
-	ps map[string]interface{},
+	parsedLayers *layers.ParsedLayers,
 	gp middlewares.Processor,
 ) error {
-	feedUrls, ok := ps["feed-url"].([]string)
-	if !ok {
-		return fmt.Errorf("feed-url is not a string list")
+	s := &FeedSettings{}
+	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
+	if err != nil {
+		return err
 	}
 
 	fp := gofeed.NewParser()
 
-	download, _ := ps["download"].(bool)
-	outputDir, _ := ps["output-dir"].(string)
-	limit, _ := ps["limit"].(int)
-
-	err := os.MkdirAll(outputDir, os.ModePerm)
+	err = os.MkdirAll(s.OutputDir, os.ModePerm)
 	if err != nil {
 		return errors.Wrap(err, "could not create output directory")
 	}
@@ -100,7 +105,7 @@ func (f *FeedCommand) Run(
 	wg := sync.WaitGroup{}
 	downloadPool := map_pool.New[*Download](5)
 
-	if download {
+	if s.Download {
 		downloadPool.Start()
 		wg.Add(1)
 
@@ -119,7 +124,7 @@ func (f *FeedCommand) Run(
 	currentJobs := map[string]interface{}{}
 	var mu sync.Mutex
 
-	for _, url := range feedUrls {
+	for _, url := range s.FeedUrls {
 		feed, err := fp.ParseURL(url)
 		if err != nil {
 			return errors.Wrapf(err, "Error fetching the RSS feed from URL: %s", url)
@@ -134,7 +139,7 @@ func (f *FeedCommand) Run(
 		row.Set("feedDescription", strings.TrimSpace(feed.Description))
 
 		for i, item := range feed.Items {
-			if limit > 0 && i >= limit {
+			if s.Limit > 0 && i >= s.Limit {
 				break
 			}
 
@@ -147,12 +152,12 @@ func (f *FeedCommand) Run(
 				if enclosure.URL != "" {
 					row.Set(fmt.Sprintf("enclosure%d", i), enclosure.URL)
 				}
-				outputFile := filepath.Join(outputDir, makeOutputFileName(feed.Title, item.Title, enclosure.Type))
+				outputFile := filepath.Join(s.OutputDir, makeOutputFileName(feed.Title, item.Title, enclosure.Type))
 				// only download first enclosure, for now
 				if i == 0 {
 
 					row.Set(fmt.Sprintf("outputFile%d", i), outputFile)
-					if download {
+					if s.Download {
 						downloadPool.AddJob(func() (*Download, error) {
 							// download enclosure.URL
 							req, err := http.NewRequestWithContext(ctx, "GET", enclosure.URL, nil)

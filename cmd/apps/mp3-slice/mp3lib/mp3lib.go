@@ -7,7 +7,7 @@
 //
 // mp3cut is used to extract segments from an MP3 file.
 // Usage: mp3cut [-o outputfile] [-T title] [-A artist] [-N album-name] [-t [hh:]mm:ss[+ms]-[hh:]mm:ss[+ms]] mp3 [-t ...] mp3
-// Flags:
+// Parameters:
 //
 //	-o output: Output file, default mp3file.out.mp3
 //	-T title: Set title metadata for the output mp3

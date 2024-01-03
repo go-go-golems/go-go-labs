@@ -18,6 +18,8 @@ type TagsCommand struct {
 	*cmds.CommandDescription
 }
 
+var _ cmds.GlazeCommand = (*TagsCommand)(nil)
+
 func NewTagsCommand() (*TagsCommand, error) {
 	glazedParameterLayer, err := settings.NewGlazedParameterLayers()
 	if err != nil {
@@ -36,22 +38,29 @@ func NewTagsCommand() (*TagsCommand, error) {
 					parameters.WithRequired(true),
 				),
 			),
-			cmds.WithLayers(
+			cmds.WithLayersList(
 				glazedParameterLayer,
 			),
 		),
 	}, nil
 }
 
-func (c *TagsCommand) Run(
+type TagsSettings struct {
+	File string `glazed.parameter:"file"`
+}
+
+func (c *TagsCommand) RunIntoGlazeProcessor(
 	ctx context.Context,
-	parsedLayers map[string]*layers.ParsedParameterLayer,
-	ps map[string]interface{},
+	parsedLayers *layers.ParsedLayers,
 	gp middlewares.Processor,
 ) error {
-	filePath := ps["file"].(string)
+	s := &TagsSettings{}
+	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
+	if err != nil {
+		return err
+	}
 
-	file, err := os.Open(filePath)
+	file, err := os.Open(s.File)
 	if err != nil {
 		return errors.Wrap(err, "could not open file")
 	}

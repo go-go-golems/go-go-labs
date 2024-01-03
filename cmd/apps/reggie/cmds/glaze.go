@@ -21,6 +21,12 @@ type RegexpMatchCommand struct {
 	regexMap map[string]*regexp.Regexp
 }
 
+var _ cmds.GlazeCommand = (*RegexpMatchCommand)(nil)
+
+type RegexpMatchSettings struct {
+	InputFile string `glazed.parameter:"inputFile"`
+}
+
 func NewRegexpMatchCommand(regexMap map[string]*regexp.Regexp) (*RegexpMatchCommand, error) {
 	glazedParameterLayer, err := settings.NewGlazedParameterLayers()
 	if err != nil {
@@ -39,7 +45,7 @@ func NewRegexpMatchCommand(regexMap map[string]*regexp.Regexp) (*RegexpMatchComm
 					parameters.WithRequired(true),
 				),
 			),
-			cmds.WithLayers(
+			cmds.WithLayersList(
 				glazedParameterLayer,
 			),
 		),
@@ -47,15 +53,18 @@ func NewRegexpMatchCommand(regexMap map[string]*regexp.Regexp) (*RegexpMatchComm
 	}, nil
 }
 
-func (c *RegexpMatchCommand) Run(
+func (c *RegexpMatchCommand) RunIntoGlazeProcessor(
 	ctx context.Context,
-	parsedLayers map[string]*layers.ParsedParameterLayer,
-	ps map[string]interface{},
+	parsedLayers *layers.ParsedLayers,
 	gp middlewares.Processor,
 ) error {
-	inputFile := ps["inputFile"].(string)
+	s := &RegexpMatchSettings{}
+	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
+	if err != nil {
+		return err
+	}
 
-	file, err := os.Open(inputFile)
+	file, err := os.Open(s.InputFile)
 	if err != nil {
 		return err
 	}
