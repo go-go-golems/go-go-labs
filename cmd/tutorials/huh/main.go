@@ -146,7 +146,7 @@ func (c *CommandForm) makeFieldFromParameterDefinition(
 		c.values[name] = nil
 		return ret
 	case parameters.ParameterTypeFloat:
-		val := fmt.Sprintf("%f", pd.Default)
+		val := fmt.Sprintf("%v", pd.Default)
 		c.values[input.Name] = &val
 		return huh.NewInput().Title(pd.Name).Description(pd.Help).
 			Value(&val)
