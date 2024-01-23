@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"crypto/sha1"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"github.com/pkg/errors"
@@ -70,161 +71,182 @@ func (ei *EmrichenInterpreter) Process(node *yaml.Node) (*yaml.Node, error) {
 		return nil, errors.New("custom tag is empty")
 	}
 
-	//exhaustive:ignore
-	switch ss[0] {
-	case "!Defaults":
-		if node.Kind == yaml.MappingNode {
-			err := ei.updateVars(node.Content)
-			if err != nil {
-				return nil, err
-			}
+	for i, s := range ss[1:] {
+		if !strings.HasPrefix(s, "!") {
+			ss[i+1] = "!" + s
 		}
-		return node, nil
-
-	case "!All":
-		return ei.handleAll(node)
-	case "!Any":
-
-		return ei.handleAny(node)
-
-	case "!Filter":
-		return ei.handleFilter(node)
-
-	case "!If":
-		return ei.handleIf(node)
-
-	case "!Concat":
-		return ei.handleConcat(node)
-
-	case "!Join":
-		return ei.handleJoin(node)
-
-	case "!Not":
-		return ei.handleNot(node)
-
-	case "!Op":
-		return ei.handleOp(node)
-
-	case "!MD5":
-		if node.Kind != yaml.ScalarNode {
-			return nil, errors.New("!MD5 requires a scalar value")
-		}
-		hash := md5.Sum([]byte(node.Value))
-		return &yaml.Node{
-			Kind:  yaml.ScalarNode,
-			Value: hex.EncodeToString(hash[:]),
-		}, nil
-
-	case "!SHA1":
-		if node.Kind != yaml.ScalarNode {
-			return nil, errors.New("!SHA1 requires a scalar value")
-		}
-		hash := sha1.Sum([]byte(node.Value))
-		return &yaml.Node{
-			Kind:  yaml.ScalarNode,
-			Value: hex.EncodeToString(hash[:]),
-		}, nil
-
-	case "!SHA256":
-		if node.Kind != yaml.ScalarNode {
-			return nil, errors.New("!SHA256 requires a scalar value")
-		}
-		hash := sha256.Sum256([]byte(node.Value))
-		return &yaml.Node{
-			Kind:  yaml.ScalarNode,
-			Value: hex.EncodeToString(hash[:]),
-		}, nil
-
-	case "!Var":
-		if node.Kind == yaml.ScalarNode {
-			varName := node.Value
-			varValue, ok := ei.vars[varName]
-			if !ok {
-				return nil, fmt.Errorf("variable %s not found", varName)
-			}
-			return varValue, nil
-		}
-		return nil, errors.New("variable definition must be !Var variable name")
-
-	case "!Error":
-		if node.Kind == yaml.ScalarNode {
-			return nil, errors.New(node.Value)
-		}
-		return nil, errors.New("!Error tag requires a scalar value for the error message")
-
-	case "!Format":
-		return ei.handleFormat(node)
-
-	case "!Include":
-		return ei.handleInclude(node)
-
-	case "!IsBoolean":
-		return &yaml.Node{
-			Kind:  yaml.ScalarNode,
-			Value: strconv.FormatBool(node.Kind == yaml.ScalarNode && (node.Value == "true" || node.Value == "false")),
-		}, nil
-
-	case "!IsDict":
-		return &yaml.Node{
-			Kind:  yaml.ScalarNode,
-			Value: strconv.FormatBool(node.Kind == yaml.MappingNode),
-		}, nil
-
-	case "!IsInteger":
-		_, err := strconv.Atoi(node.Value)
-		return &yaml.Node{
-			Kind:  yaml.ScalarNode,
-			Value: strconv.FormatBool(err == nil && node.Kind == yaml.ScalarNode),
-		}, nil
-
-	case "!IsList":
-		return &yaml.Node{
-			Kind:  yaml.ScalarNode,
-			Value: strconv.FormatBool(node.Kind == yaml.SequenceNode),
-		}, nil
-
-	case "!IsNone":
-		return &yaml.Node{
-			Kind:  yaml.ScalarNode,
-			Value: strconv.FormatBool(node.Tag == "!!null" || node.Value == "null"),
-		}, nil
-
-	case "!IsNumber":
-		_, err := strconv.ParseFloat(node.Value, 64)
-		return &yaml.Node{
-			Kind:  yaml.ScalarNode,
-			Value: strconv.FormatBool(err == nil && node.Kind == yaml.ScalarNode),
-		}, nil
-
-	case "!IsString":
-		return &yaml.Node{
-			Kind:  yaml.ScalarNode,
-			Value: strconv.FormatBool(node.Kind == yaml.ScalarNode),
-		}, nil
-
-	case "!Merge":
-		return ei.handleMerge(node)
-
-	case "!URLEncode":
-		return ei.handleURLEncode(node)
-
-	case "!Void":
-		return nil, nil
-
-	case "!With":
-		return ei.handleWith(node)
-
-	default:
 	}
 
-	if node.Kind == yaml.SequenceNode || node.Kind == yaml.MappingNode {
-		var err error
-		for i := range node.Content {
-			node.Content[i], err = ei.Process(node.Content[i])
-			if err != nil {
-				return nil, err
+	// reverse ss
+	for i := len(ss)/2 - 1; i >= 0; i-- {
+		opp := len(ss) - 1 - i
+		ss[i], ss[opp] = ss[opp], ss[i]
+	}
+
+	for _, verb := range ss {
+		ret, err := func() (*yaml.Node, error) {
+			//exhaustive:ignore
+			switch verb {
+			case "!Defaults":
+				if node.Kind == yaml.MappingNode {
+					err := ei.updateVars(node.Content)
+					if err != nil {
+						return nil, err
+					}
+				}
+				return node, nil
+
+			case "!All":
+				return ei.handleAll(node)
+			case "!Any":
+
+				return ei.handleAny(node)
+
+			case "!Filter":
+				return ei.handleFilter(node)
+
+			case "!If":
+				return ei.handleIf(node)
+
+			case "!Concat":
+				return ei.handleConcat(node)
+
+			case "!Join":
+				return ei.handleJoin(node)
+
+			case "!Not":
+				return ei.handleNot(node)
+
+			case "!Op":
+				return ei.handleOp(node)
+
+			case "!MD5":
+				if node.Kind != yaml.ScalarNode {
+					return nil, errors.New("!MD5 requires a scalar value")
+				}
+				hash := md5.Sum([]byte(node.Value))
+				return makeString(hex.EncodeToString(hash[:])), nil
+
+			case "!SHA1":
+				if node.Kind != yaml.ScalarNode {
+					return nil, errors.New("!SHA1 requires a scalar value")
+				}
+				hash := sha1.Sum([]byte(node.Value))
+				return makeString(hex.EncodeToString(hash[:])), nil
+
+			case "!SHA256":
+				if node.Kind != yaml.ScalarNode {
+					return nil, errors.New("!SHA256 requires a scalar value")
+				}
+				hash := sha256.Sum256([]byte(node.Value))
+				return makeString(hex.EncodeToString(hash[:])), nil
+
+			case "!Base64":
+				if node.Kind != yaml.ScalarNode {
+					return nil, errors.New("!Base64 requires a scalar value")
+				}
+				return makeString(base64.StdEncoding.EncodeToString([]byte(node.Value))), nil
+
+			case "!Var":
+				if node.Kind == yaml.ScalarNode {
+					varName := node.Value
+					varValue, ok := ei.vars[varName]
+					if !ok {
+						return nil, fmt.Errorf("variable %s not found", varName)
+					}
+					return varValue, nil
+				}
+				return nil, errors.New("variable definition must be !Var variable name")
+
+			case "!Error":
+				if node.Kind == yaml.ScalarNode {
+					return nil, errors.New(node.Value)
+				}
+				return nil, errors.New("!Error tag requires a scalar value for the error message")
+
+			case "!Format":
+				return ei.handleFormat(node)
+
+			case "!Include":
+				return ei.handleInclude(node)
+
+			case "!IsBoolean":
+				return &yaml.Node{
+					Kind:  yaml.ScalarNode,
+					Value: strconv.FormatBool(node.Kind == yaml.ScalarNode && (node.Value == "true" || node.Value == "false")),
+				}, nil
+
+			case "!IsDict":
+				return &yaml.Node{
+					Kind:  yaml.ScalarNode,
+					Value: strconv.FormatBool(node.Kind == yaml.MappingNode),
+				}, nil
+
+			case "!IsInteger":
+				_, err := strconv.Atoi(node.Value)
+				return &yaml.Node{
+					Kind:  yaml.ScalarNode,
+					Value: strconv.FormatBool(err == nil && node.Kind == yaml.ScalarNode),
+				}, nil
+
+			case "!IsList":
+				return &yaml.Node{
+					Kind:  yaml.ScalarNode,
+					Value: strconv.FormatBool(node.Kind == yaml.SequenceNode),
+				}, nil
+
+			case "!IsNone":
+				return &yaml.Node{
+					Kind:  yaml.ScalarNode,
+					Value: strconv.FormatBool(node.Tag == "!!null" || node.Value == "null"),
+				}, nil
+
+			case "!IsNumber":
+				_, err := strconv.ParseFloat(node.Value, 64)
+				return &yaml.Node{
+					Kind:  yaml.ScalarNode,
+					Value: strconv.FormatBool(err == nil && node.Kind == yaml.ScalarNode),
+				}, nil
+
+			case "!IsString":
+				return &yaml.Node{
+					Kind:  yaml.ScalarNode,
+					Value: strconv.FormatBool(node.Kind == yaml.ScalarNode),
+				}, nil
+
+			case "!Merge":
+				return ei.handleMerge(node)
+
+			case "!URLEncode":
+				return ei.handleURLEncode(node)
+
+			case "!Void":
+				return nil, nil
+
+			case "!With":
+				return ei.handleWith(node)
+
+			default:
 			}
+
+			if node.Kind == yaml.SequenceNode || node.Kind == yaml.MappingNode {
+				var err error
+				for i := range node.Content {
+					node.Content[i], err = ei.Process(node.Content[i])
+					if err != nil {
+						return nil, err
+					}
+				}
+			}
+
+			return node, nil
+		}()
+
+		if err != nil {
+			return nil, err
 		}
+
+		node = ret
 	}
 
 	return node, nil
@@ -266,6 +288,7 @@ func (ei *EmrichenInterpreter) handleConcat(node *yaml.Node) (*yaml.Node, error)
 
 	return &yaml.Node{
 		Kind:    yaml.SequenceNode,
+		Tag:     "!!seq",
 		Content: concatenated,
 	}, nil
 }
@@ -333,18 +356,29 @@ func (ei *EmrichenInterpreter) handleFilter(node *yaml.Node) (*yaml.Node, error)
 		return nil, errors.New("!Filter requires a mapping node")
 	}
 
-	testNode, overNode, err := parseFilterArgs(node)
+	args, err := parseArgs(node, []string{"test", "over"})
 	if err != nil {
 		return nil, err
 	}
 
+	overNode := args["over"]
 	if overNode.Kind != yaml.SequenceNode {
 		return nil, errors.New("!Filter 'over' argument must be a sequence")
+	}
+	testNode := args["test"]
+
+	varName := "item"
+	asNode, ok := args["as"]
+	if ok {
+		if asNode.Kind != yaml.ScalarNode {
+			return nil, errors.New("!Filter 'as' argument must be a scalar")
+		}
+		varName = asNode.Value
 	}
 
 	filtered := []*yaml.Node{}
 	for _, item := range overNode.Content {
-		ei.vars["item"] = item // Assuming 'item' is the variable name for each element
+		ei.vars[varName] = item // Assuming 'item' is the variable name for each element
 		result, err := ei.Process(testNode)
 		if err != nil {
 			return nil, err
