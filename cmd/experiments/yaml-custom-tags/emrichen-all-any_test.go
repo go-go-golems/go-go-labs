@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestEmrichenTags(t *testing.T) {
+func TestEmrichenAllTag(t *testing.T) {
 	tests := []testCase{
 		// https://chat.openai.com/c/ad6cb760-3417-4a9e-b76b-8bc590e366da
 		{
@@ -122,6 +122,72 @@ func TestEmrichenTags(t *testing.T) {
 			inputYAML: "!All [true, true, true, true, true, true, true, true, true, true]",
 			expected:  "true",
 		},
+
+		{
+			name:      "All with nested variables",
+			inputYAML: "!All [!Var v1, !Var v2, true]",
+			expected:  "true",
+			initVars: map[string]interface{}{
+				"v1": true,
+				"v2": 1,
+			},
+		},
+
+		{
+			name:      "All with nested variables",
+			inputYAML: "!All [!Var v1, !Var v2, true]",
+			expected:  "false",
+			initVars: map[string]interface{}{
+				"v1": false,
+				"v2": 1,
+			},
+		},
+
+		{
+			name:      "All with nested variables (undefined variable)",
+			inputYAML: "!All [!Var v1, !Var v2, true]",
+			expected:  "false",
+			initVars: map[string]interface{}{
+				"v1": true,
+			},
+			expectError: true,
+		},
+
+		{
+			name:      "All with nested variable lists",
+			inputYAML: "!All [!Var list1, !Var list2]",
+			expected:  "true",
+			initVars: map[string]interface{}{
+				"list1": []interface{}{true, 1},
+				"list2": []interface{}{false, "empty"},
+			},
+		},
+
+		{
+			name: "All with nested mappings",
+			inputYAML: `!All
+- a: !Var v1
+  b: !Var v2
+- true`,
+			expected: "true",
+			initVars: map[string]interface{}{
+				"v1": true,
+				"v2": false,
+			},
+		},
+
+		{
+			name: "All with nested mappings unknown variable",
+			inputYAML: `!All
+- a: !Var v1
+  b: !Var v2
+- true`,
+			expected: "false",
+			initVars: map[string]interface{}{
+				"v1": true,
+			},
+			expectError: true,
+		},
 	}
 
 	runTests(t, tests)
@@ -193,6 +259,45 @@ func TestEmrichenAnyTag(t *testing.T) {
 			name:      "Any with list including null values",
 			inputYAML: "!Any [null, false, 0]",
 			expected:  "false",
+		},
+
+		// testing use of !Var / nested resolution
+		{
+			name:      "Any with nested variables",
+			inputYAML: "!Any [!Var v1, !Var v2, false]",
+			expected:  "true",
+			initVars: map[string]interface{}{
+				"v1": false,
+				"v2": 1,
+			},
+		},
+		{
+			name:      "Any with nested variables",
+			inputYAML: "!Any [!Var v1, !Var v2, false]",
+			expected:  "false",
+			initVars: map[string]interface{}{
+				"v1": false,
+				"v2": 0,
+			},
+		},
+		{
+			name:      "Any with nested variables",
+			inputYAML: "!Any [!Var unexpected, !Var v2, true]",
+			expected:  "false",
+			initVars: map[string]interface{}{
+				"v1": false,
+				"v2": 1,
+			},
+			expectError: true,
+		},
+		{
+			name:      "Any with nested variable lists",
+			inputYAML: "!Any [!Var list1, !Var list2]",
+			expected:  "true",
+			initVars: map[string]interface{}{
+				"list1": []interface{}{false, 0},
+				"list2": []interface{}{"non-empty string", true},
+			},
 		},
 	}
 

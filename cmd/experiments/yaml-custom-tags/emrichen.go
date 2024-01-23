@@ -25,8 +25,8 @@ type EmrichenInterpreterOption func(*EmrichenInterpreter)
 
 func WithVars(vars map[string]*yaml.Node) EmrichenInterpreterOption {
 	return func(ei *EmrichenInterpreter) {
-		for _, v := range vars {
-			ei.vars[v.Value] = v
+		for k, v := range vars {
+			ei.vars[k] = v
 		}
 	}
 }
@@ -648,6 +648,9 @@ func (ei *EmrichenInterpreter) handleOp(node *yaml.Node) (*yaml.Node, error) {
 		return makeFloat(a / b), nil
 	case "//", "floordiv":
 		return makeInt(int(a) / int(b)), nil
+
+	case "%", "mod", "modulo":
+		return makeInt(int(a) % int(b)), nil
 
 	// Membership tests
 	// TODO(manuel, 2024-01-22) Implement the membership tests, in fact look up how they are supposed to work

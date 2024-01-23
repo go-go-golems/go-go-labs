@@ -8,41 +8,56 @@ import (
 	"testing"
 )
 
-// test case structure
 type testCase struct {
-	name      string
-	inputYAML string
-	expected  string
+	name        string
+	inputYAML   string
+	expected    string
+	initVars    map[string]interface{} // Adding a new field for initial variable bindings
+	expectError bool
 }
 
 func runTests(t *testing.T, tests []testCase) {
-	// Initialize EmrichenInterpreter
-	ei := NewEmrichenInterpreter()
-
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			// Set initial variables using WithVars
+			vars := make(map[string]*yaml.Node)
+			for k, v := range tc.initVars {
+				node := yaml.Node{}
+				err := node.Encode(v)
+				require.NoError(t, err)
+				vars[k] = &node
+			}
+
+			ei := NewEmrichenInterpreter(WithVars(vars))
+
 			// Parse input YAML
 			inputNode := yaml.Node{}
 			err := yaml.Unmarshal([]byte(tc.inputYAML), ei.CreateDecoder(&inputNode))
-			require.NoError(t, err)
+			if tc.expectError {
+				require.Error(t, err, "Expected an error but got none")
+				return
+			} else {
+				require.NoError(t, err, "Unexpected error encountered")
+			}
+
+			resultNode, err := ei.Process(&inputNode)
 
 			// Process the input node
-			resultNode, err := ei.Process(&inputNode)
-			require.NoError(t, err)
+			if tc.expectError {
+				require.Error(t, err, "Expected an error but got none")
+			} else {
+				require.NoError(t, err, "Unexpected error encountered")
 
-			// Parse expected YAML
-			expectedNode := yaml.Node{}
-			err = yaml.Unmarshal([]byte(tc.expected), &expectedNode)
-			require.NoError(t, err)
+				// Parse expected YAML
+				expectedNode := yaml.Node{}
+				err = yaml.Unmarshal([]byte(tc.expected), &expectedNode)
+				require.NoError(t, err)
 
-			expected_ := convertNodeToInterface(&expectedNode)
-			//s, err := yaml.Marshal(expected_)
-			//require.NoError(t, err)
-			//fmt.Println(string(s))
+				expected_ := convertNodeToInterface(&expectedNode)
+				actual_ := convertNodeToInterface(resultNode)
 
-			actual_ := convertNodeToInterface(resultNode)
-
-			assert.Equal(t, expected_, actual_)
+				assert.Equal(t, expected_, actual_)
+			}
 		})
 	}
 }
@@ -101,15 +116,32 @@ func convertNodeToInterface(node *yaml.Node) interface{} {
 
 // convertScalarValue converts a scalar YAML node to a primitive Go type.
 func convertScalarValue(node *yaml.Node) interface{} {
-	// Attempt to convert to int, float, or bool, else return as string
-	if i, err := strconv.Atoi(node.Value); err == nil {
+	switch node.Tag {
+	case "!!int":
+		i, err := strconv.Atoi(node.Value)
+		if err != nil {
+			return node.Value
+		}
 		return i
-	}
-	if f, err := strconv.ParseFloat(node.Value, 64); err == nil {
+
+	case "!!float":
+		f, err := strconv.ParseFloat(node.Value, 64)
+		if err != nil {
+			return node.Value
+		}
 		return f
-	}
-	if b, err := strconv.ParseBool(node.Value); err == nil {
+
+	case "!!bool":
+		b, err := strconv.ParseBool(node.Value)
+		if err != nil {
+			return node.Value
+		}
 		return b
+
+	case "!!str":
+		return node.Value
+
+	default:
+		return node.Value
 	}
-	return node.Value
 }

@@ -31,10 +31,10 @@ func TestEmrichenOp(t *testing.T) {
 		{
 			name: "Op tag division",
 			inputYAML: `!Op
-  a: 20
+  a: 20.0
   op: "/"
   b: 4`,
-			expected: "5",
+			expected: "5.0",
 		},
 		{
 			name: "Op tag modulo",
