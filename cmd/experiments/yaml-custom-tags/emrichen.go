@@ -11,6 +11,7 @@ import (
 	"gopkg.in/yaml.v3"
 	"net/url"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"text/template"
@@ -20,10 +21,26 @@ type EmrichenInterpreter struct {
 	vars map[string]*yaml.Node
 }
 
-func NewEmrichenInterpreter() *EmrichenInterpreter {
-	return &EmrichenInterpreter{
+type EmrichenInterpreterOption func(*EmrichenInterpreter)
+
+func WithVars(vars map[string]*yaml.Node) EmrichenInterpreterOption {
+	return func(ei *EmrichenInterpreter) {
+		for _, v := range vars {
+			ei.vars[v.Value] = v
+		}
+	}
+}
+
+func NewEmrichenInterpreter(options ...EmrichenInterpreterOption) *EmrichenInterpreter {
+	ret := &EmrichenInterpreter{
 		vars: make(map[string]*yaml.Node),
 	}
+
+	for _, option := range options {
+		option(ret)
+	}
+
+	return ret
 }
 
 type interpretHelper struct {
@@ -73,8 +90,20 @@ func (ei *EmrichenInterpreter) Process(node *yaml.Node) (*yaml.Node, error) {
 	case "!Filter":
 		return ei.handleFilter(node)
 
+	case "!If":
+		return ei.handleIf(node)
+
 	case "!Concat":
 		return ei.handleConcat(node)
+
+	case "!Join":
+		return ei.handleJoin(node)
+
+	case "!Not":
+		return ei.handleNot(node)
+
+	case "!Op":
+		return ei.handleOp(node)
 
 	case "!MD5":
 		if node.Kind != yaml.ScalarNode {
@@ -332,6 +361,60 @@ func (ei *EmrichenInterpreter) handleFilter(node *yaml.Node) (*yaml.Node, error)
 	}, nil
 }
 
+func (ei *EmrichenInterpreter) handleIf(node *yaml.Node) (*yaml.Node, error) {
+	args, err := parseArgs(node, []string{"test", "then", "else"})
+	if err != nil {
+		return nil, err
+	}
+
+	testResult, err := ei.Process(args["test"])
+	if err != nil {
+		return nil, err
+	}
+
+	if isTruthy(testResult) {
+		return ei.Process(args["then"])
+	} else {
+		return ei.Process(args["else"])
+	}
+}
+
+func (ei *EmrichenInterpreter) handleJoin(node *yaml.Node) (*yaml.Node, error) {
+	args, err := parseArgs(node, []string{"items"})
+	if err != nil {
+		return nil, err
+	}
+
+	itemsNode, ok := args["items"]
+	if !ok || itemsNode.Kind != yaml.SequenceNode {
+		return nil, errors.New("!Join requires a sequence node for 'items'")
+	}
+
+	separator := " " // Default separator
+	if sepNode, ok := args["separator"]; ok && sepNode.Kind == yaml.ScalarNode {
+		separator = sepNode.Value
+	}
+
+	var items []string
+	for _, itemNode := range itemsNode.Content {
+		resolvedItem, err := ei.Process(itemNode)
+		if err != nil {
+			return nil, err
+		}
+		if resolvedItem.Kind != yaml.ScalarNode {
+			return nil, errors.New("!Join items must be scalar values")
+		}
+		items = append(items, resolvedItem.Value)
+	}
+
+	joinedStr := strings.Join(items, separator)
+
+	return &yaml.Node{
+		Kind:  yaml.ScalarNode,
+		Value: joinedStr,
+	}, nil
+}
+
 func (ei *EmrichenInterpreter) handleMerge(node *yaml.Node) (*yaml.Node, error) {
 	if node.Kind != yaml.SequenceNode {
 		return nil, errors.New("!Merge requires a sequence of mapping nodes")
@@ -376,6 +459,22 @@ func (ei *EmrichenInterpreter) handleMerge(node *yaml.Node) (*yaml.Node, error) 
 
 }
 
+func (ei *EmrichenInterpreter) handleNot(node *yaml.Node) (*yaml.Node, error) {
+	if len(node.Content) != 1 {
+		return nil, errors.New("!Not requires exactly one argument")
+	}
+
+	result, err := ei.Process(node.Content[0])
+	if err != nil {
+		return nil, err
+	}
+
+	return &yaml.Node{
+		Kind:  yaml.ScalarNode,
+		Value: strconv.FormatBool(!isTruthy(result)),
+	}, nil
+}
+
 func (ei *EmrichenInterpreter) handleWith(node *yaml.Node) (*yaml.Node, error) {
 	if node.Kind != yaml.MappingNode {
 		return nil, errors.New("!With requires a mapping node")
@@ -401,24 +500,6 @@ func (ei *EmrichenInterpreter) handleWith(node *yaml.Node) (*yaml.Node, error) {
 	}
 
 	return ei.Process(templateNode)
-}
-
-// Helper function to find 'vars' and 'template' nodes in !With
-func findWithNodes(content []*yaml.Node) (*yaml.Node, *yaml.Node) {
-	var varsNode *yaml.Node
-	var templateNode *yaml.Node
-	for i := 0; i < len(content); i += 2 {
-		keyNode := content[i]
-		valueNode := content[i+1]
-		if keyNode.Kind == yaml.ScalarNode {
-			if keyNode.Value == "vars" {
-				varsNode = valueNode
-			} else if keyNode.Value == "template" {
-				templateNode = valueNode
-			}
-		}
-	}
-	return varsNode, templateNode
 }
 
 func (ei *EmrichenInterpreter) handleURLEncode(node *yaml.Node) (*yaml.Node, error) {
@@ -466,16 +547,10 @@ func (ei *EmrichenInterpreter) handleAll(node *yaml.Node) (*yaml.Node, error) {
 			return nil, err
 		}
 		if !isTruthy(resolvedItem) {
-			return &yaml.Node{
-				Kind:  yaml.ScalarNode,
-				Value: "false",
-			}, nil
+			return makeBool(false), nil
 		}
 	}
-	return &yaml.Node{
-		Kind:  yaml.ScalarNode,
-		Value: "true",
-	}, nil
+	return makeBool(true), nil
 }
 
 func (ei *EmrichenInterpreter) handleAny(node *yaml.Node) (*yaml.Node, error) {
@@ -489,26 +564,151 @@ func (ei *EmrichenInterpreter) handleAny(node *yaml.Node) (*yaml.Node, error) {
 			return nil, err
 		}
 		if isTruthy(resolvedItem) {
-			return &yaml.Node{
-				Kind:  yaml.ScalarNode,
-				Value: "true",
-			}, nil
+			return makeBool(true), nil
 		}
 	}
-	return &yaml.Node{
-		Kind:  yaml.ScalarNode,
-		Value: "false",
-	}, nil
+	return makeBool(false), nil
 }
 
-func isTruthy(node *yaml.Node) bool {
-	//exhaustive:ignore
-	switch node.Kind {
-	case yaml.ScalarNode:
-		return node.Value != "" && node.Value != "false" && node.Value != "null" && node.Value != "0"
-	case yaml.SequenceNode, yaml.MappingNode:
-		return len(node.Content) > 0
-	default:
-		return false
+func (ei *EmrichenInterpreter) handleOp(node *yaml.Node) (*yaml.Node, error) {
+	args, err := parseArgs(node, []string{"a", "op", "b"})
+	if err != nil {
+		return nil, err
 	}
+
+	opNode := args["op"]
+	if opNode.Kind != yaml.ScalarNode {
+		return nil, errors.New("!Op 'op' argument must be a scalar")
+	}
+
+	aNode, bNode := args["a"], args["b"]
+	aProcessed, err := ei.Process(aNode)
+	if err != nil {
+		return nil, err
+	}
+	bProcessed, err := ei.Process(bNode)
+	if err != nil {
+		return nil, err
+	}
+
+	isNumberOperation := false
+	switch opNode.Value {
+	case "+", "plus", "add", "-", "minus", "sub", "subtract", "*", "×", "mul", "times", "/", "÷", "div", "divide", "truediv", "//", "floordiv":
+		isNumberOperation = true
+	default:
+	}
+
+	a, ok := toFloat(aProcessed)
+	if isNumberOperation && !ok {
+		return nil, errors.New("could not convert first argument to float")
+	}
+	b, ok := toFloat(bProcessed)
+	if isNumberOperation && !ok {
+		return nil, errors.New("could not convert second argument to float")
+	}
+
+	bothInts := aProcessed.Tag == "!!int" && bProcessed.Tag == "!!int"
+
+	// Handle different operators
+	switch opNode.Value {
+	case "=", "==", "===":
+		return makeBool(reflect.DeepEqual(aProcessed.Value, bProcessed.Value)), nil
+	case "≠", "!=", "!==":
+		return makeBool(!reflect.DeepEqual(aProcessed.Value, bProcessed.Value)), nil
+
+	// Less than, Greater than, Less than or equal to, Greater than or equal to
+	case "<", "lt":
+		return makeBool(a < b), nil
+	case ">", "gt":
+		return makeBool(a > b), nil
+	case "<=", "le", "lte":
+		return makeBool(a <= b), nil
+	case ">=", "ge", "gte":
+		return makeBool(a >= b), nil
+
+	// Arithmetic operations
+	case "+", "plus", "add":
+		if bothInts {
+			return makeInt(int(a) + int(b)), nil
+		}
+		return makeFloat(a + b), nil
+
+	case "-", "minus", "sub", "subtract":
+		if bothInts {
+			return makeInt(int(a) - int(b)), nil
+		}
+		return makeFloat(a - b), nil
+
+	case "*", "×", "mul", "times":
+		if bothInts {
+			return makeInt(int(a) * int(b)), nil
+		}
+		return makeFloat(a * b), nil
+	case "/", "÷", "div", "divide", "truediv":
+		return makeFloat(a / b), nil
+	case "//", "floordiv":
+		return makeInt(int(a) / int(b)), nil
+
+	// Membership tests
+	// TODO(manuel, 2024-01-22) Implement the membership tests, in fact look up how they are supposed to work
+	case "in", "∈":
+		return nil, errors.New("not implemented")
+
+	case "not in", "∉":
+		return nil, errors.New("not implemented")
+
+	default:
+		return nil, fmt.Errorf("unsupported operator: %s", opNode.Value)
+	}
+}
+
+func (ei *EmrichenInterpreter) handleIndex(node *yaml.Node) (*yaml.Node, error) {
+	args, err := parseArgs(node, []string{"over", "by"})
+	if err != nil {
+		return nil, err
+	}
+
+	overNode, byNode := args["over"], args["by"]
+	if overNode.Kind != yaml.SequenceNode {
+		return nil, errors.New("!Index 'over' argument must be a sequence")
+	}
+
+	resultVarName := "item" // Default variable name
+	if resultNode, ok := args["result_as"]; ok && resultNode.Kind == yaml.ScalarNode {
+		resultVarName = resultNode.Value
+	}
+
+	indexedResults := make(map[string]*yaml.Node)
+	for _, item := range overNode.Content {
+		// Set the current item variable
+		ei.vars[resultVarName] = item
+
+		// Process the 'by' expression to determine the key
+		keyNode, err := ei.Process(byNode)
+		if err != nil {
+			return nil, err
+		}
+		if keyNode.Kind != yaml.ScalarNode {
+			return nil, errors.New("!Index 'by' expression must evaluate to a scalar")
+		}
+		key := keyNode.Value
+
+		// Add the item to the indexed results
+		indexedResults[key] = item
+	}
+
+	// Cleanup the result variable
+	delete(ei.vars, resultVarName)
+
+	// Convert the map to a sequence of YAML nodes
+	content := make([]*yaml.Node, 0, len(indexedResults)*2)
+	for k, v := range indexedResults {
+		content = append(content, &yaml.Node{Kind: yaml.ScalarNode, Value: k}, v)
+	}
+
+	return &yaml.Node{
+		Kind:    yaml.MappingNode,
+		Content: content,
+	}, nil
+
 }
