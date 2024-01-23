@@ -1,14 +1,13 @@
 package main
 
 import (
-	"reflect"
 	"strconv"
 
 	"gopkg.in/yaml.v3"
 )
 
-// toInt parses a YAML node to int.
-func toInt(node *yaml.Node) (int, bool) {
+// GetInt parses a YAML node to int.
+func GetInt(node *yaml.Node) (int, bool) {
 	if node.Kind == yaml.ScalarNode && (node.Tag == "!!int" || node.Tag == "!!float") {
 		val, err := strconv.Atoi(node.Value)
 		if err == nil {
@@ -18,8 +17,8 @@ func toInt(node *yaml.Node) (int, bool) {
 	return 0, false
 }
 
-// toFloat parses a YAML node to float.
-func toFloat(node *yaml.Node) (float64, bool) {
+// GetFloat parses a YAML node to float.
+func GetFloat(node *yaml.Node) (float64, bool) {
 	if node.Kind == yaml.ScalarNode && (node.Tag == "!!float" || node.Tag == "!!int") {
 		val, err := strconv.ParseFloat(node.Value, 64)
 		if err == nil {
@@ -29,8 +28,8 @@ func toFloat(node *yaml.Node) (float64, bool) {
 	return 0.0, false
 }
 
-// toBool parses a YAML node to bool.
-func toBool(node *yaml.Node) (bool, bool) {
+// GetBool parses a YAML node to bool.
+func GetBool(node *yaml.Node) (bool, bool) {
 	if node.Kind == yaml.ScalarNode && node.Tag == "!!bool" {
 		val, err := strconv.ParseBool(node.Value)
 		if err == nil {
@@ -40,8 +39,8 @@ func toBool(node *yaml.Node) (bool, bool) {
 	return false, false
 }
 
-// toString parses a YAML node to string.
-func toString(node *yaml.Node) (string, bool) {
+// GetString parses a YAML node to string.
+func GetString(node *yaml.Node) (string, bool) {
 	if node.Kind == yaml.ScalarNode && node.Tag == "!!str" {
 		return node.Value, true
 	}
@@ -118,39 +117,4 @@ func findWithNodes(content []*yaml.Node) (*yaml.Node, *yaml.Node) {
 		}
 	}
 	return varsNode, templateNode
-}
-
-// deepCompareYamlNodes takes pointers to two yaml Node structures 'a' and 'b', and performs a deep comparison between them.
-// It checks each aspect of the Nodes, including their Kind, Content, Value, Tag, and Alias (if applicable), and returns
-// 'true' if they are identical, 'false' otherwise. When comparing Content (in the case of DocumentNode, SequenceNode, and
-// MappingNode) it recursively calls itself on each element.
-// Unknown node types result in a return value of 'false'.
-func deepCompareYamlNodes(a, b *yaml.Node) bool {
-	if a.Kind != b.Kind {
-		return false
-	}
-
-	switch a.Kind {
-	case yaml.DocumentNode, yaml.SequenceNode, yaml.MappingNode:
-		if len(a.Content) != len(b.Content) {
-			return false
-		}
-		for i := 0; i < len(a.Content); i++ {
-			if !deepCompareYamlNodes(a.Content[i], b.Content[i]) {
-				return false
-			}
-		}
-		return true
-
-	case yaml.ScalarNode:
-		return a.Value == b.Value && a.Tag == b.Tag
-
-	case yaml.AliasNode:
-		// Handle alias nodes if necessary
-		return reflect.DeepEqual(a.Alias, b.Alias)
-
-	default:
-		// Unknown node type
-		return false
-	}
 }

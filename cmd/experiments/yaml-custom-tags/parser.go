@@ -76,23 +76,3 @@ func parseURLEncodeArgs(node *yaml.Node) (string, map[string]string, error) {
 
 	return urlStr, queryParams, nil
 }
-
-// parseFilterArgs extracts 'test' and 'over' nodes from a given YAML node for filtering purposes.
-// This function is designed for scenarios where 'test' and 'over' arguments are required, such as in a filtering context.
-//
-// Parameters:
-// - node: A pointer to a yaml.Node that should contain the 'test' and 'over' nodes in a mapping structure.
-//
-// Returns:
-// - Two pointers to yaml.Node representing the 'test' and 'over' nodes extracted from the input node.
-// - An error if either 'test' or 'over' nodes are missing in the input node.
-//
-// Note: Both 'test' and 'over' keys are required for this function to succeed.
-func parseFilterArgs(node *yaml.Node) (*yaml.Node, *yaml.Node, error) {
-	args, err := parseArgs(node, []string{"test", "over"})
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return args["test"], args["over"], nil
-}

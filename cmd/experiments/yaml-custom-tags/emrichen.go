@@ -111,6 +111,9 @@ func (ei *EmrichenInterpreter) Process(node *yaml.Node) (*yaml.Node, error) {
 			case "!Concat":
 				return ei.handleConcat(node)
 
+			case "!Index":
+				return ei.handleIndex(node)
+
 			case "!Join":
 				return ei.handleJoin(node)
 
@@ -632,11 +635,11 @@ func (ei *EmrichenInterpreter) handleOp(node *yaml.Node) (*yaml.Node, error) {
 	default:
 	}
 
-	a, ok := toFloat(aProcessed)
+	a, ok := GetFloat(aProcessed)
 	if isNumberOperation && !ok {
 		return nil, errors.New("could not convert first argument to float")
 	}
-	b, ok := toFloat(bProcessed)
+	b, ok := GetFloat(bProcessed)
 	if isNumberOperation && !ok {
 		return nil, errors.New("could not convert second argument to float")
 	}
