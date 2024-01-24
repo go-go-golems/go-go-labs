@@ -392,12 +392,19 @@ func (ei *EmrichenInterpreter) handleLookup(node *yaml.Node) (*yaml.Node, error)
 	if err != nil {
 		return nil, err
 	}
+	// check if query contains *, and if the result is a list, return the first element
+	if strings.Contains(node.Value, "*") && reflect.TypeOf(v).Kind() == reflect.Slice {
+		v = reflect.ValueOf(v).Index(0).Interface()
+	}
 	return makeValue(v)
 }
 
 func (ei *EmrichenInterpreter) handleLookupAll(node *yaml.Node) (*yaml.Node, error) {
-	// NOTE(manuel, 2024-01-24) this for now returns the same as a normal Lookup, because the list / not list thing is handled by the jsonpath library
-	return ei.handleLookup(node)
+	v, err := ei.Lookup(node.Value)
+	if err != nil {
+		return nil, err
+	}
+	return makeValue(v)
 }
 
 func (ei *EmrichenInterpreter) handleFilter(node *yaml.Node) (*yaml.Node, error) {
