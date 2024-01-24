@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/pkg/errors"
 	"strconv"
 
 	"gopkg.in/yaml.v3"
@@ -47,6 +48,151 @@ func GetString(node *yaml.Node) (string, bool) {
 	return "", false
 }
 
+// GetValue parses a YAML node into an interface{}.
+func GetValue(node *yaml.Node) (interface{}, bool) {
+	switch node.Kind {
+	case yaml.ScalarNode:
+		return getScalarValue(node)
+	case yaml.SequenceNode:
+		return getSliceValue(node)
+	case yaml.MappingNode:
+		return getMapValue(node)
+	default:
+		return nil, false
+	}
+}
+
+func getScalarValue(node *yaml.Node) (interface{}, bool) {
+	if val, ok := GetInt(node); ok {
+		return val, true
+	}
+	if val, ok := GetFloat(node); ok {
+		return val, true
+	}
+	if val, ok := GetBool(node); ok {
+		return val, true
+	}
+	if val, ok := GetString(node); ok {
+		return val, true
+	}
+	return nil, false
+}
+
+func getSliceValue(node *yaml.Node) ([]interface{}, bool) {
+	var slice []interface{}
+	for _, n := range node.Content {
+		if val, ok := GetValue(n); ok {
+			slice = append(slice, val)
+		} else {
+			return nil, false
+		}
+	}
+	return slice, true
+}
+
+func getMapValue(node *yaml.Node) (map[string]interface{}, bool) {
+	if len(node.Content)%2 != 0 {
+		return nil, false // Invalid map node
+	}
+
+	m := make(map[string]interface{})
+	for i := 0; i < len(node.Content); i += 2 {
+		keyNode := node.Content[i]
+		valueNode := node.Content[i+1]
+
+		if keyNode.Kind != yaml.ScalarNode {
+			return nil, false // Invalid key node
+		}
+
+		key := keyNode.Value
+		if val, ok := GetValue(valueNode); ok {
+			m[key] = val
+		} else {
+			return nil, false
+		}
+	}
+	return m, true
+}
+
+func makeValue(value interface{}) (*yaml.Node, error) {
+	if value == nil {
+		return makeNil(), nil
+	}
+	switch v := value.(type) {
+	case int:
+		return makeInt(v), nil
+	case int8:
+		return makeInt(int(v)), nil
+	case int16:
+		return makeInt(int(v)), nil
+	case int32:
+		return makeInt(int(v)), nil
+	case int64:
+		return makeInt(int(v)), nil
+	case uint:
+		return makeInt(int(v)), nil
+	case uint8:
+		return makeInt(int(v)), nil
+	case uint16:
+		return makeInt(int(v)), nil
+	case uint32:
+		return makeInt(int(v)), nil
+	case uint64:
+		return makeInt(int(v)), nil
+	case float64:
+		return makeFloat(v), nil
+	case float32:
+		return makeFloat(float64(v)), nil
+	case bool:
+		return makeBool(v), nil
+	case string:
+		return makeString(v), nil
+
+		// TODO(manuel, 2024-01-24) This needs to handle all kinds of slices and sequences and such
+	case []interface{}:
+		return makeSlice(v)
+	case map[string]interface{}:
+		return makeMap(v)
+
+	default:
+		return nil, errors.New("unsupported value type")
+	}
+}
+
+func makeSlice(slice []interface{}) (*yaml.Node, error) {
+	node := &yaml.Node{
+		Kind: yaml.SequenceNode,
+		Tag:  "!!seq",
+	}
+	for _, elem := range slice {
+		elemNode, err := makeValue(elem)
+		if err != nil {
+			return nil, err
+		}
+		node.Content = append(node.Content, elemNode)
+	}
+	return node, nil
+}
+
+func makeMap(m map[string]interface{}) (*yaml.Node, error) {
+	node := &yaml.Node{
+		Kind: yaml.MappingNode,
+		Tag:  "!!map",
+	}
+	for key, value := range m {
+		keyNode, err := makeValue(key)
+		if err != nil {
+			return nil, err
+		}
+		valueNode, err := makeValue(value)
+		if err != nil {
+			return nil, err
+		}
+		node.Content = append(node.Content, keyNode, valueNode)
+	}
+	return node, nil
+}
+
 // makeString converts a string value to a corresponding scalar YAML node.
 func makeString(value string) *yaml.Node {
 	return &yaml.Node{
@@ -62,6 +208,15 @@ func makeInt(value int) *yaml.Node {
 		Kind:  yaml.ScalarNode,
 		Tag:   "!!int",
 		Value: strconv.Itoa(value),
+	}
+}
+
+// makeNil converts a nil value to a corresponding scalar YAML node.
+func makeNil() *yaml.Node {
+	return &yaml.Node{
+		Kind:  yaml.ScalarNode,
+		Tag:   "!!null",
+		Value: "null",
 	}
 }
 

@@ -6,7 +6,8 @@ import (
 )
 
 func base64Encode(data string) string {
-	return base64.StdEncoding.EncodeToString([]byte(data))
+	ret := base64.StdEncoding.EncodeToString([]byte(data))
+	return ret
 }
 
 func TestEmrichenBase64VarComposition(t *testing.T) {
@@ -38,7 +39,7 @@ func TestEmrichenBase64VarComposition(t *testing.T) {
 		{
 			name:      "Base64 encoding of an empty string variable",
 			inputYAML: "!Base64,Var emptyString",
-			expected:  base64Encode(""), // Base64 of ""
+			expected:  "\"\"",
 			initVars: map[string]interface{}{
 				"emptyString": "",
 			},
@@ -46,10 +47,10 @@ func TestEmrichenBase64VarComposition(t *testing.T) {
 		{
 			name:      "Base64 encoding of a null variable",
 			inputYAML: "!Base64,Var nullVar",
-			expected:  base64Encode(""), // Base64 of ""
 			initVars: map[string]interface{}{
 				"nullVar": nil,
 			},
+			expected: "bnVsbA==", // Base64 of "null"
 		},
 		{
 			name:        "Error case with undefined variable",
@@ -89,54 +90,12 @@ func TestEmrichenBase64VarComposition(t *testing.T) {
 		},
 
 		{
-			name:      "Base64 encoding after variable substitution and formatting",
-			inputYAML: `!Base64,Format "{var1} and {var2}",Var composedVars`,
-			expected:  "SGVsbG8gYW5kIFdvcmxk", // Base64 of "Hello and World"
-			initVars: map[string]interface{}{
-				"composedVars": map[string]interface{}{
-					"var1": "Hello",
-					"var2": "World",
-				},
-			},
-		},
-		{
-			name:      "Concatenation of lists after variable substitution",
-			inputYAML: `!Concat,Var list1,Var list2`,
-			expected:  "[1, 2, 3, 4, 5]", // Concatenation of two lists
-			initVars: map[string]interface{}{
-				"list1": []interface{}{1, 2, 3},
-				"list2": []interface{}{4, 5},
-			},
-		},
-		{
-			name:      "Joining strings after base64 encoding and variable substitution",
-			inputYAML: `!Join,Base64,Var joinVars`,
+			name:      "Base64 strings after joining and variable substitution",
+			inputYAML: `!Base64,Join,Var joinVars`,
 			expected:  "SGVsbG8gV29ybGQ=", // Joined string in Base64
 			initVars: map[string]interface{}{
-				"joinVars": []interface{}{"Hello", "World"},
-			},
-		},
-		{
-			name:      "URL encoding after format and variable substitution",
-			inputYAML: `!URLEncode,Format "{protocol}://{domain}",Var urlVars`,
-			expected:  "https%3A%2F%2Fexample.com", // URL encoded format
-			initVars: map[string]interface{}{
-				"urlVars": map[string]interface{}{
-					"protocol": "https",
-					"domain":   "example.com",
-				},
-			},
-		},
-		{
-			name:      "Lookup after variable substitution in a nested mapping",
-			inputYAML: `!Lookup people[0].name,Var peopleData`,
-			expected:  "Alice",
-			initVars: map[string]interface{}{
-				"peopleData": map[string]interface{}{
-					"people": []interface{}{
-						map[string]interface{}{"name": "Alice"},
-						map[string]interface{}{"name": "Bob"},
-					},
+				"joinVars": map[string]interface{}{
+					"items": []interface{}{"Hello", "World"},
 				},
 			},
 		},

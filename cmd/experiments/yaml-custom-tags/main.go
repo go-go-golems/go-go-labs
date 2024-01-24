@@ -32,7 +32,10 @@ func main() {
 	}(f)
 
 	decoder := yaml.NewDecoder(f)
-	interpreter := NewEmrichenInterpreter()
+	interpreter, err := NewEmrichenInterpreter()
+	if err != nil {
+		panic(err)
+	}
 
 	for {
 		var s_ Document

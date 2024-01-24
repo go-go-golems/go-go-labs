@@ -8,6 +8,8 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"github.com/PaesslerAG/jsonpath"
+	"github.com/go-go-golems/glazed/pkg/helpers/cast"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 	"net/url"
@@ -19,29 +21,37 @@ import (
 )
 
 type EmrichenInterpreter struct {
-	vars map[string]*yaml.Node
+	vars map[string]interface{}
 }
 
-type EmrichenInterpreterOption func(*EmrichenInterpreter)
+type EmrichenInterpreterOption func(*EmrichenInterpreter) error
 
-func WithVars(vars map[string]*yaml.Node) EmrichenInterpreterOption {
-	return func(ei *EmrichenInterpreter) {
+func WithVars(vars map[string]interface{}) EmrichenInterpreterOption {
+	return func(ei *EmrichenInterpreter) error {
 		for k, v := range vars {
-			ei.vars[k] = v
+			value, err := cast.ToInterfaceValue(v)
+			if err != nil {
+				return err
+			}
+			ei.vars[k] = value
 		}
+		return nil
 	}
 }
 
-func NewEmrichenInterpreter(options ...EmrichenInterpreterOption) *EmrichenInterpreter {
+func NewEmrichenInterpreter(options ...EmrichenInterpreterOption) (*EmrichenInterpreter, error) {
 	ret := &EmrichenInterpreter{
-		vars: make(map[string]*yaml.Node),
+		vars: make(map[string]interface{}),
 	}
 
 	for _, option := range options {
-		option(ret)
+		err := option(ret)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	return ret
+	return ret, nil
 }
 
 type interpretHelper struct {
@@ -62,6 +72,17 @@ func (ei *EmrichenInterpreter) CreateDecoder(target interface{}) *interpretHelpe
 		target:      target,
 		interpreter: ei,
 	}
+}
+
+func (ei *EmrichenInterpreter) Lookup(jsonPath string) (interface{}, error) {
+	if !strings.HasPrefix(jsonPath, "$.") {
+		jsonPath = "$." + jsonPath
+	}
+	v, err := jsonpath.Get(jsonPath, ei.vars)
+	if err != nil {
+		return nil, err
+	}
+	return v, nil
 }
 
 func (ei *EmrichenInterpreter) Process(node *yaml.Node) (*yaml.Node, error) {
@@ -107,6 +128,15 @@ func (ei *EmrichenInterpreter) Process(node *yaml.Node) (*yaml.Node, error) {
 
 			case "!If":
 				return ei.handleIf(node)
+
+			case "!Exists":
+				return ei.handleExists(node)
+
+			case "!Lookup":
+				return ei.handleLookup(node)
+
+			case "!LookupAll":
+				return ei.handleLookup(node)
 
 			case "!Concat":
 				return ei.handleConcat(node)
@@ -157,7 +187,11 @@ func (ei *EmrichenInterpreter) Process(node *yaml.Node) (*yaml.Node, error) {
 					if !ok {
 						return nil, fmt.Errorf("variable %s not found", varName)
 					}
-					return varValue, nil
+					v, err := makeValue(varValue)
+					if err != nil {
+						return nil, err
+					}
+					return v, nil
 				}
 				return nil, errors.New("variable definition must be !Var variable name")
 
@@ -174,48 +208,27 @@ func (ei *EmrichenInterpreter) Process(node *yaml.Node) (*yaml.Node, error) {
 				return ei.handleInclude(node)
 
 			case "!IsBoolean":
-				return &yaml.Node{
-					Kind:  yaml.ScalarNode,
-					Value: strconv.FormatBool(node.Kind == yaml.ScalarNode && (node.Value == "true" || node.Value == "false")),
-				}, nil
+				return makeBool(node.Kind == yaml.ScalarNode && (node.Value == "true" || node.Value == "false")), nil
 
 			case "!IsDict":
-				return &yaml.Node{
-					Kind:  yaml.ScalarNode,
-					Value: strconv.FormatBool(node.Kind == yaml.MappingNode),
-				}, nil
+				return makeBool(node.Kind == yaml.MappingNode), nil
 
 			case "!IsInteger":
 				_, err := strconv.Atoi(node.Value)
-				return &yaml.Node{
-					Kind:  yaml.ScalarNode,
-					Value: strconv.FormatBool(err == nil && node.Kind == yaml.ScalarNode),
-				}, nil
+				return makeBool(err == nil && node.Kind == yaml.ScalarNode), nil
 
 			case "!IsList":
-				return &yaml.Node{
-					Kind:  yaml.ScalarNode,
-					Value: strconv.FormatBool(node.Kind == yaml.SequenceNode),
-				}, nil
+				return makeBool(node.Kind == yaml.SequenceNode), nil
 
 			case "!IsNone":
-				return &yaml.Node{
-					Kind:  yaml.ScalarNode,
-					Value: strconv.FormatBool(node.Tag == "!!null" || node.Value == "null"),
-				}, nil
+				return makeBool(node.Tag == "!!null" || node.Value == "null"), nil
 
 			case "!IsNumber":
 				_, err := strconv.ParseFloat(node.Value, 64)
-				return &yaml.Node{
-					Kind:  yaml.ScalarNode,
-					Value: strconv.FormatBool(err == nil && node.Kind == yaml.ScalarNode),
-				}, nil
+				return makeBool(err == nil && node.Kind == yaml.ScalarNode), nil
 
 			case "!IsString":
-				return &yaml.Node{
-					Kind:  yaml.ScalarNode,
-					Value: strconv.FormatBool(node.Kind == yaml.ScalarNode),
-				}, nil
+				return makeBool(node.Kind == yaml.ScalarNode), nil
 
 			case "!Merge":
 				return ei.handleMerge(node)
@@ -256,17 +269,25 @@ func (ei *EmrichenInterpreter) Process(node *yaml.Node) (*yaml.Node, error) {
 }
 
 func (ei *EmrichenInterpreter) updateVars(content []*yaml.Node) error {
-	var err error
 	name := ""
 	for i := range content {
 		if i%2 == 0 {
 			name = content[i].Value
 			continue
 		}
-		ei.vars[name], err = ei.Process(content[i])
+		node, err := ei.Process(content[i])
 		if err != nil {
 			return err
 		}
+		v, ok := GetValue(node)
+		if !ok {
+			return errors.New("could not get node value")
+		}
+		v_, err := cast.ToInterfaceValue(v)
+		if err != nil {
+			return err
+		}
+		ei.vars[name] = v_
 	}
 
 	return nil
@@ -352,6 +373,31 @@ func (ei *EmrichenInterpreter) handleInclude(node *yaml.Node) (*yaml.Node, error
 	}
 
 	return ei.Process(includedNode)
+}
+
+func (ei *EmrichenInterpreter) handleExists(node *yaml.Node) (*yaml.Node, error) {
+	_, err := ei.Lookup(node.Value)
+	if err != nil {
+		if strings.Contains(err.Error(), "unknown key") {
+			return makeBool(false), nil
+		}
+		return nil, err
+	}
+	return makeBool(true), nil
+}
+
+func (ei *EmrichenInterpreter) handleLookup(node *yaml.Node) (*yaml.Node, error) {
+	// check that the value is a string
+	v, err := ei.Lookup(node.Value)
+	if err != nil {
+		return nil, err
+	}
+	return makeValue(v)
+}
+
+func (ei *EmrichenInterpreter) handleLookupAll(node *yaml.Node) (*yaml.Node, error) {
+	// NOTE(manuel, 2024-01-24) this for now returns the same as a normal Lookup, because the list / not list thing is handled by the jsonpath library
+	return ei.handleLookup(node)
 }
 
 func (ei *EmrichenInterpreter) handleFilter(node *yaml.Node) (*yaml.Node, error) {
@@ -524,9 +570,13 @@ func (ei *EmrichenInterpreter) handleWith(node *yaml.Node) (*yaml.Node, error) {
 
 	currentVars := ei.vars
 
-	newVars := make(map[string]*yaml.Node)
+	newVars := make(map[string]interface{})
 	for k, v := range currentVars {
-		newVars[k] = v
+		value, err := cast.ToInterfaceValue(v)
+		if err != nil {
+			return nil, err
+		}
+		newVars[k] = value
 	}
 
 	ei.vars = newVars

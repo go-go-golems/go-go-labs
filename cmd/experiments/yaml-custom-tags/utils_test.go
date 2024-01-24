@@ -22,21 +22,12 @@ type testCase struct {
 func runTests(t *testing.T, tests []testCase) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			// Set initial variables using WithVars
-			vars := make(map[string]*yaml.Node)
-			for k, v := range tc.initVars {
-				node := yaml.Node{}
-				err := node.Encode(v)
-				require.NoError(t, err)
-				vars[k] = &node
-			}
-
-			ei := NewEmrichenInterpreter(WithVars(vars))
+			ei, err := NewEmrichenInterpreter(WithVars(tc.initVars))
+			require.NoError(t, err)
 
 			decoder := yaml.NewDecoder(bytes.NewReader([]byte(tc.inputYAML)))
 
 			hadError := false
-			var err error
 			var resultNode *yaml.Node
 			for {
 				inputNode := yaml.Node{}
@@ -59,9 +50,13 @@ func runTests(t *testing.T, tests []testCase) {
 			}
 
 			if hadError {
-				require.Error(t, err, "Expected an error but got none")
-				if tc.expectErrorMessage != "" {
-					assert.Equal(t, tc.expectErrorMessage, err.Error())
+				if tc.expectError {
+					require.Error(t, err, "Expected an error but got none")
+					if tc.expectErrorMessage != "" {
+						assert.Equal(t, tc.expectErrorMessage, err.Error())
+					}
+				} else {
+					require.NoError(t, err, "Unexpected error encountered", err)
 				}
 				return
 			} else {
