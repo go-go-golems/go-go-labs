@@ -418,16 +418,16 @@ func (ei *EmrichenInterpreter) handleFilter(node *yaml.Node) (*yaml.Node, error)
 		return nil, errors.New("!Filter requires a mapping node")
 	}
 
-	args, err := parseArgs(node, []string{"test", "over"})
+	args, err := parseArgs(node, []string{"over"})
 	if err != nil {
 		return nil, err
 	}
 
 	overNode := args["over"]
 	if overNode.Kind != yaml.SequenceNode && overNode.Kind != yaml.MappingNode {
-		return nil, errors.New("!Filter 'over' argument must be a sequence")
+		return nil, errors.New("!Filter 'over' argument must be a sequence or mapping")
 	}
-	testNode := args["test"]
+	testNode, hasTestNode := args["test"]
 
 	varName := "item"
 	asNode, ok := args["as"]
@@ -438,30 +438,69 @@ func (ei *EmrichenInterpreter) handleFilter(node *yaml.Node) (*yaml.Node, error)
 		varName = asNode.Value
 	}
 
-	filtered := []*yaml.Node{}
-	for _, item := range overNode.Content {
-		v, ok := NodeToInterface(item)
-		if !ok {
-			return nil, errors.Errorf("could not get value for node: %v", item)
+	var filtered []*yaml.Node
+	var filteredMap bool
+
+	if overNode.Kind == yaml.MappingNode {
+		filteredMap = true
+	}
+
+	for i := 0; i < len(overNode.Content); i++ {
+		var item *yaml.Node
+		var key *yaml.Node
+
+		if filteredMap {
+			if i%2 != 0 { // Skip value nodes
+				continue
+			}
+			key = overNode.Content[i]
+			item = overNode.Content[i+1]
+		} else {
+			item = overNode.Content[i]
 		}
-		ei.env.Push(map[string]interface{}{
-			varName: v,
-		})
-		result, err := ei.Process(testNode)
-		ei.env.Pop()
-		if err != nil {
-			return nil, err
+
+		var result *yaml.Node
+		if hasTestNode {
+			v, ok := NodeToInterface(item)
+			if !ok {
+				return nil, errors.Errorf("could not get value for node: %v", item)
+			}
+			ei.env.Push(map[string]interface{}{
+				varName: v,
+			})
+			result, err = ei.Process(testNode)
+			ei.env.Pop()
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			result = item
 		}
+
 		if isTruthy(result) {
+			if filteredMap {
+				filtered = append(filtered, key)
+			}
 			filtered = append(filtered, item)
 		}
 	}
-	// TODO(manuel, 2024-01-24) The result should be a mapping
-	return &yaml.Node{
-		Kind:    yaml.SequenceNode,
-		Tag:     "!!seq",
-		Content: filtered,
-	}, nil
+
+	var resultNode *yaml.Node
+	if filteredMap {
+		resultNode = &yaml.Node{
+			Kind:    yaml.MappingNode,
+			Tag:     "!!map",
+			Content: filtered,
+		}
+	} else {
+		resultNode = &yaml.Node{
+			Kind:    yaml.SequenceNode,
+			Tag:     "!!seq",
+			Content: filtered,
+		}
+	}
+
+	return resultNode, nil
 }
 
 func (ei *EmrichenInterpreter) handleIf(node *yaml.Node) (*yaml.Node, error) {
@@ -563,19 +602,7 @@ func (ei *EmrichenInterpreter) handleMerge(node *yaml.Node) (*yaml.Node, error) 
 }
 
 func (ei *EmrichenInterpreter) handleNot(node *yaml.Node) (*yaml.Node, error) {
-	if len(node.Content) != 1 {
-		return nil, errors.New("!Not requires exactly one argument")
-	}
-
-	result, err := ei.Process(node.Content[0])
-	if err != nil {
-		return nil, err
-	}
-
-	return &yaml.Node{
-		Kind:  yaml.ScalarNode,
-		Value: strconv.FormatBool(!isTruthy(result)),
-	}, nil
+	return makeBool(!isTruthy(node)), nil
 }
 
 func (ei *EmrichenInterpreter) handleWith(node *yaml.Node) (*yaml.Node, error) {

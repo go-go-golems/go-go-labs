@@ -103,3 +103,54 @@ func TestEmrichenBase64VarComposition(t *testing.T) {
 
 	runTests(t, tests)
 }
+
+func TestEmrichenNotAndIsTags(t *testing.T) {
+	tests := []testCase{
+		{
+			name:      "Not with IsBoolean - Direct",
+			inputYAML: `!Not,IsBoolean true`,
+			expected:  "false",
+		},
+		{
+			name:      "Not with IsBoolean - With Var",
+			inputYAML: `!Not,IsBoolean,Var booleanVar`,
+			expected:  "false",
+			initVars:  map[string]interface{}{"booleanVar": true},
+		},
+		{
+			name:      "Not with IsDict - Direct",
+			inputYAML: `!Not,IsDict {a: 1, b: 2}`,
+			expected:  "false",
+		},
+		{
+			name:      "Not with IsDict - With Var",
+			inputYAML: `!Not,IsDict,Var dictVar`,
+			expected:  "false",
+			initVars:  map[string]interface{}{"dictVar": map[string]interface{}{"key": "value"}},
+		},
+		{
+			name:      "Not with IsInteger - Direct",
+			inputYAML: `!Not,IsInteger 42`,
+			expected:  "false",
+		},
+		{
+			name:      "Not with IsInteger - With Var",
+			inputYAML: `!Not,IsInteger,Var intVar`,
+			expected:  "false",
+			initVars:  map[string]interface{}{"intVar": 123},
+		},
+		{
+			name:      "Not with IsList - Direct",
+			inputYAML: `!Not,IsList [1, 2, 3]`,
+			expected:  "false",
+		},
+		{
+			name:      "Not with IsList - With Var",
+			inputYAML: `!Not,IsList,Var listVar`,
+			expected:  "false",
+			initVars:  map[string]interface{}{"listVar": []interface{}{1, 2, 3}},
+		},
+	}
+
+	runTests(t, tests)
+}

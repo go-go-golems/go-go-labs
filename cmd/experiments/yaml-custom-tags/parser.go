@@ -28,11 +28,7 @@ func parseArgs(node *yaml.Node, keys []string) (map[string]*yaml.Node, error) {
 		keyNode := node.Content[i]
 		valueNode := node.Content[i+1]
 		if keyNode.Kind == yaml.ScalarNode {
-			for _, key := range keys {
-				if keyNode.Value == key {
-					argsMap[key] = valueNode
-				}
-			}
+			argsMap[keyNode.Value] = valueNode
 		}
 	}
 
