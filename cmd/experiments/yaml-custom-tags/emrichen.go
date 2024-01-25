@@ -752,19 +752,24 @@ func (ei *EmrichenInterpreter) handleIf(node *yaml.Node) (*yaml.Node, error) {
 }
 
 func (ei *EmrichenInterpreter) handleJoin(node *yaml.Node) (*yaml.Node, error) {
-	args, err := parseArgs(node, []string{"items"})
-	if err != nil {
-		return nil, err
-	}
-
-	itemsNode, ok := args["items"]
-	if !ok || itemsNode.Kind != yaml.SequenceNode {
-		return nil, errors.New("!Join requires a sequence node for 'items'")
-	}
-
 	separator := " " // Default separator
-	if sepNode, ok := args["separator"]; ok && sepNode.Kind == yaml.ScalarNode {
-		separator = sepNode.Value
+	itemsNode := node
+
+	if node.Kind == yaml.MappingNode {
+		args, err := parseArgs(node, []string{"items"})
+		if err != nil {
+			return nil, err
+		}
+
+		var ok bool
+		itemsNode, ok = args["items"]
+		if !ok || itemsNode.Kind != yaml.SequenceNode {
+			return nil, errors.New("!Join requires a sequence node for 'items'")
+		}
+
+		if sepNode, ok := args["separator"]; ok && sepNode.Kind == yaml.ScalarNode {
+			separator = sepNode.Value
+		}
 	}
 
 	var items []string
@@ -781,10 +786,7 @@ func (ei *EmrichenInterpreter) handleJoin(node *yaml.Node) (*yaml.Node, error) {
 
 	joinedStr := strings.Join(items, separator)
 
-	return &yaml.Node{
-		Kind:  yaml.ScalarNode,
-		Value: joinedStr,
-	}, nil
+	return ValueToNode(joinedStr)
 }
 
 func (ei *EmrichenInterpreter) handleMerge(node *yaml.Node) (*yaml.Node, error) {
@@ -861,10 +863,7 @@ func (ei *EmrichenInterpreter) handleWith(node *yaml.Node) (*yaml.Node, error) {
 func (ei *EmrichenInterpreter) handleURLEncode(node *yaml.Node) (*yaml.Node, error) {
 	if node.Kind == yaml.ScalarNode {
 		// Simple string encoding
-		return &yaml.Node{
-			Kind:  yaml.ScalarNode,
-			Value: url.QueryEscape(node.Value),
-		}, nil
+		return makeString(url.QueryEscape(node.Value)), nil
 	} else if node.Kind == yaml.MappingNode {
 		urlStr, queryParams, err := parseURLEncodeArgs(node)
 		if err != nil {
@@ -882,10 +881,7 @@ func (ei *EmrichenInterpreter) handleURLEncode(node *yaml.Node) (*yaml.Node, err
 		}
 		parsedURL.RawQuery = query.Encode()
 
-		return &yaml.Node{
-			Kind:  yaml.ScalarNode,
-			Value: parsedURL.String(),
-		}, nil
+		return makeString(parsedURL.String()), nil
 	}
 
 	return nil, errors.New("!URLEncode requires a scalar or mapping node")
