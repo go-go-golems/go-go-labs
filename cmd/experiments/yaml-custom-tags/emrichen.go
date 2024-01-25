@@ -203,10 +203,14 @@ func (ei *EmrichenInterpreter) Process(node *yaml.Node) (*yaml.Node, error) {
 				return nil, errors.New("variable definition must be !Var variable name")
 
 			case "!Error":
-				if node.Kind == yaml.ScalarNode {
-					return nil, errors.New(node.Value)
+				if node.Kind != yaml.ScalarNode {
+					return nil, errors.New("!Error tag requires a scalar value for the error message")
 				}
-				return nil, errors.New("!Error tag requires a scalar value for the error message")
+				errorString, err := ei.renderFormatString(node.Value)
+				if err != nil {
+					return nil, err
+				}
+				return nil, errors.New(errorString)
 
 			case "!Format":
 				return ei.handleFormat(node)
@@ -328,41 +332,59 @@ func (ei *EmrichenInterpreter) handleConcat(node *yaml.Node) (*yaml.Node, error)
 }
 
 func (ei *EmrichenInterpreter) handleFormat(node *yaml.Node) (*yaml.Node, error) {
-	if node.Kind != yaml.SequenceNode || len(node.Content) < 1 {
-		return nil, errors.New("!Format requires at least one argument")
-	}
-
-	formatStringNode := node.Content[0]
-	if formatStringNode.Kind != yaml.ScalarNode {
+	formatString, ok := NodeToString(node)
+	if !ok {
 		return nil, errors.New("!Format first argument must be a scalar (the format string)")
 	}
 
-	var args []interface{}
-	for _, argNode := range node.Content[1:] {
-		resolvedArg, err := ei.Process(argNode)
-		if err != nil {
-			return nil, err
-		}
-		if resolvedArg.Kind != yaml.ScalarNode {
-			return nil, errors.New("!Format arguments must be scalar values")
-		}
-		args = append(args, resolvedArg.Value)
+	ret, err := ei.renderFormatString(formatString)
+	if err != nil {
+		return nil, err
 	}
 
-	tmpl, err := template.New("format").Parse(formatStringNode.Value)
+	return ValueToNode(ret)
+}
+
+func (ei *EmrichenInterpreter) renderFormatString(formatString string) (string, error) {
+	tmpl, err := template.New("format").Parse(formatString)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing format string: %v", err)
+		return "", fmt.Errorf("error parsing format string: %v", err)
 	}
 
 	var formatted bytes.Buffer
-	if err := tmpl.Execute(&formatted, args); err != nil {
-		return nil, fmt.Errorf("error executing format template: %v", err)
+	frame := ei.env.GetCurrentFrame()
+	vars := map[string]interface{}{}
+	if frame.Variables != nil {
+		vars = frame.Variables
+	}
+	if err := tmpl.Funcs(
+		map[string]interface{}{
+			"lookup": func(path string) interface{} {
+				v, err := ei.LookupFirst(path)
+				if err != nil {
+					return nil
+				}
+				v_, _ := NodeToInterface(v)
+				return v_
+			},
+			"lookupAll": func(path string) []interface{} {
+				v, err := ei.LookupAll(path)
+				if err != nil {
+					return nil
+				}
+				v_, _ := NodeToSlice(v)
+				return v_
+			},
+			"exists": func(path string) bool {
+				_, err := ei.LookupFirst(path)
+				return err == nil
+			},
+		},
+	).Execute(&formatted, vars); err != nil {
+		return "", fmt.Errorf("error executing format template: %v", err)
 	}
 
-	return &yaml.Node{
-		Kind:  yaml.ScalarNode,
-		Value: formatted.String(),
-	}, nil
+	return formatted.String(), nil
 }
 
 func (ei *EmrichenInterpreter) handleInclude(node *yaml.Node) (*yaml.Node, error) {

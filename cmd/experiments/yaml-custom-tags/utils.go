@@ -67,9 +67,9 @@ func NodeToInterface(node *yaml.Node) (interface{}, bool) {
 	case yaml.ScalarNode:
 		return getScalarValue(node)
 	case yaml.SequenceNode:
-		return getSliceValue(node)
+		return NodeToSlice(node)
 	case yaml.MappingNode:
-		return getMapValue(node)
+		return NodeToMap(node)
 	default:
 		return nil, false
 	}
@@ -97,7 +97,7 @@ func getScalarValue(node *yaml.Node) (interface{}, bool) {
 	return nil, false
 }
 
-func getSliceValue(node *yaml.Node) ([]interface{}, bool) {
+func NodeToSlice(node *yaml.Node) ([]interface{}, bool) {
 	if node == nil {
 		return nil, false
 	}
@@ -112,7 +112,7 @@ func getSliceValue(node *yaml.Node) ([]interface{}, bool) {
 	return slice, true
 }
 
-func getMapValue(node *yaml.Node) (map[string]interface{}, bool) {
+func NodeToMap(node *yaml.Node) (map[string]interface{}, bool) {
 	if node == nil {
 		return nil, false
 	}

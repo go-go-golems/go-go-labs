@@ -9,7 +9,7 @@ import (
 
 // Frame represents a single variable frame containing a map of variables.
 type Frame struct {
-	vars map[string]interface{}
+	Variables map[string]interface{}
 }
 
 // NewFrame creates a new Frame with variables. It takes an optional parent frame
@@ -19,7 +19,7 @@ func NewFrame(parent *Frame, newVars map[string]interface{}) *Frame {
 	mergedVars := make(map[string]interface{})
 	if parent != nil {
 		// Shallow copy of the parent's variables
-		for k, v := range parent.vars {
+		for k, v := range parent.Variables {
 			mergedVars[k] = v
 		}
 	}
@@ -29,7 +29,7 @@ func NewFrame(parent *Frame, newVars map[string]interface{}) *Frame {
 		mergedVars[k] = v
 	}
 
-	return &Frame{vars: mergedVars}
+	return &Frame{Variables: mergedVars}
 }
 
 // Env represents an environment with a stack of variable frames.
@@ -57,12 +57,12 @@ func NewEnv(options ...EnvOption) *Env {
 func WithVars(vars map[string]interface{}) EnvOption {
 	return func(e *Env) {
 		if len(e.stack) == 0 {
-			e.stack = append(e.stack, &Frame{vars: vars})
+			e.stack = append(e.stack, &Frame{Variables: vars})
 			return
 		}
 		currentFrame := e.GetCurrentFrame()
 		for k, v := range vars {
-			currentFrame.vars[k] = v
+			currentFrame.Variables[k] = v
 		}
 	}
 }
@@ -104,7 +104,7 @@ func (e *Env) GetVar(name string) (interface{}, bool) {
 	if v == nil {
 		return nil, false
 	}
-	val, ok := v.vars[name]
+	val, ok := v.Variables[name]
 	return val, ok
 }
 
@@ -124,7 +124,7 @@ func (e *Env) LookupAll(expression string, allowMissingKeys bool) ([]interface{}
 		return nil, err
 	}
 
-	results, err := j.AllowMissingKeys(allowMissingKeys).FindResults(v.vars)
+	results, err := j.AllowMissingKeys(allowMissingKeys).FindResults(v.Variables)
 	if err != nil {
 		return nil, err
 	}

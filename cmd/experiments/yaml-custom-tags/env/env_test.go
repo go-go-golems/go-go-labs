@@ -30,7 +30,7 @@ func TestEnvFrameWithVars(t *testing.T) {
 			expectedFrames: 1,
 		},
 		{
-			name:           "NewFrame with overlapping vars",
+			name:           "NewFrame with overlapping Variables",
 			parentVars:     map[string]interface{}{"a": 1},
 			newVars:        map[string]interface{}{"a": 2},
 			expectedVars:   map[string]interface{}{"a": 2},
@@ -50,17 +50,17 @@ func TestEnvFrameWithVars(t *testing.T) {
 			// Setup parent frame if needed
 			var parent *Frame
 			if tc.parentVars != nil {
-				parent = &Frame{vars: tc.parentVars}
+				parent = &Frame{Variables: tc.parentVars}
 			}
 
 			// Create new frame with newVars and parent
 			frame := NewFrame(parent, tc.newVars)
 
 			// Verify the frame's variables
-			assert.Equal(t, tc.expectedVars, frame.vars)
+			assert.Equal(t, tc.expectedVars, frame.Variables)
 
 			// Create new environment with options
-			env := NewEnv(WithVars(frame.vars))
+			env := NewEnv(WithVars(frame.Variables))
 
 			// Verify the number of frames in the environment
 			assert.Len(t, env.stack, tc.expectedFrames)
@@ -68,7 +68,7 @@ func TestEnvFrameWithVars(t *testing.T) {
 			if tc.expectedFrames > 0 {
 				// Verify the variables in the current top frame
 				currentFrame := env.GetCurrentFrame()
-				assert.Equal(t, tc.expectedVars, currentFrame.vars)
+				assert.Equal(t, tc.expectedVars, currentFrame.Variables)
 			}
 		})
 	}
@@ -145,7 +145,7 @@ func TestEnvPushPopGetCurrentFrame(t *testing.T) {
 			// Verify the variables in the current top frame
 			currentFrame := env.GetCurrentFrame()
 			if currentFrame != nil {
-				assert.Equal(t, tc.expectedTopVars, currentFrame.vars)
+				assert.Equal(t, tc.expectedTopVars, currentFrame.Variables)
 			} else {
 				assert.Nil(t, tc.expectedTopVars)
 			}

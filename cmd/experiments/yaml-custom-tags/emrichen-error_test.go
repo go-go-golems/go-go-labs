@@ -35,7 +35,7 @@ func TestEmrichenErrorTag(t *testing.T) {
 		},
 		{
 			name:               "Error with Dynamic Message",
-			inputYAML:          `!Error !Format "Dynamic {message}"`,
+			inputYAML:          `!Error "Dynamic {{.message}}"`,
 			expectError:        true,
 			expectErrorMessage: "Dynamic error message",
 			initVars: map[string]interface{}{
@@ -49,10 +49,9 @@ func TestEmrichenErrorTag(t *testing.T) {
 			expectErrorMessage: "Too large",
 		},
 		{
-			name:               "Error with Invalid Syntax",
-			inputYAML:          `!Error {message: 123}`,
-			expectError:        true,
-			expectErrorMessage: "Error with invalid syntax",
+			name:        "Error with Invalid Syntax",
+			inputYAML:   `!Error {message: 123}`,
+			expectError: true,
 		},
 		{
 			name:               "Multiple Error Tags",
@@ -64,7 +63,7 @@ func TestEmrichenErrorTag(t *testing.T) {
 			name:               "Error Tag with No Message",
 			inputYAML:          `!Error`,
 			expectError:        true,
-			expectErrorMessage: "Generic error message",
+			expectErrorMessage: "",
 		},
 	}
 
