@@ -127,68 +127,16 @@ func (ei *EmrichenInterpreter) Process(node *yaml.Node) (*yaml.Node, error) {
 			case "!All":
 				return ei.handleAll(node)
 			case "!Any":
-
 				return ei.handleAny(node)
-
-			case "!Filter":
-				return ei.handleFilter(node)
-
-			case "!Group":
-				return ei.handleGroup(node)
-
-			case "!If":
-				return ei.handleIf(node)
-
-			case "!Exists":
-				return ei.handleExists(node)
-
-			case "!Lookup":
-				return ei.handleLookup(node)
-
-			case "!LookupAll":
-				return ei.handleLookupAll(node)
-
-			case "!Concat":
-				return ei.handleConcat(node)
-
-			case "!Index":
-				return ei.handleIndex(node)
-
-			case "!Join":
-				return ei.handleJoin(node)
-
-			case "!Not":
-				return ei.handleNot(node)
-
-			case "!Op":
-				return ei.handleOp(node)
-
-			case "!MD5":
-				if node.Kind != yaml.ScalarNode {
-					return nil, errors.New("!MD5 requires a scalar value")
-				}
-				hash := md5.Sum([]byte(node.Value))
-				return makeString(hex.EncodeToString(hash[:])), nil
-
-			case "!SHA1":
-				if node.Kind != yaml.ScalarNode {
-					return nil, errors.New("!SHA1 requires a scalar value")
-				}
-				hash := sha1.Sum([]byte(node.Value))
-				return makeString(hex.EncodeToString(hash[:])), nil
-
-			case "!SHA256":
-				if node.Kind != yaml.ScalarNode {
-					return nil, errors.New("!SHA256 requires a scalar value")
-				}
-				hash := sha256.Sum256([]byte(node.Value))
-				return makeString(hex.EncodeToString(hash[:])), nil
 
 			case "!Base64":
 				if node.Kind != yaml.ScalarNode {
 					return nil, errors.New("!Base64 requires a scalar value")
 				}
 				return makeString(base64.StdEncoding.EncodeToString([]byte(node.Value))), nil
+
+			case "!Concat":
+				return ei.handleConcat(node)
 
 			case "!Debug":
 				v, err := ei.Process(node)
@@ -198,21 +146,6 @@ func (ei *EmrichenInterpreter) Process(node *yaml.Node) (*yaml.Node, error) {
 				toInterface, _ := NodeToInterface(v)
 				fmt.Printf("DEBUG: %s\n", toInterface)
 				return v, nil
-
-			case "!Var":
-				if node.Kind == yaml.ScalarNode {
-					varName := node.Value
-					varValue, ok := ei.env.GetVar(varName)
-					if !ok {
-						return nil, fmt.Errorf("variable %s not found", varName)
-					}
-					v, err := ValueToNode(varValue)
-					if err != nil {
-						return nil, err
-					}
-					return v, nil
-				}
-				return nil, errors.New("variable definition must be !Var variable name")
 
 			case "!Error":
 				if node.Kind != yaml.ScalarNode {
@@ -224,11 +157,26 @@ func (ei *EmrichenInterpreter) Process(node *yaml.Node) (*yaml.Node, error) {
 				}
 				return nil, errors.New(errorString)
 
+			case "!Exists":
+				return ei.handleExists(node)
+
 			case "!Format":
 				return ei.handleFormat(node)
 
+			case "!Filter":
+				return ei.handleFilter(node)
+
+			case "!Group":
+				return ei.handleGroup(node)
+
+			case "!If":
+				return ei.handleIf(node)
+
 			case "!Include":
 				return ei.handleInclude(node)
+
+			case "!Index":
+				return ei.handleIndex(node)
 
 			case "!IsBoolean":
 				return makeBool(node.Kind == yaml.ScalarNode && (node.Value == "true" || node.Value == "false")), nil
@@ -253,8 +201,59 @@ func (ei *EmrichenInterpreter) Process(node *yaml.Node) (*yaml.Node, error) {
 			case "!IsString":
 				return makeBool(node.Kind == yaml.ScalarNode), nil
 
+			case "!Join":
+				return ei.handleJoin(node)
+
+			case "!Lookup":
+				return ei.handleLookup(node)
+
+			case "!LookupAll":
+				return ei.handleLookupAll(node)
+
+			case "!MD5":
+				if node.Kind != yaml.ScalarNode {
+					return nil, errors.New("!MD5 requires a scalar value")
+				}
+				hash := md5.Sum([]byte(node.Value))
+				return makeString(hex.EncodeToString(hash[:])), nil
+
 			case "!Merge":
 				return ei.handleMerge(node)
+
+			case "!Not":
+				return ei.handleNot(node)
+
+			case "!Op":
+				return ei.handleOp(node)
+
+			case "!SHA1":
+				if node.Kind != yaml.ScalarNode {
+					return nil, errors.New("!SHA1 requires a scalar value")
+				}
+				hash := sha1.Sum([]byte(node.Value))
+				return makeString(hex.EncodeToString(hash[:])), nil
+
+			case "!SHA256":
+				if node.Kind != yaml.ScalarNode {
+					return nil, errors.New("!SHA256 requires a scalar value")
+				}
+				hash := sha256.Sum256([]byte(node.Value))
+				return makeString(hex.EncodeToString(hash[:])), nil
+
+			case "!Var":
+				if node.Kind == yaml.ScalarNode {
+					varName := node.Value
+					varValue, ok := ei.env.GetVar(varName)
+					if !ok {
+						return nil, fmt.Errorf("variable %s not found", varName)
+					}
+					v, err := ValueToNode(varValue)
+					if err != nil {
+						return nil, err
+					}
+					return v, nil
+				}
+				return nil, errors.New("variable definition must be !Var variable name")
 
 			case "!URLEncode":
 				return ei.handleURLEncode(node)
@@ -647,6 +646,93 @@ func (ei *EmrichenInterpreter) handleGroup(node *yaml.Node) (*yaml.Node, error) 
 	}, nil
 }
 
+func (ei *EmrichenInterpreter) handleIndex(node *yaml.Node) (*yaml.Node, error) {
+	args, err := parseArgs(node, []string{"over", "by", "template", "duplicates"})
+	if err != nil {
+		return nil, err
+	}
+
+	overNode, byNode := args["over"], args["by"]
+	templateNode, templateExists := args["template"]
+	duplicatesActionNode, duplicatesExists := args["duplicates"]
+	duplicateAction := "error"
+	if duplicatesExists {
+		duplicateAction = duplicatesActionNode.Value
+	}
+
+	if overNode.Kind != yaml.SequenceNode {
+		return nil, errors.New("!Index 'over' argument must be a sequence")
+	}
+
+	var resultVarName string
+	if asNode, ok := args["as"]; ok && asNode.Kind == yaml.ScalarNode {
+		resultVarName = asNode.Value
+	} else {
+		resultVarName = "item" // Default variable name
+	}
+
+	indexedResults := make(map[interface{}]*yaml.Node)
+	duplicateKeys := make(map[interface{}]bool)
+
+	for _, itemNode := range overNode.Content {
+		ei.env.Push(map[string]interface{}{resultVarName: itemNode})
+		keyNode, err := ei.Process(byNode)
+		ei.env.Pop()
+		if err != nil {
+			return nil, err
+		}
+		if keyNode.Kind != yaml.ScalarNode {
+			return nil, errors.New("!Index 'by' expression must evaluate to a scalar")
+		}
+		key := keyNode.Value
+
+		_, isDuplicate := duplicateKeys[key]
+		if isDuplicate {
+			if duplicateAction == "error" {
+				return nil, errors.Errorf("Duplicate key encountered: %v", key)
+			}
+			if duplicateAction == "ignore" {
+				continue
+			}
+			if duplicateAction == "warn" || duplicateAction == "warning" {
+				_, _ = fmt.Fprintf(os.Stderr, "WARNING: Duplicate key encountered: %v\n", key)
+				continue
+			} else {
+				return nil, errors.Errorf("Unknown duplicate action: %v", duplicateAction)
+			}
+		}
+		duplicateKeys[key] = true
+
+		var resultNode *yaml.Node
+		if templateExists {
+			resultNode, err = ei.Process(templateNode)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			resultNode = itemNode
+		}
+
+		indexedResults[key] = resultNode
+	}
+
+	// Convert the map to a sequence of YAML nodes
+	content := make([]*yaml.Node, 0, len(indexedResults)*2)
+	for k, v := range indexedResults {
+		keyNode, err := ValueToNode(k)
+		if err != nil {
+			return nil, err
+		}
+		content = append(content, keyNode, v)
+	}
+
+	return &yaml.Node{
+		Kind:    yaml.MappingNode,
+		Tag:     "!!map",
+		Content: content,
+	}, nil
+}
+
 func (ei *EmrichenInterpreter) handleIf(node *yaml.Node) (*yaml.Node, error) {
 	args, err := parseArgs(node, []string{"test", "then", "else"})
 	if err != nil {
@@ -933,57 +1019,4 @@ func (ei *EmrichenInterpreter) handleOp(node *yaml.Node) (*yaml.Node, error) {
 	default:
 		return nil, fmt.Errorf("unsupported operator: %s", opNode.Value)
 	}
-}
-
-func (ei *EmrichenInterpreter) handleIndex(node *yaml.Node) (*yaml.Node, error) {
-	args, err := parseArgs(node, []string{"over", "by"})
-	if err != nil {
-		return nil, err
-	}
-
-	overNode, byNode := args["over"], args["by"]
-	if overNode.Kind != yaml.SequenceNode {
-		return nil, errors.New("!Index 'over' argument must be a sequence")
-	}
-
-	resultVarName := "item" // Default variable name
-	if resultNode, ok := args["as"]; ok && resultNode.Kind == yaml.ScalarNode {
-		resultVarName = resultNode.Value
-	}
-
-	indexedResults := make(map[string]*yaml.Node)
-	vars := map[string]interface{}{}
-	for _, item := range overNode.Content {
-		// Set the current item variable
-		vars[resultVarName] = item
-
-		ei.env.Push(vars)
-		// Process the 'by' expression to determine the key
-		keyNode, err := ei.Process(byNode)
-		ei.env.Pop()
-
-		if err != nil {
-			return nil, err
-		}
-		if keyNode.Kind != yaml.ScalarNode {
-			return nil, errors.New("!Index 'by' expression must evaluate to a scalar")
-		}
-		key := keyNode.Value
-
-		// Add the item to the indexed results
-		indexedResults[key] = item
-	}
-
-	// Convert the map to a sequence of YAML nodes
-	content := make([]*yaml.Node, 0, len(indexedResults)*2)
-	for k, v := range indexedResults {
-		content = append(content, &yaml.Node{Kind: yaml.ScalarNode, Value: k}, v)
-	}
-
-	return &yaml.Node{
-		Kind:    yaml.MappingNode,
-		Tag:     "!!map",
-		Content: content,
-	}, nil
-
 }

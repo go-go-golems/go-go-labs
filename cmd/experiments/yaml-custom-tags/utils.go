@@ -286,3 +286,87 @@ func findWithNodes(content []*yaml.Node) (*yaml.Node, *yaml.Node) {
 	}
 	return varsNode, templateNode
 }
+
+// convertNodeToInterface converts a yaml.Node into a corresponding Go type.
+func convertNodeToInterface(node *yaml.Node) interface{} {
+	switch node.Kind {
+	case yaml.DocumentNode:
+		// Assuming the document has a single root element
+		if len(node.Content) == 1 {
+			return convertNodeToInterface(node.Content[0])
+		}
+
+	case yaml.MappingNode:
+		m := make(map[string]interface{})
+		for i := 0; i < len(node.Content); i += 2 {
+			key := node.Content[i].Value
+			value := convertNodeToInterface(node.Content[i+1])
+			m[key] = value
+		}
+		return map[string]interface{}{
+			"type":  "Mapping",
+			"tag":   node.Tag,
+			"value": m,
+		}
+
+	case yaml.SequenceNode:
+		var s []interface{}
+		for _, n := range node.Content {
+			s = append(s, convertNodeToInterface(n))
+		}
+		return map[string]interface{}{
+			"type":  "Sequence",
+			"tag":   node.Tag,
+			"value": s,
+		}
+
+	case yaml.ScalarNode:
+		v := convertScalarValue(node)
+		return map[string]interface{}{
+			"type":  "Scalar",
+			"tag":   node.Tag,
+			"value": v,
+		}
+
+	case yaml.AliasNode:
+		return map[string]interface{}{
+			"type":  "Alias",
+			"tag":   node.Tag,
+			"value": node.Alias,
+		}
+	}
+
+	return nil
+}
+
+// convertScalarValue converts a scalar YAML node to a primitive Go type.
+func convertScalarValue(node *yaml.Node) interface{} {
+	switch node.Tag {
+	case "!!int":
+		i, err := strconv.Atoi(node.Value)
+		if err != nil {
+			return node.Value
+		}
+		return i
+
+	case "!!float":
+		f, err := strconv.ParseFloat(node.Value, 64)
+		if err != nil {
+			return node.Value
+		}
+		return f
+
+	case "!!bool":
+		b, err := strconv.ParseBool(node.Value)
+		if err != nil {
+			return node.Value
+		}
+		return b
+
+	case "!!str":
+		return node.Value
+
+	default:
+		return node.Value
+	}
+}
