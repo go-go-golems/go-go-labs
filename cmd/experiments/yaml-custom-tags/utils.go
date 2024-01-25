@@ -163,15 +163,15 @@ func ValueToNode(value interface{}) (*yaml.Node, error) {
 	case reflect.String:
 		return makeString(v.String()), nil
 	case reflect.Slice, reflect.Array:
-		return genericSliceToNode(v)
+		return GenericSliceToNode(v)
 	case reflect.Map:
-		return genericMapToNode(v)
+		return GenericMapToNode(v)
 	default:
 		return nil, errors.Errorf("unsupported type %T", value)
 	}
 }
 
-func genericSliceToNode(slice reflect.Value) (*yaml.Node, error) {
+func GenericSliceToNode(slice reflect.Value) (*yaml.Node, error) {
 	node := &yaml.Node{
 		Kind: yaml.SequenceNode,
 		Tag:  "!!seq",
@@ -187,7 +187,7 @@ func genericSliceToNode(slice reflect.Value) (*yaml.Node, error) {
 	return node, nil
 }
 
-func genericMapToNode(mapValue reflect.Value) (*yaml.Node, error) {
+func GenericMapToNode(mapValue reflect.Value) (*yaml.Node, error) {
 	node := &yaml.Node{
 		Kind: yaml.MappingNode,
 		Tag:  "!!map",
