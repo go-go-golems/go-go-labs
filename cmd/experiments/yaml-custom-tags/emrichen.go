@@ -267,6 +267,7 @@ func (ei *EmrichenInterpreter) Process(node *yaml.Node) (*yaml.Node, error) {
 			default:
 			}
 
+			// TODO(manuel, 2024-01-25) This is where we need to handle void in sequences and mappings
 			if node.Kind == yaml.SequenceNode || node.Kind == yaml.MappingNode {
 				var err error
 				for i := range node.Content {
