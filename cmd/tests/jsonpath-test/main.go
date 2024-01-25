@@ -10,7 +10,7 @@ func main() {
 	data := map[string]interface{}{
 		"items": []interface{}{
 			map[string]interface{}{
-				"metadata": map[string]interface{}{
+				"metadata": map[string]string{
 					"name": "foo",
 				},
 			},
@@ -20,6 +20,12 @@ func main() {
 				},
 			},
 			123,
+			[]int{1, 2, 3},
+			struct {
+				Name string
+			}{
+				Name: "baz",
+			},
 		},
 	}
 	j := jsonpath.New("test")

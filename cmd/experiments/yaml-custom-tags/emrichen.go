@@ -143,7 +143,7 @@ func (ei *EmrichenInterpreter) Process(node *yaml.Node) (*yaml.Node, error) {
 				return ei.handleLookup(node)
 
 			case "!LookupAll":
-				return ei.handleLookup(node)
+				return ei.handleLookupAll(node)
 
 			case "!Concat":
 				return ei.handleConcat(node)

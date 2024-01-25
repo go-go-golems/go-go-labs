@@ -70,6 +70,10 @@ func NodeToInterface(node *yaml.Node) (interface{}, bool) {
 		return NodeToSlice(node)
 	case yaml.MappingNode:
 		return NodeToMap(node)
+	case yaml.AliasNode:
+		return nil, false
+	case yaml.DocumentNode:
+		return nil, false
 	default:
 		return nil, false
 	}
@@ -146,6 +150,7 @@ func ValueToNode(value interface{}) (*yaml.Node, error) {
 
 	// Use reflection to handle dynamic types
 	v := reflect.ValueOf(value)
+	//exhaustive:ignore
 	switch v.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return makeInt(int(v.Int())), nil
