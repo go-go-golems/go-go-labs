@@ -10,6 +10,9 @@ import (
 
 // NodeToInt parses a YAML node to int.
 func NodeToInt(node *yaml.Node) (int, bool) {
+	if node == nil {
+		return 0, false
+	}
 	if node.Kind == yaml.ScalarNode && (node.Tag == "!!int" || node.Tag == "!!float") {
 		val, err := strconv.Atoi(node.Value)
 		if err == nil {
@@ -21,6 +24,9 @@ func NodeToInt(node *yaml.Node) (int, bool) {
 
 // NodeToFloat parses a YAML node to float.
 func NodeToFloat(node *yaml.Node) (float64, bool) {
+	if node == nil {
+		return 0.0, false
+	}
 	if node.Kind == yaml.ScalarNode && (node.Tag == "!!float" || node.Tag == "!!int") {
 		val, err := strconv.ParseFloat(node.Value, 64)
 		if err == nil {
@@ -32,6 +38,9 @@ func NodeToFloat(node *yaml.Node) (float64, bool) {
 
 // NodeToBool parses a YAML node to bool.
 func NodeToBool(node *yaml.Node) (bool, bool) {
+	if node == nil {
+		return false, false
+	}
 	if node.Kind == yaml.ScalarNode && node.Tag == "!!bool" {
 		val, err := strconv.ParseBool(node.Value)
 		if err == nil {
@@ -41,8 +50,11 @@ func NodeToBool(node *yaml.Node) (bool, bool) {
 	return false, false
 }
 
-// NotToString parses a YAML node to string.
-func NotToString(node *yaml.Node) (string, bool) {
+// NodeToString parses a YAML node to string.
+func NodeToString(node *yaml.Node) (string, bool) {
+	if node == nil {
+		return "", false
+	}
 	if node.Kind == yaml.ScalarNode && node.Tag == "!!str" {
 		return node.Value, true
 	}
@@ -64,6 +76,12 @@ func NodeToInterface(node *yaml.Node) (interface{}, bool) {
 }
 
 func getScalarValue(node *yaml.Node) (interface{}, bool) {
+	if node == nil {
+		return nil, false
+	}
+	if node.Tag == "!!null" {
+		return nil, true
+	}
 	if val, ok := NodeToInt(node); ok {
 		return val, true
 	}
@@ -73,13 +91,16 @@ func getScalarValue(node *yaml.Node) (interface{}, bool) {
 	if val, ok := NodeToBool(node); ok {
 		return val, true
 	}
-	if val, ok := NotToString(node); ok {
+	if val, ok := NodeToString(node); ok {
 		return val, true
 	}
 	return nil, false
 }
 
 func getSliceValue(node *yaml.Node) ([]interface{}, bool) {
+	if node == nil {
+		return nil, false
+	}
 	var slice []interface{}
 	for _, n := range node.Content {
 		if val, ok := NodeToInterface(n); ok {
@@ -92,6 +113,9 @@ func getSliceValue(node *yaml.Node) ([]interface{}, bool) {
 }
 
 func getMapValue(node *yaml.Node) (map[string]interface{}, bool) {
+	if node == nil {
+		return nil, false
+	}
 	if len(node.Content)%2 != 0 {
 		return nil, false // Invalid map node
 	}
