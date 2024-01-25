@@ -112,7 +112,7 @@ func (e *Env) GetVar(name string) (interface{}, bool) {
 // It returns all matches as a slice of interface{} and an error if the query
 // fails or if the current frame is nil. The function requires a valid jsonpath
 // expression and uses the Kubernetes jsonpath package.
-func (e *Env) LookupAll(expression string) ([]interface{}, error) {
+func (e *Env) LookupAll(expression string, allowMissingKeys bool) ([]interface{}, error) {
 	v := e.GetCurrentFrame()
 	if v == nil {
 		return nil, nil
@@ -124,7 +124,7 @@ func (e *Env) LookupAll(expression string) ([]interface{}, error) {
 		return nil, err
 	}
 
-	results, err := j.FindResults(v.vars)
+	results, err := j.AllowMissingKeys(allowMissingKeys).FindResults(v.vars)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +143,7 @@ func (e *Env) LookupAll(expression string) ([]interface{}, error) {
 // It returns the first match as an interface{} and an error if the query
 // fails or if the current frame is nil, or if no matching node is found.
 func (e *Env) LookupFirst(expression string) (interface{}, error) {
-	res, err := e.LookupAll(expression)
+	res, err := e.LookupAll(expression, false)
 	if err != nil {
 		return nil, err
 	}

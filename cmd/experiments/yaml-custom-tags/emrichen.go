@@ -8,8 +8,8 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"github.com/PaesslerAG/jsonpath"
 	"github.com/go-go-golems/glazed/pkg/helpers/cast"
+	"github.com/go-go-golems/go-go-labs/cmd/experiments/yaml-custom-tags/env"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 	"net/url"
@@ -21,27 +21,21 @@ import (
 )
 
 type EmrichenInterpreter struct {
-	vars map[string]interface{}
+	env *env.Env
 }
 
 type EmrichenInterpreterOption func(*EmrichenInterpreter) error
 
 func WithVars(vars map[string]interface{}) EmrichenInterpreterOption {
 	return func(ei *EmrichenInterpreter) error {
-		for k, v := range vars {
-			value, err := cast.ToInterfaceValue(v)
-			if err != nil {
-				return err
-			}
-			ei.vars[k] = value
-		}
+		ei.env.Push(vars)
 		return nil
 	}
 }
 
 func NewEmrichenInterpreter(options ...EmrichenInterpreterOption) (*EmrichenInterpreter, error) {
 	ret := &EmrichenInterpreter{
-		vars: make(map[string]interface{}),
+		env: env.NewEnv(),
 	}
 
 	for _, option := range options {
@@ -74,15 +68,28 @@ func (ei *EmrichenInterpreter) CreateDecoder(target interface{}) *interpretHelpe
 	}
 }
 
-func (ei *EmrichenInterpreter) Lookup(jsonPath string) (interface{}, error) {
-	if !strings.HasPrefix(jsonPath, "$.") {
-		jsonPath = "$." + jsonPath
-	}
-	v, err := jsonpath.Get(jsonPath, ei.vars)
+func (ei *EmrichenInterpreter) LookupFirst(jsonPath string) (*yaml.Node, error) {
+	v, err := ei.env.LookupFirst("$." + jsonPath)
 	if err != nil {
 		return nil, err
 	}
-	return v, nil
+	node, err := ValueToNode(v)
+	if err != nil {
+		return nil, err
+	}
+	return node, nil
+}
+
+func (ei *EmrichenInterpreter) LookupAll(jsonPath string) (*yaml.Node, error) {
+	v, err := ei.env.LookupAll("$."+jsonPath, true)
+	if err != nil {
+		return nil, err
+	}
+	node, err := ValueToNode(v)
+	if err != nil {
+		return nil, err
+	}
+	return node, nil
 }
 
 func (ei *EmrichenInterpreter) Process(node *yaml.Node) (*yaml.Node, error) {
@@ -183,11 +190,11 @@ func (ei *EmrichenInterpreter) Process(node *yaml.Node) (*yaml.Node, error) {
 			case "!Var":
 				if node.Kind == yaml.ScalarNode {
 					varName := node.Value
-					varValue, ok := ei.vars[varName]
+					varValue, ok := ei.env.GetVar(varName)
 					if !ok {
 						return nil, fmt.Errorf("variable %s not found", varName)
 					}
-					v, err := makeValue(varValue)
+					v, err := ValueToNode(varValue)
 					if err != nil {
 						return nil, err
 					}
@@ -270,6 +277,7 @@ func (ei *EmrichenInterpreter) Process(node *yaml.Node) (*yaml.Node, error) {
 
 func (ei *EmrichenInterpreter) updateVars(content []*yaml.Node) error {
 	name := ""
+	vars := map[string]interface{}{}
 	for i := range content {
 		if i%2 == 0 {
 			name = content[i].Value
@@ -279,7 +287,7 @@ func (ei *EmrichenInterpreter) updateVars(content []*yaml.Node) error {
 		if err != nil {
 			return err
 		}
-		v, ok := GetValue(node)
+		v, ok := NodeToInterface(node)
 		if !ok {
 			return errors.New("could not get node value")
 		}
@@ -287,8 +295,10 @@ func (ei *EmrichenInterpreter) updateVars(content []*yaml.Node) error {
 		if err != nil {
 			return err
 		}
-		ei.vars[name] = v_
+		vars[name] = v_
 	}
+
+	ei.env.Push(vars)
 
 	return nil
 }
@@ -376,35 +386,31 @@ func (ei *EmrichenInterpreter) handleInclude(node *yaml.Node) (*yaml.Node, error
 }
 
 func (ei *EmrichenInterpreter) handleExists(node *yaml.Node) (*yaml.Node, error) {
-	_, err := ei.Lookup(node.Value)
+	v, err := ei.env.LookupAll("$."+node.Value, true)
 	if err != nil {
-		if strings.Contains(err.Error(), "unknown key") {
+		if strings.Contains(err.Error(), "unrecognized identifier ") {
 			return makeBool(false), nil
 		}
 		return nil, err
 	}
-	return makeBool(true), nil
+	return makeBool(len(v) >= 1), nil
 }
 
 func (ei *EmrichenInterpreter) handleLookup(node *yaml.Node) (*yaml.Node, error) {
 	// check that the value is a string
-	v, err := ei.Lookup(node.Value)
+	v, err := ei.LookupFirst(node.Value)
 	if err != nil {
 		return nil, err
 	}
-	// check if query contains *, and if the result is a list, return the first element
-	if strings.Contains(node.Value, "*") && reflect.TypeOf(v).Kind() == reflect.Slice {
-		v = reflect.ValueOf(v).Index(0).Interface()
-	}
-	return makeValue(v)
+	return v, nil
 }
 
 func (ei *EmrichenInterpreter) handleLookupAll(node *yaml.Node) (*yaml.Node, error) {
-	v, err := ei.Lookup(node.Value)
+	v, err := ei.LookupAll(node.Value)
 	if err != nil {
 		return nil, err
 	}
-	return makeValue(v)
+	return v, nil
 }
 
 func (ei *EmrichenInterpreter) handleFilter(node *yaml.Node) (*yaml.Node, error) {
@@ -418,7 +424,7 @@ func (ei *EmrichenInterpreter) handleFilter(node *yaml.Node) (*yaml.Node, error)
 	}
 
 	overNode := args["over"]
-	if overNode.Kind != yaml.SequenceNode {
+	if overNode.Kind != yaml.SequenceNode && overNode.Kind != yaml.MappingNode {
 		return nil, errors.New("!Filter 'over' argument must be a sequence")
 	}
 	testNode := args["test"]
@@ -434,8 +440,15 @@ func (ei *EmrichenInterpreter) handleFilter(node *yaml.Node) (*yaml.Node, error)
 
 	filtered := []*yaml.Node{}
 	for _, item := range overNode.Content {
-		ei.vars[varName] = item // Assuming 'item' is the variable name for each element
+		v, ok := NodeToInterface(item)
+		if !ok {
+			return nil, errors.Errorf("could not get value for node: %v", item)
+		}
+		ei.env.Push(map[string]interface{}{
+			varName: v,
+		})
 		result, err := ei.Process(testNode)
+		ei.env.Pop()
 		if err != nil {
 			return nil, err
 		}
@@ -443,10 +456,10 @@ func (ei *EmrichenInterpreter) handleFilter(node *yaml.Node) (*yaml.Node, error)
 			filtered = append(filtered, item)
 		}
 	}
-	delete(ei.vars, "item") // Clean up the temporary variable
-
+	// TODO(manuel, 2024-01-24) The result should be a mapping
 	return &yaml.Node{
 		Kind:    yaml.SequenceNode,
+		Tag:     "!!seq",
 		Content: filtered,
 	}, nil
 }
@@ -575,23 +588,15 @@ func (ei *EmrichenInterpreter) handleWith(node *yaml.Node) (*yaml.Node, error) {
 		return nil, errors.New("!With requires 'vars' and 'template' nodes")
 	}
 
-	currentVars := ei.vars
-
-	newVars := make(map[string]interface{})
-	for k, v := range currentVars {
-		value, err := cast.ToInterfaceValue(v)
-		if err != nil {
-			return nil, err
-		}
-		newVars[k] = value
+	if varsNode.Kind != yaml.MappingNode {
+		return nil, errors.New("!With 'vars' node must be a mapping node")
 	}
-
-	ei.vars = newVars
-	defer func() { ei.vars = currentVars }()
 
 	if err := ei.updateVars(varsNode.Content); err != nil {
 		return nil, err
 	}
+
+	defer ei.env.Pop()
 
 	return ei.Process(templateNode)
 }
@@ -692,11 +697,11 @@ func (ei *EmrichenInterpreter) handleOp(node *yaml.Node) (*yaml.Node, error) {
 	default:
 	}
 
-	a, ok := GetFloat(aProcessed)
+	a, ok := NodeToFloat(aProcessed)
 	if isNumberOperation && !ok {
 		return nil, errors.New("could not convert first argument to float")
 	}
-	b, ok := GetFloat(bProcessed)
+	b, ok := NodeToFloat(bProcessed)
 	if isNumberOperation && !ok {
 		return nil, errors.New("could not convert second argument to float")
 	}
@@ -771,17 +776,21 @@ func (ei *EmrichenInterpreter) handleIndex(node *yaml.Node) (*yaml.Node, error) 
 	}
 
 	resultVarName := "item" // Default variable name
-	if resultNode, ok := args["result_as"]; ok && resultNode.Kind == yaml.ScalarNode {
+	if resultNode, ok := args["as"]; ok && resultNode.Kind == yaml.ScalarNode {
 		resultVarName = resultNode.Value
 	}
 
 	indexedResults := make(map[string]*yaml.Node)
+	vars := map[string]interface{}{}
 	for _, item := range overNode.Content {
 		// Set the current item variable
-		ei.vars[resultVarName] = item
+		vars[resultVarName] = item
 
+		ei.env.Push(vars)
 		// Process the 'by' expression to determine the key
 		keyNode, err := ei.Process(byNode)
+		ei.env.Pop()
+
 		if err != nil {
 			return nil, err
 		}
@@ -794,9 +803,6 @@ func (ei *EmrichenInterpreter) handleIndex(node *yaml.Node) (*yaml.Node, error) 
 		indexedResults[key] = item
 	}
 
-	// Cleanup the result variable
-	delete(ei.vars, resultVarName)
-
 	// Convert the map to a sequence of YAML nodes
 	content := make([]*yaml.Node, 0, len(indexedResults)*2)
 	for k, v := range indexedResults {
@@ -805,6 +811,7 @@ func (ei *EmrichenInterpreter) handleIndex(node *yaml.Node) (*yaml.Node, error) 
 
 	return &yaml.Node{
 		Kind:    yaml.MappingNode,
+		Tag:     "!!map",
 		Content: content,
 	}, nil
 

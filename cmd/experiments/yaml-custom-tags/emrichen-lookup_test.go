@@ -37,14 +37,14 @@ func TestEmrichenLookupTag(t *testing.T) {
 			},
 		},
 		// TODO(manuel, 2024-01-24) This is a limitation of the jsonpath library we use
-		//{
-		//	name:      "Lookup special characters in keys",
-		//	inputYAML: `!Lookup "foo-bar"`,
-		//	expected:  "value",
-		//	initVars: map[string]interface{}{
-		//		"foo-bar": "value",
-		//	},
-		//},
+		{
+			name:      "Lookup special characters in keys",
+			inputYAML: `!Lookup "foo-bar"`,
+			expected:  "value",
+			initVars: map[string]interface{}{
+				"foo-bar": "value",
+			},
+		},
 		{
 			name:      "Lookup array index access",
 			inputYAML: "!Lookup items[0]",
@@ -72,10 +72,10 @@ func TestEmrichenLookupTag(t *testing.T) {
 			inputYAML: "!Lookup items.*",
 			expected:  "firstItem",
 			initVars: map[string]interface{}{
-				"items": map[string]interface{}{
-					"a": "firstItem",
-					"b": "secondItem",
-					"c": "thirdItem",
+				"items": []interface{}{
+					"firstItem",
+					"secondItem",
+					"thirdItem",
 				},
 			},
 		},

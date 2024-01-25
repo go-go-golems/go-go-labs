@@ -243,7 +243,7 @@ func TestEnvGetVarAndLookupAll(t *testing.T) {
 
 			// Test LookupAll
 			for _, laTest := range tc.lookupAllTests {
-				match, err := env.LookupAll(laTest.expression)
+				match, err := env.LookupAll(laTest.expression, false)
 				if laTest.expectedErr {
 					assert.Error(t, err)
 					continue
@@ -470,7 +470,7 @@ func TestEnvStackOperations(t *testing.T) {
 
 			// Test LookupAll
 			for _, laTest := range tt.lookupAllTests {
-				match, err := env.LookupAll(laTest.expression)
+				match, err := env.LookupAll(laTest.expression, true)
 				if laTest.expectedErr {
 					assert.Error(t, err)
 					continue
