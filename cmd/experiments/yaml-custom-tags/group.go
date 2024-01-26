@@ -11,7 +11,12 @@ func (ei *EmrichenInterpreter) handleGroup(node *yaml.Node) (*yaml.Node, error) 
 		return nil, errors.New("!Group requires a mapping node")
 	}
 
-	args, err := parseArgs(node, []string{"over", "by"})
+	args, err := ei.parseArgs(node, []parsedVariable{
+		{Name: "over", Required: true, Expand: true},
+		{Name: "by", Required: true},
+		{Name: "template"},
+		{Name: "as"},
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -45,50 +50,49 @@ func (ei *EmrichenInterpreter) handleGroup(node *yaml.Node) (*yaml.Node, error) 
 	}
 
 	for i := 0; i < len(overNode.Content); i++ {
-		_, err := func() (interface{}, error) {
-			var itemNode *yaml.Node
+		var itemNode *yaml.Node
 
-			if groupByMapping {
-				if i%2 != 0 { // Skip value nodes
-					return nil, nil
-				}
-				itemNode = overNode.Content[i+1]
-			} else {
-				itemNode = overNode.Content[i]
+		if groupByMapping {
+			if i%2 != 0 { // Skip value nodes
+				return nil, nil
 			}
+			itemNode = overNode.Content[i+1]
+		} else {
+			itemNode = overNode.Content[i]
+		}
 
-			item, ok := NodeToInterface(itemNode)
-			if !ok {
-				return nil, errors.Errorf("could not get item for node: %v", itemNode)
-			}
+		item, ok := NodeToInterface(itemNode)
+		if !ok {
+			return nil, errors.Errorf("could not get item for node: %v", itemNode)
+		}
 
-			ei.env.Push(map[string]interface{}{
-				varName: item,
-			})
-			defer ei.env.Pop()
+		err = ei.env.With(map[string]interface{}{
+			varName: item,
+		}, func() error {
 			groupKeyNode, err := ei.Process(byNode)
 			if err != nil {
-				return nil, err
+				return err
 			}
 
 			groupKey, ok := NodeToInterface(groupKeyNode)
 			if !ok {
-				return nil, errors.Errorf("could not get group key for node: %v", groupKeyNode)
+				return errors.Errorf("could not get group key for node: %v", groupKeyNode)
 			}
 
 			var result *yaml.Node
 			if templateNode != nil {
 				result, err = ei.Process(templateNode)
 				if err != nil {
-					return nil, err
+					return err
 				}
 			} else {
 				result = itemNode
 			}
 
 			groups[groupKey] = append(groups[groupKey], result)
-			return nil, nil
-		}()
+			return nil
+		})
+
 		if err != nil {
 			return nil, err
 		}

@@ -80,14 +80,6 @@ func TestEmrichenIfAndFilterTags(t *testing.T) {
   else: 'Number No'`,
 			expected: "'Number Yes'",
 		},
-		// Test 6: Error Handling
-		{
-			name: "Error handling with missing 'then' key",
-			inputYAML: `!If 
-  test: true
-  else: 'No'`,
-			expectError: true,
-		},
 		// Test 9: Conditional Evaluation with `null` and Empty Values
 		{
 			name: "Evaluation with null condition",
@@ -112,6 +104,52 @@ func TestEmrichenIfAndFilterTags(t *testing.T) {
   then: 'Empty List Yes'
   else: 'Empty List No'`,
 			expected: "'Empty List No'",
+		},
+		{
+			name: "Omitting 'then' branch - true condition",
+			inputYAML: `!If 
+  test: true
+  else: 'No'`,
+			expected: "null", // Expecting null or equivalent when 'then' is missing and condition is true
+		},
+		{
+			name: "Omitting 'else' branch - false condition",
+			inputYAML: `!If 
+  test: false
+  then: 'Yes'`,
+			expected: "null", // Expecting null or equivalent when 'else' is missing and condition is false
+		},
+		{
+			name: "Omitting both 'then' and 'else' - true condition",
+			inputYAML: `!If 
+  test: true`,
+			expected: "null", // Expecting null or equivalent when both branches are missing
+		},
+		{
+			name: "Omitting both 'then' and 'else' - false condition",
+			inputYAML: `!If 
+  test: false`,
+			expected: "null", // Expecting null or equivalent when both branches are missing
+		},
+		{
+			name: "Variable substitution in condition with omitted 'then'",
+			inputYAML: `!If 
+  test: !Var condition
+  else: 'Variable No'`,
+			expected: "null",
+			initVars: map[string]interface{}{
+				"condition": true,
+			},
+		},
+		{
+			name: "Variable substitution in condition with omitted 'else'",
+			inputYAML: `!If 
+  test: !Var condition
+  then: 'Variable Yes'`,
+			expected: "null",
+			initVars: map[string]interface{}{
+				"condition": false,
+			},
 		},
 	}
 

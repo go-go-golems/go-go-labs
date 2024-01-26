@@ -10,7 +10,11 @@ func (ei *EmrichenInterpreter) handleFilter(node *yaml.Node) (*yaml.Node, error)
 		return nil, errors.New("!Filter requires a mapping node")
 	}
 
-	args, err := parseArgs(node, []string{"over"})
+	args, err := ei.parseArgs(node, []parsedVariable{
+		{Name: "over", Required: true, Expand: true},
+		{Name: "test"},
+		{Name: "as"},
+	})
 	if err != nil {
 		return nil, err
 	}

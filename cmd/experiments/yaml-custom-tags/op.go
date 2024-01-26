@@ -8,7 +8,11 @@ import (
 )
 
 func (ei *EmrichenInterpreter) handleOp(node *yaml.Node) (*yaml.Node, error) {
-	args, err := parseArgs(node, []string{"a", "op", "b"})
+	args, err := ei.parseArgs(node, []parsedVariable{
+		{Name: "op", Required: true},
+		{Name: "a", Required: true, Expand: true},
+		{Name: "b", Required: true, Expand: true},
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -18,15 +22,7 @@ func (ei *EmrichenInterpreter) handleOp(node *yaml.Node) (*yaml.Node, error) {
 		return nil, errors.New("!Op 'op' argument must be a scalar")
 	}
 
-	aNode, bNode := args["a"], args["b"]
-	aProcessed, err := ei.Process(aNode)
-	if err != nil {
-		return nil, err
-	}
-	bProcessed, err := ei.Process(bNode)
-	if err != nil {
-		return nil, err
-	}
+	aProcessed, bProcessed := args["a"], args["b"]
 
 	isNumberOperation := false
 	switch opNode.Value {
@@ -50,7 +46,7 @@ func (ei *EmrichenInterpreter) handleOp(node *yaml.Node) (*yaml.Node, error) {
 	switch opNode.Value {
 	case "=", "==", "===":
 		return makeBool(reflect.DeepEqual(aProcessed.Value, bProcessed.Value)), nil
-	case "≠", "!=", "!==":
+	case "≠", "!=", "!==", "ne":
 		return makeBool(!reflect.DeepEqual(aProcessed.Value, bProcessed.Value)), nil
 
 	// Less than, Greater than, Less than or equal to, Greater than or equal to

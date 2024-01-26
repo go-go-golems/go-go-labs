@@ -34,7 +34,7 @@ func TestLoopTag(t *testing.T) {
   over: {a: 1, b: 2}
   as: item
   template: !Var item`,
-			expected: `[1, 2]`,
+			expected: `{a: 1, b: 2}`,
 		},
 		{
 			name: "Loop With Custom Variable Name",

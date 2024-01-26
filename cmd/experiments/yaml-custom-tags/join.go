@@ -11,7 +11,10 @@ func (ei *EmrichenInterpreter) handleJoin(node *yaml.Node) (*yaml.Node, error) {
 	itemsNode := node
 
 	if node.Kind == yaml.MappingNode {
-		args, err := parseArgs(node, []string{"items"})
+		args, err := ei.parseArgs(node, []parsedVariable{
+			{Name: "items", Required: true, Expand: true},
+			{Name: "separator", Expand: true},
+		})
 		if err != nil {
 			return nil, err
 		}
@@ -29,17 +32,13 @@ func (ei *EmrichenInterpreter) handleJoin(node *yaml.Node) (*yaml.Node, error) {
 
 	var items []string
 	for _, itemNode := range itemsNode.Content {
-		resolvedItem, err := ei.Process(itemNode)
-		if err != nil {
-			return nil, err
-		}
-		if resolvedItem.Kind != yaml.ScalarNode {
+		if itemNode.Kind != yaml.ScalarNode {
 			return nil, errors.New("!Join items must be scalar values")
 		}
-		if resolvedItem.Tag == "!!null" {
+		if itemNode.Tag == "!!null" {
 			continue
 		}
-		items = append(items, resolvedItem.Value)
+		items = append(items, itemNode.Value)
 	}
 
 	joinedStr := strings.Join(items, separator)

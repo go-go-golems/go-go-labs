@@ -79,7 +79,7 @@ func TestIndexTag(t *testing.T) {
     NAME: !Lookup foo.name
     SCORE: !Lookup foo.score
   result_as: result
-  by: !Lookup foo.name
+  by: !Lookup result.NAME
   duplicates: ignore`,
 			expected: `{"manifold": {"NAME": "manifold", "SCORE": 7.8}, "John": {"NAME": "John", "SCORE": 9.8}}`,
 		},

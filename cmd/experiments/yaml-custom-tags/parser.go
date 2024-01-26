@@ -1,41 +1,57 @@
 package main
 
 import (
-	"fmt"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 )
 
-// parseArgs extracts specific keys and their corresponding values from a given YAML node.
-// This function is designed to generalize the process of parsing arguments from a YAML mapping node.
-//
-// Parameters:
-// - node: A pointer to a yaml.Node that should be a mapping node from which the keys are to be extracted.
-// - keys: A slice of strings representing the keys to be extracted from the mapping node.
-//
-// Returns:
-// - A map[string]*yaml.Node where each key is a string from the provided keys slice, and the value is the corresponding yaml.Node.
-// - An error if the node is not a mapping node or if any of the required keys are missing in the node.
-//
-// Note: The function will return an error if any of the required keys are not found in the node.
-func parseArgs(node *yaml.Node, keys []string) (map[string]*yaml.Node, error) {
+type parsedVariable struct {
+	Name     string
+	Expand   bool
+	Required bool
+}
+
+func (ei *EmrichenInterpreter) parseArgs(
+	node *yaml.Node,
+	variables []parsedVariable,
+) (map[string]*yaml.Node, error) {
 	argsMap := make(map[string]*yaml.Node)
 	if node.Kind != yaml.MappingNode {
 		return nil, errors.New("expected a mapping node")
 	}
 
+	varMap := make(map[string]parsedVariable)
+	for _, v := range variables {
+		varMap[v.Name] = v
+	}
+
 	for i := 0; i < len(node.Content); i += 2 {
 		keyNode := node.Content[i]
 		valueNode := node.Content[i+1]
-		if keyNode.Kind == yaml.ScalarNode {
-			argsMap[keyNode.Value] = valueNode
+		parsedVar, ok := varMap[keyNode.Value]
+		if !ok {
+			return nil, errors.Errorf("unknown key '%s'", keyNode.Value)
 		}
+		key, ok := NodeToString(keyNode)
+		if !ok {
+			return nil, errors.Errorf("expected scalar key '%s'", keyNode.Value)
+		}
+
+		if parsedVar.Expand {
+			value, err := ei.Process(valueNode)
+			if err != nil {
+				return nil, err
+			}
+			valueNode = value
+		}
+		argsMap[key] = valueNode
 	}
 
-	// Check if all required keys are present
-	for _, key := range keys {
-		if _, ok := argsMap[key]; !ok {
-			return nil, fmt.Errorf("required key '%s' not found", key)
+	for _, v := range variables {
+		if v.Required {
+			if _, ok := argsMap[v.Name]; !ok {
+				return nil, errors.Errorf("required key '%s' not found", v.Name)
+			}
 		}
 	}
 
@@ -55,7 +71,10 @@ func parseArgs(node *yaml.Node, keys []string) (map[string]*yaml.Node, error) {
 //
 // Note: The 'query' parameter is optional and can be a mapping node containing key-value pairs of query parameters.
 func (ei *EmrichenInterpreter) parseURLEncodeArgs(node *yaml.Node) (string, map[string]interface{}, error) {
-	args, err := parseArgs(node, []string{"url", "query"})
+	args, err := ei.parseArgs(node, []parsedVariable{
+		{Name: "url", Required: true},
+		{Name: "query", Expand: true},
+	})
 	if err != nil {
 		return "", nil, err
 	}
