@@ -67,8 +67,7 @@ key2: !If
 		},
 		{
 			name: "Void in a Loop",
-			inputYAML: `items: 
-- !Loop 
+			inputYAML: `!Loop 
   over: [item1, item2]
   template: !If 
     test: !Op 
@@ -77,7 +76,7 @@ key2: !If
       b: item2
     then: !Void
     else: !Var item`,
-			expected: "items: [item1]\n",
+			expected: "[item1]\n",
 		},
 		{
 			name: "Void as a Value",

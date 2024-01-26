@@ -3,16 +3,12 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 	"text/template"
 )
 
 func (ei *EmrichenInterpreter) handleFormat(node *yaml.Node) (*yaml.Node, error) {
-	formatString, ok := NodeToString(node)
-	if !ok {
-		return nil, errors.New("!Format first argument must be a scalar (the format string)")
-	}
+	formatString := node.Value
 
 	ret, err := ei.renderFormatString(formatString)
 	if err != nil {

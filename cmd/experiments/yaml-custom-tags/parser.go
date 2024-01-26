@@ -72,18 +72,14 @@ func (ei *EmrichenInterpreter) parseArgs(
 // Note: The 'query' parameter is optional and can be a mapping node containing key-value pairs of query parameters.
 func (ei *EmrichenInterpreter) parseURLEncodeArgs(node *yaml.Node) (string, map[string]interface{}, error) {
 	args, err := ei.parseArgs(node, []parsedVariable{
-		{Name: "url", Required: true},
+		{Name: "url", Required: true, Expand: true},
 		{Name: "query", Expand: true},
 	})
 	if err != nil {
 		return "", nil, err
 	}
 
-	url, err := ei.Process(args["url"])
-	if err != nil {
-		return "", nil, err
-	}
-	urlStr, ok := NodeToString(url)
+	urlStr, ok := NodeToString(args["url"])
 	if !ok {
 		return "", nil, errors.New("url must be a string")
 	}
