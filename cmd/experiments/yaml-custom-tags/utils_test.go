@@ -32,7 +32,7 @@ func runTests(t *testing.T, tests []testCase) {
 			hadError := false
 			var resultNode *yaml.Node
 			if tc.expectPanic {
-				resultNode, err = expectPanic(t, func() (*yaml.Node, error) {
+				_, err = expectPanic(t, func() (*yaml.Node, error) {
 					for {
 						inputNode := yaml.Node{}
 						// Parse input YAML
