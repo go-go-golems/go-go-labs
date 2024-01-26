@@ -13,16 +13,13 @@ type Resolver interface {
 }
 
 func main() {
-	// Register custom tag resolvers
-	type Person struct {
-		FullName   string `yaml:"fullName"`
-		CurrentAge int    `yaml:"currentAge"`
+	// Check if a file path is provided
+	if len(os.Args) < 2 {
+		fmt.Println("Usage: myyamltool <yaml-file>")
+		os.Exit(1)
 	}
 
-	type Document struct {
-		Person Person `yaml:"person"`
-	}
-
+	// Open the file provided in the command line
 	f, err := os.Open(os.Args[1])
 	if err != nil {
 		panic(err)
@@ -31,16 +28,21 @@ func main() {
 		_ = f.Close()
 	}(f)
 
+	// Create a YAML decoder
 	decoder := yaml.NewDecoder(f)
+
+	// Initialize the Emrichen interpreter
 	interpreter, err := NewEmrichenInterpreter()
 	if err != nil {
 		panic(err)
 	}
 
 	for {
-		var s_ Document
+		// Declare a variable to hold the decoded data
+		var document interface{}
 
-		err = decoder.Decode(interpreter.CreateDecoder(&s_))
+		// Decode the YAML content into the document
+		err = decoder.Decode(interpreter.CreateDecoder(&document))
 		if err == io.EOF {
 			break
 		}
@@ -48,30 +50,19 @@ func main() {
 			panic(err)
 		}
 
-		fmt.Printf("document: %v\n", s_)
+		// skip a document that was probably used to set !Defaults
+		if document == nil {
+			continue
+		}
+		// Marshal the processed document back to YAML
 
+		processedYAML, err := yaml.Marshal(&document)
+		if err != nil {
+			panic(err)
+		}
+
+		// Print the processed YAML
+		fmt.Println(string(processedYAML))
 	}
 
-	//type MyStructure struct {
-	//	// this structure holds the values you want to load after processing
-	//	// includes, e.g.
-	//	Num int
-	//}
-	//var s MyStructure
-	//err = os.Setenv("FOO", `{"num": 42}`)
-	//if err != nil {
-	//	panic("Error setting environment variable")
-	//}
-	//err = yaml.Unmarshal([]byte("!getValueFromEnv FOO"), &CustomTagProcessor{&s})
-	//if err != nil {
-	//	panic("Error encountered during unmarshalling")
-	//}
-	//
-	//fmt.Printf("\nNum: %v", s.Num)
-	//
-	//err = yaml.Unmarshal([]byte("!include foo.yaml"), &CustomTagProcessor{&s})
-	//if err != nil {
-	//	panic("Error encountered during unmarshalling")
-	//}
-	//fmt.Printf("\nNum: %v", s.Num)
 }

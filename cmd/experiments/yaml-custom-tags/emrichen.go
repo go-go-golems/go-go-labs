@@ -80,6 +80,9 @@ func (ei *interpretHelper) UnmarshalYAML(value *yaml.Node) error {
 	if err != nil {
 		return err
 	}
+	if resolved == nil {
+		return nil
+	}
 	return resolved.Decode(ei.target)
 }
 
@@ -174,7 +177,7 @@ func (ei *EmrichenInterpreter) Process(node *yaml.Node) (*yaml.Node, error) {
 						return nil, err
 					}
 				}
-				return node, nil
+				return nil, nil
 
 			case "!All":
 				return ei.handleAll(node)
