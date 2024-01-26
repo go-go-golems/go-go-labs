@@ -1,0 +1,10 @@
+# Define variables
+!Defaults
+name: John Doe
+age: 30
+---
+# Use the variables
+person:
+  fullName: !Var name
+  currentAge: !Var age
+
