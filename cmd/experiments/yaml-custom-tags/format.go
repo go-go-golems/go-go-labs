@@ -30,7 +30,12 @@ func (ei *EmrichenInterpreter) renderFormatString(formatString string) (string, 
 	if frame.Variables != nil {
 		vars = frame.Variables
 	}
-	if err := tmpl.Funcs(
+
+	for _, funcMap := range ei.funcmaps {
+		tmpl = tmpl.Funcs(funcMap)
+	}
+
+	tmpl = tmpl.Funcs(
 		map[string]interface{}{
 			"lookup": func(path string) interface{} {
 				v, err := ei.LookupFirst(path)
@@ -53,7 +58,8 @@ func (ei *EmrichenInterpreter) renderFormatString(formatString string) (string, 
 				return err == nil
 			},
 		},
-	).Execute(&formatted, vars); err != nil {
+	)
+	if err := tmpl.Execute(&formatted, vars); err != nil {
 		return "", fmt.Errorf("error executing format template: %v", err)
 	}
 
