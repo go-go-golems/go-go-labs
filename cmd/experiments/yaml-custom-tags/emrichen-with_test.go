@@ -62,7 +62,7 @@ func TestWithBasicFunctionality(t *testing.T) {
     validVar: "valid"
   template: !Var invalidVar`,
 			expectError:        true,
-			expectErrorMessage: "invalidVar is not found",
+			expectErrorMessage: "variable invalidVar not found",
 		},
 
 		// 6. Complex Variable Expressions Test

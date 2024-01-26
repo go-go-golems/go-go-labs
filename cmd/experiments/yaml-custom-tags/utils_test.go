@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"fmt"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
@@ -16,6 +18,7 @@ type testCase struct {
 	initVars           map[string]interface{} // Adding a new field for initial variable bindings
 	expectError        bool
 	expectErrorMessage string
+	expectPanic        bool
 }
 
 func runTests(t *testing.T, tests []testCase) {
@@ -28,6 +31,20 @@ func runTests(t *testing.T, tests []testCase) {
 
 			hadError := false
 			var resultNode *yaml.Node
+			if tc.expectPanic {
+				resultNode, err = expectPanic(t, func() (*yaml.Node, error) {
+					for {
+						inputNode := yaml.Node{}
+						// Parse input YAML
+						err2 := decoder.Decode(ei.CreateDecoder(&inputNode))
+						require.NoError(t, err2)
+					}
+				})
+				require.Error(t, err)
+				require.Equal(t, "paniced", err.Error())
+				return
+			}
+
 			for {
 				inputNode := yaml.Node{}
 				// Parse input YAML
@@ -72,4 +89,24 @@ func runTests(t *testing.T, tests []testCase) {
 			assert.Equal(t, expected_, actual_)
 		})
 	}
+}
+
+func expectPanic(t *testing.T, f func() (*yaml.Node, error)) (*yaml.Node, error) {
+	didPanic := false
+
+	_, _ = func() (*yaml.Node, error) {
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Println("paniced")
+				didPanic = true
+			}
+		}()
+		return f()
+	}()
+
+	if !didPanic {
+		t.Errorf("Expected a panic to occur, but none did")
+	}
+
+	return nil, errors.New("paniced")
 }

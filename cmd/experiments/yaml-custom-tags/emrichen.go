@@ -267,17 +267,41 @@ func (ei *EmrichenInterpreter) Process(node *yaml.Node) (*yaml.Node, error) {
 			}
 
 			ret := *node
-			ret.Content = make([]*yaml.Node, len(node.Content))
+			ret.Content = make([]*yaml.Node, 0)
 
 			// TODO(manuel, 2024-01-25) This is where we need to handle void in sequences and mappings
-			if node.Kind == yaml.SequenceNode || node.Kind == yaml.MappingNode {
-				var err error
+			switch node.Kind {
+			case yaml.SequenceNode:
 				for i := range node.Content {
-					ret.Content[i], err = ei.Process(node.Content[i])
+					v, err := ei.Process(node.Content[i])
 					if err != nil {
 						return nil, err
 					}
+					if v == nil {
+						continue
+					}
+					ret.Content = append(ret.Content, v)
 				}
+			case yaml.MappingNode:
+				for i := 0; i < len(node.Content); i += 2 {
+					key := node.Content[i]
+					value := node.Content[i+1]
+
+					v, err := ei.Process(value)
+					if err != nil {
+						return nil, err
+					}
+					if v == nil {
+						continue
+					}
+					ret.Content = append(ret.Content, key, v)
+				}
+			case yaml.ScalarNode:
+				return node, nil
+			case yaml.AliasNode:
+				return nil, errors.New("alias nodes are not supported")
+			case yaml.DocumentNode:
+				return node, nil
 			}
 
 			return &ret, nil
