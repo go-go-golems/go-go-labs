@@ -102,10 +102,10 @@ func TestHandleIncludeBinaryWithBase64(t *testing.T) {
 		},
 		{
 			name: "IncludeBinary with Base64 encoding in nested map",
-			inputYAML: fmt.Sprintf(`
+			inputYAML: `
 nested:
   key: !Base64,IncludeBinary test-data/binary_test.bin
-            `),
+            `,
 			expected: fmt.Sprintf(`
 nested:
   key: %s
@@ -117,12 +117,12 @@ nested:
 		},
 		{
 			name: "IncludeBinary with Base64 encoding in nested array",
-			inputYAML: fmt.Sprintf(`
+			inputYAML: `
 array:
   - item1
   - !Base64,IncludeBinary test-data/binary_test.bin
   - item3
-            `),
+            `,
 			expected: fmt.Sprintf(`
 array:
   - item1

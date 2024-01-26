@@ -62,7 +62,7 @@ func main() {
 		}
 
 		// Print the processed YAML
-		fmt.Println(string(processedYAML))
+		fmt.Print(string(processedYAML))
 	}
 
 }

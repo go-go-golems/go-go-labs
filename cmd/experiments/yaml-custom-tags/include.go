@@ -35,6 +35,9 @@ func (ei *EmrichenInterpreter) handleInclude(node *yaml.Node) (*yaml.Node, error
 
 func (ei *EmrichenInterpreter) loadYaml(filePath string) ([]*yaml.Node, error) {
 	f, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("error reading file for !Include: %v", err)
+	}
 	defer func(f *os.File) {
 		_ = f.Close()
 	}(f)

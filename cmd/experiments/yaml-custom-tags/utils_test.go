@@ -58,6 +58,10 @@ func runTests(t *testing.T, tests []testCase) {
 					break
 				}
 
+				// empty document node after defaults
+				if inputNode.Kind == 0 {
+					continue
+				}
 				resultNode, err = ei.Process(&inputNode)
 				if err != nil {
 					hadError = true

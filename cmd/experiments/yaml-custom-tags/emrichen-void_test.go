@@ -47,9 +47,9 @@ list:
 			expected:  "outer: { inner: { } }\n",
 		},
 		{
-			name:        "Void Entire Document",
-			inputYAML:   "---\nkey1: value1\n---\n!Void\n---\nkey2: value2",
-			expectPanic: true,
+			name:      "Void Entire Document",
+			inputYAML: "---\nkey1: value1\n---\n!Void\n---\nkey2: value2",
+			expected:  "key2: value2",
 		},
 		{
 			name: "Void with Conditional",
