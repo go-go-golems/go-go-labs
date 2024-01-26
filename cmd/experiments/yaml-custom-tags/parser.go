@@ -54,18 +54,34 @@ func parseArgs(node *yaml.Node, keys []string) (map[string]*yaml.Node, error) {
 // - An error if the node doesn't contain the necessary structure or required keys ('url', and optionally 'query').
 //
 // Note: The 'query' parameter is optional and can be a mapping node containing key-value pairs of query parameters.
-func parseURLEncodeArgs(node *yaml.Node) (string, map[string]string, error) {
+func (ei *EmrichenInterpreter) parseURLEncodeArgs(node *yaml.Node) (string, map[string]interface{}, error) {
 	args, err := parseArgs(node, []string{"url", "query"})
 	if err != nil {
 		return "", nil, err
 	}
 
-	urlStr := args["url"].Value
-	queryParams := make(map[string]string)
+	url, err := ei.Process(args["url"])
+	if err != nil {
+		return "", nil, err
+	}
+	urlStr, ok := NodeToString(url)
+	if !ok {
+		return "", nil, errors.New("url must be a string")
+	}
+
+	// TODO need to process node
+	queryParams := make(map[string]interface{})
 	if queryNode, ok := args["query"]; ok && queryNode.Kind == yaml.MappingNode {
 		for i := 0; i < len(queryNode.Content); i += 2 {
 			paramKey := queryNode.Content[i].Value
-			paramValue := queryNode.Content[i+1].Value
+			param, err := ei.Process(queryNode.Content[i+1])
+			if err != nil {
+				return "", nil, err
+			}
+			paramValue, ok := NodeToScalarInterface(param)
+			if !ok {
+				return "", nil, errors.New("query parameter value must be a scalar")
+			}
 			queryParams[paramKey] = paramValue
 		}
 	}

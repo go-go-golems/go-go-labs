@@ -792,6 +792,9 @@ func (ei *EmrichenInterpreter) handleJoin(node *yaml.Node) (*yaml.Node, error) {
 		if resolvedItem.Kind != yaml.ScalarNode {
 			return nil, errors.New("!Join items must be scalar values")
 		}
+		if resolvedItem.Tag == "!!null" {
+			continue
+		}
 		items = append(items, resolvedItem.Value)
 	}
 
@@ -876,7 +879,7 @@ func (ei *EmrichenInterpreter) handleURLEncode(node *yaml.Node) (*yaml.Node, err
 		// Simple string encoding
 		return makeString(url.QueryEscape(node.Value)), nil
 	} else if node.Kind == yaml.MappingNode {
-		urlStr, queryParams, err := parseURLEncodeArgs(node)
+		urlStr, queryParams, err := ei.parseURLEncodeArgs(node)
 		if err != nil {
 			return nil, err
 		}
@@ -888,7 +891,7 @@ func (ei *EmrichenInterpreter) handleURLEncode(node *yaml.Node) (*yaml.Node, err
 
 		query := parsedURL.Query()
 		for k, v := range queryParams {
-			query.Set(k, v)
+			query.Set(k, fmt.Sprintf("%s", v))
 		}
 		parsedURL.RawQuery = query.Encode()
 

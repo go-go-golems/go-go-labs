@@ -79,6 +79,18 @@ func NodeToInterface(node *yaml.Node) (interface{}, bool) {
 	}
 }
 
+func NodeToScalarInterface(node *yaml.Node) (interface{}, bool) {
+	switch node.Kind {
+	case yaml.ScalarNode:
+		return getScalarValue(node)
+	case yaml.SequenceNode, yaml.MappingNode, yaml.AliasNode, yaml.DocumentNode:
+		return nil, false
+	default:
+		return nil, false
+	}
+
+}
+
 func getScalarValue(node *yaml.Node) (interface{}, bool) {
 	if node == nil {
 		return nil, false

@@ -34,7 +34,7 @@ func TestJoinTag(t *testing.T) {
 		{
 			name:      "List with Null Elements",
 			inputYAML: `!Join [hello, null, world]`,
-			expected:  "hello null world",
+			expected:  "hello world",
 		},
 		{
 			name:      "Separator as Part of the Elements",
