@@ -8,7 +8,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"github.com/go-go-golems/glazed/pkg/helpers/cast"
 	"github.com/go-go-golems/go-go-labs/cmd/experiments/yaml-custom-tags/env"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
@@ -267,18 +266,21 @@ func (ei *EmrichenInterpreter) Process(node *yaml.Node) (*yaml.Node, error) {
 			default:
 			}
 
+			ret := *node
+			ret.Content = make([]*yaml.Node, len(node.Content))
+
 			// TODO(manuel, 2024-01-25) This is where we need to handle void in sequences and mappings
 			if node.Kind == yaml.SequenceNode || node.Kind == yaml.MappingNode {
 				var err error
 				for i := range node.Content {
-					node.Content[i], err = ei.Process(node.Content[i])
+					ret.Content[i], err = ei.Process(node.Content[i])
 					if err != nil {
 						return nil, err
 					}
 				}
 			}
 
-			return node, nil
+			return &ret, nil
 		}()
 
 		if err != nil {
@@ -307,11 +309,7 @@ func (ei *EmrichenInterpreter) updateVars(content []*yaml.Node) error {
 		if !ok {
 			return errors.New("could not get node value")
 		}
-		v_, err := cast.ToInterfaceValue(v)
-		if err != nil {
-			return err
-		}
-		vars[name] = v_
+		vars[name] = v
 	}
 
 	ei.env.Push(vars)
@@ -648,7 +646,7 @@ func (ei *EmrichenInterpreter) handleGroup(node *yaml.Node) (*yaml.Node, error) 
 }
 
 func (ei *EmrichenInterpreter) handleIndex(node *yaml.Node) (*yaml.Node, error) {
-	args, err := parseArgs(node, []string{"over", "by", "template", "duplicates"})
+	args, err := parseArgs(node, []string{"over", "by"})
 	if err != nil {
 		return nil, err
 	}
@@ -676,45 +674,57 @@ func (ei *EmrichenInterpreter) handleIndex(node *yaml.Node) (*yaml.Node, error) 
 	duplicateKeys := make(map[interface{}]bool)
 
 	for _, itemNode := range overNode.Content {
-		ei.env.Push(map[string]interface{}{resultVarName: itemNode})
-		keyNode, err := ei.Process(byNode)
-		ei.env.Pop()
+		v_, err := ei.Process(itemNode)
 		if err != nil {
 			return nil, err
 		}
-		if keyNode.Kind != yaml.ScalarNode {
-			return nil, errors.New("!Index 'by' expression must evaluate to a scalar")
+		v__, ok := NodeToInterface(v_)
+		if !ok {
+			return nil, errors.Errorf("could not get item for node: %v", itemNode)
 		}
-		key := keyNode.Value
 
-		_, isDuplicate := duplicateKeys[key]
-		if isDuplicate {
-			if duplicateAction == "error" {
-				return nil, errors.Errorf("Duplicate key encountered: %v", key)
-			}
-			if duplicateAction == "ignore" {
-				continue
-			}
-			if duplicateAction == "warn" || duplicateAction == "warning" {
-				_, _ = fmt.Fprintf(os.Stderr, "WARNING: Duplicate key encountered: %v\n", key)
-				continue
-			} else {
-				return nil, errors.Errorf("Unknown duplicate action: %v", duplicateAction)
-			}
-		}
-		duplicateKeys[key] = true
-
-		var resultNode *yaml.Node
-		if templateExists {
-			resultNode, err = ei.Process(templateNode)
+		err = ei.env.With(map[string]interface{}{resultVarName: v__}, func() error {
+			keyNode, err := ei.Process(byNode)
 			if err != nil {
-				return nil, err
+				return err
 			}
-		} else {
-			resultNode = itemNode
-		}
+			if keyNode.Kind != yaml.ScalarNode {
+				return errors.New("!Index 'by' expression must evaluate to a scalar")
+			}
+			key := keyNode.Value
 
-		indexedResults[key] = resultNode
+			_, isDuplicate := duplicateKeys[key]
+			if isDuplicate {
+				switch duplicateAction {
+				case "error":
+					return errors.Errorf("Duplicate key encountered: %v", key)
+				case "warn", "warning":
+					_, _ = fmt.Fprintf(os.Stderr, "WARNING: Duplicate key encountered: %v\n", key)
+					return nil
+				case "ignore":
+				default:
+					return errors.Errorf("Unknown duplicate action: %v", duplicateAction)
+				}
+			}
+			duplicateKeys[key] = true
+
+			var resultNode *yaml.Node
+			if templateExists {
+				resultNode, err = ei.Process(templateNode)
+				if err != nil {
+					return err
+				}
+			} else {
+				resultNode = itemNode
+			}
+
+			indexedResults[key] = resultNode
+
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Convert the map to a sequence of YAML nodes

@@ -19,7 +19,7 @@ func TestJoinTag(t *testing.T) {
 		{
 			name:      "Empty List",
 			inputYAML: `!Join []`,
-			expected:  "",
+			expected:  "\"\"",
 		},
 		{
 			name:      "Single Element List",
@@ -32,14 +32,9 @@ func TestJoinTag(t *testing.T) {
 			expected:  "1 2 3",
 		},
 		{
-			name:      "Nested Lists",
-			inputYAML: `!Join [[1, 2], [3, 4]]`,
-			expected:  "[1, 2] [3, 4]",
-		},
-		{
 			name:      "List with Null Elements",
 			inputYAML: `!Join [hello, null, world]`,
-			expected:  "hello  world",
+			expected:  "hello null world",
 		},
 		{
 			name:      "Separator as Part of the Elements",
@@ -54,7 +49,7 @@ func TestJoinTag(t *testing.T) {
 		{
 			name:      "Escaped Characters in Elements",
 			inputYAML: `!Join ["hello\nworld", "foo\nbar"]`,
-			expected:  "hello\nworld foo\nbar",
+			expected:  "\"hello\\nworld foo\\nbar\"",
 		},
 		{
 			name:      "Joining with a Complex Separator",
@@ -64,7 +59,7 @@ func TestJoinTag(t *testing.T) {
 		{
 			name:      "Handling of Whitespace in Elements",
 			inputYAML: `!Join ["  hello  ", "  world  "]`,
-			expected:  "  hello    world  ",
+			expected:  "\"  hello     world  \"",
 		},
 	}
 

@@ -87,6 +87,14 @@ func (e *Env) Pop() {
 	e.stack = e.stack[:len(e.stack)-1]
 }
 
+// With creates a new frame on top of the stack with newVars, executes f,
+// and removes the frame from the stack.
+func (e *Env) With(newVars map[string]interface{}, f func() error) error {
+	e.Push(newVars)
+	defer e.Pop()
+	return f()
+}
+
 // GetCurrentFrame returns the current top frame from the stack.
 // Returns nil if the stack is empty.
 func (e *Env) GetCurrentFrame() *Frame {

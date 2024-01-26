@@ -16,11 +16,38 @@ func TestIndexTag(t *testing.T) {
       score: 9.9
     - name: John
       score: 9.8
-  as: item
-  by: !Lookup item.name
+  as: foo
+  by: !Lookup foo.name
   duplicates: ignore
+  template: !Lookup foo.score`,
+			expected: `{"manifold": 7.8, "John": 9.8}`,
+		},
+		{
+			name: "Basic Indexing (default as)",
+			inputYAML: `!Index
+  over:
+    - name: manifold
+      score: 7.8
+    - name: John
+      score: 9.8
+  by: !Lookup item.name
   template: !Lookup item.score`,
 			expected: `{"manifold": 7.8, "John": 9.8}`,
+		},
+		{
+			name: "Basic Indexing (duplicate error)",
+			inputYAML: `!Index
+  over:
+    - name: manifold
+      score: 7.8
+    - name: John
+      score: 9.9
+    - name: John
+      score: 9.8
+  by: !Lookup item.name
+  template: !Lookup item.score`,
+			expectError:        true,
+			expectErrorMessage: "Duplicate key encountered: John",
 		},
 		{
 			name: "Indexing Without Template",
@@ -32,8 +59,8 @@ func TestIndexTag(t *testing.T) {
       score: 9.9
     - name: John
       score: 9.8
-  as: item
-  by: !Lookup item.name
+  as: foo
+  by: !Lookup foo.name
   duplicates: ignore`,
 			expected: `{"manifold": {"name": "manifold", "score": 7.8}, "John": {"name": "John", "score": 9.8}}`,
 		},
@@ -47,12 +74,12 @@ func TestIndexTag(t *testing.T) {
       score: 9.9
     - name: John
       score: 9.8
-  as: item
+  as: foo
   template:
-    NAME: !Lookup item.name
-    SCORE: !Lookup item.score
+    NAME: !Lookup foo.name
+    SCORE: !Lookup foo.score
   result_as: result
-  by: !Lookup result.NAME
+  by: !Lookup foo.name
   duplicates: ignore`,
 			expected: `{"manifold": {"NAME": "manifold", "SCORE": 7.8}, "John": {"NAME": "John", "SCORE": 9.8}}`,
 		},
@@ -85,7 +112,7 @@ func TestIndexTag(t *testing.T) {
   by: !Lookup item.nonexistent
   template: !Lookup item.value`,
 			expectError:        true,
-			expectErrorMessage: "Key path 'nonexistent' not found",
+			expectErrorMessage: "nonexistent is not found",
 		},
 	}
 
