@@ -9,7 +9,7 @@ import (
 
 func (ei *EmrichenInterpreter) handleOp(node *yaml.Node) (*yaml.Node, error) {
 	args, err := ei.parseArgs(node, []parsedVariable{
-		{Name: "op", Required: true},
+		{Name: "op", Required: true, Expand: true},
 		{Name: "a", Required: true, Expand: true},
 		{Name: "b", Required: true, Expand: true},
 	})
@@ -26,7 +26,8 @@ func (ei *EmrichenInterpreter) handleOp(node *yaml.Node) (*yaml.Node, error) {
 
 	isNumberOperation := false
 	switch opNode.Value {
-	case "+", "plus", "add", "-", "minus", "sub", "subtract", "*", "×", "mul", "times", "/", "÷", "div", "divide", "truediv", "//", "floordiv":
+	case "+", "plus", "add", "-", "minus", "sub", "subtract", "*", "×", "mul", "times", "/", "÷", "div", "divide", "truediv", "//", "floordiv",
+		"<", "lt", ">", "gt", "<=", "le", "lte", ">=", "ge", "gte", "%", "mod", "modulo":
 		isNumberOperation = true
 	default:
 	}
@@ -45,9 +46,31 @@ func (ei *EmrichenInterpreter) handleOp(node *yaml.Node) (*yaml.Node, error) {
 	// Handle different operators
 	switch opNode.Value {
 	case "=", "==", "===":
-		return makeBool(reflect.DeepEqual(aProcessed.Value, bProcessed.Value)), nil
+		if isNumberOperation {
+			return makeBool(a == b), nil
+		}
+		aVal, ok := NodeToInterface(aProcessed)
+		if !ok {
+			return nil, errors.Errorf("could not convert first argument to interface: %v", aProcessed)
+		}
+		bVal, ok := NodeToInterface(bProcessed)
+		if !ok {
+			return nil, errors.Errorf("could not convert second argument to interface: %v", bProcessed)
+		}
+		return makeBool(reflect.DeepEqual(aVal, bVal)), nil
 	case "≠", "!=", "!==", "ne":
-		return makeBool(!reflect.DeepEqual(aProcessed.Value, bProcessed.Value)), nil
+		if isNumberOperation {
+			return makeBool(a != b), nil
+		}
+		aVal, ok := NodeToInterface(aProcessed)
+		if !ok {
+			return nil, errors.Errorf("could not convert first argument to interface: %v", aProcessed)
+		}
+		bVal, ok := NodeToInterface(bProcessed)
+		if !ok {
+			return nil, errors.Errorf("could not convert second argument to interface: %v", bProcessed)
+		}
+		return makeBool(!reflect.DeepEqual(aVal, bVal)), nil
 
 	// Less than, Greater than, Less than or equal to, Greater than or equal to
 	case "<", "lt":
@@ -78,7 +101,11 @@ func (ei *EmrichenInterpreter) handleOp(node *yaml.Node) (*yaml.Node, error) {
 		}
 		return makeFloat(a * b), nil
 	case "/", "÷", "div", "divide", "truediv":
-		return makeFloat(a / b), nil
+		result := a / b
+		if bothInts && result == float64(int(result)) {
+			return makeInt(int(result)), nil
+		}
+		return makeFloat(result), nil
 	case "//", "floordiv":
 		return makeInt(int(a) / int(b)), nil
 
