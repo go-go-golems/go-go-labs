@@ -34,7 +34,7 @@ shift $((OPTIND -1))
 
 # Set the default editor to vim if EDITOR is not set
 if [[ -z "$EDITOR" ]]; then
-    EDITOR="vim"
+    EDITOR="emacsclient -nw"
 fi
 
 # Function to clean up the temporary file
