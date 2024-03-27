@@ -44,14 +44,14 @@ func main() {
 			case <-uploadPDFSubscription:
 				time.Sleep(2 * time.Second) // Simulate PDF upload delay
 				pdfLocation := "mocked_pdf_location"
-				publisher.Publish("pdf_uploaded_event", message.NewMessage(watermill.NewUUID(), []byte(pdfLocation)))
+				_ = publisher.Publish("pdf_uploaded_event", message.NewMessage(watermill.NewUUID(), []byte(pdfLocation)))
 
 			case msg := <-startTextractSubscription:
 				time.Sleep(3 * time.Second) // Simulate Textract processing delay
 				pdfLocation := string(msg.Payload)
 				_ = pdfLocation
 				csvLocation := "mocked_csv_location"
-				publisher.Publish("ocr_finished_event", message.NewMessage(watermill.NewUUID(), []byte(csvLocation)))
+				_ = publisher.Publish("ocr_finished_event", message.NewMessage(watermill.NewUUID(), []byte(csvLocation)))
 			}
 		}
 	}()
@@ -87,14 +87,14 @@ func main() {
 			msg := <-pdfUploadedSubscription
 			pdfLocation := string(msg.Payload)
 			fmt.Println("Received PDF uploaded event. Starting Textract job...")
-			publisher.Publish("start_textract_command", message.NewMessage(watermill.NewUUID(), []byte(pdfLocation)))
+			_ = publisher.Publish("start_textract_command", message.NewMessage(watermill.NewUUID(), []byte(pdfLocation)))
 		}
 	}()
 
 	time.Sleep(1 * time.Second)
 	fmt.Println("Starting workflow...")
 	// Start the workflow
-	publisher.Publish("upload_pdf_command", message.NewMessage(watermill.NewUUID(), nil))
+	_ = publisher.Publish("upload_pdf_command", message.NewMessage(watermill.NewUUID(), nil))
 
 	wg.Wait()
 }
