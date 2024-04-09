@@ -17,45 +17,90 @@ flags:
   - name: id
     type: intList
     help: List of log entry IDs
+  - name: id_not
+    type: intList
+    help: Exclude log entries with these IDs
   - name: filename
     type: stringList
     help: Filter by exact filename(s)
+  - name: filename_not
+    type: stringList
+    help: Exclude these exact filename(s)
   - name: filename_like
     type: stringList
     help: Filter by filename pattern(s)
+  - name: filename_unlike
+    type: stringList
+    help: Exclude these filename pattern(s)
   - name: db_host
     type: stringList
     help: Filter by host(s)
+  - name: db_host_not
+    type: stringList
+    help: Exclude these host(s)
   - name: method
     type: stringList
     help: Filter by HTTP method(s)
+  - name: method_not
+    type: stringList
+    help: Exclude these HTTP method(s)
   - name: process
     type: stringList
     help: Filter by process name(s)
+  - name: process_not
+    type: stringList
+    help: Exclude these process name(s)
   - name: query
     type: keyValue
     help: Filter by query key-value pair(s)
+  - name: query_not
+    type: keyValue
+    help: Exclude by query key-value pair(s)
   - name: query_like
     type: stringList
     help: Filter by query pattern(s)
+  - name: query_unlike
+    type: stringList
+    help: Exclude these query pattern(s)
   - name: referer_like
     type: stringList
     help: Filter by referer URL pattern(s)
+  - name: referer_unlike
+    type: stringList
+    help: Exclude these referer URL pattern(s)
   - name: remote_ip
     type: stringList
     help: Filter by remote IP address(es)
+  - name: remote_ip_not
+    type: stringList
+    help: Exclude these remote IP address(es)
+  - name: request
+    type: stringList
+    help: Filter by request URL pattern(s)
   - name: request_like
     type: stringList
     help: Filter by request URL pattern(s)
+  - name: request_unlike
+    type: stringList
+    help: Exclude these request URL pattern(s)
   - name: status
     type: stringList
     help: Filter by HTTP status code(s)
+  - name: status_not
+    type: stringList
+    help: Exclude these HTTP status code(s)
   - name: unique_id
     type: stringList
     help: Filter by unique ID(s)
+  - name: unique_id_not
+    type: stringList
+    help: Exclude these unique ID(s)
   - name: user_agent_like
     type: stringList
     help: Filter by user agent pattern(s)
+  - name: user_agent_unlike
+    type: stringList
+    help: Exclude these user agent pattern(s)
 
   - name: from
     type: string
@@ -98,9 +143,15 @@ query: |
   {{ if .id }}  
     AND id IN ({{ .id | sqlIntIn }})
   {{ end }}
+  {{ if .id_not }}
+    AND id NOT IN ({{ .id_not | sqlIntIn }})  
+  {{ end }}
   {{ if .filename }}
     AND filename IN ({{ .filename | sqlStringIn }}) 
   {{ end }}
+  {{ if .filename_not }}
+    AND filename NOT IN ({{ .filename_not | sqlStringIn }})
+  {{ end }}  
   {{ if .filename_like }}
     AND (
       {{ range $index, $pattern := .filename_like }}
@@ -108,20 +159,44 @@ query: |
       {{ end }}  
     )
   {{ end }}
+  {{ if .filename_unlike }}  
+  AND (
+    {{ range $index, $pattern := .filename_unlike }}
+      {{ if $index }}AND {{ end }}filename NOT LIKE {{ $pattern | sqlStringLike }}
+    {{ end }}
+  )  
+  {{ end }}
   {{ if .db_host }}
     AND host IN ({{ .db_host | sqlStringIn }})
   {{ end }}
+  {{ if .db_host_not }}
+    AND host NOT IN ({{ .db_host_not | sqlStringIn }})  
+  {{ end }}
   {{ if .method }}
     AND method IN ({{ .method | sqlStringIn }})
-  {{ end }}  
+  {{ end }}
+  {{ if .method_not }}  
+    AND method NOT IN ({{ .method_not | sqlStringIn }})
+  {{ end }}
   {{ if .process }}
     AND process IN ({{ .process | sqlStringIn }})
   {{ end }}
-    {{ if .query }}
+  {{ if .process_not }}
+    AND process NOT IN ({{ .process_not | sqlStringIn }})  
+  {{ end }}
+  {{ if .query }}
     AND (
       1=1
       {{ range $key, $value := .query }}
-            AND json_extract(query, '$.{{ $key }}') = '{{ $value }}'
+        AND json_extract(query, '$.{{ $key }}') = '{{ $value }}'
+      {{ end }}
+    )
+  {{ end }}
+  {{ if .query_not }}
+    AND NOT (  
+      1=1
+      {{ range $key, $value := .query_not }}
+        AND json_extract(query, '$.{{ $key }}') = '{{ $value }}'  
       {{ end }}
     )
   {{ end }}
@@ -132,63 +207,104 @@ query: |
       {{ end }}
     )  
   {{ end }}
+  {{ if .query_unlike }}
+    AND (
+      {{ range $index, $pattern := .query_unlike }}
+        {{ if $index }}AND {{ end }}query NOT LIKE {{ $pattern | sqlStringLike }}
+      {{ end }}
+    )
+  {{ end }}
   {{ if .referer_like }}
     AND (  
       {{ range $index, $pattern := .referer_like }}
         {{ if $index }}OR {{ end }}referer LIKE {{ $pattern | sqlStringLike }}
-      {{ end }}
-    )
+  {{ end }}
+  )
+  {{ end }}
+  {{ if .referer_unlike }}
+  AND (
+  {{ range $index, $pattern := .referer_unlike }}
+  {{ if $index }}AND {{ end }}referer NOT LIKE {{ $pattern | sqlStringLike }}
+  {{ end }}
+  )
   {{ end }}
   {{ if .remote_ip }}
-    AND remoteIP IN ({{ .remote_ip | sqlStringIn }})
+  AND remoteIP IN ({{ .remote_ip | sqlStringIn }})
   {{ end }}
+  {{ if .remote_ip_not }}
+  AND remoteIP NOT IN ({{ .remote_ip_not | sqlStringIn }})
+  {{ end }}
+  {{ if .request }}
+    AND request IN ({{ .request | sqlStringIn }})
+    {{ end }}
   {{ if .request_like }}
-    AND (
-      {{ range $index, $pattern := .request_like }} 
-        {{ if $index }}OR {{ end }}request LIKE {{ $pattern | sqlStringLike }}
-      {{ end }}  
-    )
+  AND (
+  {{ range $index, $pattern := .request_like }}
+  {{ if $index }}OR {{ end }}request LIKE {{ $pattern | sqlStringLike }}
+  {{ end }}
+  )
+  {{ end }}
+  {{ if .request_unlike }}
+  AND (
+  {{ range $index, $pattern := .request_unlike }}
+  {{ if $index }}AND {{ end }}request NOT LIKE {{ $pattern | sqlStringLike }}
+  {{ end }}
+  )
   {{ end }}
   {{ if .status }}
-    AND status IN ({{ .status | sqlStringIn }}) 
+  AND status IN ({{ .status | sqlStringIn }})
+  {{ end }}
+  {{ if .status_not }}
+  AND status NOT IN ({{ .status_not | sqlStringIn }})
   {{ end }}
   {{ if .from }}
-    AND time >= '{{ .from }}'
+  AND time >= '{{ .from }}'
   {{ end }}
-  {{ if .to }}  
-    AND time <= '{{ .to }}'
+  {{ if .to }}
+  AND time <= '{{ .to }}'
   {{ end }}
   {{ if .unique_id }}
-    AND uniqueID IN ({{ .unique_id | sqlStringIn }})
+  AND uniqueID IN ({{ .unique_id | sqlStringIn }})
+  {{ end }}
+  {{ if .unique_id_not }}
+  AND uniqueID NOT IN ({{ .unique_id_not | sqlStringIn }})
   {{ end }}
   {{ if .user_agent_like }}
-    AND (
-      {{ range $index, $pattern := .user_agent_like }}
-        {{ if $index }}OR {{ end }}userAgent LIKE {{ $pattern | sqlStringLike }} 
-      {{ end }}
-    )
+  AND (
+  {{ range $index, $pattern := .user_agent_like }}
+  {{ if $index }}OR {{ end }}userAgent LIKE {{ $pattern | sqlStringLike }}
   {{ end }}
-  GROUP BY 
-    {{ $fieldOutput = false }}
-    {{ range $index, $field := .by }}
-    {{- if $fieldOutput }}, {{ end }}{{ $fieldOutput = true }}
-    {{ $field }}{{ end }}
-    {{- range $index, $field := .by_query }}
-    {{- if $fieldOutput }}, {{ end }}{{ $fieldOutput = true }}
-     json_extract(query, '$.{{ $field }}')
-    {{- end }}
-    {{- if .by_hour }}
-      {{- if $fieldOutput }}, {{ end }}{{ $fieldOutput = true }}
-      strftime('%Y-%m-%d %H', datetime(time))
-    {{- end }}
-    {{- if .by_minute }}
-      {{- if $fieldOutput }}, {{ end }}{{ $fieldOutput = true }}
-      strftime('%Y-%m-%d %H:%M', datetime(time))
-    {{- end }}
+  )
+  {{ end }}
+  {{ if .user_agent_unlike }}
+  AND (
+  {{ range $index, $pattern := .user_agent_unlike }}
+  {{ if $index }}AND {{ end }}userAgent NOT LIKE {{ $pattern | sqlStringLike }}
+  {{ end }}
+  )
+  {{ end }}
+  GROUP BY
+  {{ $fieldOutput = false }}
+  {{ range $index, $field := .by }}
+  {{- if $fieldOutput }}, {{ end }}{{ $fieldOutput = true }}
+  {{ $field }}{{ end }}
+  {{- range $index, $field := .by_query }}
+  {{- if $fieldOutput }}, {{ end }}{{ $fieldOutput = true }}
+  json_extract(query, '$.{{ $field }}')
+  {{- end }}
+  {{- if .by_hour }}
+  {{- if $fieldOutput }}, {{ end }}{{ $fieldOutput = true }}
+  strftime('%Y-%m-%d %H', datetime(time))
+  {{- end }}
+  {{- if .by_minute }}
+  {{- if $fieldOutput }}, {{ end }}{{ $fieldOutput = true }}
+  strftime('%Y-%m-%d %H:%M', datetime(time))
+  {{- end }}
   ORDER BY tally DESC
   {{ if .limit }}
-    LIMIT {{ .limit }}
+  LIMIT {{ .limit }}
   {{ end }}
   {{ if .offset }}
-    OFFSET {{ .offset }}
+  OFFSET {{ .offset }}
   {{ end }}
+
