@@ -3,10 +3,19 @@ package main
 import (
 	"context"
 	"fmt"
-	_ "github.com/milosgajdos/go-embeddings"
 	"github.com/milosgajdos/go-embeddings/openai"
 	"github.com/philippgille/chromem-go"
+
+	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/milosgajdos/go-embeddings"
 )
+
+// #cgo LDFLAGS: -Lvendor/sqlite-vss-libs/ -Wl,-undefined,dynamic_lookup
+import "C"
+
+func main() {
+	testChromem()
+}
 
 func testEmbedding() {
 	c := openai.NewEmbedder()
@@ -36,14 +45,20 @@ func testEmbedding() {
 
 func testChromem() {
 	ctx := context.Background()
+
 	// Set up chromem-go in-memory, for easy prototyping. Can add persistence easily!
 	// We call it DB instead of client because there's no client-server separation. The DB is embedded.
 	db := chromem.NewDB()
 
 	// Create collection. GetCollection, GetOrCreateCollection, DeleteCollection also available!
-	collection, _ := db.CreateCollection("all-my-documents", nil, nil)
+	collection, _ := db.CreateCollection(
+		"all-my-documents",
+		nil,
+		nil,
+	)
 
 	// Add docs to the collection. Update and delete will be added in the future.
+
 	// Can be multi-threaded with AddConcurrently()!
 	// We're showing the Chroma-like method here, but more Go-idiomatic methods are also available!
 	_ = collection.Add(ctx,

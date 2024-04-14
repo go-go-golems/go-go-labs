@@ -1,0 +1,1 @@
+// empty file to make cgo link with the stdc++ library
