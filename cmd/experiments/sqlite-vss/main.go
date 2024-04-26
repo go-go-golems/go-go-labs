@@ -3,17 +3,16 @@ package main
 import (
 	"context"
 	"fmt"
+	_ "github.com/asg017/sqlite-vss/bindings/go"
 	clay "github.com/go-go-golems/clay/pkg"
 	"github.com/go-go-golems/glazed/pkg/cli"
+	"github.com/go-go-golems/glazed/pkg/doc"
 	"github.com/go-go-golems/glazed/pkg/help"
 	"github.com/go-go-golems/go-go-labs/cmd/experiments/sqlite-vss/cmds"
 	"github.com/go-go-golems/go-go-labs/cmd/experiments/sqlite-vss/pkg"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
-	"time"
-
-	_ "github.com/asg017/sqlite-vss/bindings/go"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 // #cgo LDFLAGS: -L../../../thirdparty/sqlite-vss-libs/ -Wl,-undefined,dynamic_lookup
@@ -56,23 +55,26 @@ func main() {
 		log.Fatal().Err(err).Msg("could not initialize embedder")
 	}
 
+	ctx := context.Background()
+
+	// load glaze help system
+	helpSystem := help.NewHelpSystem()
+	err = doc.AddDocToHelpSystem(helpSystem)
+	cobra.CheckErr(err)
+	err = e.IndexHelpSystem(ctx, helpSystem)
+	cobra.CheckErr(err)
+
 	initDocumentCommand, err := cmds.NewIndexDocumentCommand(e)
 	cobra.CheckErr(err)
 	initDocumentCmd, err := cli.BuildCobraCommandFromGlazeCommand(initDocumentCommand)
 	cobra.CheckErr(err)
 	rootCmd.AddCommand(initDocumentCmd)
 
-	ctx := context.Background()
-
-	err = e.IndexDocument(ctx, "A big headline", "Today's news is horrible.", time.Now())
-	if err != nil {
-		log.Fatal().Err(err).Msg("could not index document")
-	}
-
-	err = e.Search(ctx, "what is going on?")
-	if err != nil {
-		log.Fatal().Err(err).Msg("could not search")
-	}
+	searchCommand, err := cmds.NewSearchCommand(e)
+	cobra.CheckErr(err)
+	searchCmd, err := cli.BuildCobraCommandFromGlazeCommand(searchCommand)
+	cobra.CheckErr(err)
+	rootCmd.AddCommand(searchCmd)
 
 	err = rootCmd.Execute()
 	cobra.CheckErr(err)

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/go-go-golems/glazed/pkg/help"
 	"github.com/milosgajdos/go-embeddings"
 	"github.com/milosgajdos/go-embeddings/openai"
 	"github.com/rs/zerolog/log"
@@ -79,10 +80,6 @@ func (e *Embedder) IndexDocument(ctx context.Context, title string, body string,
 		return err
 	}
 
-	for _, emb := range embeddings_ {
-		fmt.Printf("Embedding size: %d\n", len(emb.Vector))
-	}
-
 	if len(embeddings_) != 1 {
 		return fmt.Errorf("expected 1 embedding, got %d", len(embeddings_))
 	}
@@ -97,7 +94,27 @@ func (e *Embedder) IndexDocument(ctx context.Context, title string, body string,
 	return nil
 }
 
-func (e *Embedder) Search(ctx context.Context, question string) error {
+func (e *Embedder) IndexHelpSystem(ctx context.Context, helpSystem *help.HelpSystem) error {
+	for _, section := range helpSystem.Sections {
+		err := e.IndexDocument(
+			ctx, section.Title+" - "+section.SubTitle,
+			section.Short+"\n\n"+section.Content, time.Now())
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+type SearchResult struct {
+	ID       int
+	Distance float64
+	Title    string
+	Body     string
+}
+
+func (e *Embedder) Search(ctx context.Context, question string) ([]SearchResult, error) {
 	req := &openai.EmbeddingRequest{
 		Input:          []string{question},
 		Model:          EmbeddingModel,
@@ -107,50 +124,48 @@ func (e *Embedder) Search(ctx context.Context, question string) error {
 
 	embeddings_, err := e.embedder.Embed(ctx, req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if len(embeddings_) != 1 {
-		return fmt.Errorf("expected 1 embedding, got %d", len(embeddings_))
+		return nil, fmt.Errorf("expected 1 embedding, got %d", len(embeddings_))
 	}
 
-	// now use the embedding to do a similarity search
 	jsonVector, err := json.Marshal(embeddings_[0].Vector)
+	if err != nil {
+		return nil, err
+	}
+
 	rows, err := e.db.Query(`
-        WITH similar_documents AS (
+		WITH similar_documents AS (
 			SELECT rowid, distance
-			FROM embeddings 
+			FROM embeddings
 			WHERE vss_search(embedding, ?)
 			LIMIT 5
-        )
-        SELECT d.id, similar_documents.distance, d.title
+		)
+		SELECT d.id, similar_documents.distance, d.title, d.body
 		FROM similar_documents
 		JOIN documents d ON d.id = similar_documents.rowid
 		ORDER BY similar_documents.distance ASC
 	`, string(jsonVector))
-
 	if err != nil {
-		return err
+		return nil, err
 	}
-
 	defer func(rows *sql.Rows) {
 		_ = rows.Close()
 	}(rows)
 
-	// Print the search results
-	fmt.Println("Search Results:")
+	var results []SearchResult
 	for rows.Next() {
-		var rowid int
-		var distance float64
-		var title string
-		err := rows.Scan(&rowid, &distance, &title)
+		var result SearchResult
+		err := rows.Scan(&result.ID, &result.Distance, &result.Title, &result.Body)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		fmt.Printf("Document ID: %d, Distance: %.4f, Title: %s\n", rowid, distance, title)
+		results = append(results, result)
 	}
 
-	return nil
+	return results, nil
 }
 
 func NewEmbedder(f string) (*Embedder, error) {
