@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/milosgajdos/go-embeddings"
+	"github.com/milosgajdos/go-embeddings/openai"
 	"log"
 
 	_ "github.com/asg017/sqlite-vss/bindings/go"
@@ -13,7 +16,82 @@ import (
 // #cgo LDFLAGS: -L../../../thirdparty/sqlite-vss-libs/ -Wl,-undefined,dynamic_lookup
 import "C"
 
+type Embedder struct {
+	db       *sql.DB
+	embedder embeddings.Embedder[*openai.EmbeddingRequest]
+}
+
+func (e *Embedder) computeEmbeddings(t string) error {
+	ctx := context.Background()
+
+	req := &openai.EmbeddingRequest{
+		Input: []string{t, t},
+		Model: "text-embedding-3-small",
+		Dims:  128,
+	}
+
+	embeddings, err := e.embedder.Embed(ctx, req)
+	if err != nil {
+		return err
+	}
+
+	_ = embeddings
+
+	for _, emb := range embeddings {
+		fmt.Printf("Embedding size: %d\n", len(emb.Vector))
+	}
+
+	return nil
+}
+
+func NewEmbedder(f string) (*Embedder, error) {
+	db, err := sql.Open("sqlite3", f)
+	if err != nil {
+		return nil, err
+	}
+	c := openai.NewEmbedder()
+	return &Embedder{db: db, embedder: c}, nil
+}
+
+func (e *Embedder) Init() error {
+	// create a virtual table with embedding(128)
+	_, err := e.db.Exec(`
+		CREATE VIRTUAL TABLE IF NOT EXISTS docs USING vss0(
+			embedding(128)
+		)
+	`)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (e *Embedder) VSSVersion() string {
+	var version string
+	_ = e.db.QueryRow("SELECT vss_version()").Scan(&version)
+	return version
+}
+
+func (e *Embedder) Close() {
+	_ = e.db.Close()
+}
+
 func main() {
+	e, err := NewEmbedder("file:test.db")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer e.Close()
+
+	fmt.Println(e.VSSVersion())
+	err = e.Init()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// Open SQLite database
 	db, err := sql.Open("sqlite3", "file:test.db?mode=memory")
 	if err != nil {
@@ -23,6 +101,7 @@ func main() {
 		_ = db.Close()
 	}(db)
 
+	return
 	// Load the sqlite-vss extension
 	//err = sqlite_vss.Load(db)
 	//if err != nil {
