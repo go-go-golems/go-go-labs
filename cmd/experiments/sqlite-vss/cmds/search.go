@@ -103,43 +103,23 @@ func (c *SearchCommand) RunIntoGlazeProcessor(
 			fmt.Println("No results found")
 			return nil
 		}
-		parsedLayers_ := parsedLayers.Clone()
-		answerLayer, ok := c.AnswerQuestionCommand.Layers.Get(layers.DefaultSlug)
-		if !ok {
-			return errors.New("could not get answer layer")
-		}
-		answerParsedLayer, err := layers.NewParsedLayer(answerLayer)
-		if err != nil {
-			return err
-		}
 
-		// TODO(manuel, 2024-04-26) We should create update from struct
-		// TODO(manuel, 2024-04-26) Gosh it's hard to get parsed layers from scratch
-		// we should be able to make something a bit nicer by maybe looking at how parka does it
+		// NOTE(manuel, 2024-04-26)
+		// this could potentially be more elegant or solvable with codegen
+		parsedLayers_ := parsedLayers.Clone()
+		parsedLayers_.Delete(layers.DefaultSlug)
+
 		mw := cmds_middlewares.UpdateFromMap(map[string]map[string]interface{}{
 			layers.DefaultSlug: {
-				"query": s.Query,
+				"question": s.Query,
+				"document": results[0].Title + "\n" + results[0].Body,
 			},
 		})
 		_ = mw
-
-		val, present := answerLayer.GetParameterDefinitions().Get("question")
-		if !present {
-			return errors.New("could not get question parameter")
+		err = cmds_middlewares.ExecuteMiddlewares(c.AnswerQuestionCommand.Layers, parsedLayers_, mw)
+		if err != nil {
+			return err
 		}
-		questionParameter := &parameters.ParsedParameter{
-			Value:               s.Query,
-			ParameterDefinition: val,
-			Log:                 nil,
-		}
-		documentParameter := &parameters.ParsedParameter{
-			Value:               results[0].Title + "\n" + results[0].Body,
-			ParameterDefinition: val,
-			Log:                 nil,
-		}
-		answerParsedLayer.Parameters.Set("question", questionParameter)
-		answerParsedLayer.Parameters.Set("document", documentParameter)
-		parsedLayers_.Set(layers.DefaultSlug, answerParsedLayer)
 
 		err = c.AnswerQuestionCommand.RunIntoWriter(ctx, parsedLayers_, os.Stdout)
 		if err != nil {
