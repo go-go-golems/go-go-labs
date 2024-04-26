@@ -96,9 +96,16 @@ func (e *Embedder) IndexDocument(ctx context.Context, title string, body string,
 
 func (e *Embedder) IndexHelpSystem(ctx context.Context, helpSystem *help.HelpSystem) error {
 	for _, section := range helpSystem.Sections {
+		title := section.Title
+		if section.SubTitle != "" {
+			title += " - " + section.SubTitle
+		}
 		err := e.IndexDocument(
-			ctx, section.Title+" - "+section.SubTitle,
-			section.Short+"\n\n"+section.Content, time.Now())
+			ctx,
+			title,
+			section.Short+"\n\n"+section.Content,
+			time.Now(),
+		)
 		if err != nil {
 			return err
 		}

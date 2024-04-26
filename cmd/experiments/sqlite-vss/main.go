@@ -5,8 +5,8 @@ import (
 	"fmt"
 	_ "github.com/asg017/sqlite-vss/bindings/go"
 	clay "github.com/go-go-golems/clay/pkg"
+	geppetto_cmds "github.com/go-go-golems/geppetto/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cli"
-	"github.com/go-go-golems/glazed/pkg/doc"
 	"github.com/go-go-golems/glazed/pkg/help"
 	"github.com/go-go-golems/go-go-labs/cmd/experiments/sqlite-vss/cmds"
 	"github.com/go-go-golems/go-go-labs/cmd/experiments/sqlite-vss/pkg"
@@ -58,11 +58,12 @@ func main() {
 	ctx := context.Background()
 
 	// load glaze help system
-	helpSystem := help.NewHelpSystem()
-	err = doc.AddDocToHelpSystem(helpSystem)
-	cobra.CheckErr(err)
-	err = e.IndexHelpSystem(ctx, helpSystem)
-	cobra.CheckErr(err)
+	//helpSystem := help.NewHelpSystem()
+	//err = doc.AddDocToHelpSystem(helpSystem)
+	//cobra.CheckErr(err)
+	//err = e.IndexHelpSystem(ctx, helpSystem)
+	//cobra.CheckErr(err)
+	_ = ctx
 
 	initDocumentCommand, err := cmds.NewIndexDocumentCommand(e)
 	cobra.CheckErr(err)
@@ -72,9 +73,15 @@ func main() {
 
 	searchCommand, err := cmds.NewSearchCommand(e)
 	cobra.CheckErr(err)
-	searchCmd, err := cli.BuildCobraCommandFromGlazeCommand(searchCommand)
+	searchCmd, err := geppetto_cmds.BuildCobraCommandWithGeppettoMiddlewares(searchCommand)
 	cobra.CheckErr(err)
 	rootCmd.AddCommand(searchCmd)
+
+	answerCommand, err := cmds.NewAnswerQuestionCommand()
+	cobra.CheckErr(err)
+	answerCmd, err := geppetto_cmds.BuildCobraCommandWithGeppettoMiddlewares(answerCommand)
+	cobra.CheckErr(err)
+	rootCmd.AddCommand(answerCmd)
 
 	err = rootCmd.Execute()
 	cobra.CheckErr(err)
