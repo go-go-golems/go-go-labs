@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	_ "github.com/asg017/sqlite-vss/bindings/go"
 	clay "github.com/go-go-golems/clay/pkg"
@@ -55,7 +54,7 @@ func main() {
 		log.Fatal().Err(err).Msg("could not initialize embedder")
 	}
 
-	ctx := context.Background()
+	//ctx := context.Background()
 
 	// load glaze help system
 	//helpSystem := help.NewHelpSystem()
@@ -63,7 +62,7 @@ func main() {
 	//cobra.CheckErr(err)
 	//err = e.IndexHelpSystem(ctx, helpSystem)
 	//cobra.CheckErr(err)
-	_ = ctx
+	//_ = ctx
 
 	initDocumentCommand, err := cmds.NewIndexDocumentCommand(e)
 	cobra.CheckErr(err)

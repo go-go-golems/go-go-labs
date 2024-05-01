@@ -14,6 +14,7 @@ import (
 	"github.com/go-go-golems/go-go-labs/cmd/experiments/sqlite-vss/pkg"
 	"github.com/pkg/errors"
 	"os"
+	"strings"
 )
 
 type SearchCommand struct {
@@ -130,10 +131,20 @@ func (c *SearchCommand) RunIntoGlazeProcessor(
 	}
 
 	for _, result := range results {
+		// get the first 40 characters of Body
+		snippet := result.Body
+		// remove newlines
+		snippet = strings.ReplaceAll(snippet, "\n", " ")
+		if len(snippet) > 40 {
+			snippet = snippet[:40]
+			snippet += "..."
+		}
 		row := types.NewRow(
 			types.MRP("id", result.ID),
 			types.MRP("distance", result.Distance),
 			types.MRP("title", result.Title),
+			types.MRP("body", result.Body),
+			types.MRP("snippet", snippet),
 		)
 
 		if err := gp.AddRow(ctx, row); err != nil {

@@ -9,9 +9,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-//go:embed prompts/answer-question.yaml
-var answerQuestionYaml string
-
 //go:embed prompts
 var promptsFS embed.FS
 
@@ -19,6 +16,7 @@ type AnswerQuestionCommand struct {
 }
 
 func NewAnswerQuestionCommand() (*geppetto_cmds.GeppettoCommand, error) {
+	// TODO(manuel, 2024-04-26) We could add an easier way to load just one file
 	g := &geppetto_cmds.GeppettoCommandLoader{}
 	cmds_, err := g.LoadCommands(
 		promptsFS,
@@ -36,5 +34,4 @@ func NewAnswerQuestionCommand() (*geppetto_cmds.GeppettoCommand, error) {
 	}
 
 	return cmds_[0].(*geppetto_cmds.GeppettoCommand), nil
-
 }
