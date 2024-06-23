@@ -91,7 +91,7 @@ func (c *SearchCommand) RunIntoGlazeProcessor(
 	}
 
 	if s.Query == "" {
-		return fmt.Errorf("query is required")
+		return errors.Errorf("query is required")
 	}
 
 	results, err := c.embedder.Search(ctx, s.Query)

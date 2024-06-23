@@ -81,7 +81,7 @@ func (e *Embedder) IndexDocument(ctx context.Context, title string, body string,
 	}
 
 	if len(embeddings_) != 1 {
-		return fmt.Errorf("expected 1 embedding, got %d", len(embeddings_))
+		return errors.Errorf("expected 1 embedding, got %d", len(embeddings_))
 	}
 
 	// insert document and first embedding as json
@@ -135,7 +135,7 @@ func (e *Embedder) Search(ctx context.Context, question string) ([]SearchResult,
 	}
 
 	if len(embeddings_) != 1 {
-		return nil, fmt.Errorf("expected 1 embedding, got %d", len(embeddings_))
+		return nil, errors.Errorf("expected 1 embedding, got %d", len(embeddings_))
 	}
 
 	jsonVector, err := json.Marshal(embeddings_[0].Vector)

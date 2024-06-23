@@ -56,7 +56,7 @@ func tryLoading(dslJSON string) (*pkg.DSL, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("could not parse DSL")
+	return nil, errors.Errorf("could not parse DSL")
 }
 
 // applyDSL reads the DSL, applies all changes, and writes the result back to the file.
@@ -153,7 +153,7 @@ func findNonexistentFile(path string, suffix string) (string, error) {
 		i++
 
 		if i > 100 {
-			return "", fmt.Errorf("could not find a backup file name")
+			return "", errors.Errorf("could not find a backup file name")
 		}
 
 		// check that name does not exist

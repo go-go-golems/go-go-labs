@@ -9,6 +9,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
+	"github.com/pkg/errors"
 	"golang.org/x/net/html"
 	"io"
 	"sort"
@@ -28,7 +29,7 @@ var _ cmds.GlazeCommand = (*DefinedCommand)(nil)
 func NewDefinedCommand() (*DefinedCommand, error) {
 	glazedParameterLayer, err := settings.NewGlazedParameterLayers()
 	if err != nil {
-		return nil, fmt.Errorf("could not create Glazed parameter layer: %w", err)
+		return nil, errors.Wrap(err, "could not create Glazed parameter layer")
 	}
 
 	return &DefinedCommand{
@@ -117,7 +118,7 @@ func ParseAndOutputFile(
 	if strings.HasSuffix(url, ".css") {
 		cssContent, err := io.ReadAll(reader)
 		if err != nil {
-			return fmt.Errorf("error reading CSS from %s: %w", url, err)
+			return errors.Wrap(err, "error reading CSS from %s")
 		}
 		rules, err := GetRules(string(cssContent))
 		if err != nil {

@@ -85,7 +85,7 @@ func (c *IndexDocumentCommand) RunIntoGlazeProcessor(
 	}
 
 	if title == "" || body == "" {
-		return fmt.Errorf("title and body are required")
+		return errors.Errorf("title and body are required")
 	}
 
 	err := c.embedder.IndexDocument(ctx, title, body, modifiedAt)

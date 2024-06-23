@@ -93,13 +93,13 @@ func (c *DeleteTicketsCommand) RunIntoWriter(
 	for _, ticket_ := range s.TicketsFile {
 		ticketId, ok := ticket_["id"].(float64)
 		if !ok {
-			return fmt.Errorf("could not convert ticket ID to int")
+			return errors.Errorf("could not convert ticket ID to int")
 		}
 		s.Ids = append(s.Ids, int(ticketId))
 	}
 
 	if len(s.Ids) == 0 {
-		return fmt.Errorf("no ticket IDs specified")
+		return errors.Errorf("no ticket IDs specified")
 	}
 
 	// If flags are not set, use environment variables

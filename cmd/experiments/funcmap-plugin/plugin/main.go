@@ -22,7 +22,7 @@ func (p *Plugin) CallFunction(call shared.FunctionCall) (interface{}, error) {
 			}
 		}
 	}
-	return nil, fmt.Errorf("invalid function or arguments")
+	return nil, errors.Errorf("invalid function or arguments")
 }
 
 func main() {

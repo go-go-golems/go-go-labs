@@ -358,7 +358,7 @@ func createModelFromConfig(widgetConfig WidgetConfig) (WidgetModel, error) {
 		return model, nil
 	// ... handle other widget types
 	default:
-		return nil, fmt.Errorf("unknown widget type: %s", widgetConfig.Type)
+		return nil, errors.Errorf("unknown widget type: %s", widgetConfig.Type)
 	}
 }
 
