@@ -3,16 +3,29 @@
 require 'shellwords'
 require 'thor'
 
+# frozen_string_literal: true
+
 # Represents a simple text fragment in the prompt
 class TextFragment
-  def initialize(text)
+  def initialize(title:, text:, description: nil)
+    @title = title
     @text = text
+    @description = description
   end
 
-  # Renders the text fragment
-  # @return [String] The text content
+  # Renders the text fragment with title and description
+  # @return [String] Formatted text content in Markdown
   def render
-    @text
+    <<~MARKDOWN
+      # #{@title}
+
+      #{@description}
+
+      #{@text}
+
+      ---
+
+    MARKDOWN
   end
 end
 
@@ -33,7 +46,9 @@ class FileFragment
       #{@description}
 
       #{File.read(@path)}
+
       ---
+
     MARKDOWN
   end
 end
@@ -53,8 +68,15 @@ class ScriptFragment
     output = `#{@path} #{@arguments.join(' ')}`
     <<~MARKDOWN
       # #{@title}
+
       #{@description}
+
+      ```
       #{output}
+      ```
+
+      ---
+
     MARKDOWN
   end
 end
@@ -73,8 +95,15 @@ class RubyFragment
     output = @block.call
     <<~MARKDOWN
       # #{@title}
+
       #{@description}
+
+      ```ruby
       #{output}
+      ```
+
+      ---
+
     MARKDOWN
   end
 end
@@ -93,12 +122,20 @@ class EmbeddedShellFragment
     output = `bash -c #{@script.shellescape}`
     <<~MARKDOWN
       # #{@title}
+
       #{@description}
+
       ```bash
       #{@script}
       ```
+
       Output:
+      ```
       #{output}
+      ```
+
+      ---
+
     MARKDOWN
   end
 end
@@ -129,9 +166,11 @@ class Prompto < Thor
     end
 
     # Adds a text fragment to the prompt
-    # @param content [String] The text content
-    def text(content)
-      fragments << TextFragment.new(content)
+    # @param title [String] The title of the text section
+    # @param text [String] The text content
+    # @param description [String, nil] Optional description of the text
+    def text(title, text:, description: nil)
+      fragments << TextFragment.new(title: title, text: text, description: description)
     end
 
     # Adds a file fragment to the prompt
@@ -179,7 +218,6 @@ class Prompto < Thor
       @fragments = []
     end
 
-
     # Defines a Thor command for rendering the Prompto
     # @param command_name [Symbol] The name of the Thor command
     def define_thor_command(command_name)
@@ -216,7 +254,7 @@ end
 
 # Example usage of Prompto
 class TestPrompto < Prompto
-  text 'Hello, world!'
+  text 'Test string', text: 'Hello, world!'
 
   file 'Example File',
        path: 'test/example.txt',
@@ -244,9 +282,8 @@ class TestPrompto < Prompto
   define_thor_command :test
 end
 
-
 class Test2Prompto < Prompto
-  text 'Greetings from Test2Prompto!'
+  text 'Test string', text: 'Greetings from Test2Prompto!'
   ruby 'Data Analysis', description: 'Performs a simple data analysis.' do
     data = [1, 2, 3, 4, 5]
     "Mean: #{data.sum.to_f / data.size}, Median: #{data.sort[data.size / 2]}"
@@ -265,7 +302,6 @@ class Test2Prompto < Prompto
 
   define_thor_command :test2
 end
-
 
 if __FILE__ == $0
   TestPrompto.start(ARGV)
