@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'shellwords'
+require 'thor'
 
 # Represents a simple text fragment in the prompt
 class TextFragment
@@ -28,7 +29,9 @@ class FileFragment
   def render
     <<~MARKDOWN
       # #{@title}
+
       #{@description}
+
       #{File.read(@path)}
       ---
     MARKDOWN
@@ -101,11 +104,28 @@ class EmbeddedShellFragment
 end
 
 # Main class for building prompts with various types of content
-class Prompto
+class Prompto < Thor
   class << self
     # @return [Array] List of fragments in the prompt
     def fragments
       @fragments ||= []
+    end
+
+    # Initializes a new @fragments array for each Prompto subclass.
+    #
+    # This method is automatically called by Ruby when Prompto is subclassed.
+    # It ensures that each subclass has its own independent collection of fragments,
+    # preventing unintended sharing of fragments between different Prompto subclasses.
+    #
+    # @param subclass [Class] The newly created subclass of Prompto
+    #
+    # @example
+    #   class MyPrompto < Prompto
+    #     # This subclass will automatically get its own @fragments array
+    #   end
+    def inherited(subclass)
+      super
+      subclass.instance_variable_set(:@fragments, [])
     end
 
     # Adds a text fragment to the prompt
@@ -158,6 +178,39 @@ class Prompto
     def reset
       @fragments = []
     end
+
+
+    # Defines a Thor command for rendering the Prompto
+    # @param command_name [Symbol] The name of the Thor command
+    def define_thor_command(command_name)
+      # capture fragments for the thor method definition
+      fragments_ = @fragments
+
+      Thor.class_eval do
+        desc "#{command_name}", "Render the #{name} Prompto"
+        method_option :about, type: :boolean, desc: "Display metadata about the Prompto"
+        fragments_.each do |fragment|
+          method_option fragment.class.name.downcase.to_sym, type: :boolean, default: true,
+                        desc: "Include #{fragment.class.name} fragments"
+        end
+
+        define_method(command_name) do
+          prompto_class = Object.const_get(self.class.name.split('::').first)
+          if options[:about]
+            puts "Prompto: #{prompto_class.name}"
+            puts "Available fragments:"
+            prompto_class.fragments.each do |fragment|
+              puts "  - #{fragment.class.name}: #{fragment.instance_variable_get(:@title)}"
+            end
+          else
+            filtered_fragments = prompto_class.fragments.select do |fragment|
+              options[fragment.class.name.downcase.to_sym]
+            end
+            puts filtered_fragments.map(&:render).join("\n")
+          end
+        end
+      end
+    end
   end
 end
 
@@ -166,7 +219,7 @@ class TestPrompto < Prompto
   text 'Hello, world!'
 
   file 'Example File',
-       path: 'example.txt',
+       path: 'test/example.txt',
        description: 'This is an example file.'
 
   script 'Example Script',
@@ -187,6 +240,33 @@ class TestPrompto < Prompto
       ls -la
     BASH
   end
+
+  define_thor_command :test
 end
 
-puts TestPrompto.render if __FILE__ == $PROGRAM_NAME
+
+class Test2Prompto < Prompto
+  text 'Greetings from Test2Prompto!'
+  ruby 'Data Analysis', description: 'Performs a simple data analysis.' do
+    data = [1, 2, 3, 4, 5]
+    "Mean: #{data.sum.to_f / data.size}, Median: #{data.sort[data.size / 2]}"
+  end
+  shell 'System Info', description: 'Displays basic system information.' do
+    <<~BASH
+      #!/bin/bash
+      echo "OS Information:"
+      uname -a
+      echo "CPU Information:"
+      lscpu | grep "Model name"
+      echo "Memory Information:"
+      free -h
+    BASH
+  end
+
+  define_thor_command :test2
+end
+
+
+if __FILE__ == $0
+  TestPrompto.start(ARGV)
+end
