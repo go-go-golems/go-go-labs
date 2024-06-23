@@ -6,6 +6,7 @@ import (
 	json2 "github.com/go-go-golems/glazed/pkg/helpers/json"
 	yaml2 "github.com/go-go-golems/glazed/pkg/helpers/yaml"
 	"github.com/go-go-golems/go-go-labs/cmd/apps/differential/pkg"
+	"github.com/pkg/errors"
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -56,7 +57,7 @@ func tryLoading(dslJSON string) (*pkg.DSL, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("could not parse DSL")
+	return nil, errors.Errorf("could not parse DSL")
 }
 
 // applyDSL reads the DSL, applies all changes, and writes the result back to the file.
@@ -153,7 +154,7 @@ func findNonexistentFile(path string, suffix string) (string, error) {
 		i++
 
 		if i > 100 {
-			return "", fmt.Errorf("could not find a backup file name")
+			return "", errors.Errorf("could not find a backup file name")
 		}
 
 		// check that name does not exist

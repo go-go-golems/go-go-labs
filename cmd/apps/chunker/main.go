@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
+	"github.com/pkg/errors"
 	"github.com/tiktoken-go/tokenizer"
 	"log"
 )
@@ -11,26 +12,26 @@ import (
 func SplitString(input string, separators []string, model tokenizer.Model) (string, string, error) {
 	codec, err := tokenizer.ForModel(model)
 	if err != nil {
-		return "", "", fmt.Errorf("Error getting codec: %v", err)
+		return "", "", errors.Wrap(err, "Error getting codec")
 	}
 
 	dfa := computeDFA(separators, codec)
 
 	tokenIds, _, err := codec.Encode(input)
 	if err != nil {
-		return "", "", fmt.Errorf("Error encoding text: %v", err)
+		return "", "", errors.Wrap(err, "Error encoding text")
 	}
 
 	headIds, tailIds := splitTokenIdsByDFA(dfa, tokenIds, 10, codec)
 
 	headString, err := codec.Decode(headIds)
 	if err != nil {
-		return "", "", fmt.Errorf("Error decoding headIds: %v", err)
+		return "", "", errors.Wrap(err, "Error decoding headIds")
 	}
 
 	tailString, err := codec.Decode(tailIds)
 	if err != nil {
-		return "", "", fmt.Errorf("Error decoding tailIds: %v", err)
+		return "", "", errors.Wrap(err, "Error decoding tailIds")
 	}
 
 	return headString, tailString, nil

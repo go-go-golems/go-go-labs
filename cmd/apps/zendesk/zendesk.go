@@ -219,7 +219,7 @@ func (zd *ZendeskConfig) getJobStatus(jobID string) (*JobStatus, error) {
 		}
 
 		if response.StatusCode != 200 {
-			return nil, fmt.Errorf("failed to fetch job status. Status: %s", response.String())
+			return nil, errors.Errorf("failed to fetch job status. Status: %s", response.String())
 		}
 
 		var result struct {
@@ -265,7 +265,7 @@ func (zd *ZendeskConfig) bulkDeleteTickets(ticketIds []int) (*JobStatus, error) 
 	}
 
 	if response.StatusCode != 200 {
-		return nil, fmt.Errorf("failed to bulk delete tickets. Status: %s", response.String())
+		return nil, errors.Errorf("failed to bulk delete tickets. Status: %s", response.String())
 	}
 
 	var respBody struct {

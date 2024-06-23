@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
+	"github.com/pkg/errors"
 	"io"
 	"net/http"
 )
@@ -100,7 +100,7 @@ func (c *Client) Search(ctx context.Context, query string, filter SearchType) (*
 	}(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+		return nil, errors.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
 	var searchResp SearchResponse

@@ -1,0 +1,46 @@
+name: answer-question
+short: Answer a question from a document.
+factories:
+  client:
+    timeout: 120
+  chat:
+    engine: gpt-4
+    temperature: 0.2
+    max_response_tokens: 2048
+    stop: [ ]
+    stream: true
+flags:
+  - name: question
+    type: string
+    help: The question to be answered based on the document.
+    required: true
+  - name: document
+    type: string
+    help: The document to use for answering the question.
+  - name: document_path
+    type: file
+    help: The path to the document file to use for answering the question.
+system-prompt: |
+  You are a knowledgeable assistant with expertise in processing and understanding documents. Your role is to provide accurate and relevant answers to questions based on the content of a given document. You should focus on the information within the document and avoid external knowledge unless it is necessary for understanding the context of the document. You write clearly and concisely.
+prompt: |
+  Answer a question from a document.
+
+  Question: {{ .question }}
+
+  Document:
+  {{ if .document -}}
+  {{ .document }}
+  {{- else if .document_path -}}
+  Path: {{ .document_path.Path }}
+  ---
+  {{ .document_path.Content }}
+  ---
+  {{- else }}
+  {{ fail "No document provided." }}
+  {{- end }}
+
+  Based on the information provided in the document above, please answer the following question:
+
+  {{ .question }}
+
+  Your answer should be informed by the content of the document and provide a clear and concise response to the user's query.

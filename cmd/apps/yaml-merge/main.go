@@ -80,12 +80,12 @@ func readYAMLInterface(filepath string) (interface{}, error) {
 func mergeData(target yamlFile, source interface{}, mergePath, key string) (yamlFile, error) {
 	mergePoint, ok := target[mergePath]
 	if !ok {
-		return nil, fmt.Errorf("merge path %s not found in target", mergePath)
+		return nil, errors.Errorf("merge path %s not found in target", mergePath)
 	}
 
 	mergeList, ok := mergePoint.([]interface{})
 	if !ok {
-		return nil, fmt.Errorf("merge point is not a sequence")
+		return nil, errors.Errorf("merge point is not a sequence")
 	}
 
 	sourceList, ok := source.([]interface{})
@@ -97,12 +97,12 @@ func mergeData(target yamlFile, source interface{}, mergePath, key string) (yaml
 	for _, sourceItem := range sourceList {
 		sourceMap, ok := sourceItem.(map[string]interface{})
 		if !ok {
-			return nil, fmt.Errorf("source item is not a map")
+			return nil, errors.Errorf("source item is not a map")
 		}
 
 		sourceKeyValue, ok := sourceMap[key]
 		if !ok {
-			return nil, fmt.Errorf("key '%s' not found in source item", key)
+			return nil, errors.Errorf("key '%s' not found in source item", key)
 		}
 
 		// Find and replace or append the item in the mergeList

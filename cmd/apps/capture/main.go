@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/alecthomas/kong"
 	"github.com/go-go-golems/glazed/pkg/helpers"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -100,14 +101,14 @@ func NewEditorOptions() (*write.Options, error) {
 	// but using Kong to populate the struct based on the tags.
 	parser, err := kong.New(&opts, vars)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create parser: %w", err)
+		return nil, errors.Wrap(err, "failed to create parser")
 	}
 
 	// Use Kong to apply the default values. The following call simulates parsing an empty
 	// command-line input, causing all values to fall back to their defaults as specified in struct tags.
 	_, err = parser.Parse([]string{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse default options: %w", err)
+		return nil, errors.Wrap(err, "failed to parse default options")
 	}
 
 	// At this point, 'opts' is populated with the default values.

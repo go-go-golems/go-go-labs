@@ -20,3 +20,7 @@ credentials.json
 dist/
 
 .history
+
+.yardoc
+sqlite-vss
+test.db

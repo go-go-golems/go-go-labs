@@ -90,7 +90,7 @@ func (client *ShopperApprovedClient) FetchAggregateStatistics(params *AggregateR
 
 	// Check for non-200 status codes
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API request failed with status code %d", resp.StatusCode)
+		return nil, errors.Errorf("API request failed with status code %d", resp.StatusCode)
 	}
 
 	// Read and unmarshal the response body
