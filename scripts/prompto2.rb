@@ -223,20 +223,19 @@ class Prompto < Thor
     def define_thor_command(command_name, default: true)
       # capture fragments for the thor method definition
       fragments_ = @fragments
-      puts "Define thor command, self: #{self}, fragments: #{fragments_}"
 
-      desc "#{command_name}", "Render the #{name} Prompto"
-      method_option :about, type: :boolean, desc: "Display metadata about the Prompto"
+      desc command_name.to_s, "Render the #{name} Prompto"
+      method_option :about, type: :boolean, desc: 'Display metadata about the Prompto'
       fragments_.each do |fragment|
         method_option fragment.class.name.downcase.to_sym, type: :boolean, default: true,
-                      desc: "Include #{fragment.class.name} fragments"
+                                                           desc: "Include #{fragment.class.name} fragments"
       end
 
       define_method(command_name) do
         prompto_class = Object.const_get(self.class.name.split('::').first)
         if options[:about]
           puts "Prompto: #{prompto_class.name}"
-          puts "Available fragments:"
+          puts 'Available fragments:'
           prompto_class.fragments.each do |fragment|
             puts "  - #{fragment.class.name}: #{fragment.instance_variable_get(:@title)}"
           end
@@ -248,73 +247,38 @@ class Prompto < Thor
         end
       end
 
-      if default
-        default_command command_name
-      end
+      return unless default
+
+      default_command command_name
+    end
+  end
+end
+
+# Dynamically load Prompto classes from ~/.prompts directory
+module PromptoDynamicLoader
+  def self.load_prompto_classes
+    prompts_dir = File.expand_path('scripts/prompts')
+    Dir.glob(File.join(prompts_dir, '*.rb')).sort.each do |file|
+      require file
     end
 
+    # Find all subclasses of Prompto
+    prompto_classes = ObjectSpace.each_object(Class).select { |klass| klass < Prompto }
+
+    # Register each Prompto subclass as a subcommand of the main CLI class
+    prompto_classes.each do |klass|
+      command_name = klass.name.gsub(/Prompto$/, '').downcase
+      CLI.desc command_name, "Run #{klass.name}"
+      CLI.subcommand command_name, klass
+    end
   end
-end
-
-# Example usage of Prompto
-class TestPrompto < Prompto
-  text 'Test string', text: 'Hello, world!'
-
-  file 'Example File',
-       path: 'test/example.txt',
-       description: 'This is an example file.'
-
-  script 'Example Script',
-         path: 'scripts/example.sh',
-         arguments: %w[arg1 arg2],
-         description: 'This is an example script.'
-
-  ruby 'Example Ruby Block', description: 'This is an example Ruby block.' do
-    (1..5).map { |i| "Number #{i}" }.join(', ')
-  end
-
-  shell 'Embedded Shell Script', description: 'This is an embedded shell script.' do
-    <<~BASH
-      #!/bin/bash
-      echo "Current directory:"
-      pwd
-      echo "Files in the current directory:"
-      ls -la
-    BASH
-  end
-
-  define_thor_command :test
-end
-
-class Test2Prompto < Prompto
-  text 'Test string', text: 'Greetings from Test2Prompto!'
-  ruby 'Data Analysis', description: 'Performs a simple data analysis.' do
-    data = [1, 2, 3, 4, 5]
-    "Mean: #{data.sum.to_f / data.size}, Median: #{data.sort[data.size / 2]}"
-  end
-  shell 'System Info', description: 'Displays basic system information.' do
-    <<~BASH
-      #!/bin/bash
-      echo "OS Information:"
-      uname -a
-      echo "CPU Information:"
-      lscpu | grep "Model name"
-      echo "Memory Information:"
-      free -h
-    BASH
-  end
-
-  define_thor_command :test2
 end
 
 class CLI < Thor
-  desc "test", "Test commands"
-  subcommand "test", TestPrompto
-
-  desc "test2", "Test2 commands"
-  subcommand "test2", Test2Prompto
+  # The existing subcommands will be dynamically added here
 end
 
-if __FILE__ == $0
-  CLI.start(ARGV)
-end
+# Load and register Prompto classes
+PromptoDynamicLoader.load_prompto_classes
+
+CLI.start(ARGV) if __FILE__ == $PROGRAM_NAME

@@ -6,6 +6,7 @@ import (
 	json2 "github.com/go-go-golems/glazed/pkg/helpers/json"
 	yaml2 "github.com/go-go-golems/glazed/pkg/helpers/yaml"
 	"github.com/go-go-golems/go-go-labs/cmd/apps/differential/pkg"
+	"github.com/pkg/errors"
 	"github.com/sergi/go-diff/diffmatchpatch"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
