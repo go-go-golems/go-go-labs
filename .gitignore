@@ -21,4 +21,6 @@ dist/
 
 .history
 
-A
+.yardoc
+sqlite-vss
+test.db
