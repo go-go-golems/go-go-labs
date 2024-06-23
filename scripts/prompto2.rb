@@ -220,35 +220,39 @@ class Prompto < Thor
 
     # Defines a Thor command for rendering the Prompto
     # @param command_name [Symbol] The name of the Thor command
-    def define_thor_command(command_name)
+    def define_thor_command(command_name, default: true)
       # capture fragments for the thor method definition
       fragments_ = @fragments
+      puts "Define thor command, self: #{self}, fragments: #{fragments_}"
 
-      Thor.class_eval do
-        desc "#{command_name}", "Render the #{name} Prompto"
-        method_option :about, type: :boolean, desc: "Display metadata about the Prompto"
-        fragments_.each do |fragment|
-          method_option fragment.class.name.downcase.to_sym, type: :boolean, default: true,
-                        desc: "Include #{fragment.class.name} fragments"
-        end
+      desc "#{command_name}", "Render the #{name} Prompto"
+      method_option :about, type: :boolean, desc: "Display metadata about the Prompto"
+      fragments_.each do |fragment|
+        method_option fragment.class.name.downcase.to_sym, type: :boolean, default: true,
+                      desc: "Include #{fragment.class.name} fragments"
+      end
 
-        define_method(command_name) do
-          prompto_class = Object.const_get(self.class.name.split('::').first)
-          if options[:about]
-            puts "Prompto: #{prompto_class.name}"
-            puts "Available fragments:"
-            prompto_class.fragments.each do |fragment|
-              puts "  - #{fragment.class.name}: #{fragment.instance_variable_get(:@title)}"
-            end
-          else
-            filtered_fragments = prompto_class.fragments.select do |fragment|
-              options[fragment.class.name.downcase.to_sym]
-            end
-            puts filtered_fragments.map(&:render).join("\n")
+      define_method(command_name) do
+        prompto_class = Object.const_get(self.class.name.split('::').first)
+        if options[:about]
+          puts "Prompto: #{prompto_class.name}"
+          puts "Available fragments:"
+          prompto_class.fragments.each do |fragment|
+            puts "  - #{fragment.class.name}: #{fragment.instance_variable_get(:@title)}"
           end
+        else
+          filtered_fragments = prompto_class.fragments.select do |fragment|
+            options[fragment.class.name.downcase.to_sym]
+          end
+          puts filtered_fragments.map(&:render).join("\n")
         end
       end
+
+      if default
+        default_command command_name
+      end
     end
+
   end
 end
 
@@ -303,6 +307,14 @@ class Test2Prompto < Prompto
   define_thor_command :test2
 end
 
+class CLI < Thor
+  desc "test", "Test commands"
+  subcommand "test", TestPrompto
+
+  desc "test2", "Test2 commands"
+  subcommand "test2", Test2Prompto
+end
+
 if __FILE__ == $0
-  TestPrompto.start(ARGV)
+  CLI.start(ARGV)
 end
