@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 	"os"
 )

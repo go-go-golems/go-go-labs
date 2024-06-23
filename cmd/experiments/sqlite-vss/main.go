@@ -15,6 +15,7 @@ import (
 )
 
 // #cgo LDFLAGS: -L../../../thirdparty/sqlite-vss-libs/ -Wl,-undefined,dynamic_lookup
+//nolint:typecheck
 import "C"
 
 func createRootCmd() *cobra.Command {

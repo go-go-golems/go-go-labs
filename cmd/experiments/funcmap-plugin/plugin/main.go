@@ -1,10 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"github.com/go-go-golems/go-go-labs/cmd/experiments/funcmap-plugin/shared"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
+	"github.com/pkg/errors"
 	"os"
 )
 

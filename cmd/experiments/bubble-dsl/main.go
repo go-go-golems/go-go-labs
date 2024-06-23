@@ -15,6 +15,7 @@ import (
 	"github.com/charmbracelet/bubbles/timer"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 	"os"
 )
