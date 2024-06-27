@@ -8,7 +8,7 @@ conversations, facts, and todos associated with a user.
 To use this package, first install it using `go get`:
 
 ```sh
-go get github.com/yourusername/yourrepo/cmd/apps/bee/pkg/bee
+go get github.com/go-go-golems/go-go-labs/cmd/apps/bee/pkg/bee
 ```
 
 ## Usage
@@ -16,7 +16,7 @@ go get github.com/yourusername/yourrepo/cmd/apps/bee/pkg/bee
 Import the package into your Go project:
 
 ```go
-import "github.com/yourusername/yourrepo/cmd/apps/bee/pkg/bee"
+import "github.com/go-go-golems/go-go-labs/cmd/apps/bee/pkg/bee"
 ```
 
 ### Creating a Client
@@ -137,7 +137,7 @@ err := client.DeleteTodo(ctx, userID, todoID)
 
 ## Types
 
-The package defines several types used in API responses and requests. Refer to the [types.go](https://github.com/yourusername/yourrepo/cmd/apps/bee/pkg/bee/types.go) file for the complete list of types.
+The package defines several types used in API responses and requests. Refer to the [types.go](https://github.com/go-go-golems/go-go-labs/cmd/apps/bee/pkg/bee/types.go) file for the complete list of types.
 
 ## Error Handling
 
