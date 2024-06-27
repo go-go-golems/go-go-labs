@@ -123,7 +123,7 @@ features include:
 - Data filtering and transformation
 - Customizable table layouts
 
-To see the full list of available flags and options, use the `--help --long-help` flag with any command:
+To see the full list of available flags and options, use the `--help` flag with any command:
 
 ```
 ./bee <command> <subcommand> --help
