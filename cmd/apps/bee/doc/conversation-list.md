@@ -98,6 +98,3 @@ To list conversations sorted by start time with a custom limit, output as YAML, 
 bee conversation list --sort-by=start_time --limit 3 --output yaml --fields id,start_time,short_summary
 ```
 
-## Conclusion
-
-The `conversation list` command in the Bee.Computer SDK CLI is a versatile tool for querying conversation lists. By utilizing the various flags available, you can tailor the output to your specific needs, making it easier to manage and analyze conversation data from the command line.
