@@ -131,8 +131,11 @@ func main() {
 	cobra.CheckErr(err)
 	todoCmd.AddCommand(glazedDeleteTodoCmd)
 
+	rootCmd.AddCommand(cmds.WebsocketCmd)
+
 	err = rootCmd.ExecuteContext(ctx)
 	if err != nil {
 		os.Exit(1)
 	}
+
 }
