@@ -1,0 +1,32 @@
+version: '3'
+services:
+  go-app:
+    build:
+      context: ./go
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      - jaeger
+
+  ruby-app:
+    build:
+      context: ./ruby
+      dockerfile: Dockerfile
+    ports:
+      - "4567:4567"
+    environment:
+      - JAEGER_AGENT_HOST=jaeger
+      - JAEGER_AGENT_PORT=6831
+    depends_on:
+      - jaeger
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "14268:14268"  # Collector HTTP endpoint
+      - "6831:6831/udp"  # Jaeger agent
+    environment:
+      - COLLECTOR_ZIPKIN_HOST_PORT=:9411
+
