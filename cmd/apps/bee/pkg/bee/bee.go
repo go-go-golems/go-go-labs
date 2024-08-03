@@ -174,13 +174,15 @@ func (c *Client) GetConversations(ctx context.Context, userID string, page, limi
 }
 
 func (c *Client) GetConversation(ctx context.Context, userID string, conversationID int) (*Conversation, error) {
-	var result Conversation
+	var result struct {
+		Conversation Conversation `json:"conversation"`
+	}
 	err := c.getRequest(ctx, fmt.Sprintf("/%s/conversations/%d", userID, conversationID), nil, &result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get conversation: %w", err)
 	}
 
-	return &result, nil
+	return &result.Conversation, nil
 }
 
 func (c *Client) DeleteConversation(ctx context.Context, userID string, conversationID int) error {

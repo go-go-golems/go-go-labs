@@ -1,6 +1,9 @@
 package bee
 
-import "time"
+import (
+	"sort"
+	"time"
+)
 
 // Conversation-related structs
 type ConversationsResponse struct {
@@ -8,6 +11,11 @@ type ConversationsResponse struct {
 	CurrentPage   int            `json:"currentPage"`
 	TotalPages    int            `json:"totalPages"`
 	TotalCount    int            `json:"totalCount"`
+}
+
+type SuggestedLink struct {
+	URL       string    `json:"url"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type Conversation struct {
@@ -22,7 +30,24 @@ type Conversation struct {
 	UpdatedAt       time.Time       `json:"updated_at"`
 	PrimaryLocation *Location       `json:"primary_location"`
 	Transcriptions  []Transcription `json:"transcriptions"`
-	SuggestedLinks  []string        `json:"suggested_links"`
+	SuggestedLinks  []SuggestedLink `json:"suggested_links"`
+}
+
+func (c *Conversation) Transcript(withSpeaker bool) string {
+	var ret string
+	// sort transcripts by id
+	sortedTranscripts := make([]Transcription, len(c.Transcriptions))
+	copy(sortedTranscripts, c.Transcriptions)
+	sort.Slice(sortedTranscripts, func(i, j int) bool {
+		return sortedTranscripts[i].ID < sortedTranscripts[j].ID
+	})
+
+	for _, t := range sortedTranscripts {
+		ret += t.ToString(withSpeaker)
+		ret += "\n"
+	}
+	return ret
+
 }
 
 type Location struct {
@@ -35,8 +60,28 @@ type Transcription struct {
 	Utterances []Utterance `json:"utterances"`
 }
 
+func (t *Transcription) ToString(withSpeaker bool) string {
+	var ret string
+	prevSpeaker := ""
+	for _, u := range t.Utterances {
+		if withSpeaker && prevSpeaker != u.Speaker {
+			ret += "\n" + u.Speaker + ": "
+			prevSpeaker = u.Speaker
+		}
+		ret += u.Text + " "
+	}
+	return ret
+}
+
 type Utterance struct {
-	// Add utterance properties as needed
+	ID        int       `json:"id"`
+	Realtime  bool      `json:"realtime"`
+	Start     float64   `json:"start"`
+	End       float64   `json:"end"`
+	SpokenAt  time.Time `json:"spoken_at"`
+	Text      string    `json:"text"`
+	Speaker   string    `json:"speaker"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // Fact-related structs

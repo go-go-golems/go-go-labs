@@ -19,7 +19,9 @@ type GetConversationCommand struct {
 }
 
 type GetConversationSettings struct {
-	ConversationID int `glazed.parameter:"conversation_id"`
+	ConversationID  int  `glazed.parameter:"conversation_id"`
+	FullTranscript  bool `glazed.parameter:"full_transcript"`
+	WithoutSpeakers bool `glazed.parameter:"without_speakers"`
 }
 
 func NewGetConversationCommand() (*GetConversationCommand, error) {
@@ -32,6 +34,20 @@ func NewGetConversationCommand() (*GetConversationCommand, error) {
 		CommandDescription: cmds.NewCommandDescription(
 			"get",
 			cmds.WithShort("Get a specific conversation"),
+			cmds.WithFlags(
+				parameters.NewParameterDefinition(
+					"full_transcript",
+					parameters.ParameterTypeBool,
+					parameters.WithHelp("Whether to include the full transcript (if true) or the utterances (if false)"),
+					parameters.WithDefault(true),
+				),
+				parameters.NewParameterDefinition(
+					"without_speakers",
+					parameters.ParameterTypeBool,
+					parameters.WithHelp("Whether to include the speakers in the transcript"),
+					parameters.WithDefault(false),
+				),
+			),
 			cmds.WithArguments(
 				parameters.NewParameterDefinition(
 					"conversation_id",
@@ -71,9 +87,14 @@ func (c *GetConversationCommand) RunIntoGlazeProcessor(
 		types.MRP("created_at", conversation.CreatedAt),
 		types.MRP("updated_at", conversation.UpdatedAt),
 		types.MRP("primary_location", conversation.PrimaryLocation),
-		types.MRP("transcriptions", conversation.Transcriptions),
 		types.MRP("suggested_links", conversation.SuggestedLinks),
 	)
+
+	if s.FullTranscript {
+		row.Set("transcriptions", conversation.Transcript(!s.WithoutSpeakers))
+	} else {
+		row.Set("transcriptions", conversation.Transcriptions)
+	}
 
 	return gp.AddRow(ctx, row)
 }
