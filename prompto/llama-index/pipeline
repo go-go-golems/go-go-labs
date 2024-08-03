@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+echo "TUTORIAL:"
+cat /tmp/pipeline-howto.md
+echo "---"
+
+cd /home/manuel/code/others/llms/llama_index/llama-index-core
+find . -type f -name "*.py" ! -name "*test*" -exec grep -E --exclude-dir='*/test/*' -H 'def ' {} +
