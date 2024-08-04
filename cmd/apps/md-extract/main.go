@@ -71,8 +71,6 @@ func (c *ExtractMdCommand) RunIntoWriter(ctx context.Context, parsedLayers *laye
 	bw := bufio.NewWriter(w)
 	defer bw.Flush()
 
-	bw = bufio.NewWriter(os.Stderr)
-
 	s := &ExtractMdSettings{}
 	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
 	if err != nil {

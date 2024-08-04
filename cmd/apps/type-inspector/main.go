@@ -10,6 +10,7 @@ func analyzeValue(v reflect.Value, indent string) {
 	fmt.Printf("%sType: %v\n", indent, t)
 	fmt.Printf("%sKind: %v\n", indent, v.Kind())
 
+	//exhaustive:ignore
 	switch v.Kind() {
 	case reflect.Struct:
 		fmt.Printf("%sFields:\n", indent)

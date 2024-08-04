@@ -281,11 +281,11 @@ func applyPreset(cmd *cobra.Command, name string) {
 				if flag != nil {
 					switch v := value.(type) {
 					case int:
-						flag.Value.Set(fmt.Sprintf("%d", v))
+						_ = flag.Value.Set(fmt.Sprintf("%d", v))
 					case float64:
-						flag.Value.Set(fmt.Sprintf("%f", v))
+						_ = flag.Value.Set(fmt.Sprintf("%f", v))
 					case string:
-						flag.Value.Set(v)
+						_ = flag.Value.Set(v)
 					}
 				}
 			}
