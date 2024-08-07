@@ -8,28 +8,31 @@ import (
 	_ "image/png"
 	"log"
 
-	"github.com/atotto/clipboard"
+	"golang.design/x/clipboard"
 )
 
 func main() {
-	// Read data from clipboard
-	data, err := clipboard.ReadAll()
+	// Initialize the clipboard package
+	err := clipboard.Init()
 	if err != nil {
-		log.Fatalf("Failed to read clipboard: %v", err)
+		log.Fatalf("Failed to initialize clipboard: %v", err)
+	}
+
+	// Read image data from clipboard
+	imageData := clipboard.Read(clipboard.FmtImage)
+	if imageData == nil {
+		log.Fatalf("No image data found in clipboard")
 	}
 
 	// Print hexdump of clipboard content
 	fmt.Println("Clipboard content (hexdump):")
-	for i, b := range []byte(data) {
+	for i, b := range imageData {
 		if i%16 == 0 {
 			fmt.Printf("\n%04x: ", i)
 		}
 		fmt.Printf("%02x ", b)
 	}
 	fmt.Println()
-
-	// Convert string data to byte slice
-	imageData := []byte(data)
 
 	// Decode the image
 	img, _, err := image.Decode(bytes.NewReader(imageData))
