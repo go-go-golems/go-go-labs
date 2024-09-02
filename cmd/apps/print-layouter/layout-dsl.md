@@ -30,7 +30,7 @@ subpage:
   guides: [<guide>...]
 ```
 
-- `<dimension>`: A measurement (e.g., "210mm", "8.5in")
+- `<dimension>`: A measurement (e.g., "210mm", "8.5in") or an arithmetic expression (e.g., "(210 / 2)mm", "(8.5 + 0.5)in")
 - `<integer>`: A whole number
 
 ## Guide Types
@@ -39,7 +39,7 @@ subpage:
 
 ```yaml
 - type: <"horizontal" | "vertical">
-  position: <dimension | percentage>
+  position: <dimension | percentage | arithmetic_expression>
   from: <"top" | "bottom" | "left" | "right">
   reference: <"page" | "margin">
   gutter: <dimension>
@@ -56,108 +56,117 @@ subpage:
   gutter: <dimension>
 ```
 
+## Arithmetic Expressions
+
+Arithmetic expressions can be used in place of simple dimensions when more complex calculations are needed. They must be enclosed in parentheses and can include basic arithmetic operations (+, -, *, /, ^, %). For example:
+
+- `"(210 / 2)mm"`
+- `"(8.5 + 0.5)in"`
+- `"(20 * 3 + 5)pt"`
+- `"(100 - 20)%"`
+
 ## Examples
 
-### Basic Single Page Layout
+### Basic Single Page Layout with Arithmetic
 
 ```yaml
 page:
-  width: 210mm
+  width: 220mm
   height: 297mm
   margins:
-    top: 20mm
-    right: 15mm
-    bottom: 20mm
-    left: 15mm
+    top: 22mm
+    right: 18mm
+    bottom: 22mm
+    left: 18mm
   guides:
     - type: horizontal
-      position: 50%
+      position: 52%
       from: top
       reference: margin
-      gutter: 2mm
+      gutter: 3mm
 ```
 
-### Multi-column Subpage Layout
+### Multi-column Subpage Layout with Arithmetic
 
 ```yaml
 page:
-  width: 210mm
+  width: 215mm
   height: 297mm
   subpages:
     rows: 2
     columns: 1
   margins:
-    top: 10mm
-    right: 10mm
-    bottom: 10mm
-    left: 10mm
+    top: 11mm
+    right: 11mm
+    bottom: 11mm
+    left: 11mm
 
 subpage:
   margins:
-    top: 5mm
-    right: 5mm
-    bottom: 5mm
-    left: 5mm
+    top: 6mm
+    right: 6mm
+    bottom: 6mm
+    left: 6mm
   columns:
     count: 3
-    gutter: 5mm
+    gutter: 6mm
   guides:
     - type: vertical
-      position: 33.33%
+      position: (100 / 3)mm
       from: left
       reference: margin
-      gutter: 1mm
+      gutter: 1.5mm
     - type: vertical
-      position: 66.66%
+      position: (200 / 3) mm
       from: left
       reference: margin
-      gutter: 1mm
+      gutter: 1.5mm
 ```
 
-### Complex Layout with Multiple Guide Types
+### Complex Layout with Multiple Guide Types and Arithmetic
 
 ```yaml
 page:
-  width: 11in
+  width: (11 + 0.5)in
   height: 8.5in
   margins:
-    top: 0.5in
-    right: 0.75in
-    bottom: 0.5in
-    left: 0.75in
+    top: 0.55in
+    right: 0.825in
+    bottom: 0.55in
+    left: 0.825in
   guides:
     - type: horizontal
-      position: 1in
+      position: 1.1in
       from: top
       reference: page
-      gutter: 0.1in
+      gutter: 0.12in
     - type: vertical
-      position: 50%
+      position: 52%
       from: left
       reference: page
-      gutter: 0.1in
+      gutter: 0.12in
     - type: rect
-      x: 1in
-      y: 1.5in
-      width: 4in
-      height: 3in
-      gutter: 0.2in
+      x: 1.1in
+      y: 1.6in
+      width: 4.2in
+      height: 3.15in
+      gutter: 0.22in
 
 subpage:
   margins:
-    top: 0.25in
-    right: 0.25in
-    bottom: 0.25in
-    left: 0.25in
+    top: 0.275in
+    right: 0.275in
+    bottom: 0.275in
+    left: 0.275in
   columns:
     count: 2
-    gutter: 0.3in
+    gutter: 0.33in
   guides:
     - type: horizontal
-      position: 2in
+      position: 2.1in
       from: bottom
       reference: margin
-      gutter: 0.05in
+      gutter: 0.06in
 ```
 
-This specification provides a flexible way to define layout guides for various print designs, from simple single-page layouts to complex multi-page booklets with multiple columns and custom guide placements.
+This specification provides a flexible way to define layout guides for various print designs, from simple single-page layouts to complex multi-page booklets with multiple columns and custom guide placements. Arithmetic expressions are used sparingly, only when they add value to the layout definitions.
