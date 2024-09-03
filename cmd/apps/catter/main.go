@@ -7,9 +7,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/weaviate/tiktoken-go"
-
 	"github.com/spf13/cobra"
+	"github.com/weaviate/tiktoken-go"
 )
 
 type CodePrinter struct {
@@ -22,7 +21,8 @@ type CodePrinter struct {
 	FileCount    int
 	TokenCounter *tiktoken.Tiktoken
 	TokenCounts  map[string]int
-	StatsLevel   string // Add this new field
+	StatsLevel   string
+	GlobPattern  string
 }
 
 func NewCodePrinter() *CodePrinter {
@@ -35,7 +35,7 @@ func NewCodePrinter() *CodePrinter {
 	return &CodePrinter{
 		TokenCounter: tokenCounter,
 		TokenCounts:  make(map[string]int),
-		StatsLevel:   "none", // Set default value
+		StatsLevel:   "none",
 	}
 }
 
@@ -84,6 +84,16 @@ func (cp *CodePrinter) processDirectory(dirPath string) {
 	dirTokens := 0
 	for _, file := range files {
 		fullPath := filepath.Join(dirPath, file.Name())
+		if cp.GlobPattern != "" {
+			matched, err := doublestar.PathMatch(cp.GlobPattern, fullPath)
+			if err != nil {
+				_, _ = fmt.Fprintf(os.Stderr, "Error matching glob pattern: %v\n", err)
+				return
+			}
+			if !matched {
+				continue
+			}
+		}
 		cp.processPath(fullPath)
 		dirTokens += cp.TokenCounts[fullPath]
 		if cp.CurrentSize >= cp.MaxTotalSize {
@@ -122,7 +132,7 @@ func (cp *CodePrinter) shouldProcessFile(filePath string, fileInfo os.FileInfo) 
 	return true
 }
 
-func (cp *CodePrinter) printFileContent(filePath string, fileInfo os.FileInfo) {
+func (cp *CodePrinter) printFileContent(filePath string, _ os.FileInfo) {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error reading file %s: %v\n", filePath, err)
@@ -158,14 +168,12 @@ func (cp *CodePrinter) printSummary() {
 		_, _ = fmt.Fprintf(os.Stderr, "Total tokens: %d\n", cp.TotalTokens)
 		_, _ = fmt.Fprintf(os.Stderr, "\nToken counts per file/directory:\n")
 
-		// Create a sorted slice of paths
 		paths := make([]string, 0, len(cp.TokenCounts))
 		for path := range cp.TokenCounts {
 			paths = append(paths, path)
 		}
 		sort.Strings(paths)
 
-		// Print token counts in alphabetical order
 		for _, path := range paths {
 			_, _ = fmt.Fprintf(os.Stderr, "%s: %d tokens\n", path, cp.TokenCounts[path])
 		}
@@ -187,6 +195,7 @@ func main() {
 	rootCmd.Flags().StringSliceVar(&cp.IncludeExts, "include", []string{}, "List of file extensions to include (e.g., .go,.js)")
 	rootCmd.Flags().StringSliceVar(&cp.ExcludeExts, "exclude", []string{}, "List of file extensions to exclude (e.g., .exe,.dll)")
 	rootCmd.Flags().StringVar(&cp.StatsLevel, "stats", "none", "Level of statistics to show: none, total, or detailed")
+	rootCmd.Flags().StringVar(&cp.GlobPattern, "glob", "", "Glob pattern to match files and directories (e.g., **/*.go)")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
