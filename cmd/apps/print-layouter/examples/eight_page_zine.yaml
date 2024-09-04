@@ -1,0 +1,29 @@
+page:
+  width: 420mm
+  height: 297mm
+  subpages:
+    rows: 2
+    columns: 4
+  margins:
+    top: 10mm
+    right: 10mm
+    bottom: 10mm
+    left: 10mm
+
+subpage:
+  margins:
+    top: 5mm
+    right: 5mm
+    bottom: 5mm
+    left: 5mm
+  guides:
+    - type: horizontal
+      position: 50%
+      from: top
+      reference: margin
+      gutter: 1mm
+    - type: vertical
+      position: 50%
+      from: left
+      reference: margin
+      gutter: 1mm
