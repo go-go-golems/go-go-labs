@@ -30,6 +30,7 @@ type CodePrinter struct {
 	ExcludeDirs      []string
 	GitIgnoreFilter  gitignore.GitIgnore
 	DisableGitIgnore bool
+	DelimiterType    string
 }
 
 func NewCodePrinter() *CodePrinter {
@@ -186,7 +187,17 @@ func (cp *CodePrinter) printFileContent(filePath string, _ os.FileInfo) {
 		}
 	}
 
-	fmt.Printf("---\n\nFile: %s\n\n--\n\n%s\n\n---\n\n", filePath, string(content))
+	switch cp.DelimiterType {
+	case "xml":
+		fmt.Printf("<file name=\"%s\">\n<content>\n%s\n</content>\n</file>\n", filePath, string(content))
+	case "markdown":
+		fmt.Printf("## File: %s\n\n```\n%s\n```\n\n", filePath, string(content))
+	case "simple":
+		fmt.Printf("===\n\nFile: %s\n\n---\n\n%s\n\n===\n\n", filePath, string(content))
+	default:
+		fmt.Printf("=== BEGIN: %s ===\n%s\n=== END: %s ===\n\n", filePath, string(content), filePath)
+	}
+
 	cp.CurrentSize += int64(len(content))
 	cp.FileCount++
 
@@ -282,6 +293,7 @@ func main() {
 	rootCmd.Flags().BoolVar(&cp.ListOnly, "list", false, "List filenames only without printing content")
 	rootCmd.Flags().StringSliceVar(&cp.ExcludeDirs, "exclude-dirs", []string{}, "List of directories to exclude")
 	rootCmd.Flags().BoolVar(&cp.DisableGitIgnore, "disable-gitignore", false, "Disable .gitignore filter")
+	rootCmd.Flags().StringVar(&cp.DelimiterType, "delimiter", "default", "Type of delimiter to use between files: default, xml, markdown, simple, begin-end")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)

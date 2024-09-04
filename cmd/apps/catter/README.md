@@ -50,11 +50,12 @@ catter [flags] <file1> <directory1> ...
 - `--list`: List filenames only without printing content
 - `--exclude-dirs`: List of directories to exclude
 - `--disable-gitignore`: Disable .gitignore filter
+- `--delimiter`: Type of delimiter to use between files: default, xml, markdown, simple, begin-end (default: default)
 
 ### Example
 
 ```
-catter --max-file-size=500000 --max-total-size=5000000 --include=.go,.js --exclude=.tmp,.log --stats=detailed --match-filename="^main" --exclude-dirs="vendor,node_modules" /path/to/your/codebase
+catter --max-file-size=500000 --max-total-size=5000000 --include=.go,.js --exclude=.tmp,.log --stats=detailed --match-filename="^main" --exclude-dirs="vendor,node_modules" /path/to/your/codebase --delimiter=markdown
 ```
 
 This command will:
