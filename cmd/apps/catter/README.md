@@ -8,10 +8,14 @@ useful for developers and researchers working with LLMs who need to analyze and 
 
 - Recursively process directories and files
 - Filter files based on extensions (include/exclude)
+- Match files based on filename or full path using regular expressions
 - Limit processing based on individual file size and total processed size
 - Count tokens using the tiktoken library (compatible with OpenAI's tokenization)
 - Provide configurable levels of token count statistics
 - Output file contents to stdout and statistics to stderr
+- Option to list files without printing content
+- Exclude specific directories
+- Respect .gitignore rules (with option to disable)
 
 ## Installation
 
@@ -23,7 +27,7 @@ useful for developers and researchers working with LLMs who need to analyze and 
 
 1. Install the tool:
    ```
-   go install https://github.com/go-go-golems/go-go-labs/cmd/apps/catter
+   go install github.com/go-go-golems/go-go-labs/cmd/apps/catter@latest
    ```
 
 ## Usage
@@ -31,7 +35,7 @@ useful for developers and researchers working with LLMs who need to analyze and 
 Run the program using the following command:
 
 ```
-./catter [flags] <file1> <directory1> ...
+catter [flags] <file1> <directory1> ...
 ```
 
 ### Flags
@@ -41,11 +45,16 @@ Run the program using the following command:
 - `--include`: List of file extensions to include (e.g., .go,.js)
 - `--exclude`: List of file extensions to exclude (e.g., .exe,.dll)
 - `--stats`: Level of statistics to show: none, total, or detailed (default: none)
+- `--match-filename`: List of regular expressions to match filenames
+- `--match-path`: List of regular expressions to match full paths
+- `--list`: List filenames only without printing content
+- `--exclude-dirs`: List of directories to exclude
+- `--disable-gitignore`: Disable .gitignore filter
 
 ### Example
 
 ```
-./catter --max-file-size=500000 --max-total-size=5000000 --include=.go,.js --exclude=.tmp,.log --stats=detailed /path/to/your/codebase
+catter --max-file-size=500000 --max-total-size=5000000 --include=.go,.js --exclude=.tmp,.log --stats=detailed --match-filename="^main" --exclude-dirs="vendor,node_modules" /path/to/your/codebase
 ```
 
 This command will:
@@ -53,8 +62,11 @@ This command will:
 - Stop after processing a total of 5MB of content
 - Only include .go and .js files
 - Exclude .tmp and .log files
+- Print detailed statistics, including token counts per file and directory
+- Only process files with names starting with "main"
+- Exclude the "vendor" and "node_modules" directories
+- Respect .gitignore rules
 - Print the content of each file to stdout
-- Print detailed statistics, including token counts per file and directory, to stderr
 
 ## Output
 
@@ -86,3 +98,4 @@ This project is licensed under the MIT License.
 
 - [Cobra](https://github.com/spf13/cobra) for CLI interface
 - [tiktoken-go](https://github.com/pkoukk/tiktoken-go) for token counting
+- [go-gitignore](https://github.com/denormal/go-gitignore) for .gitignore support

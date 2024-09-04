@@ -24,3 +24,4 @@ dist/
 .yardoc
 sqlite-vss
 test.db
+dist/config.yaml

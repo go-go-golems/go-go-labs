@@ -4,25 +4,32 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
+	"github.com/denormal/go-gitignore"
 	"github.com/spf13/cobra"
 	"github.com/weaviate/tiktoken-go"
 )
 
 type CodePrinter struct {
-	MaxFileSize  int64
-	MaxTotalSize int64
-	IncludeExts  []string
-	ExcludeExts  []string
-	CurrentSize  int64
-	TotalTokens  int
-	FileCount    int
-	TokenCounter *tiktoken.Tiktoken
-	TokenCounts  map[string]int
-	StatsLevel   string
-	GlobPattern  string
+	MaxFileSize      int64
+	MaxTotalSize     int64
+	IncludeExts      []string
+	ExcludeExts      []string
+	CurrentSize      int64
+	TotalTokens      int
+	FileCount        int
+	TokenCounter     *tiktoken.Tiktoken
+	TokenCounts      map[string]int
+	StatsLevel       string
+	MatchFilenames   []*regexp.Regexp
+	MatchPaths       []*regexp.Regexp
+	ListOnly         bool
+	ExcludeDirs      []string
+	GitIgnoreFilter  gitignore.GitIgnore
+	DisableGitIgnore bool
 }
 
 func NewCodePrinter() *CodePrinter {
@@ -36,13 +43,13 @@ func NewCodePrinter() *CodePrinter {
 		TokenCounter: tokenCounter,
 		TokenCounts:  make(map[string]int),
 		StatsLevel:   "none",
+		ExcludeDirs:  []string{},
 	}
 }
 
 func (cp *CodePrinter) Run(cmd *cobra.Command, args []string) {
 	if len(args) < 1 {
-		fmt.Println("Please provide at least one file or directory path")
-		return
+		args = append(args, ".")
 	}
 
 	for _, path := range args {
@@ -75,6 +82,15 @@ func (cp *CodePrinter) processPath(path string) {
 }
 
 func (cp *CodePrinter) processDirectory(dirPath string) {
+	if strings.HasSuffix(dirPath, ".git") {
+		return
+	}
+	for _, excludedDir := range cp.ExcludeDirs {
+		if strings.Contains(dirPath, excludedDir) {
+			return
+		}
+	}
+
 	files, err := os.ReadDir(dirPath)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error reading directory %s: %v\n", dirPath, err)
@@ -84,16 +100,6 @@ func (cp *CodePrinter) processDirectory(dirPath string) {
 	dirTokens := 0
 	for _, file := range files {
 		fullPath := filepath.Join(dirPath, file.Name())
-		if cp.GlobPattern != "" {
-			matched, err := doublestar.PathMatch(cp.GlobPattern, fullPath)
-			if err != nil {
-				_, _ = fmt.Fprintf(os.Stderr, "Error matching glob pattern: %v\n", err)
-				return
-			}
-			if !matched {
-				continue
-			}
-		}
 		cp.processPath(fullPath)
 		dirTokens += cp.TokenCounts[fullPath]
 		if cp.CurrentSize >= cp.MaxTotalSize {
@@ -129,10 +135,42 @@ func (cp *CodePrinter) shouldProcessFile(filePath string, fileInfo os.FileInfo) 
 		}
 	}
 
+	if len(cp.MatchFilenames) > 0 || len(cp.MatchPaths) > 0 {
+		filenameMatch := false
+		pathMatch := false
+
+		for _, re := range cp.MatchFilenames {
+			if re.MatchString(filepath.Base(filePath)) {
+				filenameMatch = true
+				break
+			}
+		}
+
+		for _, re := range cp.MatchPaths {
+			if re.MatchString(filePath) {
+				pathMatch = true
+				break
+			}
+		}
+
+		if !filenameMatch && !pathMatch {
+			return false
+		}
+	}
+
+	if !cp.DisableGitIgnore && cp.GitIgnoreFilter.Ignore(filePath) {
+		return false
+	}
+
 	return true
 }
 
 func (cp *CodePrinter) printFileContent(filePath string, _ os.FileInfo) {
+	if cp.ListOnly {
+		fmt.Println(filePath)
+		return
+	}
+
 	content, err := os.ReadFile(filePath)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error reading file %s: %v\n", filePath, err)
@@ -184,10 +222,54 @@ func main() {
 	cp := NewCodePrinter()
 
 	rootCmd := &cobra.Command{
-		Use:   "codeprinter",
+		Use:   "catter",
 		Short: "Print file contents with token counting for LLM context",
 		Long:  `A CLI tool to print file contents, recursively process directories, and count tokens for LLM context preparation.`,
-		Run:   cp.Run,
+		Run: func(cmd *cobra.Command, args []string) {
+			// Convert string flags to regular expressions
+			if matchFilenameStrs, _ := cmd.Flags().GetStringSlice("match-filename"); len(matchFilenameStrs) > 0 {
+				for _, matchFilenameStr := range matchFilenameStrs {
+					re, err := regexp.Compile(matchFilenameStr)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Invalid match-filename regex: %v\n", err)
+						os.Exit(1)
+					}
+					cp.MatchFilenames = append(cp.MatchFilenames, re)
+				}
+			}
+
+			if matchPathStrs, _ := cmd.Flags().GetStringSlice("match-path"); len(matchPathStrs) > 0 {
+				for _, matchPathStr := range matchPathStrs {
+					re, err := regexp.Compile(matchPathStr)
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Invalid match-path regex: %v\n", err)
+						os.Exit(1)
+					}
+					cp.MatchPaths = append(cp.MatchPaths, re)
+				}
+			}
+
+			// Initialize gitignore filter if not disabled
+			if !cp.DisableGitIgnore {
+				if _, err := os.Stat(".gitignore"); err == nil {
+					gitIgnoreFilter, err := gitignore.NewFromFile(".gitignore")
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Error initializing gitignore filter from file: %v\n", err)
+						os.Exit(1)
+					}
+					cp.GitIgnoreFilter = gitIgnoreFilter
+				} else {
+					gitIgnoreFilter, err := gitignore.NewRepository(".")
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Error initializing gitignore filter: %v\n", err)
+						os.Exit(1)
+					}
+					cp.GitIgnoreFilter = gitIgnoreFilter
+				}
+			}
+
+			cp.Run(cmd, args)
+		},
 	}
 
 	rootCmd.Flags().Int64Var(&cp.MaxFileSize, "max-file-size", 1024*1024, "Maximum size of individual files in bytes")
@@ -195,7 +277,11 @@ func main() {
 	rootCmd.Flags().StringSliceVar(&cp.IncludeExts, "include", []string{}, "List of file extensions to include (e.g., .go,.js)")
 	rootCmd.Flags().StringSliceVar(&cp.ExcludeExts, "exclude", []string{}, "List of file extensions to exclude (e.g., .exe,.dll)")
 	rootCmd.Flags().StringVar(&cp.StatsLevel, "stats", "none", "Level of statistics to show: none, total, or detailed")
-	rootCmd.Flags().StringVar(&cp.GlobPattern, "glob", "", "Glob pattern to match files and directories (e.g., **/*.go)")
+	rootCmd.Flags().StringSlice("match-filename", []string{}, "List of regular expressions to match filenames")
+	rootCmd.Flags().StringSlice("match-path", []string{}, "List of regular expressions to match full paths")
+	rootCmd.Flags().BoolVar(&cp.ListOnly, "list", false, "List filenames only without printing content")
+	rootCmd.Flags().StringSliceVar(&cp.ExcludeDirs, "exclude-dirs", []string{}, "List of directories to exclude")
+	rootCmd.Flags().BoolVar(&cp.DisableGitIgnore, "disable-gitignore", false, "Disable .gitignore filter")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
