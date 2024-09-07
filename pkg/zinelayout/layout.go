@@ -1,7 +1,6 @@
 package zinelayout
 
 import (
-	"errors"
 	"fmt"
 	"image"
 	"image/draw"
@@ -9,14 +8,8 @@ import (
 
 // ZineLayout represents the entire YAML structure
 type ZineLayout struct {
-	Global      Global       `yaml:"global"`
 	PageSetup   PageSetup    `yaml:"page_setup"`
 	OutputPages []OutputPage `yaml:"output_pages"`
-}
-
-// Global represents the global settings
-type Global struct {
-	Margin Margin `yaml:"margin"`
 }
 
 // PageSetup represents the page setup settings
@@ -25,7 +18,7 @@ type PageSetup struct {
 		Rows    int `yaml:"rows"`
 		Columns int `yaml:"columns"`
 	} `yaml:"grid_size"`
-	Margins Margin `yaml:"margins"`
+	Margin Margin `yaml:"margin"`
 }
 
 // OutputPage represents a single output page
@@ -45,8 +38,8 @@ type Layout struct {
 
 // Position represents the position of an input page on the output page
 type Position struct {
-	Row    float64 `yaml:"row"`
-	Column float64 `yaml:"column"`
+	Row    int `yaml:"row"`
+	Column int `yaml:"column"`
 }
 
 // Margin represents margin settings
@@ -63,41 +56,96 @@ func (zl *ZineLayout) CreateOutputImage(outputPage OutputPage, inputImages []ima
 		fmt.Printf("Input image size: %v\n", inputImage.Bounds().Size())
 	}
 	inputSize := inputImages[0].Bounds().Size()
-	width := inputSize.X * zl.PageSetup.GridSize.Columns
-	height := inputSize.Y * zl.PageSetup.GridSize.Rows
 
-	// Create the output image without margins
+	type CellSize struct {
+		Margin Margin
+		Width  int
+		Height int
+		X      int
+		Y      int
+	}
+
+	// Create a 2D array to store CellSize for each cell
+	cells := make([][]CellSize, zl.PageSetup.GridSize.Rows)
+	for row := range cells {
+		cells[row] = make([]CellSize, zl.PageSetup.GridSize.Columns)
+		for column := range cells[row] {
+			cells[row][column] = CellSize{Margin: Margin{}}
+		}
+	}
+
+	// Calculate cell sizes and update cells
+	for _, layout := range outputPage.Layout {
+		row, col := int(layout.Position.Row), int(layout.Position.Column)
+		cells[row][col].Margin = layout.Margin
+		cells[row][col].Width = inputSize.X + layout.Margin.Left + layout.Margin.Right
+		cells[row][col].Height = inputSize.Y + layout.Margin.Top + layout.Margin.Bottom
+	}
+
+	totalHeight := 0
+	totalWidth := 0
+	// Calculate output image size and cell positions
+	width, height := 0, 0
+	for row := range cells {
+		maxCellHeight := 0
+		for column := range cells[row] {
+			cells[row][column].X = width
+			cells[row][column].Y = height
+			width += cells[row][column].Width
+			maxCellHeight = max(maxCellHeight, cells[row][column].Height)
+		}
+		height += maxCellHeight
+		totalWidth = max(totalWidth, width)
+		totalHeight += maxCellHeight
+		width = 0 // Reset width for the next row
+	}
+
+	// Final output image size
+	width = totalWidth
+	height = totalHeight
+
+	// Create the output image without global margins
 	outputImage := image.NewRGBA(image.Rect(0, 0, width, height))
+
+	// Fill the output image with white color
+	draw.Draw(outputImage, outputImage.Bounds(), image.White, image.Point{}, draw.Src)
 
 	for _, layout := range outputPage.Layout {
 		if layout.Rotation != 0 && layout.Rotation != 180 {
-			return nil, errors.New(fmt.Sprintf("invalid rotation %d for input index %d", layout.Rotation, layout.InputIndex))
+			return nil, fmt.Errorf("invalid rotation %d for input index %d", layout.Rotation, layout.InputIndex)
 		}
 
 		inputImage := inputImages[layout.InputIndex-1]
-		x := int(float64(width) * layout.Position.Column / float64(zl.PageSetup.GridSize.Columns))
-		y := int(float64(height) * layout.Position.Row / float64(zl.PageSetup.GridSize.Rows))
+		destPoint := image.Point{
+			X: cells[layout.Position.Row][layout.Position.Column].X + layout.Margin.Left,
+			Y: cells[layout.Position.Row][layout.Position.Column].Y + layout.Margin.Top,
+		}
 
 		// Handle rotation
 		rotatedImage := rotateImage(inputImage, layout.Rotation)
 		rotatedSize := rotatedImage.Bounds().Size()
 
 		// Draw the rotated input image onto the output image
-		draw.Draw(outputImage, image.Rect(x, y, x+rotatedSize.X, y+rotatedSize.Y), rotatedImage, image.Point{0, 0}, draw.Over)
+		draw.Draw(outputImage, image.Rect(destPoint.X, destPoint.Y, destPoint.X+rotatedSize.X, destPoint.Y+rotatedSize.Y), rotatedImage, image.Point{}, draw.Over)
 	}
-
-	// Add margins to the final image
-	finalWidth := width + zl.PageSetup.Margins.Left + zl.PageSetup.Margins.Right + outputPage.Margin.Left + outputPage.Margin.Right
-	finalHeight := height + zl.PageSetup.Margins.Top + zl.PageSetup.Margins.Bottom + outputPage.Margin.Top + outputPage.Margin.Bottom
+	// Add global margins to the final image
+	finalWidth := width + zl.PageSetup.Margin.Left + zl.PageSetup.Margin.Right + outputPage.Margin.Left + outputPage.Margin.Right
+	finalHeight := height + zl.PageSetup.Margin.Top + zl.PageSetup.Margin.Bottom + outputPage.Margin.Top + outputPage.Margin.Bottom
 	finalImage := image.NewRGBA(image.Rect(0, 0, finalWidth, finalHeight))
+
+	// Fill the final image with white color
+	draw.Draw(finalImage, finalImage.Bounds(), image.White, image.Point{}, draw.Src)
 
 	// Draw the output image onto the final image with margins
 	draw.Draw(finalImage, image.Rect(
-		zl.PageSetup.Margins.Left+outputPage.Margin.Left,
-		zl.PageSetup.Margins.Top+outputPage.Margin.Top,
-		finalWidth-zl.PageSetup.Margins.Right-outputPage.Margin.Right,
-		finalHeight-zl.PageSetup.Margins.Bottom-outputPage.Margin.Bottom,
+		zl.PageSetup.Margin.Left+outputPage.Margin.Left,
+		zl.PageSetup.Margin.Top+outputPage.Margin.Top,
+		finalWidth-zl.PageSetup.Margin.Right-outputPage.Margin.Right,
+		finalHeight-zl.PageSetup.Margin.Bottom-outputPage.Margin.Bottom,
 	), outputImage, image.Point{0, 0}, draw.Over)
+
+	fmt.Printf("Global Margins - Top: %d, Bottom: %d, Left: %d, Right: %d\n", zl.PageSetup.Margin.Top, zl.PageSetup.Margin.Bottom, zl.PageSetup.Margin.Left, zl.PageSetup.Margin.Right)
+	fmt.Printf("Output Page Margins - Top: %d, Bottom: %d, Left: %d, Right: %d\n", outputPage.Margin.Top, outputPage.Margin.Bottom, outputPage.Margin.Left, outputPage.Margin.Right)
 
 	return finalImage, nil
 }
@@ -162,4 +210,12 @@ func AllImagesSameSize(images []image.Image) bool {
 		}
 	}
 	return true
+}
+
+// Helper function to find the maximum of two integers
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }

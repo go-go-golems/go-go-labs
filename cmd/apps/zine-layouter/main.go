@@ -204,12 +204,9 @@ func saveOutputImage(img image.Image, filename string) {
 
 // Add this new function to print the ZineLayout
 func printZineLayout(zl zinelayout.ZineLayout) {
-	fmt.Printf("Global:\n")
-	fmt.Printf("  Margin: %+v\n", zl.Global.Margin)
-
 	fmt.Printf("PageSetup:\n")
 	fmt.Printf("  GridSize: Rows: %d, Columns: %d\n", zl.PageSetup.GridSize.Rows, zl.PageSetup.GridSize.Columns)
-	fmt.Printf("  Margins: %+v\n", zl.PageSetup.Margins)
+	fmt.Printf("  Margin: %+v\n", zl.PageSetup.Margin)
 
 	fmt.Printf("OutputPages:\n")
 	for i, page := range zl.OutputPages {

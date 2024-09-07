@@ -16,22 +16,22 @@ func GenerateTestImages(count int) ([]image.Image, error) {
 
 	// Define a slice of 16 pale colors
 	paleColors := []color.RGBA{
-		{255, 240, 240, 255}, // Pale Red
-		{240, 255, 240, 255}, // Pale Green
-		{240, 240, 255, 255}, // Pale Blue
-		{255, 255, 240, 255}, // Pale Yellow
-		{255, 240, 255, 255}, // Pale Magenta
-		{240, 255, 255, 255}, // Pale Cyan
-		{255, 245, 238, 255}, // Seashell
-		{245, 255, 250, 255}, // Mint Cream
-		{240, 248, 255, 255}, // Alice Blue
-		{255, 250, 240, 255}, // Floral White
-		{255, 245, 238, 255}, // Old Lace
-		{245, 245, 245, 255}, // White Smoke
-		{253, 245, 230, 255}, // Old Lace
-		{250, 240, 230, 255}, // Linen
-		{250, 235, 215, 255}, // Antique White
-		{255, 250, 250, 255}, // Snow
+		{255, 200, 200, 255}, // Less Pale Red
+		{200, 255, 200, 255}, // Less Pale Green
+		{200, 200, 255, 255}, // Less Pale Blue
+		{255, 255, 200, 255}, // Less Pale Yellow
+		{255, 200, 255, 255}, // Less Pale Magenta
+		{200, 255, 255, 255}, // Less Pale Cyan
+		{255, 215, 180, 255}, // Less Pale Seashell
+		{215, 255, 220, 255}, // Less Pale Mint Cream
+		{200, 208, 255, 255}, // Less Pale Alice Blue
+		{255, 220, 200, 255}, // Less Pale Floral White
+		{255, 215, 180, 255}, // Less Pale Old Lace
+		{215, 215, 215, 255}, // Less Pale White Smoke
+		{223, 215, 190, 255}, // Less Pale Old Lace
+		{220, 200, 190, 255}, // Less Pale Linen
+		{220, 185, 165, 255}, // Less Pale Antique White
+		{255, 220, 220, 255}, // Less Pale Snow
 	}
 
 	for i := 1; i <= count; i++ {

@@ -10,44 +10,19 @@ page_setup:
   grid_size:
     rows: 1
     columns: 1
-  margins:
-    top: 0
-    bottom: 0
-    left: 0
-    right: 0
 
 output_pages:
   - id: output1
-    margin:
-      top: 0
-      bottom: 0
-      left: 0
-      right: 0
     layout:
       - input_index: 1
         position:
           row: 0
           column: 0
         rotation: 0
-        margin:
-          top: 0
-          bottom: 0
-          left: 0
-          right: 0
   - id: output2
-    margin:
-      top: 0
-      bottom: 0
-      left: 0
-      right: 0
     layout:
       - input_index: 2
         position:
           row: 0
           column: 0
         rotation: 0
-        margin:
-          top: 0
-          bottom: 0
-          left: 0
-          right: 0
