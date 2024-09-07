@@ -11,7 +11,7 @@ import (
 	"github.com/Masterminds/sprig"
 	"github.com/go-go-golems/go-emrichen/pkg/emrichen"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 
 	"github.com/go-go-golems/go-go-labs/pkg/zinelayout"
 )
@@ -52,26 +52,13 @@ func run(cmd *cobra.Command, args []string) {
 	}
 
 	env := map[string]interface{}{}
-	interpreter, err := emrichen.NewInterpreter(emrichen.WithVars(env),
+	interpreter, err := emrichen.NewInterpreter(
+		emrichen.WithVars(env),
 		emrichen.WithFuncMap(sprig.TxtFuncMap()))
 	if err != nil {
 		fmt.Printf("Error creating Emrichen interpreter: %v\n", err)
 		return
 	}
-
-	// Create an Emrichen interpreter
-	if err != nil {
-		fmt.Printf("Error creating Emrichen interpreter: %v\n", err)
-		return
-	}
-
-	var doc interface{}
-	err = yaml.Unmarshal(yamlFile, &doc)
-	if err != nil {
-		fmt.Printf("Error unmarshaling YAML file: %v\n", err)
-		return
-	}
-	fmt.Printf("Unmarshaled YAML: %+v\n", doc)
 
 	f, err := os.Open(specFile)
 	if err != nil {
@@ -84,12 +71,10 @@ func run(cmd *cobra.Command, args []string) {
 
 	// Process the YAML with Emrichen
 	for {
-		fmt.Println("Decoding")
 		var document interface{}
 		err = decoder.Decode(interpreter.CreateDecoder(&document))
 
 		if err == io.EOF {
-			fmt.Println("EOF")
 			break
 		}
 		if err != nil {
@@ -100,12 +85,9 @@ func run(cmd *cobra.Command, args []string) {
 		if verboseFlag {
 			fmt.Println("Input YAML:")
 			fmt.Println(string(yamlFile))
-			fmt.Println("Document:")
-			fmt.Println(document)
 		}
 
 		if document == nil {
-			fmt.Println("Nil")
 			continue
 		}
 
@@ -139,7 +121,8 @@ func run(cmd *cobra.Command, args []string) {
 		// Read or generate input images
 		var inputImages []image.Image
 		if testFlag {
-			inputImages, err = zinelayout.GenerateTestImages(len(zineLayout.OutputPages))
+			totalInputImages := len(zineLayout.OutputPages) * zineLayout.PageSetup.GridSize.Columns * zineLayout.PageSetup.GridSize.Rows
+			inputImages, err = zinelayout.GenerateTestImages(totalInputImages)
 		} else {
 			if len(args) == 0 {
 				fmt.Println("Error: No input files provided")
@@ -161,7 +144,11 @@ func run(cmd *cobra.Command, args []string) {
 		// Create output images
 		for _, outputPage := range zineLayout.OutputPages {
 			fmt.Printf("Processing page %s\n", outputPage.ID)
-			outputImage := zinelayout.CreateOutputImage(zineLayout.PageSetup, outputPage, inputImages)
+			outputImage, err := zineLayout.CreateOutputImage(outputPage, inputImages)
+			if err != nil {
+				fmt.Printf("Error creating output image for page %s: %v\n", outputPage.ID, err)
+				continue
+			}
 			saveOutputImage(outputImage, filepath.Join(outputDir, outputPage.ID))
 		}
 	}
@@ -212,7 +199,7 @@ func saveOutputImage(img image.Image, filename string) {
 		return
 	}
 
-	fmt.Printf("Saved output image: %s (Size: %d bytes)\n", fullPath, fileInfo.Size())
+	fmt.Printf("Saved output image: %s (Size: %d bytes, Dimensions: %dx%d)\n", fullPath, fileInfo.Size(), img.Bounds().Dx(), img.Bounds().Dy())
 }
 
 // Add this new function to print the ZineLayout
@@ -221,7 +208,6 @@ func printZineLayout(zl zinelayout.ZineLayout) {
 	fmt.Printf("  Margin: %+v\n", zl.Global.Margin)
 
 	fmt.Printf("PageSetup:\n")
-	fmt.Printf("  Orientation: %s\n", zl.PageSetup.Orientation)
 	fmt.Printf("  GridSize: Rows: %d, Columns: %d\n", zl.PageSetup.GridSize.Rows, zl.PageSetup.GridSize.Columns)
 	fmt.Printf("  Margins: %+v\n", zl.PageSetup.Margins)
 
