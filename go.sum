@@ -271,8 +271,10 @@ github.com/go-go-golems/clay v0.1.0 h1:QxkIllWsmcBHDqqFQAu0qn02W5KQxIVSrEbAXYh4U
 github.com/go-go-golems/clay v0.1.0/go.mod h1:HHxtmgDOjNrx7sObkqjDupUp7AKpqlxEwuBpdO/oiZY=
 github.com/go-go-golems/geppetto v0.2.25 h1:K/EEsAKA37w8RVJw3bWDzOj/4G62ttbkBhNaTX7v5G4=
 github.com/go-go-golems/geppetto v0.2.25/go.mod h1:pX5LnwQLwAEBn4EHCF3GlmusbwSITAIfK0DphsZlpNs=
-github.com/go-go-golems/glazed v0.5.0 h1:QtAnQkGTmJz4kWw72TPEyowCqTvDM3JokvcyyQ960LA=
-github.com/go-go-golems/glazed v0.5.0/go.mod h1:K1600pUk7xB/LKmvIafRWyfAdxE1sboruqQ9Jia8V9M=
+github.com/go-go-golems/glazed v0.5.8 h1:28/sBWfAgt4JYi+M3y/h27mSk5pRW2Og4Iim54fg61M=
+github.com/go-go-golems/glazed v0.5.8/go.mod h1:K1600pUk7xB/LKmvIafRWyfAdxE1sboruqQ9Jia8V9M=
+github.com/go-go-golems/go-emrichen v0.0.2 h1:V/CbkyKyiPbamzJ/vq4q3L/5Meu+reb5dyc03bNH3n4=
+github.com/go-go-golems/go-emrichen v0.0.2/go.mod h1:wI6G9DwSDSr8BB1IFyfRoL4UQi1jz+7AVcL4RkmP3ds=
 github.com/go-openapi/analysis v0.21.2 h1:hXFrOYFHUAMQdu6zwAiKKJHJQ8kqZs1ux/ru1P1wLJU=
 github.com/go-openapi/analysis v0.21.2/go.mod h1:HZwRk4RRisyG8vx2Oe6aqeSQcoxRp47Xkp3+K6q+LdY=
 github.com/go-openapi/errors v0.19.8/go.mod h1:cM//ZKUKyO06HSwqAelJ5NsEMMcpa6VpXe8DOa1Mi1M=

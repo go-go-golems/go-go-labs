@@ -7,6 +7,7 @@ toolchain go1.21.5
 require (
 	github.com/BobuSumisu/aho-corasick v1.0.3
 	github.com/JohannesKaufmann/html-to-markdown v1.4.1
+	github.com/Masterminds/sprig v2.22.0+incompatible
 	github.com/PaesslerAG/jsonpath v0.1.1
 	github.com/PuerkitoBio/goquery v1.8.1
 	github.com/ThreeDotsLabs/watermill v1.3.5
@@ -29,7 +30,8 @@ require (
 	github.com/go-git/go-git/v5 v5.9.0
 	github.com/go-go-golems/clay v0.1.0
 	github.com/go-go-golems/geppetto v0.2.25
-	github.com/go-go-golems/glazed v0.5.0
+	github.com/go-go-golems/glazed v0.5.8
+	github.com/go-go-golems/go-emrichen v0.0.2
 	github.com/google/uuid v1.6.0
 	github.com/googollee/go-socket.io v1.7.0
 	github.com/gorilla/websocket v1.5.0
@@ -60,6 +62,7 @@ require (
 	github.com/xuri/excelize/v2 v2.7.1
 	github.com/yuin/goldmark v1.6.0
 	golang.design/x/clipboard v0.7.0
+	golang.org/x/image v0.14.0
 	golang.org/x/net v0.25.0
 	golang.org/x/sync v0.7.0
 	golang.org/x/term v0.20.0
@@ -75,7 +78,6 @@ require (
 	github.com/BurntSushi/toml v1.2.1 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver v1.5.0 // indirect
-	github.com/Masterminds/sprig v2.22.0+incompatible // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/PaesslerAG/gval v1.0.0 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20230828082145-3c4c8a2d2371 // indirect
@@ -228,7 +230,6 @@ require (
 	golang.org/x/crypto v0.23.0 // indirect
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
 	golang.org/x/exp/shiny v0.0.0-20240823005443-9b4947da3948 // indirect
-	golang.org/x/image v0.14.0 // indirect
 	golang.org/x/mobile v0.0.0-20231127183840-76ac6878050a // indirect
 	golang.org/x/mod v0.17.0 // indirect
 	golang.org/x/oauth2 v0.20.0 // indirect

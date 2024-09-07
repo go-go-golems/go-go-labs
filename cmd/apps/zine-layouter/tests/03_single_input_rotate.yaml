@@ -1,0 +1,20 @@
+global:
+  margin:
+    top: 10
+    bottom: 10
+    left: 10
+    right: 10
+
+page_setup:
+  size: [210, 297]  # A4 portrait
+  orientation: portrait
+  grid_size:
+    rows: 1
+    columns: 1
+
+output_pages:
+  - id: output1
+    layout:
+      - input_index: 1
+        position: [0, 0]
+        rotation: 90
