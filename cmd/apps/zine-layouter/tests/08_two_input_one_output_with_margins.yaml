@@ -1,0 +1,37 @@
+page_setup:
+  orientation: landscape
+  grid_size:
+    rows: 1
+    columns: 2
+  margin:
+    top: 20
+    bottom: 30
+    left: 50
+    right: 5
+  border:
+    enabled: true
+    color: "red"
+    type: "corner"
+
+global:
+  border:
+    enabled: true
+    color: "blue"
+    type: "dotted"
+
+output_pages:
+  - id: output1
+    margin:
+      top: 20
+      bottom: 0
+      left: 10
+      right: 30
+    layout:
+      - input_index: 1
+        position:
+          row: 0
+          column: 0
+      - input_index: 2
+        position:
+          row: 0
+          column: 1
