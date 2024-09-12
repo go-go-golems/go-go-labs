@@ -3,10 +3,13 @@ package main
 import (
 	"fmt"
 	"image"
+	"image/color"
 	"image/png"
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/Masterminds/sprig"
 	"github.com/go-go-golems/go-emrichen/pkg/emrichen"
@@ -23,17 +26,27 @@ var rootCmd = &cobra.Command{
 }
 
 var (
-	testFlag    bool
-	specFile    string
-	outputDir   string
-	verboseFlag bool // Add this line
+	testFlag          bool
+	specFile          string
+	outputDir         string
+	verboseFlag       bool
+	globalBorderFlag  bool
+	pageBorderFlag    bool
+	layoutBorderFlag  bool
+	innerBorderFlag   bool
+	borderColorString string
 )
 
 func init() {
 	rootCmd.Flags().BoolVar(&testFlag, "test", false, "Generate test images instead of reading input images")
 	rootCmd.Flags().StringVar(&specFile, "spec", "layout.yaml", "Path to the YAML specification file")
 	rootCmd.Flags().StringVar(&outputDir, "output-dir", ".", "Directory to save output images")
-	rootCmd.Flags().BoolVar(&verboseFlag, "verbose", false, "Enable verbose output") // Add this line
+	rootCmd.Flags().BoolVar(&verboseFlag, "verbose", false, "Enable verbose output")
+	rootCmd.Flags().BoolVar(&globalBorderFlag, "global-border", false, "Draw a global border")
+	rootCmd.Flags().BoolVar(&pageBorderFlag, "page-border", false, "Draw a page border")
+	rootCmd.Flags().BoolVar(&layoutBorderFlag, "layout-border", false, "Draw layout borders")
+	rootCmd.Flags().BoolVar(&innerBorderFlag, "inner-border", false, "Draw inner layout borders")
+	rootCmd.Flags().StringVar(&borderColorString, "border-color", "0,0,0,255", "Border color in R,G,B,A format (0-255 for each)")
 }
 
 func main() {
@@ -65,9 +78,18 @@ func run(cmd *cobra.Command, args []string) {
 		fmt.Printf("Error opening spec file: %v\n", err)
 		return
 	}
-	defer f.Close()
+	defer func(f *os.File) {
+		_ = f.Close()
+	}(f)
 
 	decoder := yaml.NewDecoder(f)
+
+	// Parse border color
+	borderColor, err := parseBorderColor(borderColorString)
+	if err != nil {
+		fmt.Printf("Error parsing border color: %v\n", err)
+		return
+	}
 
 	// Process the YAML with Emrichen
 	for {
@@ -111,6 +133,13 @@ func run(cmd *cobra.Command, args []string) {
 			return
 		}
 
+		// Override border settings from command-line flags
+		zineLayout.GlobalBorder = globalBorderFlag
+		zineLayout.PageBorder = pageBorderFlag
+		zineLayout.LayoutBorder = layoutBorderFlag
+		zineLayout.InnerLayoutBorder = innerBorderFlag
+		zineLayout.BorderColor = borderColor
+
 		// Add this block to print verbose output
 		if verboseFlag {
 			fmt.Println("Parsed ZineLayout:")
@@ -152,7 +181,6 @@ func run(cmd *cobra.Command, args []string) {
 			saveOutputImage(outputImage, filepath.Join(outputDir, outputPage.ID))
 		}
 	}
-
 }
 
 func readInputImages(inputFiles []string) ([]image.Image, error) {
@@ -164,7 +192,9 @@ func readInputImages(inputFiles []string) ([]image.Image, error) {
 			if err != nil {
 				return nil, err
 			}
-			defer f.Close()
+			defer func(f *os.File) {
+				_ = f.Close()
+			}(f)
 
 			img, err := png.Decode(f)
 			if err != nil {
@@ -184,7 +214,9 @@ func saveOutputImage(img image.Image, filename string) {
 		fmt.Printf("Error creating output file: %v\n", err)
 		return
 	}
-	defer f.Close()
+	defer func(f *os.File) {
+		_ = f.Close()
+	}(f)
 
 	err = png.Encode(f, img)
 	if err != nil {
@@ -202,7 +234,24 @@ func saveOutputImage(img image.Image, filename string) {
 	fmt.Printf("Saved output image: %s (Size: %d bytes, Dimensions: %dx%d)\n", fullPath, fileInfo.Size(), img.Bounds().Dx(), img.Bounds().Dy())
 }
 
-// Add this new function to print the ZineLayout
+func parseBorderColor(colorString string) (color.RGBA, error) {
+	parts := strings.Split(colorString, ",")
+	if len(parts) != 4 {
+		return color.RGBA{}, fmt.Errorf("invalid color format, expected R,G,B,A")
+	}
+
+	var rgba [4]uint8
+	for i, part := range parts {
+		val, err := strconv.ParseUint(strings.TrimSpace(part), 10, 8)
+		if err != nil {
+			return color.RGBA{}, fmt.Errorf("invalid color component: %s", part)
+		}
+		rgba[i] = uint8(val)
+	}
+
+	return color.RGBA{R: rgba[0], G: rgba[1], B: rgba[2], A: rgba[3]}, nil
+}
+
 func printZineLayout(zl zinelayout.ZineLayout) {
 	fmt.Printf("PageSetup:\n")
 	fmt.Printf("  GridSize: Rows: %d, Columns: %d\n", zl.PageSetup.GridSize.Rows, zl.PageSetup.GridSize.Columns)
@@ -217,9 +266,16 @@ func printZineLayout(zl zinelayout.ZineLayout) {
 		for j, layout := range page.Layout {
 			fmt.Printf("      Layout %d:\n", j+1)
 			fmt.Printf("        InputIndex: %d\n", layout.InputIndex)
-			fmt.Printf("        Position: Row: %f, Column: %f\n", layout.Position.Row, layout.Position.Column)
+			fmt.Printf("        Position: Row: %d, Column: %d\n", layout.Position.Row, layout.Position.Column)
 			fmt.Printf("        Rotation: %d\n", layout.Rotation)
 			fmt.Printf("        Margin: %+v\n", layout.Margin)
 		}
 	}
+
+	fmt.Printf("Border Settings:\n")
+	fmt.Printf("  GlobalBorder: %v\n", zl.GlobalBorder)
+	fmt.Printf("  PageBorder: %v\n", zl.PageBorder)
+	fmt.Printf("  LayoutBorder: %v\n", zl.LayoutBorder)
+	fmt.Printf("  InnerLayoutBorder: %v\n", zl.InnerLayoutBorder)
+	fmt.Printf("  BorderColor: R:%d G:%d B:%d A:%d\n", zl.BorderColor.R, zl.BorderColor.G, zl.BorderColor.B, zl.BorderColor.A)
 }

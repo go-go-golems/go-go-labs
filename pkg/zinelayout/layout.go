@@ -3,13 +3,19 @@ package zinelayout
 import (
 	"fmt"
 	"image"
+	"image/color"
 	"image/draw"
 )
 
 // ZineLayout represents the entire YAML structure
 type ZineLayout struct {
-	PageSetup   PageSetup    `yaml:"page_setup"`
-	OutputPages []OutputPage `yaml:"output_pages"`
+	PageSetup         PageSetup    `yaml:"page_setup"`
+	OutputPages       []OutputPage `yaml:"output_pages"`
+	GlobalBorder      bool         `yaml:"global_border"`
+	PageBorder        bool         `yaml:"page_border"`
+	LayoutBorder      bool         `yaml:"layout_border"`
+	InnerLayoutBorder bool         `yaml:"inner_layout_border"`
+	BorderColor       color.RGBA   `yaml:"border_color"`
 }
 
 // PageSetup represents the page setup settings
@@ -56,6 +62,8 @@ func (zl *ZineLayout) CreateOutputImage(outputPage OutputPage, inputImages []ima
 		fmt.Printf("Input image size: %v\n", inputImage.Bounds().Size())
 	}
 	inputSize := inputImages[0].Bounds().Size()
+
+	fmt.Printf("Output page margins. Top: %d, Bottom: %d, Left: %d, Right: %d\n", outputPage.Margin.Top, outputPage.Margin.Bottom, outputPage.Margin.Left, outputPage.Margin.Right)
 
 	type CellSize struct {
 		Margin Margin
@@ -104,11 +112,19 @@ func (zl *ZineLayout) CreateOutputImage(outputPage OutputPage, inputImages []ima
 	width = totalWidth
 	height = totalHeight
 
+	fmt.Printf("Total width: %d, Total height: %d\n", width, height)
+
 	// Create the output image without global margins
 	outputImage := image.NewRGBA(image.Rect(0, 0, width, height))
 
 	// Fill the output image with white color
 	draw.Draw(outputImage, outputImage.Bounds(), image.White, image.Point{}, draw.Src)
+
+	// Use the specified border color or default to black if not set
+	borderColor := zl.BorderColor
+	if borderColor == (color.RGBA{}) {
+		borderColor = color.RGBA{0, 0, 0, 255} // Default to black
+	}
 
 	for _, layout := range outputPage.Layout {
 		if layout.Rotation != 0 && layout.Rotation != 180 {
@@ -128,6 +144,25 @@ func (zl *ZineLayout) CreateOutputImage(outputPage OutputPage, inputImages []ima
 		// Draw the rotated input image onto the output image
 		draw.Draw(outputImage, image.Rect(destPoint.X, destPoint.Y, destPoint.X+rotatedSize.X, destPoint.Y+rotatedSize.Y), rotatedImage, image.Point{}, draw.Over)
 	}
+
+	// Draw layout borders and inner layout borders
+	if zl.LayoutBorder || zl.InnerLayoutBorder {
+		for _, layout := range outputPage.Layout {
+			cell := cells[layout.Position.Row][layout.Position.Column]
+			if zl.LayoutBorder {
+				drawBorder(outputImage, image.Rect(cell.X, cell.Y, cell.X+cell.Width, cell.Y+cell.Height), borderColor)
+			}
+			if zl.InnerLayoutBorder {
+				innerRect := image.Rect(
+					cell.X+layout.Margin.Left,
+					cell.Y+layout.Margin.Top,
+					cell.X+cell.Width-layout.Margin.Right,
+					cell.Y+cell.Height-layout.Margin.Bottom,
+				)
+				drawBorder(outputImage, innerRect, borderColor)
+			}
+		}
+	}
 	// Add global margins to the final image
 	finalWidth := width + zl.PageSetup.Margin.Left + zl.PageSetup.Margin.Right + outputPage.Margin.Left + outputPage.Margin.Right
 	finalHeight := height + zl.PageSetup.Margin.Top + zl.PageSetup.Margin.Bottom + outputPage.Margin.Top + outputPage.Margin.Bottom
@@ -137,12 +172,32 @@ func (zl *ZineLayout) CreateOutputImage(outputPage OutputPage, inputImages []ima
 	draw.Draw(finalImage, finalImage.Bounds(), image.White, image.Point{}, draw.Src)
 
 	// Draw the output image onto the final image with margins
-	draw.Draw(finalImage, image.Rect(
+	outputRect := image.Rect(
 		zl.PageSetup.Margin.Left+outputPage.Margin.Left,
 		zl.PageSetup.Margin.Top+outputPage.Margin.Top,
 		finalWidth-zl.PageSetup.Margin.Right-outputPage.Margin.Right,
 		finalHeight-zl.PageSetup.Margin.Bottom-outputPage.Margin.Bottom,
-	), outputImage, image.Point{0, 0}, draw.Over)
+	)
+	draw.Draw(finalImage, outputRect, outputImage, image.Point{0, 0}, draw.Over)
+
+	// Draw page border
+	if zl.PageBorder {
+		// Draw the output image onto the final image with margins
+		borderRect := image.Rect(
+			zl.PageSetup.Margin.Left,
+			zl.PageSetup.Margin.Top,
+			finalWidth-zl.PageSetup.Margin.Right,
+			finalHeight-zl.PageSetup.Margin.Bottom,
+		)
+		fmt.Printf("Output page border: Top: %d, Bottom: %d, Left: %d, Right: %d\n",
+			borderRect.Min.Y, borderRect.Max.Y, borderRect.Min.X, borderRect.Max.X)
+		drawBorder(finalImage, borderRect, borderColor)
+	}
+
+	// Draw global border
+	if zl.GlobalBorder {
+		drawBorder(finalImage, finalImage.Bounds(), borderColor)
+	}
 
 	fmt.Printf("Global Margins - Top: %d, Bottom: %d, Left: %d, Right: %d\n", zl.PageSetup.Margin.Top, zl.PageSetup.Margin.Bottom, zl.PageSetup.Margin.Left, zl.PageSetup.Margin.Right)
 	fmt.Printf("Output Page Margins - Top: %d, Bottom: %d, Left: %d, Right: %d\n", outputPage.Margin.Top, outputPage.Margin.Bottom, outputPage.Margin.Left, outputPage.Margin.Right)
@@ -218,4 +273,16 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// Updated function to draw a border
+func drawBorder(img *image.RGBA, rect image.Rectangle, c color.Color) {
+	for x := rect.Min.X; x < rect.Max.X; x++ {
+		img.Set(x, rect.Min.Y, c)
+		img.Set(x, rect.Max.Y-1, c)
+	}
+	for y := rect.Min.Y; y < rect.Max.Y; y++ {
+		img.Set(rect.Min.X, y, c)
+		img.Set(rect.Max.X-1, y, c)
+	}
 }
