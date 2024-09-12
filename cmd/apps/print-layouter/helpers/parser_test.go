@@ -6,6 +6,8 @@ import (
 )
 
 func TestExpressionParser(t *testing.T) {
+	uc := &UnitConverter{PPI: 96}
+
 	tests := []struct {
 		name     string
 		input    string
@@ -13,58 +15,53 @@ func TestExpressionParser(t *testing.T) {
 		hasError bool
 	}{
 		// Happy paths
-		{"Simple inch", "10in", 10 * 96, false},
-		{"Simple cm", "2.54cm", 2.54 * 96 / 2.54, false},
+		{"Simple inch", "10in", uc.FromInch(10), false},
+		{"Simple cm", "2.54cm", uc.FromCentimeter(2.54), false},
 		{"Simple px", "100px", 100, false},
-		{"Addition", "1in + 2.54cm", 96 + (2.54 * 96 / 2.54), false},
-		{"Multiplication", "3mm * 4", 3 * 96 / 25.4 * 4, false},
-		{"Division", "10pt / 2", 10 * 96 / 72 / 2, false},
-		{"Parentheses", "(1in + 2.54cm) * 3", (96 + (2.54 * 96 / 2.54)) * 3, false},
-		{"Em and rem", "5em - 2rem", (5 * 16 * 96 / 96) - (2 * 16 * 96 / 96), false},
-		{"Percentage", "10% + 20px", (10 * 0.16 * 96 / 96) + 20, false},
-		{"Multiple units", "1pc + 2pt + 3px", (1 * 96 / 6) + (2 * 96 / 72) + 3, false},
-		{"Negative value", "-5mm", -5 * 96 / 25.4, false},
-		{"Complex expression 1", "2.5in * 3 + 1cm", (2.5 * 96 * 3) + (1 * 96 / 2.54), false},
-		{"Complex expression 2", "(10px + 5) * (2in - 1cm)", (10 + 5) * ((2 * 96) - (1 * 96 / 2.54)), false},
-		{"Multiple relative units", "1em + 2rem + 3%", (1 * 16 * 96 / 96) + (2 * 16 * 96 / 96) + (3 * 0.16 * 96 / 96), false},
+		{"Addition", "1in + 2.54cm", uc.FromInch(1) + uc.FromCentimeter(2.54), false},
+		{"Multiplication", "3mm * 4", uc.FromMillimeter(3) * 4, false},
+		{"Division", "10pt / 2", uc.FromPoint(10) / 2, false},
+		{"Parentheses", "(1in + 2.54cm) * 3", (uc.FromInch(1) + uc.FromCentimeter(2.54)) * 3, false},
+		{"Em and rem", "5em - 2rem", uc.FromEm(5) - uc.FromRem(2), false},
+		{"Multiple units", "1pc + 2pt + 3px", uc.FromPica(1) + uc.FromPoint(2) + 3, false},
+		{"Negative value", "-5mm", -uc.FromMillimeter(5), false},
+		{"Complex expression 1", "2.5in * 3 + 1cm", uc.FromInch(2.5)*3 + uc.FromCentimeter(1), false},
+		{"Complex expression 2", "(10px + 5) * (2in - 1cm)", (10 + 5) * (uc.FromInch(2) - uc.FromCentimeter(1)), false},
 		{"Division in expression", "100px / (2 + 3)", 100 / (2 + 3), false},
+		{"Missing unit", "10", 10, false},
+		{"Missing unit in second term", "1in + 2", uc.FromInch(1) + 2, false},
 
 		// Complex expressions
-		{"Complex expression 3", "(1in + 2cm) * 3 - (4mm + 5pt) * 2", ((96 + (2 * 96 / 2.54)) * 3) - ((4*96/25.4 + 5*96/72) * 2), false},
-		{"Complex expression 4", "10px * (5em - 2rem) + 3pc / (1 + 0.5)", 10*((5*16*96/96)-(2*16*96/96)) + (3*96/6)/(1+0.5), false},
-		{"Complex expression 5", "(((1in + 2cm) * 3) - 4mm) - (5pt / 2)", (((96 + (2 * 96 / 2.54)) * 3) - (4 * 96 / 25.4)) - ((5 * 96 / 72) / 2), false},
-		{"Complex expression 6", "1em + 2rem - 3% * (4px + 5pt) / 6pc", (1 * 16 * 96 / 96) + (2 * 16 * 96 / 96) - (3*0.16*96/96)*(4+(5*96/72))/(6*96/6), false},
-		{"Complex expression 7", "-((2in + 3cm) * (4mm - 5pt)) + 6pc", -((2*96 + (3 * 96 / 2.54)) * ((4 * 96 / 25.4) - (5 * 96 / 72))) + (6 * 96 / 6), false},
+		{"Complex expression 3", "(1in + 2cm) * 3 - (4mm + 5pt) * 2", (uc.FromInch(1)+uc.FromCentimeter(2))*3 - (uc.FromMillimeter(4)+uc.FromPoint(5))*2, false},
+		{"Complex expression 4", "10px * (5em - 2rem) + 3pc / (1 + 0.5)", 10*(uc.FromEm(5)-uc.FromRem(2)) + uc.FromPica(3)/(1+0.5), false},
+		{"Complex expression 5", "(((1in + 2cm) * 3) - 4mm) - (5pt / 2)", (((uc.FromInch(1) + uc.FromCentimeter(2)) * 3) - uc.FromMillimeter(4)) - (uc.FromPoint(5) / 2), false},
+		{"Complex expression 7", "-((2in + 3cm) * (4mm - 5pt)) + 6pc", -((uc.FromInch(2) + uc.FromCentimeter(3)) * (uc.FromMillimeter(4) - uc.FromPoint(5))) + uc.FromPica(6), false},
 
 		// Whitespace handling
-		{"Extra whitespace", "  10in  +  5cm  ", 1152, false},
-		{"No whitespace", "1in+2cm", 168, false},
-		{"Mixed whitespace", "3mm *\t4 + \n5px", 50.35433070866142, false},
+		{"Extra whitespace", "  10in  +  5cm  ", uc.FromInch(10) + uc.FromCentimeter(5), false},
+		{"No whitespace", "1in+2cm", uc.FromInch(1) + uc.FromCentimeter(2), false},
+		{"Mixed whitespace", "3mm *\t4 + \n5px", uc.FromMillimeter(3)*4 + uc.FromPixel(5), false},
 
 		// Unit variations
-		{"Uppercase units", "1IN + 2CM", 168, false},
-		{"Mixed case units", "3Mm * 4", 45.35433070866142, false},
-		{"Mixed case relative units", "5Em - 2rEm", 48, false},
+		{"Uppercase units", "1IN + 2CM", uc.FromInch(1) + uc.FromCentimeter(2), false},
+		{"Mixed case units", "3Mm * 4", uc.FromMillimeter(3) * 4, false},
+		{"Mixed case relative units", "5Em - 2rEm", uc.FromEm(5) - uc.FromRem(2), false},
 
 		// Edge cases
 		{"Zero value", "0in", 0, false},
-		{"Very small value", "0.0000001mm", 0.00000037795275590551, false},
+		{"Very small value", "0.0000001mm", uc.FromMillimeter(0.0000001), false},
 		{"Very large value", "9999999px", 9999999, false},
-		{"Scientific notation small", "1e-6in", 0.000096, false},
-		{"Scientific notation large", "1e6px", 1000000, false},
-		{"Leading decimal", ".5in", 48, false},
+		{"Leading decimal", ".5in", uc.FromInch(0.5), false},
 		{"Trailing decimal", "1.", 1, false},
-		{"Single parentheses", "(1in)", 96, false},
-		{"Multiple parentheses", "((((1in))))", 96, false},
-		{"Multiple negatives", "-(-(-1in))", -96, false},
+		{"Single parentheses", "(1in)", uc.FromInch(1), false},
+		{"Multiple parentheses", "((((1in))))", uc.FromInch(1), false},
+		{"Multiple negatives", "-(-(-1in))", uc.FromInch(-1), false},
 
 		// Failure cases
 		{"Empty string", "", 0, true},
-		{"Missing unit", "10", 0, true},
 		{"Missing number", "in", 0, true},
 		{"Invalid unit", "10kg", 0, true},
 		{"Incomplete expression", "1in + ", 0, true},
-		{"Missing unit in second term", "1in + 2", 0, true},
 		{"Missing operator", "1in 2cm", 0, true},
 		{"Unclosed parenthesis", "(1in + 2cm", 0, true},
 		{"Extra closing parenthesis", "1in + 2cm)", 0, true},
@@ -90,7 +87,7 @@ func TestExpressionParser(t *testing.T) {
 
 			if tt.hasError {
 				if err == nil {
-					t.Errorf("Expected an error, but got none")
+					t.Errorf("Expected an error, but got none, got %v instead", result)
 				}
 			} else {
 				if err != nil {

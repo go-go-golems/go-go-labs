@@ -18,7 +18,16 @@ type ExpressionParser struct {
 func (p *ExpressionParser) Parse(input string) (float64, error) {
 	p.input = input
 	p.pos = 0
-	return p.parseExpression()
+	res, err := p.parseExpression()
+	if err != nil {
+		return 0, err
+	}
+
+	p.skipWhitespace()
+	if p.pos < len(p.input) {
+		return 0, fmt.Errorf("unexpected character: %c", p.currentChar())
+	}
+	return res, nil
 }
 
 func (p *ExpressionParser) parseExpression() (float64, error) {
@@ -29,7 +38,8 @@ func (p *ExpressionParser) parseExpression() (float64, error) {
 
 	for p.pos < len(p.input) {
 		p.skipWhitespace()
-		switch p.currentChar() {
+		c := p.currentChar()
+		switch c {
 		case '+':
 			p.pos++
 			right, err := p.parseTerm()
@@ -60,7 +70,8 @@ func (p *ExpressionParser) parseTerm() (float64, error) {
 
 	for p.pos < len(p.input) {
 		p.skipWhitespace()
-		switch p.currentChar() {
+		c := p.currentChar()
+		switch c {
 		case '*':
 			p.pos++
 			right, err := p.parseFactor()
@@ -105,6 +116,10 @@ func (p *ExpressionParser) parseFactor() (float64, error) {
 
 	if p.currentChar() == '-' {
 		p.pos++
+		p.skipWhitespace()
+		if p.currentChar() == '-' {
+			return 0, fmt.Errorf("double negative is not allowed")
+		}
 		factor, err := p.parseFactor()
 		if err != nil {
 			return 0, err
@@ -153,8 +168,6 @@ func (p *ExpressionParser) convertToPixels(value float64, unit string) (float64,
 		return value, nil
 	case "em", "rem":
 		return value * 16 * (p.PPI / 96), nil
-	case "%":
-		return value * 0.16 * (p.PPI / 96), nil
 	case "":
 		return value, nil // Assume pixels if no unit is specified
 	default:
