@@ -134,16 +134,22 @@ func run(cmd *cobra.Command, args []string) {
 
 		// Override border settings from command-line flags only if they are set
 		if cmd.Flags().Changed("global-border") {
-			zineLayout.GlobalBorder = *globalBorderFlag
+			zineLayout.Global.Border.Enabled = *globalBorderFlag
 		}
 		if cmd.Flags().Changed("page-border") {
-			zineLayout.PageBorder = *pageBorderFlag
+			zineLayout.PageSetup.PageBorder.Enabled = *pageBorderFlag
 		}
 		if cmd.Flags().Changed("layout-border") {
-			zineLayout.LayoutBorder = *layoutBorderFlag
+			for i := range zineLayout.OutputPages {
+				zineLayout.OutputPages[i].LayoutBorder.Enabled = *layoutBorderFlag
+			}
 		}
 		if cmd.Flags().Changed("inner-border") {
-			zineLayout.InnerLayoutBorder = *innerBorderFlag
+			for i := range zineLayout.OutputPages {
+				for j := range zineLayout.OutputPages[i].Layout {
+					zineLayout.OutputPages[i].Layout[j].InnerLayoutBorder.Enabled = *innerBorderFlag
+				}
+			}
 		}
 		if cmd.Flags().Changed("border-color") {
 			borderColor, err := parseBorderColor(*borderColorString)
@@ -151,7 +157,7 @@ func run(cmd *cobra.Command, args []string) {
 				fmt.Printf("Error parsing border color: %v\n", err)
 				return
 			}
-			zineLayout.BorderColor = zinelayout.CustomColor{RGBA: borderColor}
+			zineLayout.Global.Border.Color = zinelayout.CustomColor{RGBA: borderColor}
 		}
 		if cmd.Flags().Changed("border-type") {
 			borderType, err := zinelayout.ParseBorderType(*borderTypeString)
@@ -159,7 +165,7 @@ func run(cmd *cobra.Command, args []string) {
 				fmt.Printf("Error parsing border type: %v\n", err)
 				return
 			}
-			zineLayout.BorderType = borderType
+			zineLayout.Global.Border.Type = borderType
 		}
 
 		// Add this block to print verbose output
@@ -278,12 +284,14 @@ func printZineLayout(zl zinelayout.ZineLayout) {
 	fmt.Printf("PageSetup:\n")
 	fmt.Printf("  GridSize: Rows: %d, Columns: %d\n", zl.PageSetup.GridSize.Rows, zl.PageSetup.GridSize.Columns)
 	fmt.Printf("  Margin: %+v\n", zl.PageSetup.Margin)
+	fmt.Printf("  PageBorder: Enabled: %v, Color: R:%d G:%d B:%d A:%d, Type: %s\n", zl.PageSetup.PageBorder.Enabled, zl.PageSetup.PageBorder.Color.R, zl.PageSetup.PageBorder.Color.G, zl.PageSetup.PageBorder.Color.B, zl.PageSetup.PageBorder.Color.A, zl.PageSetup.PageBorder.Type)
 
 	fmt.Printf("OutputPages:\n")
 	for i, page := range zl.OutputPages {
 		fmt.Printf("  Page %d:\n", i+1)
 		fmt.Printf("    ID: %s\n", page.ID)
 		fmt.Printf("    Margin: %+v\n", page.Margin)
+		fmt.Printf("    LayoutBorder: Enabled: %v, Color: R:%d G:%d B:%d A:%d, Type: %s\n", page.LayoutBorder.Enabled, page.LayoutBorder.Color.R, page.LayoutBorder.Color.G, page.LayoutBorder.Color.B, page.LayoutBorder.Color.A, page.LayoutBorder.Type)
 		fmt.Printf("    Layout:\n")
 		for j, layout := range page.Layout {
 			fmt.Printf("      Layout %d:\n", j+1)
@@ -291,14 +299,12 @@ func printZineLayout(zl zinelayout.ZineLayout) {
 			fmt.Printf("        Position: Row: %d, Column: %d\n", layout.Position.Row, layout.Position.Column)
 			fmt.Printf("        Rotation: %d\n", layout.Rotation)
 			fmt.Printf("        Margin: %+v\n", layout.Margin)
+			fmt.Printf("        InnerLayoutBorder: Enabled: %v, Color: R:%d G:%d B:%d A:%d, Type: %s\n", layout.InnerLayoutBorder.Enabled, layout.InnerLayoutBorder.Color.R, layout.InnerLayoutBorder.Color.G, layout.InnerLayoutBorder.Color.B, layout.InnerLayoutBorder.Color.A, layout.InnerLayoutBorder.Type)
 		}
 	}
 
-	fmt.Printf("Border Settings:\n")
-	fmt.Printf("  GlobalBorder: %v\n", zl.GlobalBorder)
-	fmt.Printf("  PageBorder: %v\n", zl.PageBorder)
-	fmt.Printf("  LayoutBorder: %v\n", zl.LayoutBorder)
-	fmt.Printf("  InnerLayoutBorder: %v\n", zl.InnerLayoutBorder)
-	fmt.Printf("  BorderColor: R:%d G:%d B:%d A:%d\n", zl.BorderColor.R, zl.BorderColor.G, zl.BorderColor.B, zl.BorderColor.A)
-	fmt.Printf("  BorderType: %s\n", zl.BorderType)
+	fmt.Printf("GlobalBorder:\n")
+	fmt.Printf("  Enabled: %v\n", zl.Global.Border.Enabled)
+	fmt.Printf("  Color: R:%d G:%d B:%d A:%d\n", zl.Global.Border.Color.R, zl.Global.Border.Color.G, zl.Global.Border.Color.B, zl.Global.Border.Color.A)
+	fmt.Printf("  Type: %s\n", zl.Global.Border.Type)
 }
