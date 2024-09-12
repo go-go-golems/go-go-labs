@@ -19,6 +19,10 @@ import (
 	"github.com/go-go-golems/go-go-labs/pkg/zinelayout"
 )
 
+const (
+	cornerBorderLength = 20 // Length of corner dashes in pixels
+)
+
 var rootCmd = &cobra.Command{
 	Use:   "zine-layouter [flags] [input_files...]",
 	Short: "A tool to layout zine pages",
@@ -30,11 +34,12 @@ var (
 	specFile          string
 	outputDir         string
 	verboseFlag       bool
-	globalBorderFlag  bool
-	pageBorderFlag    bool
-	layoutBorderFlag  bool
-	innerBorderFlag   bool
-	borderColorString string
+	globalBorderFlag  *bool
+	pageBorderFlag    *bool
+	layoutBorderFlag  *bool
+	innerBorderFlag   *bool
+	borderColorString *string
+	borderTypeString  *string
 )
 
 func init() {
@@ -42,11 +47,12 @@ func init() {
 	rootCmd.Flags().StringVar(&specFile, "spec", "layout.yaml", "Path to the YAML specification file")
 	rootCmd.Flags().StringVar(&outputDir, "output-dir", ".", "Directory to save output images")
 	rootCmd.Flags().BoolVar(&verboseFlag, "verbose", false, "Enable verbose output")
-	rootCmd.Flags().BoolVar(&globalBorderFlag, "global-border", false, "Draw a global border")
-	rootCmd.Flags().BoolVar(&pageBorderFlag, "page-border", false, "Draw a page border")
-	rootCmd.Flags().BoolVar(&layoutBorderFlag, "layout-border", false, "Draw layout borders")
-	rootCmd.Flags().BoolVar(&innerBorderFlag, "inner-border", false, "Draw inner layout borders")
-	rootCmd.Flags().StringVar(&borderColorString, "border-color", "0,0,0,255", "Border color in R,G,B,A format (0-255 for each)")
+	globalBorderFlag = rootCmd.Flags().Bool("global-border", false, "Draw a global border")
+	pageBorderFlag = rootCmd.Flags().Bool("page-border", false, "Draw a page border")
+	layoutBorderFlag = rootCmd.Flags().Bool("layout-border", false, "Draw layout borders")
+	innerBorderFlag = rootCmd.Flags().Bool("inner-border", false, "Draw inner layout borders")
+	borderColorString = rootCmd.Flags().String("border-color", "", "Border color in R,G,B,A format (0-255 for each)")
+	borderTypeString = rootCmd.Flags().String("border-type", "", "Border type: plain, dotted, dashed, or corner")
 }
 
 func main() {
@@ -83,13 +89,6 @@ func run(cmd *cobra.Command, args []string) {
 	}(f)
 
 	decoder := yaml.NewDecoder(f)
-
-	// Parse border color
-	borderColor, err := parseBorderColor(borderColorString)
-	if err != nil {
-		fmt.Printf("Error parsing border color: %v\n", err)
-		return
-	}
 
 	// Process the YAML with Emrichen
 	for {
@@ -133,12 +132,35 @@ func run(cmd *cobra.Command, args []string) {
 			return
 		}
 
-		// Override border settings from command-line flags
-		zineLayout.GlobalBorder = globalBorderFlag
-		zineLayout.PageBorder = pageBorderFlag
-		zineLayout.LayoutBorder = layoutBorderFlag
-		zineLayout.InnerLayoutBorder = innerBorderFlag
-		zineLayout.BorderColor = borderColor
+		// Override border settings from command-line flags only if they are set
+		if cmd.Flags().Changed("global-border") {
+			zineLayout.GlobalBorder = *globalBorderFlag
+		}
+		if cmd.Flags().Changed("page-border") {
+			zineLayout.PageBorder = *pageBorderFlag
+		}
+		if cmd.Flags().Changed("layout-border") {
+			zineLayout.LayoutBorder = *layoutBorderFlag
+		}
+		if cmd.Flags().Changed("inner-border") {
+			zineLayout.InnerLayoutBorder = *innerBorderFlag
+		}
+		if cmd.Flags().Changed("border-color") {
+			borderColor, err := parseBorderColor(*borderColorString)
+			if err != nil {
+				fmt.Printf("Error parsing border color: %v\n", err)
+				return
+			}
+			zineLayout.BorderColor = zinelayout.CustomColor{RGBA: borderColor}
+		}
+		if cmd.Flags().Changed("border-type") {
+			borderType, err := zinelayout.ParseBorderType(*borderTypeString)
+			if err != nil {
+				fmt.Printf("Error parsing border type: %v\n", err)
+				return
+			}
+			zineLayout.BorderType = borderType
+		}
 
 		// Add this block to print verbose output
 		if verboseFlag {
@@ -278,4 +300,5 @@ func printZineLayout(zl zinelayout.ZineLayout) {
 	fmt.Printf("  LayoutBorder: %v\n", zl.LayoutBorder)
 	fmt.Printf("  InnerLayoutBorder: %v\n", zl.InnerLayoutBorder)
 	fmt.Printf("  BorderColor: R:%d G:%d B:%d A:%d\n", zl.BorderColor.R, zl.BorderColor.G, zl.BorderColor.B, zl.BorderColor.A)
+	fmt.Printf("  BorderType: %s\n", zl.BorderType)
 }
