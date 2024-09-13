@@ -1,7 +1,9 @@
 package helpers
 
 import (
+	"encoding/json"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"unicode"
@@ -62,8 +64,30 @@ func (p *ExpressionParser) parseExpression() (float64, error) {
 	return left, nil
 }
 
-func (p *ExpressionParser) parseTerm() (float64, error) {
+func (p *ExpressionParser) parsePower() (float64, error) {
 	left, err := p.parseFactor()
+	if err != nil {
+		return 0, err
+	}
+
+	for p.pos < len(p.input) {
+		p.skipWhitespace()
+		if p.currentChar() != '^' {
+			return left, nil
+		}
+		p.pos++
+		right, err := p.parseFactor()
+		if err != nil {
+			return 0, err
+		}
+		left = math.Pow(left, right)
+	}
+
+	return left, nil
+}
+
+func (p *ExpressionParser) parseTerm() (float64, error) {
+	left, err := p.parsePower()
 	if err != nil {
 		return 0, err
 	}
@@ -74,14 +98,14 @@ func (p *ExpressionParser) parseTerm() (float64, error) {
 		switch c {
 		case '*':
 			p.pos++
-			right, err := p.parseFactor()
+			right, err := p.parsePower()
 			if err != nil {
 				return 0, err
 			}
 			left *= right
 		case '/':
 			p.pos++
-			right, err := p.parseFactor()
+			right, err := p.parsePower()
 			if err != nil {
 				return 0, err
 			}
@@ -186,4 +210,48 @@ func (p *ExpressionParser) skipWhitespace() {
 	for p.pos < len(p.input) && unicode.IsSpace(rune(p.currentChar())) {
 		p.pos++
 	}
+}
+
+// Distance represents a length that can be expressed in various units
+type Distance struct {
+	value float64
+}
+
+// NewDistance creates a new Distance from a float64 value (assumed to be in pixels)
+func NewDistance(pixels float64) Distance {
+	return Distance{value: pixels}
+}
+
+// Pixels returns the Distance value in pixels
+func (d Distance) Pixels() float64 {
+	return d.value
+}
+
+// MarshalJSON implements the json.Marshaler interface
+func (d Distance) MarshalJSON() ([]byte, error) {
+	return json.Marshal(d.value)
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface
+func (d *Distance) UnmarshalJSON(data []byte) error {
+	var v interface{}
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+
+	switch value := v.(type) {
+	case float64:
+		d.value = value
+	case string:
+		parser := ExpressionParser{PPI: 96} // Assume default 96 PPI
+		pixels, err := parser.Parse(value)
+		if err != nil {
+			return err
+		}
+		d.value = pixels
+	default:
+		return fmt.Errorf("invalid distance value: %v", v)
+	}
+
+	return nil
 }

@@ -15,7 +15,7 @@ Number := Digit+ ['.' Digit+]
 
 Digit := '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9'
 
-Unit := 'mm' | 'cm' | 'in' | 'pc' | 'pt' | 'px' | 'em' | 'rem' | '%'
+Unit := 'mm' | 'cm' | 'in' | 'pc' | 'pt' | 'px' | 'em' | 'rem' |
 ```
 
 This grammar allows for:
