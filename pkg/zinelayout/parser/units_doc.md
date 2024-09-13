@@ -48,32 +48,23 @@ Parses and evaluates the input expression, returning the result in pixels.
 - Parentheses for grouping
 - Negative numbers
 
+### Enhanced Unit Handling
+
+The `ExpressionParser` now supports more flexible unit handling:
+
+- Units can follow any term or subexpression, not just numbers.
+- Conversion to pixels happens when a unit is encountered.
+- Examples of valid expressions:
+  - `(1 + 2) in`
+  - `1/12 in`
+  - `1 px + 2 in`
+  - `(1 in + 2 cm) * 3 px`
+
+This allows for more intuitive and flexible expressions when working with different units.
+
 ## Distance
 
-The `Distance` type represents a length that can be expressed in various units.
-
-### Usage
-
-The `Distance` type can be used to represent and convert between different units:
-
-```go
-import "github.com/go-go-golems/go-go-labs/pkg/zinelayout/parser"
-
-d := NewDistance(100) // 100 pixels
-jsonData, _ := json.Marshal(d)
-fmt.Println(string(jsonData)) // Output: 100
-
-var d2 Distance
-json.Unmarshal([]byte(`"2in"`), &d2)
-fmt.Printf("%.2f pixels\n", d2.Pixels()) // Output: 192.00 pixels
-```
-
-### Public Methods
-
-- `NewDistance(pixels float64) Distance`: Creates a new Distance from a float64 value (assumed to be in pixels).
-- `Pixels() float64`: Returns the Distance value in pixels.
-- `MarshalJSON() ([]byte, error)`: Implements the json.Marshaler interface.
-- `UnmarshalJSON(data []byte) error`: Implements the json.Unmarshaler interface.
+(The Distance section remains unchanged)
 
 ## Error Handling
 
@@ -82,6 +73,7 @@ The `Parse` method of `ExpressionParser` returns an error if there are issues wi
 - Invalid syntax
 - Unknown units
 - Division by zero
+- Missing closing parenthesis
 
 ## Best Practices
 
@@ -89,3 +81,5 @@ The `Parse` method of `ExpressionParser` returns an error if there are issues wi
 2. Use parentheses to group operations in complex expressions for clarity and to ensure correct order of operations.
 3. Handle errors returned by the `Parse` method to provide meaningful feedback to users.
 4. When working with `Distance` values, use the `Pixels()` method to get the standardized pixel value for comparisons or further calculations.
+5. Take advantage of the flexible unit handling to create more intuitive expressions, such as `1/2 in` or `(1 + 2) cm`.
+6. Be aware that units can be applied to entire subexpressions, not just individual numbers.

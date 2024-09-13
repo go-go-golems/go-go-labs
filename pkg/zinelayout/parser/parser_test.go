@@ -77,6 +77,14 @@ func TestExpressionParser(t *testing.T) {
 		{"Empty parentheses in expression", "1in + ()", 0, true},
 		{"Unclosed parenthesis in complex expression", "1in + (2cm", 0, true},
 		{"Trailing operator", "1in + 2cm + ", 0, true},
+
+		// New tests for unit handling
+		{"Unit after parentheses", "(1 + 2) in", uc.FromInch(3), false},
+		{"Unit after complex expression", "1 + 2 in", uc.FromInch(3), false},
+		{"Mixed units in expression", "1 px + 2 in", uc.FromInch(2) + 1, false},
+		{"Fraction with unit", "1/12 in", uc.FromInch(1.0 / 12.0), false},
+		{"Complex expression with mixed units", "(1 in + 2 cm) * 3 px", (uc.FromInch(1) + uc.FromCentimeter(2)) * 3, false},
+		{"Unit after each term", "1 in + 2 cm - 3 mm", uc.FromInch(1) + uc.FromCentimeter(2) - uc.FromMillimeter(3), false},
 	}
 
 	parser := &ExpressionParser{PPI: 96}

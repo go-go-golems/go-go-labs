@@ -1,6 +1,7 @@
 package zinelayout
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/go-go-golems/go-go-labs/pkg/zinelayout/parser"
@@ -68,6 +69,7 @@ func (m *Margin) ComputePixelValues(ppi float64) error {
 		if err != nil {
 			return err
 		}
+		fmt.Println("Computing pixels for", mv.Expression, "=", pixels)
 		mv.Pixels = int(pixels)
 	}
 
