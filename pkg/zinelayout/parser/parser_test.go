@@ -22,20 +22,19 @@ func TestExpressionParser(t *testing.T) {
 		{"Multiplication", "3mm * 4", uc.FromMillimeter(3) * 4, false},
 		{"Division", "10pt / 2", uc.FromPoint(10) / 2, false},
 		{"Parentheses", "(1in + 2.54cm) * 3", (uc.FromInch(1) + uc.FromCentimeter(2.54)) * 3, false},
-		{"Em and rem", "5em - 2rem", uc.FromEm(5) - uc.FromRem(2), false},
+		{"Em and rem", "5em - 2rem", uc.FromEm(5) - uc.FromEm(2), false},
 		{"Multiple units", "1pc + 2pt + 3px", uc.FromPica(1) + uc.FromPoint(2) + 3, false},
 		{"Negative value", "-5mm", -uc.FromMillimeter(5), false},
 		{"Complex expression 1", "2.5in * 3 + 1cm", uc.FromInch(2.5)*3 + uc.FromCentimeter(1), false},
-		{"Complex expression 2", "(10px + 5) * (2in - 1cm)", (10 + 5) * (uc.FromInch(2) - uc.FromCentimeter(1)), false},
+		{"Complex expression 2", "(10 + 5) * (2in - 1cm)", (10 + 5) * (uc.FromInch(2) - uc.FromCentimeter(1)), false},
 		{"Division in expression", "100px / (2 + 3)", 100 / (2 + 3), false},
 		{"Missing unit", "10", 10, false},
-		{"Missing unit in second term", "1in + 2", uc.FromInch(1) + 2, false},
+		{"Missing unit in second term", "1in + 2", uc.FromInch(1) + uc.FromInch(2), false},
 
 		// Complex expressions
 		{"Complex expression 3", "(1in + 2cm) * 3 - (4mm + 5pt) * 2", (uc.FromInch(1)+uc.FromCentimeter(2))*3 - (uc.FromMillimeter(4)+uc.FromPoint(5))*2, false},
-		{"Complex expression 4", "10px * (5em - 2rem) + 3pc / (1 + 0.5)", 10*(uc.FromEm(5)-uc.FromRem(2)) + uc.FromPica(3)/(1+0.5), false},
+		{"Complex expression 4", "10 * (5em - 2rem) + 3pc / (1 + 0.5)", 10*(uc.FromEm(5)-uc.FromEm(2)) + uc.FromPica(3)/(1+0.5), false},
 		{"Complex expression 5", "(((1in + 2cm) * 3) - 4mm) - (5pt / 2)", (((uc.FromInch(1) + uc.FromCentimeter(2)) * 3) - uc.FromMillimeter(4)) - (uc.FromPoint(5) / 2), false},
-		{"Complex expression 7", "-((2in + 3cm) * (4mm - 5pt)) + 6pc", -((uc.FromInch(2) + uc.FromCentimeter(3)) * (uc.FromMillimeter(4) - uc.FromPoint(5))) + uc.FromPica(6), false},
 
 		// Whitespace handling
 		{"Extra whitespace", "  10in  +  5cm  ", uc.FromInch(10) + uc.FromCentimeter(5), false},
@@ -45,7 +44,7 @@ func TestExpressionParser(t *testing.T) {
 		// Unit variations
 		{"Uppercase units", "1IN + 2CM", uc.FromInch(1) + uc.FromCentimeter(2), false},
 		{"Mixed case units", "3Mm * 4", uc.FromMillimeter(3) * 4, false},
-		{"Mixed case relative units", "5Em - 2rEm", uc.FromEm(5) - uc.FromRem(2), false},
+		{"Mixed case relative units", "5Em - 2rEm", uc.FromEm(5) - uc.FromEm(2), false},
 
 		// Edge cases
 		{"Zero value", "0in", 0, false},
@@ -80,11 +79,27 @@ func TestExpressionParser(t *testing.T) {
 
 		// New tests for unit handling
 		{"Unit after parentheses", "(1 + 2) in", uc.FromInch(3), false},
+		{"Unit after parentheses 2a", "(1 + 2) in + (2 + 3) cm", uc.FromInch(3) + uc.FromCentimeter(5), false},
+		{"Unit after parentheses 2b", "(2 + 3) cm + 4", uc.FromCentimeter(5) + uc.FromCentimeter(4), false},
+		{"Unit after parentheses 2b", "(2 + 3) cm + 4 px", uc.FromCentimeter(5) + uc.FromPixel(4), false},
+		{"Unit after parentheses 2", "(1 + 2) in + (2 + 3) cm + 4 cm", uc.FromInch(3) + uc.FromCentimeter(2+3) + uc.FromCentimeter(4), false},
+		{"Unit after parentheses 3", "(1 + 2) + (2 + 3) cm", uc.FromCentimeter(1+2) + uc.FromCentimeter(2+3), false},
 		{"Unit after complex expression", "1 + 2 in", uc.FromInch(3), false},
 		{"Mixed units in expression", "1 px + 2 in", uc.FromInch(2) + 1, false},
 		{"Fraction with unit", "1/12 in", uc.FromInch(1.0 / 12.0), false},
-		{"Complex expression with mixed units", "(1 in + 2 cm) * 3 px", (uc.FromInch(1) + uc.FromCentimeter(2)) * 3, false},
+		{"Complex expression with mixed units", "(1 in + 2 cm) * 3", (uc.FromInch(1) + uc.FromCentimeter(2)) * 3, false},
 		{"Unit after each term", "1 in + 2 cm - 3 mm", uc.FromInch(1) + uc.FromCentimeter(2) - uc.FromMillimeter(3), false},
+
+		// New tests for unit handling restrictions
+		{"Multiplication with unitless", "2in * 3", uc.FromInch(6), false},
+		{"Multiplication with unitless reversed", "3 * 2in", uc.FromInch(6), false},
+		{"Division with unitless divisor", "6in / 2", uc.FromInch(3), false},
+
+		// Error cases
+		{"Multiplication with two units", "2in * 3cm", 0, true},
+		{"Division with unit divisor", "6in / 2cm", 0, true},
+		{"Complex expression with invalid multiplication", "(2in + 3cm) * 4mm", 0, true},
+		{"Complex expression with invalid division", "((2in + 3cm) * 4) / 5mm", 0, true},
 	}
 
 	parser := &ExpressionParser{PPI: 96}
@@ -100,8 +115,15 @@ func TestExpressionParser(t *testing.T) {
 			} else {
 				if err != nil {
 					t.Errorf("Unexpected error: %v", err)
-				} else if !almostEqual(result, tt.expected, 1e-9) {
-					t.Errorf("Expected %v, but got %v", tt.expected, result)
+				} else {
+					expectedPixels := tt.expected
+					resultPixels, err := parser.unitConverter.ToPixels(result.Val, result.Unit)
+					if err != nil {
+						t.Errorf("Error converting result value to pixels: %v", err)
+					}
+					if !almostEqual(resultPixels, expectedPixels, 1e-9) {
+						t.Errorf("Expected %v pixels, but got %v pixels", expectedPixels, resultPixels)
+					}
 				}
 			}
 		})

@@ -4,10 +4,10 @@ page_setup:
     rows: 1
     columns: 2
   margin:
-    top: (1/12) in
-    bottom: (1/10) in
-    left: (1/8) in
-    right: (1/20) in
+    top: 1/12 in
+    bottom: 1/10 in
+    left: 1/8 in
+    right: 1/20 in
   border:
     enabled: true
     color: "red"

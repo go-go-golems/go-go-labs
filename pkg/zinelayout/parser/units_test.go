@@ -2,6 +2,7 @@ package parser
 
 import (
 	"math"
+	"strconv"
 	"testing"
 )
 
@@ -33,12 +34,19 @@ func TestToPixels(t *testing.T) {
 
 	for _, test := range tests {
 		uc := UnitConverter{PPI: test.ppi}
-		result, err := uc.ToPixels(test.input)
+		parser := ExpressionParser{PPI: test.ppi, unitConverter: &uc}
+		result, err := parser.Parse(test.input)
 		if err != nil {
-			t.Errorf("Error converting %s: %v", test.input, err)
+			t.Errorf("Error parsing %s: %v", test.input, err)
+			continue
 		}
-		if !floatEquals(result, test.expected, epsilon) {
-			t.Errorf("ToPixels(%s) = %f; want %f", test.input, result, test.expected)
+		pixels, err := uc.ToPixels(result.Val, result.Unit)
+		if err != nil {
+			t.Errorf("Error converting %s to pixels: %v", test.input, err)
+			continue
+		}
+		if !floatEquals(pixels, test.expected, epsilon) {
+			t.Errorf("ToPixels(%s) = %f; want %f", test.input, pixels, test.expected)
 		}
 	}
 }
@@ -65,16 +73,18 @@ func TestFromPixels(t *testing.T) {
 		result, err := uc.FromPixels(test.input, test.unit)
 		if err != nil {
 			t.Errorf("Error converting %f to %s: %v", test.input, test.unit, err)
+			continue
 		}
-		if result != test.expected {
-			t.Errorf("FromPixels(%f, %s) = %s; want %s", test.input, test.unit, result, test.expected)
+		if !floatEquals(result, parseFloat(test.expected), epsilon) {
+			t.Errorf("FromPixels(%f, %s) = %f; want %s", test.input, test.unit, result, test.expected)
 		}
 	}
 }
 
 func TestUnknownUnit(t *testing.T) {
 	uc := UnitConverter{PPI: 300}
-	_, err := uc.ToPixels("10unknown")
+	parser := ExpressionParser{PPI: 300, unitConverter: &uc}
+	_, err := parser.Parse("10unknown")
 	if err == nil {
 		t.Error("Expected error for unknown unit, got nil")
 	}
@@ -87,64 +97,69 @@ func TestUnknownUnit(t *testing.T) {
 
 func TestEdgeCases(t *testing.T) {
 	uc := UnitConverter{PPI: 300}
+	parser := ExpressionParser{PPI: 300, unitConverter: &uc}
 
 	// Test zero value
-	result, err := uc.ToPixels("0mm")
+	result, err := parser.Parse("0mm")
 	if err != nil {
-		t.Errorf("Error converting 0mm: %v", err)
+		t.Errorf("Error parsing 0mm: %v", err)
 	}
-	if !floatEquals(result, 0, epsilon) {
-		t.Errorf("ToPixels(0mm) = %f; want 0", result)
+	pixels, _ := uc.ToPixels(result.Val, result.Unit)
+	if !floatEquals(pixels, 0, epsilon) {
+		t.Errorf("ToPixels(0mm) = %f; want 0", pixels)
 	}
 
 	// Test negative value
-	result, err = uc.ToPixels("-10mm")
+	result, err = parser.Parse("-10mm")
 	if err != nil {
-		t.Errorf("Error converting -10mm: %v", err)
+		t.Errorf("Error parsing -10mm: %v", err)
 	}
-	if !floatEquals(result, -118.11, epsilon) {
-		t.Errorf("ToPixels(-10mm) = %f; want -118.11", result)
+	pixels, _ = uc.ToPixels(result.Val, result.Unit)
+	if !floatEquals(pixels, -118.11, epsilon) {
+		t.Errorf("ToPixels(-10mm) = %f; want -118.11", pixels)
 	}
 
 	// Additional edge cases
-	_, err = uc.ToPixels("")
+	_, err = parser.Parse("")
 	if err == nil {
 		t.Error("Expected error for empty string, got nil")
 	}
 
-	_, err = uc.ToPixels("mm")
+	_, err = parser.Parse("mm")
 	if err == nil {
 		t.Error("Expected error for string with only units, got nil")
 	}
 
-	_, err = uc.ToPixels("100")
+	_, err = parser.Parse("100")
 	if err == nil {
 		t.Error("Expected error for string with only numbers, got nil")
 	}
 
 	// Add new tests for spaces
-	result, err = uc.ToPixels("10 mm")
+	result, err = parser.Parse("10 mm")
 	if err != nil {
 		t.Errorf("Unexpected error for string with space between number and unit: %v", err)
 	}
-	if !floatEquals(result, 118.11, epsilon) {
-		t.Errorf("ToPixels('10 mm') = %f; want 118.11", result)
+	pixels, _ = uc.ToPixels(result.Val, result.Unit)
+	if !floatEquals(pixels, 118.11, epsilon) {
+		t.Errorf("ToPixels('10 mm') = %f; want 118.11", pixels)
 	}
 
-	result, err = uc.ToPixels(" 10 mm ")
+	result, err = parser.Parse(" 10 mm ")
 	if err != nil {
 		t.Errorf("Unexpected error for string with spaces before and after: %v", err)
 	}
-	if !floatEquals(result, 118.11, epsilon) {
-		t.Errorf("ToPixels(' 10 mm ') = %f; want 118.11", result)
+	pixels, _ = uc.ToPixels(result.Val, result.Unit)
+	if !floatEquals(pixels, 118.11, epsilon) {
+		t.Errorf("ToPixels(' 10 mm ') = %f; want 118.11", pixels)
 	}
 
-	_, err = uc.ToPixels("10MM")
+	_, err = parser.Parse("10MM")
 	if err == nil {
 		t.Errorf("Should have failed for string with uppercase units: %v", err)
 	}
 
-	_, err = uc.ToPixels("10Mm")
+	_, err = parser.Parse("10Mm")
 	if err == nil {
 		t.Errorf("Should have failed for string with mixed case units: %v", err)
 	}
@@ -152,41 +167,46 @@ func TestEdgeCases(t *testing.T) {
 
 func TestBoundaryValues(t *testing.T) {
 	uc := UnitConverter{PPI: 300}
+	parser := ExpressionParser{PPI: 300, unitConverter: &uc}
 
 	// Test very large value
-	result, err := uc.ToPixels("1000000mm")
+	result, err := parser.Parse("1000000mm")
 	if err != nil {
-		t.Errorf("Error converting 1000000mm: %v", err)
+		t.Errorf("Error parsing 1000000mm: %v", err)
 	}
-	if !floatEquals(result, 11811023.622047244, epsilon) {
-		t.Errorf("ToPixels(1000000mm) = %f; want 11811023.622047244", result)
+	pixels, _ := uc.ToPixels(result.Val, result.Unit)
+	if !floatEquals(pixels, 11811023.622047244, epsilon) {
+		t.Errorf("ToPixels(1000000mm) = %f; want 11811023.622047244", pixels)
 	}
 
 	// Test very small value
-	result, err = uc.ToPixels("0.0001mm")
+	result, err = parser.Parse("0.0001mm")
 	if err != nil {
-		t.Errorf("Error converting 0.0001mm: %v", err)
+		t.Errorf("Error parsing 0.0001mm: %v", err)
 	}
-	if !floatEquals(result, 0.0011811, epsilon) {
-		t.Errorf("ToPixels(0.0001mm) = %f; want 0.0011811", result)
+	pixels, _ = uc.ToPixels(result.Val, result.Unit)
+	if !floatEquals(pixels, 0.0011811, epsilon) {
+		t.Errorf("ToPixels(0.0001mm) = %f; want 0.0011811", pixels)
 	}
 
 	// Test maximum float64 value
-	result, err = uc.ToPixels("1.7976931348623157e+308mm")
+	result, err = parser.Parse("1.7976931348623157e+308mm")
 	if err != nil {
-		t.Errorf("Error converting max float64 value: %v", err)
+		t.Errorf("Error parsing max float64 value: %v", err)
 	}
-	if !math.IsInf(result, 1) {
-		t.Errorf("ToPixels(max float64) = %f; want %f", result, math.Inf(1))
+	pixels, _ = uc.ToPixels(result.Val, result.Unit)
+	if !math.IsInf(pixels, 1) {
+		t.Errorf("ToPixels(max float64) = %f; want %f", pixels, math.Inf(1))
 	}
 
 	// Test minimum float64 value
-	result, err = uc.ToPixels("4.9406564584124654e-324mm")
+	result, err = parser.Parse("4.9406564584124654e-324mm")
 	if err != nil {
-		t.Errorf("Error converting min float64 value: %v", err)
+		t.Errorf("Error parsing min float64 value: %v", err)
 	}
-	if !floatEquals(result, 0, epsilon) {
-		t.Errorf("ToPixels(min float64) = %f; want 0", result)
+	pixels, _ = uc.ToPixels(result.Val, result.Unit)
+	if !floatEquals(pixels, 0, epsilon) {
+		t.Errorf("ToPixels(min float64) = %f; want 0", pixels)
 	}
 }
 
@@ -194,6 +214,7 @@ func TestBoundaryValues(t *testing.T) {
 func floatEquals(a, b, epsilon float64) bool {
 	return math.Abs(a-b) < epsilon
 }
+
 func TestArithmeticExpressions(t *testing.T) {
 	tests := []struct {
 		input    string
@@ -220,12 +241,19 @@ func TestArithmeticExpressions(t *testing.T) {
 
 	for _, test := range tests {
 		uc := UnitConverter{PPI: test.ppi}
-		result, err := uc.ToPixels(test.input)
+		parser := ExpressionParser{PPI: test.ppi, unitConverter: &uc}
+		result, err := parser.Parse(test.input)
 		if err != nil {
-			t.Errorf("Error converting %s: %v", test.input, err)
+			t.Errorf("Error parsing %s: %v", test.input, err)
+			continue
 		}
-		if !floatEquals(result, test.expected, epsilon) {
-			t.Errorf("ToPixels(%s) = %f; want %f", test.input, result, test.expected)
+		pixels, err := uc.ToPixels(result.Val, result.Unit)
+		if err != nil {
+			t.Errorf("Error converting %s to pixels: %v", test.input, err)
+			continue
+		}
+		if !floatEquals(pixels, test.expected, epsilon) {
+			t.Errorf("ToPixels(%s) = %f; want %f", test.input, pixels, test.expected)
 		}
 	}
 }
@@ -235,7 +263,6 @@ func TestInvalidArithmeticExpressions(t *testing.T) {
 		"(10 + 5)mm + 2mm",
 		"10mm + 5mm",
 		"(10 + 5)mm px",
-		"(10 + 5mm)",
 		"(10 + 5)m m",
 		"(10 + 5)",
 		"mm",
@@ -243,10 +270,17 @@ func TestInvalidArithmeticExpressions(t *testing.T) {
 	}
 
 	uc := UnitConverter{PPI: 300}
+	parser := ExpressionParser{PPI: 300, unitConverter: &uc}
 	for _, test := range invalidTests {
-		_, err := uc.ToPixels(test)
+		_, err := parser.Parse(test)
 		if err == nil {
 			t.Errorf("Expected error for invalid input %s, but got nil", test)
 		}
 	}
+}
+
+// Helper function to parse float from string
+func parseFloat(s string) float64 {
+	f, _ := strconv.ParseFloat(s[:len(s)-2], 64) // Remove unit (last 2 characters) before parsing
+	return f
 }

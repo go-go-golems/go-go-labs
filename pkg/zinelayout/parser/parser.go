@@ -15,6 +15,11 @@ type Value struct {
 	EndPos   int
 }
 
+// String returns a string representation of the Value
+func (v Value) String() string {
+	return fmt.Sprintf("%.2f%s", v.Val, v.Unit)
+}
+
 // ExpressionParser represents the parser and interpreter for unit expressions
 type ExpressionParser struct {
 	input         string
@@ -23,6 +28,12 @@ type ExpressionParser struct {
 	Debug         bool
 	depth         int
 	unitConverter *UnitConverter
+}
+
+// ValueWithOriginal returns a string representation of the Value including its original input
+func (p *ExpressionParser) ValueWithOriginal(v Value) string {
+	original := p.input[v.StartPos:v.EndPos]
+	return fmt.Sprintf("%s (original: %s)", v.String(), original)
 }
 
 // Parse parses and evaluates the input expression
@@ -65,7 +76,7 @@ func (p *ExpressionParser) parseExpression() (Value, error) {
 	if err != nil {
 		return Value{}, err
 	}
-	p.debugPrint("Initial term: %+v", left)
+	p.debugPrint("Initial term: %s", p.ValueWithOriginal(left))
 
 	for p.pos < len(p.input) {
 		p.skipWhitespace()
@@ -82,14 +93,14 @@ func (p *ExpressionParser) parseExpression() (Value, error) {
 			if err != nil {
 				return Value{}, err
 			}
-			p.debugPrint("After operation: %+v", left)
+			p.debugPrint("After operation: %s", p.ValueWithOriginal(left))
 		default:
-			p.debugPrint("Ending expression, final result: %+v", left)
+			p.debugPrint("Ending expression, final result: %s", p.ValueWithOriginal(left))
 			return left, nil
 		}
 	}
 
-	p.debugPrint("Reached end of input, final result: %+v", left)
+	p.debugPrint("Reached end of input, final result: %s", p.ValueWithOriginal(left))
 	return left, nil
 }
 
@@ -147,6 +158,19 @@ func (p *ExpressionParser) parseFactor() (Value, error) {
 		}
 		p.pos++
 		result.StartPos = startPos
+
+		// Check for a potential unit after the closing parenthesis
+		unit, err := p.parseUnit()
+		if err != nil {
+			return Value{}, err
+		}
+		if unit != "" {
+			if result.Unit != "" && result.Unit != unit {
+				return Value{}, fmt.Errorf("conflicting units: %s and %s", result.Unit, unit)
+			}
+			result.Unit = unit
+		}
+
 		result.EndPos = p.pos
 		return result, nil
 	}
@@ -203,42 +227,88 @@ func (p *ExpressionParser) parseUnit() (string, error) {
 	for p.pos < len(p.input) && unicode.IsLetter(rune(p.currentChar())) {
 		p.pos++
 	}
-	return p.input[unitStart:p.pos], nil
+	unit := strings.ToLower(p.input[unitStart:p.pos])
+
+	// Check if the unit is valid
+	validUnits := []string{"mm", "cm", "in", "pc", "pt", "px", "em", "rem", ""}
+	isValid := false
+	for _, validUnit := range validUnits {
+		if unit == validUnit {
+			isValid = true
+			break
+		}
+	}
+
+	if !isValid {
+		return "", fmt.Errorf("invalid unit: %s", unit)
+	}
+
+	return unit, nil
 }
 
 func (p *ExpressionParser) performOperation(left, right Value, op byte) (Value, error) {
-	if left.Unit == "" {
-		left.Unit = right.Unit
-	} else if right.Unit != "" && left.Unit != right.Unit {
-		// Convert right to left's unit
-		convertedRight, err := p.convertUnit(right, left.Unit)
-		if err != nil {
-			return Value{}, err
-		}
-		right = convertedRight
-	}
+	p.debugPrint("Performing operation %c between %s and %s", op, p.ValueWithOriginal(left), p.ValueWithOriginal(right))
 
 	var result Value
-	result.Unit = right.Unit
 	result.StartPos = left.StartPos
 	result.EndPos = right.EndPos
 
 	switch op {
-	case '+':
-		result.Val = left.Val + right.Val
-	case '-':
-		result.Val = left.Val - right.Val
+	case '+', '-':
+		if left.Unit == "" {
+			p.debugPrint("Left unit is empty, setting to %s", right.Unit)
+			left.Unit = right.Unit
+		} else if right.Unit == "" {
+			p.debugPrint("Right unit is empty, setting to %s", left.Unit)
+			right.Unit = left.Unit
+		} else if right.Unit != "" && left.Unit != right.Unit {
+			// Convert right to left's unit
+			p.debugPrint("Converting %v to unit %s", right, left.Unit)
+			convertedRight, err := p.convertUnit(right, left.Unit)
+			if err != nil {
+				return Value{}, err
+			}
+			right = convertedRight
+			p.debugPrint("Converted right value: %v", right)
+		}
+		if left.Unit != right.Unit {
+			return Value{}, fmt.Errorf("mismatched units in addition/subtraction: %s and %s", left.Unit, right.Unit)
+		}
+		result.Unit = left.Unit
+		if op == '+' {
+			result.Val = left.Val + right.Val
+		} else {
+			result.Val = left.Val - right.Val
+		}
 	case '*':
+		if left.Unit != "" && right.Unit != "" {
+			return Value{}, fmt.Errorf("multiplication with two units is not allowed: %s * %s", left.Unit, right.Unit)
+		}
 		result.Val = left.Val * right.Val
+		if left.Unit == "" {
+			left.Unit = right.Unit
+		}
+		result.Unit = left.Unit
 	case '/':
+		if left.Unit == "" {
+			p.debugPrint("Left unit is empty, setting to %s", right.Unit)
+			left.Unit = right.Unit
+		} else if right.Unit == "" {
+			p.debugPrint("Right unit is empty, setting to %s", left.Unit)
+			right.Unit = left.Unit
+		} else if right.Unit != "" && left.Unit != right.Unit {
+			return Value{}, fmt.Errorf("can't divide with unit value %s", right.String())
+		}
 		if right.Val == 0 {
 			return Value{}, fmt.Errorf("division by zero")
 		}
+		result.Unit = left.Unit
 		result.Val = left.Val / right.Val
 	default:
 		return Value{}, fmt.Errorf("unknown operator: %c", op)
 	}
 
+	p.debugPrint("Result of operation: %s", p.ValueWithOriginal(result))
 	return result, nil
 }
 
