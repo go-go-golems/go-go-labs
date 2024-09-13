@@ -1,46 +1,31 @@
 # Unit Converter Documentation
 
-The `UnitConverter` is a utility for converting between different units of measurement, primarily focused on print and digital layout units. This documentation covers the `ExpressionParser` struct, the `Distance` type, and their associated methods.
+The Unit Converter is a utility for converting between different units of measurement, primarily focused on print and digital layout units. This documentation covers the `ExpressionParser` struct and the `Distance` type, which are the main components of the public API.
 
 ## ExpressionParser
 
 The `ExpressionParser` is responsible for parsing and evaluating unit expressions. It supports basic arithmetic operations and various units.
 
-### Fields
+### Usage
 
-- `input string`: The input expression to be parsed.
-- `pos int`: The current position in the input string during parsing.
-- `PPI float64`: Pixels Per Inch, used as the base for conversions.
+To use the `ExpressionParser`, create an instance with the desired PPI (Pixels Per Inch) and call the `Parse` method with a unit expression string:
 
-### Methods
+```go
+import "github.com/go-go-golems/go-go-labs/pkg/zinelayout/parser"
+
+parser := &ExpressionParser{PPI: 96}
+result, err := parser.Parse("1in + 2.54cm")
+if err != nil {
+    // Handle error
+}
+fmt.Printf("Result: %.2f pixels\n", result)
+```
+
+### Public Methods
 
 #### Parse(input string) (float64, error)
 
 Parses and evaluates the input expression, returning the result in pixels.
-
-#### parseExpression() (float64, error)
-
-Parses addition and subtraction operations.
-
-#### parsePower() (float64, error)
-
-Parses exponentiation operations.
-
-#### parseTerm() (float64, error)
-
-Parses multiplication and division operations.
-
-#### parseFactor() (float64, error)
-
-Parses parentheses, negative numbers, and number-unit combinations.
-
-#### parseNumberUnit() (float64, error)
-
-Parses a number followed by an optional unit.
-
-#### convertToPixels(value float64, unit string) (float64, error)
-
-Converts a value from the given unit to pixels.
 
 ### Supported Units
 
@@ -67,29 +52,13 @@ Converts a value from the given unit to pixels.
 
 The `Distance` type represents a length that can be expressed in various units.
 
-### Methods
-
-- `NewDistance(pixels float64) Distance`: Creates a new Distance from a float64 value (assumed to be in pixels).
-- `Pixels() float64`: Returns the Distance value in pixels.
-- `MarshalJSON() ([]byte, error)`: Implements the json.Marshaler interface.
-- `UnmarshalJSON(data []byte) error`: Implements the json.Unmarshaler interface.
-
-## Usage
-
-To use the `ExpressionParser`, create an instance with the desired PPI and call the `Parse` method with a unit expression string:
-
-```go
-parser := &ExpressionParser{PPI: 96}
-result, err := parser.Parse("1in + 2.54cm")
-if err != nil {
-    // Handle error
-}
-fmt.Printf("Result: %.2f pixels\n", result)
-```
+### Usage
 
 The `Distance` type can be used to represent and convert between different units:
 
 ```go
+import "github.com/go-go-golems/go-go-labs/pkg/zinelayout/parser"
+
 d := NewDistance(100) // 100 pixels
 jsonData, _ := json.Marshal(d)
 fmt.Println(string(jsonData)) // Output: 100
@@ -99,15 +68,24 @@ json.Unmarshal([]byte(`"2in"`), &d2)
 fmt.Printf("%.2f pixels\n", d2.Pixels()) // Output: 192.00 pixels
 ```
 
-## Testing
+### Public Methods
 
-The `parser_test.go` file contains extensive tests for the `ExpressionParser`, covering various scenarios including:
+- `NewDistance(pixels float64) Distance`: Creates a new Distance from a float64 value (assumed to be in pixels).
+- `Pixels() float64`: Returns the Distance value in pixels.
+- `MarshalJSON() ([]byte, error)`: Implements the json.Marshaler interface.
+- `UnmarshalJSON(data []byte) error`: Implements the json.Unmarshaler interface.
 
-- Simple unit conversions
-- Complex expressions with multiple operations and units
-- Whitespace handling
-- Unit case variations
-- Edge cases (e.g., very small or large values, leading/trailing decimals)
-- Error cases (e.g., invalid syntax, unknown units, division by zero)
+## Error Handling
 
-These tests ensure the robustness and accuracy of the parsing and conversion functionality.
+The `Parse` method of `ExpressionParser` returns an error if there are issues with the input expression. Developers should always check the error returned and handle it appropriately. Common errors include:
+
+- Invalid syntax
+- Unknown units
+- Division by zero
+
+## Best Practices
+
+1. Always set the correct PPI when initializing the `ExpressionParser` to ensure accurate conversions.
+2. Use parentheses to group operations in complex expressions for clarity and to ensure correct order of operations.
+3. Handle errors returned by the `Parse` method to provide meaningful feedback to users.
+4. When working with `Distance` values, use the `Pixels()` method to get the standardized pixel value for comparisons or further calculations.
