@@ -21,6 +21,13 @@ type MarginValue struct {
 	Pixels     int    `yaml:"-"`
 }
 
+func (mv *MarginValue) String() string {
+	if mv.Expression == "" {
+		return fmt.Sprintf("%dpx", mv.Pixels)
+	}
+	return fmt.Sprintf("%s (%dpx)", mv.Expression, mv.Pixels)
+}
+
 func (m *Margin) UnmarshalYAML(value *yaml.Node) error {
 	type rawMargin struct {
 		Top    string `yaml:"top"`
@@ -58,18 +65,22 @@ func (m Margin) MarshalYAML() (interface{}, error) {
 
 func (m *Margin) ComputePixelValues(ppi float64) error {
 	m.PPI = ppi
-	converter := &parser.UnitConverter{PPI: ppi}
+	uc := parser.UnitConverter{PPI: ppi}
+	p := parser.ExpressionParser{PPI: ppi}
 
 	for _, mv := range []*MarginValue{&m.Top, &m.Bottom, &m.Left, &m.Right} {
 		if strings.TrimSpace(mv.Expression) == "" {
 			mv.Pixels = 0
 			continue
 		}
-		pixels, err := converter.ToPixels(mv.Expression)
+		val, err := p.Parse(mv.Expression)
 		if err != nil {
 			return err
 		}
-		fmt.Println("Computing pixels for", mv.Expression, "=", pixels)
+		pixels, err := uc.ToPixels(val.Val, val.Unit)
+		if err != nil {
+			return err
+		}
 		mv.Pixels = int(pixels)
 	}
 
@@ -78,17 +89,21 @@ func (m *Margin) ComputePixelValues(ppi float64) error {
 
 func (mv *MarginValue) UpdatePixels(pixels int, ppi float64) {
 	mv.Pixels = pixels
-	converter := &parser.UnitConverter{PPI: ppi}
-	mv.Expression, _ = converter.FromPixels(float64(pixels), "px")
+	mv.Expression = fmt.Sprintf("%dpx", pixels)
 }
 
 func (mv *MarginValue) UpdateExpression(expression string, ppi float64) error {
-	converter := &parser.UnitConverter{PPI: ppi}
-	pixels, err := converter.ToPixels(expression)
+	p := parser.ExpressionParser{PPI: ppi}
+	uc := parser.UnitConverter{PPI: ppi}
+	val, err := p.Parse(expression)
 	if err != nil {
 		return err
 	}
 	mv.Expression = expression
+	pixels, err := uc.ToPixels(val.Val, val.Unit)
+	if err != nil {
+		return err
+	}
 	mv.Pixels = int(pixels)
 	return nil
 }

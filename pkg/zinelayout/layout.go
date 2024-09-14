@@ -67,8 +67,6 @@ func (zl *ZineLayout) CreateOutputImage(outputPage OutputPage, inputImages []ima
 	}
 	inputSize := inputImages[0].Bounds().Size()
 
-	fmt.Printf("Output page margins. Top: %d, Bottom: %d, Left: %d, Right: %d\n", outputPage.Margin.Top, outputPage.Margin.Bottom, outputPage.Margin.Left, outputPage.Margin.Right)
-
 	type CellSize struct {
 		Margin Margin
 		Width  int
@@ -201,8 +199,18 @@ func (zl *ZineLayout) CreateOutputImage(outputPage OutputPage, inputImages []ima
 		drawBorder(finalImage, finalImage.Bounds(), globalBorderColor, zl.Global.Border.Type)
 	}
 
-	fmt.Printf("Global Margins - Top: %d, Bottom: %d, Left: %d, Right: %d\n", zl.PageSetup.Margin.Top, zl.PageSetup.Margin.Bottom, zl.PageSetup.Margin.Left, zl.PageSetup.Margin.Right)
-	fmt.Printf("Output Page Margins - Top: %d, Bottom: %d, Left: %d, Right: %d\n", outputPage.Margin.Top, outputPage.Margin.Bottom, outputPage.Margin.Left, outputPage.Margin.Right)
+	fmt.Printf("Global Margins - Top: %s, Bottom: %s, Left: %s, Right: %s\n",
+		zl.PageSetup.Margin.Top.String(),
+		zl.PageSetup.Margin.Bottom.String(),
+		zl.PageSetup.Margin.Left.String(),
+		zl.PageSetup.Margin.Right.String(),
+	)
+	fmt.Printf("Output Page Margins - Top: %s, Bottom: %s, Left: %s, Right: %s\n",
+		outputPage.Margin.Top.String(),
+		outputPage.Margin.Bottom.String(),
+		outputPage.Margin.Left.String(),
+		outputPage.Margin.Right.String(),
+	)
 
 	return finalImage, nil
 }
