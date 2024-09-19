@@ -6,16 +6,18 @@ import (
 	"image/color"
 	"image/draw"
 	"strings"
+
+	"github.com/rs/zerolog/log"
 )
 
 type ZineLayout struct {
-	PageSetup   PageSetup    `yaml:"page_setup"`
-	OutputPages []OutputPage `yaml:"output_pages"`
-	Global      Global       `yaml:"global"`
+	PageSetup   *PageSetup    `yaml:"page_setup"`
+	OutputPages []*OutputPage `yaml:"output_pages"`
+	Global      *Global       `yaml:"global"`
 }
 
 type Global struct {
-	Border Border  `yaml:"border"`
+	Border *Border `yaml:"border"`
 	PPI    float64 `yaml:"ppi"`
 }
 
@@ -24,23 +26,23 @@ type PageSetup struct {
 		Rows    int `yaml:"rows"`
 		Columns int `yaml:"columns"`
 	} `yaml:"grid_size"`
-	Margin     Margin `yaml:"margin"`
-	PageBorder Border `yaml:"border"`
+	Margin     *Margin `yaml:"margin"`
+	PageBorder *Border `yaml:"border"`
 }
 
 type OutputPage struct {
-	ID           string   `yaml:"id"`
-	Margin       Margin   `yaml:"margin"`
-	Layout       []Layout `yaml:"layout"`
-	LayoutBorder Border   `yaml:"border"`
+	ID           string    `yaml:"id"`
+	Margin       *Margin   `yaml:"margin"`
+	Layout       []*Layout `yaml:"layout"`
+	LayoutBorder *Border   `yaml:"border"`
 }
 
 type Layout struct {
 	InputIndex        int      `yaml:"input_index"`
 	Position          Position `yaml:"position"`
 	Rotation          int      `yaml:"rotation"`
-	Margin            Margin   `yaml:"margin"`
-	InnerLayoutBorder Border   `yaml:"border"`
+	Margin            *Margin  `yaml:"margin"`
+	InnerLayoutBorder *Border  `yaml:"border"`
 }
 
 type Border struct {
@@ -55,7 +57,10 @@ type Position struct {
 	Column int `yaml:"column"`
 }
 
-func (zl *ZineLayout) CreateOutputImage(outputPage OutputPage, inputImages []image.Image) (image.Image, error) {
+func (zl *ZineLayout) CreateOutputImage(outputPage *OutputPage, inputImages []image.Image) (image.Image, error) {
+	if zl.Global.PPI == 0 {
+		return nil, fmt.Errorf("ppi is not set")
+	}
 	err := zl.ComputeAllMargins()
 	if err != nil {
 		return nil, fmt.Errorf("error computing all margins: %w", err)
@@ -68,7 +73,7 @@ func (zl *ZineLayout) CreateOutputImage(outputPage OutputPage, inputImages []ima
 	inputSize := inputImages[0].Bounds().Size()
 
 	type CellSize struct {
-		Margin Margin
+		Margin *Margin
 		Width  int
 		Height int
 		X      int
@@ -80,7 +85,7 @@ func (zl *ZineLayout) CreateOutputImage(outputPage OutputPage, inputImages []ima
 	for row := range cells {
 		cells[row] = make([]CellSize, zl.PageSetup.GridSize.Columns)
 		for column := range cells[row] {
-			cells[row][column] = CellSize{Margin: Margin{}}
+			cells[row][column] = CellSize{Margin: &Margin{}}
 		}
 	}
 
@@ -123,9 +128,9 @@ func (zl *ZineLayout) CreateOutputImage(outputPage OutputPage, inputImages []ima
 	draw.Draw(outputImage, outputImage.Bounds(), image.White, image.Point{}, draw.Src)
 
 	// Use the specified border color or default to black if not set
-	globalBorderColor := zl.Global.Border.Color.RGBA
-	if globalBorderColor == (color.RGBA{}) {
-		globalBorderColor = color.RGBA{0, 0, 0, 255} // Default to black
+	globalBorderColor := color.RGBA{0, 0, 0, 255}
+	if zl.Global.Border != nil && zl.Global.Border.Color.RGBA != (color.RGBA{}) {
+		globalBorderColor = zl.Global.Border.Color.RGBA
 	}
 
 	for _, layout := range outputPage.Layout {
@@ -150,10 +155,10 @@ func (zl *ZineLayout) CreateOutputImage(outputPage OutputPage, inputImages []ima
 	// Draw layout borders and inner layout borders
 	for _, layout := range outputPage.Layout {
 		cell := cells[layout.Position.Row][layout.Position.Column]
-		if outputPage.LayoutBorder.Enabled {
+		if outputPage.LayoutBorder != nil && outputPage.LayoutBorder.Enabled {
 			drawBorder(outputImage, image.Rect(cell.X, cell.Y, cell.X+cell.Width, cell.Y+cell.Height), outputPage.LayoutBorder.Color.RGBA, outputPage.LayoutBorder.Type)
 		}
-		if layout.InnerLayoutBorder.Enabled {
+		if layout.InnerLayoutBorder != nil && layout.InnerLayoutBorder.Enabled {
 			innerRect := image.Rect(
 				cell.X+layout.Margin.Left.Pixels,
 				cell.Y+layout.Margin.Top.Pixels,
@@ -182,7 +187,7 @@ func (zl *ZineLayout) CreateOutputImage(outputPage OutputPage, inputImages []ima
 	draw.Draw(finalImage, outputRect, outputImage, image.Point{0, 0}, draw.Over)
 
 	// Draw page border
-	if zl.PageSetup.PageBorder.Enabled {
+	if zl.PageSetup.PageBorder != nil && zl.PageSetup.PageBorder.Enabled {
 		borderRect := image.Rect(
 			zl.PageSetup.Margin.Left.Pixels,
 			zl.PageSetup.Margin.Top.Pixels,
@@ -195,7 +200,7 @@ func (zl *ZineLayout) CreateOutputImage(outputPage OutputPage, inputImages []ima
 	}
 
 	// Draw global border
-	if zl.Global.Border.Enabled {
+	if zl.Global.Border != nil && zl.Global.Border.Enabled {
 		drawBorder(finalImage, finalImage.Bounds(), globalBorderColor, zl.Global.Border.Type)
 	}
 
@@ -254,21 +259,39 @@ func ParseBorderType(borderTypeString string) (BorderType, error) {
 }
 
 func (zl *ZineLayout) ComputeAllMargins() error {
+	if zl.PageSetup.Margin == nil {
+		zl.PageSetup.Margin = &Margin{}
+	}
 	margins := []*Margin{
-		&zl.PageSetup.Margin,
+		zl.PageSetup.Margin,
 	}
 
 	for i := range zl.OutputPages {
-		margins = append(margins, &zl.OutputPages[i].Margin)
+		if zl.OutputPages[i].Margin == nil {
+			zl.OutputPages[i].Margin = &Margin{}
+		}
+		margins = append(margins, zl.OutputPages[i].Margin)
 		for j := range zl.OutputPages[i].Layout {
-			margins = append(margins, &zl.OutputPages[i].Layout[j].Margin)
+			if zl.OutputPages[i].Layout[j].Margin == nil {
+				zl.OutputPages[i].Layout[j].Margin = &Margin{}
+			}
+			margins = append(margins, zl.OutputPages[i].Layout[j].Margin)
+			fmt.Printf("Margin: %+v\n", zl.OutputPages[i].Layout[j].Margin)
 		}
 	}
 
 	for _, margin := range margins {
+		log.Trace().
+			Interface("margin", margin).
+			Float64("ppi", zl.Global.PPI).
+			Msg("Margin before")
 		if err := margin.ComputePixelValues(zl.Global.PPI); err != nil {
 			return fmt.Errorf("error computing margin values: %w", err)
 		}
+
+		log.Trace().
+			Interface("margin", margin).
+			Msg("Margin after")
 	}
 
 	return nil

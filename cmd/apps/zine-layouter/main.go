@@ -17,6 +17,8 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/go-go-golems/go-go-labs/pkg/zinelayout"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -40,6 +42,8 @@ var (
 	innerBorderFlag   *bool
 	borderColorString *string
 	borderTypeString  *string
+	logLevelFlag      string
+	testBWFlag        bool
 )
 
 func init() {
@@ -53,11 +57,21 @@ func init() {
 	innerBorderFlag = rootCmd.Flags().Bool("inner-border", false, "Draw inner layout borders")
 	borderColorString = rootCmd.Flags().String("border-color", "", "Border color in R,G,B,A format (0-255 for each)")
 	borderTypeString = rootCmd.Flags().String("border-type", "", "Border type: plain, dotted, dashed, or corner")
+	rootCmd.Flags().StringVar(&logLevelFlag, "log-level", "info", "Set the logging level (debug, info, warn, error)")
+	rootCmd.Flags().BoolVar(&testBWFlag, "test-bw", false, "Generate black and white test images")
 }
 
 func main() {
+	// Set up zerolog
+	logLevel, err := zerolog.ParseLevel(logLevelFlag)
+	if err != nil {
+		fmt.Printf("Invalid log level: %s. Defaulting to info.\n", logLevelFlag)
+		logLevel = zerolog.InfoLevel
+	}
+	zerolog.SetGlobalLevel(logLevel)
+
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
+		log.Error().Err(err).Msg("Error executing root command")
 		os.Exit(1)
 	}
 }
@@ -177,9 +191,13 @@ func run(cmd *cobra.Command, args []string) {
 
 		// Read or generate input images
 		var inputImages []image.Image
-		if testFlag {
+		if testFlag || testBWFlag {
 			totalInputImages := len(zineLayout.OutputPages) * zineLayout.PageSetup.GridSize.Columns * zineLayout.PageSetup.GridSize.Rows
-			inputImages, err = zinelayout.GenerateTestImages(totalInputImages)
+			if testBWFlag {
+				inputImages, err = zinelayout.GenerateTestImagesBW(totalInputImages)
+			} else {
+				inputImages, err = zinelayout.GenerateTestImages(totalInputImages)
+			}
 		} else {
 			if len(args) == 0 {
 				fmt.Println("Error: No input files provided")
@@ -198,15 +216,28 @@ func run(cmd *cobra.Command, args []string) {
 			return
 		}
 
-		// Create output images
-		for _, outputPage := range zineLayout.OutputPages {
-			fmt.Printf("Processing page %s\n", outputPage.ID)
-			outputImage, err := zineLayout.CreateOutputImage(outputPage, inputImages)
-			if err != nil {
-				fmt.Printf("Error creating output image for page %s: %v\n", outputPage.ID, err)
-				continue
+		// Check if the number of input images is a multiple of the required images per output
+		imagesPerOutput := len(zineLayout.OutputPages) * zineLayout.PageSetup.GridSize.Columns * zineLayout.PageSetup.GridSize.Rows
+		if len(inputImages)%imagesPerOutput != 0 {
+			fmt.Printf("Error: Number of input images (%d) is not a multiple of required images per output (%d)\n", len(inputImages), imagesPerOutput)
+			return
+		}
+
+		// Group input images and create output images
+		for i := 0; i < len(inputImages); i += imagesPerOutput {
+			groupImages := inputImages[i : i+imagesPerOutput]
+			outputNumber := i/imagesPerOutput + 1
+
+			for j, outputPage := range zineLayout.OutputPages {
+				fmt.Printf("Processing page %s for output %d\n", outputPage.ID, outputNumber)
+				outputImage, err := zineLayout.CreateOutputImage(outputPage, groupImages)
+				if err != nil {
+					fmt.Printf("Error creating output image for page %s: %v\n", outputPage.ID, err)
+					continue
+				}
+				outputFilename := fmt.Sprintf("output%d_%d", outputNumber, j+1)
+				saveOutputImage(outputImage, filepath.Join(outputDir, outputFilename))
 			}
-			saveOutputImage(outputImage, filepath.Join(outputDir, outputPage.ID))
 		}
 	}
 }

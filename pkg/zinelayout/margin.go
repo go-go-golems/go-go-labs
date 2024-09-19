@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/go-go-golems/go-go-labs/pkg/zinelayout/parser"
+	"github.com/rs/zerolog/log"
 	"gopkg.in/yaml.v3"
 )
 
@@ -63,12 +64,21 @@ func (m Margin) MarshalYAML() (interface{}, error) {
 	}, nil
 }
 
+func (m *Margin) String() string {
+	return fmt.Sprintf("Margin(Top: %s, Bottom: %s, Left: %s, Right: %s)", m.Top.String(), m.Bottom.String(), m.Left.String(), m.Right.String())
+}
+
 func (m *Margin) ComputePixelValues(ppi float64) error {
 	m.PPI = ppi
 	uc := parser.UnitConverter{PPI: ppi}
 	p := parser.ExpressionParser{PPI: ppi}
 
 	for _, mv := range []*MarginValue{&m.Top, &m.Bottom, &m.Left, &m.Right} {
+		log.Trace().
+			Interface("marginValue", mv).
+			Float64("ppi", ppi).
+			Msg("MarginValue before")
+
 		if strings.TrimSpace(mv.Expression) == "" {
 			mv.Pixels = 0
 			continue
@@ -77,11 +87,22 @@ func (m *Margin) ComputePixelValues(ppi float64) error {
 		if err != nil {
 			return err
 		}
+		log.Trace().
+			Str("value", val.String()).
+			Msg("MarginValue after parse")
+
 		pixels, err := uc.ToPixels(val.Val, val.Unit)
 		if err != nil {
 			return err
 		}
+		log.Trace().
+			Float64("pixels", pixels).
+			Msg("MarginValue after to pixels")
+
 		mv.Pixels = int(pixels)
+		log.Trace().
+			Interface("marginValue", mv).
+			Msg("MarginValue after")
 	}
 
 	return nil

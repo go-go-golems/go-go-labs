@@ -14,23 +14,24 @@ import (
 )
 
 type CodePrinter struct {
-	MaxFileSize      int64
-	MaxTotalSize     int64
-	IncludeExts      []string
-	ExcludeExts      []string
-	CurrentSize      int64
-	TotalTokens      int
-	FileCount        int
-	TokenCounter     *tiktoken.Tiktoken
-	TokenCounts      map[string]int
-	StatsLevel       string
-	MatchFilenames   []*regexp.Regexp
-	MatchPaths       []*regexp.Regexp
-	ListOnly         bool
-	ExcludeDirs      []string
-	GitIgnoreFilter  gitignore.GitIgnore
-	DisableGitIgnore bool
-	DelimiterType    string
+	MaxFileSize        int64
+	MaxTotalSize       int64
+	IncludeExts        []string
+	ExcludeExts        []string
+	CurrentSize        int64
+	TotalTokens        int
+	FileCount          int
+	TokenCounter       *tiktoken.Tiktoken
+	TokenCounts        map[string]int
+	StatsLevel         string
+	MatchFilenames     []*regexp.Regexp
+	MatchPaths         []*regexp.Regexp
+	ListOnly           bool
+	ExcludeDirs        []string
+	GitIgnoreFilter    gitignore.GitIgnore
+	DisableGitIgnore   bool
+	DelimiterType      string
+	DefaultExcludeExts []string
 }
 
 func NewCodePrinter() *CodePrinter {
@@ -45,6 +46,15 @@ func NewCodePrinter() *CodePrinter {
 		TokenCounts:  make(map[string]int),
 		StatsLevel:   "none",
 		ExcludeDirs:  []string{},
+		DefaultExcludeExts: []string{
+			".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff",
+			".mp3", ".wav", ".ogg", ".flac",
+			".mp4", ".avi", ".mov", ".wmv",
+			".zip", ".tar", ".gz", ".rar",
+			".exe", ".dll", ".so", ".dylib",
+			".pdf", ".doc", ".docx", ".xls", ".xlsx",
+			".bin", ".dat", ".db", ".sqlite",
+		},
 	}
 }
 
@@ -112,6 +122,13 @@ func (cp *CodePrinter) processDirectory(dirPath string) {
 
 func (cp *CodePrinter) shouldProcessFile(filePath string, fileInfo os.FileInfo) bool {
 	ext := strings.ToLower(filepath.Ext(filePath))
+
+	// Check against default excluded extensions
+	for _, excludedExt := range cp.DefaultExcludeExts {
+		if ext == excludedExt {
+			return false
+		}
+	}
 
 	if fileInfo.Size() > cp.MaxFileSize {
 		return false

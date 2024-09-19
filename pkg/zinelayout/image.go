@@ -63,3 +63,36 @@ func addLabel(img *image.RGBA, label string, textColor color.Color) {
 	d.Dot.X -= fixed.Int26_6(len(label) * 7 / 2 << 6)
 	d.DrawString(label)
 }
+
+func GenerateTestImagesBW(count int) ([]image.Image, error) {
+	var images []image.Image
+
+	for i := 1; i <= count; i++ {
+		img := image.NewGray(image.Rect(0, 0, 600, 600*4/3))
+
+		// Alternate between white and light gray background
+		bgColor := color.Gray{Y: uint8(255 - (i%2)*20)}
+		draw.Draw(img, img.Bounds(), &image.Uniform{bgColor}, image.Point{}, draw.Src)
+
+		// Add page number to the image
+		addLabelBW(img, fmt.Sprintf("Page %d", i), color.Black)
+
+		images = append(images, img)
+	}
+	return images, nil
+}
+
+func addLabelBW(img *image.Gray, label string, textColor color.Color) {
+	point := fixed.Point26_6{
+		X: fixed.Int26_6(img.Bounds().Dx()/2) << 6,
+		Y: fixed.Int26_6(img.Bounds().Dy()/2) << 6,
+	}
+	d := &font.Drawer{
+		Dst:  img,
+		Src:  image.NewUniform(textColor),
+		Face: basicfont.Face7x13,
+		Dot:  point,
+	}
+	d.Dot.X -= fixed.Int26_6(len(label) * 7 / 2 << 6)
+	d.DrawString(label)
+}
