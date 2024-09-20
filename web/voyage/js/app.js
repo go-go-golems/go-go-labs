@@ -11,6 +11,8 @@ import { replaceImages } from './slices/imagesSlice.js';
 import { replaceOptions } from './slices/optionsSlice.js';
 import { replacePromptHistory } from './slices/promptHistorySlice.js';
 
+log.setLevel("debug");
+
 class App {
     constructor() {
         this.fragmentsColumn = new FragmentsColumn(store, () => this.updateUI());
