@@ -16,13 +16,15 @@ class FragmentsColumn {
     render() {
         const fragmentsList = this.element.querySelector('#fragments-list');
         fragmentsList.innerHTML = '';
-        this.state.get('prompt_fragments').forEach((fragment, index) => {
+        const fragments = this.state.get('prompt_fragments') || [];
+        const checkedFragments = this.state.get('checked_fragments') || [];
+        fragments.forEach((fragment, index) => {
             const div = document.createElement('div');
             div.className = 'list-item';
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
             checkbox.id = `fragment-${index}`;
-            checkbox.checked = this.state.get('checked_fragments').includes(index);
+            checkbox.checked = checkedFragments.includes(index);
             checkbox.addEventListener('change', () => this.updateCheckedFragments(index, checkbox.checked));
             const label = document.createElement('label');
             label.htmlFor = `fragment-${index}`;
@@ -53,6 +55,12 @@ class FragmentsColumn {
         const fragments = this.state.get('prompt_fragments');
         fragments.splice(index, 1);
         this.state.set('prompt_fragments', fragments);
+        
+        // Also update checked_fragments
+        const checkedFragments = this.state.get('checked_fragments') || [];
+        const updatedCheckedFragments = checkedFragments.filter(i => i !== index).map(i => i > index ? i - 1 : i);
+        this.state.set('checked_fragments', updatedCheckedFragments);
+        
         this.updateUI();
         showConfirmation("Fragment deleted successfully!");
     }
@@ -66,16 +74,29 @@ class FragmentsColumn {
 
     randomizeAndAddFragments() {
         const fragments = this.state.get('prompt_fragments');
-        const checkedFragments = this.state.get('checked_fragments').map(index => fragments[index]);
+        const checkedFragments = this.state.get('checked_fragments') || [];
+        const selectedFragments = checkedFragments.map(index => fragments[index]);
         
-        if (checkedFragments.length === 0) return;
+        if (selectedFragments.length === 0) return;
 
-        const numberToSelect = Math.floor(Math.random() * checkedFragments.length) + 1;
-        const shuffled = [...checkedFragments].sort(() => 0.5 - Math.random());
-        const selectedFragments = shuffled.slice(0, numberToSelect);
-        const fragmentsText = selectedFragments.join(', ');
+        const currentPrompt = this.state.get('current_prompt') || '';
+        const currentFragments = currentPrompt.split(',').map(f => f.trim());
 
-        let currentPrompt = this.state.get('current_prompt');
+        const availableFragments = selectedFragments.filter(f => !currentFragments.includes(f));
+
+        if (availableFragments.length === 0) {
+            showConfirmation("All selected fragments are already in the prompt!");
+            return;
+        }
+
+        const numberToSelect = Math.min(
+            Math.floor(Math.random() * availableFragments.length) + 1,
+            availableFragments.length
+        );
+        const shuffled = availableFragments.sort(() => 0.5 - Math.random());
+        const randomizedFragments = shuffled.slice(0, numberToSelect);
+        const fragmentsText = randomizedFragments.join(', ');
+
         const newPrompt = currentPrompt ? `${currentPrompt}, ${fragmentsText}` : fragmentsText;
         this.state.set('current_prompt', newPrompt.trim());
         this.updateUI();
@@ -83,7 +104,7 @@ class FragmentsColumn {
     }
 
     updateCheckedFragments(index, isChecked) {
-        const checkedFragments = this.state.get('checked_fragments');
+        const checkedFragments = this.state.get('checked_fragments') || [];
         if (isChecked) {
             if (!checkedFragments.includes(index)) {
                 checkedFragments.push(index);

@@ -220,16 +220,6 @@ The application is structured as a single-page interface divided into three main
     - The selected version is appended as `--v X` when copying the prompt.
     - Changes to the model version do not alter the current prompt directly.
 
-#### New Functionality (Below Options)
-
-- **Description:** Additional options or features can be added below the existing options in the options column.
-- **Potential Features:**
-    - **Seed Input:** Allow users to specify a seed value for reproducible results.
-    - **Style Presets:** Provide a dropdown of predefined style options (e.g., "photorealistic", "anime", "oil painting").
-    - **Negative Prompts:** Add a textarea for users to input things they want to exclude from the generated image.
-    - **Image Count:** Allow users to specify how many images they want to generate.
-    - **Custom Parameters:** Provide input fields for advanced users to add custom Midjourney parameters.
-
 ### Prompt History and Search
 
 #### Automatic History

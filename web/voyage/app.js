@@ -87,5 +87,7 @@ class App {
 }
 
 // Initialize the app
-const app = new App();
-app.updateUI();
+document.addEventListener('DOMContentLoaded', () => {
+    const app = new App();
+    app.updateUI();
+});

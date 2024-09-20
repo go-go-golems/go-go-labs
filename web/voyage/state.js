@@ -1,28 +1,39 @@
 class State {
     constructor() {
-        this.data = JSON.parse(localStorage.getItem('midjourneyPromptState')) || {
-            prompt_fragments: [
-                "a majestic lion",
-                "in a lush jungle",
-                "with vibrant colors",
-                "photorealistic style"
-            ],
-            images: [
-                { url: "https://example.com/lion.jpg", thumbnail: "", alt: "Lion" },
-                { url: "https://example.com/jungle.jpg", thumbnail: "", alt: "Jungle" }
-            ],
-            options: {
-                aspect_ratio: "16:9",
-                model_version: "v5"
-            },
-            current_prompt: "",
-            prompt_history: [
-                "a serene lake at sunset",
-                "cyberpunk cityscape with neon lights",
-                "abstract geometric patterns in pastel colors"
-            ],
-            search_query: ""
-        };
+        this.loadFromLocalStorage();
+    }
+
+    loadFromLocalStorage() {
+        const savedState = localStorage.getItem('midjourneyPromptState');
+        if (savedState) {
+            this.data = JSON.parse(savedState);
+        } else {
+            this.data = {
+                prompt_fragments: [
+                    "a majestic lion",
+                    "in a lush jungle",
+                    "with vibrant colors",
+                    "photorealistic style"
+                ],
+                images: [
+                    { url: "https://example.com/lion.jpg", thumbnail: "", alt: "Lion" },
+                    { url: "https://example.com/jungle.jpg", thumbnail: "", alt: "Jungle" }
+                ],
+                options: {
+                    aspect_ratio: "16:9",
+                    model_version: "v5"
+                },
+                current_prompt: "",
+                prompt_history: [
+                    "a serene lake at sunset",
+                    "cyberpunk cityscape with neon lights",
+                    "abstract geometric patterns in pastel colors"
+                ],
+                search_query: "",
+                checked_fragments: []
+            };
+            this.save();
+        }
     }
 
     get(key) {
