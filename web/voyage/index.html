@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Midjourney Prompt Remix Tool</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🖼️</text></svg>">
+</head>
+<body>
+    <div class="container">
+        <!-- Left Column: Prompt Fragments -->
+        <div class="column" id="fragments-column">
+            <h2>Prompt Fragments</h2>
+            <div class="checkbox-group" id="fragments-list">
+                <!-- Prompt Fragments will be dynamically added here with checkboxes -->
+            </div>
+            <button id="add-fragment-btn">Add New Fragment</button>
+            <button id="randomize-btn" class="randomize-btn">Randomize</button>
+        </div>
+
+        <!-- Center Column: Current Prompt and Images -->
+        <div class="column" id="prompt-column">
+            <h2>Current Prompt</h2>
+            <div class="prompt-area">
+                <textarea id="current-prompt" rows="6"></textarea>
+                <div class="buttons">
+                    <button id="copy-clipboard-btn">Copy to Clipboard</button>
+                    <button id="add-image-btn">Add Image URL</button>
+                </div>
+                <h3>Images</h3>
+                <div id="images-list">
+                    <!-- Images will be dynamically added here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Options -->
+        <div class="column" id="options-column">
+            <h2>Options</h2>
+            <div>
+                <h3>Aspect Ratio</h3>
+                <div id="aspect-ratio-options">
+                    <label><input type="radio" name="aspect-ratio" value="1:1"> 1:1</label><br>
+                    <label><input type="radio" name="aspect-ratio" value="16:9"> 16:9</label><br>
+                    <label><input type="radio" name="aspect-ratio" value="4:3"> 4:3</label>
+                </div>
+            </div>
+            <div>
+                <h3>Model Version</h3>
+                <select id="model-version-select">
+                    <option value="v5">v5</option>
+                    <option value="v4">v4</option>
+                    <option value="v3">v3</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Section: Prompt History -->
+    <div class="history">
+        <h2>Prompt History</h2>
+        <input type="text" id="search-history" class="search-input" placeholder="Search prompts">
+        <div id="history-list">
+            <!-- History items will be dynamically added here -->
+        </div>
+    </div>
+
+    <!-- Modal for Adding Image URL -->
+    <div class="modal" id="image-modal">
+        <div class="modal-content">
+            <h3>Add Image URL</h3>
+            <input type="text" id="new-image-url" placeholder="Paste image URL here">
+            <button id="confirm-add-image-btn">Add</button>
+            <button id="cancel-add-image-btn">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Confirmation Message -->
+    <div class="confirmation" id="confirmation-msg">
+        <!-- Confirmation message will be set dynamically -->
+    </div>
+
+    <div id="import-export">
+        <button id="export-btn">Export State</button>
+        <button id="import-btn">Import State</button>
+    </div>
+
+    <script type="module" src="utils.js"></script>
+    <script type="module" src="state.js"></script>
+    <script type="module" src="fragmentsColumn.js"></script>
+    <script type="module" src="promptColumn.js"></script>
+    <script type="module" src="optionsColumn.js"></script>
+    <script type="module" src="historySection.js"></script>
+    <script type="module" src="app.js"></script>
+</body>
+</html>
