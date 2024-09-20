@@ -14,13 +14,18 @@ class FragmentsColumn {
         this.element.querySelector('#unselect-all-btn').addEventListener('click', () => this.unselectAllFragments());
         this.element.querySelector('#save-selection-btn').addEventListener('click', () => this.openSaveSelectionModal());
         this.renderSavedSelections();
+        this.renderFragments();
     }
 
-    render() {
+    renderFragments() {
         const fragmentsList = this.element.querySelector('#fragments-list');
         fragmentsList.innerHTML = '';
         const fragments = this.state.get('prompt_fragments') || [];
         const checkedFragments = this.state.get('checked_fragments') || [];
+        const currentPrompt = this.state.get('current_prompt') || '';
+
+        console.log("currentPrompt", currentPrompt);
+
         fragments.forEach((fragment, index) => {
             const div = document.createElement('div');
             div.className = 'list-item';
@@ -29,19 +34,69 @@ class FragmentsColumn {
             checkbox.id = `fragment-${index}`;
             checkbox.checked = checkedFragments.includes(index);
             checkbox.addEventListener('change', () => this.updateCheckedFragments(index, checkbox.checked));
+            
             const label = document.createElement('label');
             label.htmlFor = `fragment-${index}`;
             label.textContent = fragment;
-            label.addEventListener('click', () => this.addFragmentToPrompt(fragment));
+            label.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.toggleFragment(fragment);
+            });
+            
+            // Add visual feedback for active fragments
+            if (this.isFragmentInPrompt(fragment, currentPrompt)) {
+                label.classList.add('active-fragment');
+            }
+
             const deleteBtn = document.createElement('button');
             deleteBtn.textContent = 'Delete';
             deleteBtn.addEventListener('click', () => this.deleteFragment(index));
+            
             div.appendChild(checkbox);
             div.appendChild(label);
             div.appendChild(deleteBtn);
             fragmentsList.appendChild(div);
         });
+    }
+
+    isFragmentInPrompt(fragment, prompt) {
+        return prompt.includes(fragment);
+    }
+
+    render() {
+        this.renderFragments();
         this.renderSavedSelections();
+    }
+
+    toggleFragment(fragment) {
+        let currentPrompt = this.state.get('current_prompt') || "";
+        console.log("currentPrompt", currentPrompt);
+        console.log("toggle fragment", fragment);
+        if (this.isFragmentInPrompt(fragment, currentPrompt)) {
+            console.log("removing fragment", fragment, currentPrompt);
+            currentPrompt = this.removeFragmentFromPrompt(fragment, currentPrompt);
+        } else {
+            console.log("adding fragment", fragment, currentPrompt);
+            currentPrompt = this.addFragmentToPrompt(fragment, currentPrompt);
+            console.log("currentPrompt after adding", currentPrompt);
+        }
+        console.log("currentPrompt after", currentPrompt);
+        this.state.set('current_prompt', currentPrompt);
+        this.updateUI();
+        showConfirmation(`Fragment "${fragment}" toggled`);
+    }
+
+    addFragmentToPrompt(fragment, prompt) {
+        console.log("adding fragment to prompt", fragment, prompt);
+        return prompt ? `${prompt}, ${fragment}` : fragment;
+    }
+
+    removeFragmentFromPrompt(fragment, prompt) {
+        const regex = new RegExp(`(,\\s*)?${fragment}(,\\s*)?`);
+        let newPrompt = prompt.replace(regex, ',');
+        // Remove leading/trailing commas and whitespace
+        newPrompt = newPrompt.replace(/^,\s*/, '').replace(/,\s*$/, '');
+        return newPrompt;
     }
 
     addFragment() {
@@ -67,13 +122,6 @@ class FragmentsColumn {
         
         this.updateUI();
         showConfirmation("Fragment deleted successfully!");
-    }
-
-    addFragmentToPrompt(fragment) {
-        let currentPrompt = this.state.get('current_prompt');
-        const newPrompt = currentPrompt ? `${currentPrompt}, ${fragment}` : fragment;
-        this.state.set('current_prompt', newPrompt.trim());
-        this.updateUI();
     }
 
     randomizeAndAddFragments() {

@@ -7,6 +7,36 @@ class State {
         const savedState = localStorage.getItem('midjourneyPromptState');
         if (savedState) {
             this.data = JSON.parse(savedState);
+
+            // make sure all the values are present, initialize with default if not
+            if (!this.data.prompt_fragments) {
+                this.data.prompt_fragments = [];
+            }
+            if (!this.data.images) {
+                this.data.images = [];
+            }
+            if (!this.data.options) {
+                this.data.options = {
+                    aspect_ratio: "16:9",
+                    model_version: "v5"
+                };
+            }  
+            if (!this.data.current_prompt) {
+                this.data.current_prompt = "";
+            }
+            if (!this.data.prompt_history) {
+                this.data.prompt_history = [ ];
+            }
+            if (!this.data.search_query) {
+                this.data.search_query = "";
+            }
+            if (!this.data.checked_fragments) {
+                this.save();
+            }
+            if (!this.data.saved_selections) {
+                this.data.saved_selections = [];    
+            }
+                this.save();
         } else {
             this.data = {
                 prompt_fragments: [
