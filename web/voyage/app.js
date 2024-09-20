@@ -15,6 +15,7 @@ class App {
 
         this.initModal();
         this.initImportExport();
+        this.initSaveSelectionModal();
     }
 
     initModal() {
@@ -25,6 +26,11 @@ class App {
     initImportExport() {
         document.getElementById('export-btn').addEventListener('click', () => this.exportState());
         document.getElementById('import-btn').addEventListener('click', () => this.importState());
+    }
+
+    initSaveSelectionModal() {
+        document.getElementById('confirm-save-selection-btn').addEventListener('click', () => this.fragmentsColumn.saveFragmentSelection());
+        document.getElementById('cancel-save-selection-btn').addEventListener('click', () => this.fragmentsColumn.closeSaveSelectionModal());
     }
 
     updateUI() {

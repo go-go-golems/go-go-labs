@@ -30,7 +30,8 @@ class State {
                     "abstract geometric patterns in pastel colors"
                 ],
                 search_query: "",
-                checked_fragments: []
+                checked_fragments: [],
+                saved_selections: []
             };
             this.save();
         }

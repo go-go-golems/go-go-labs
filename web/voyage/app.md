@@ -18,6 +18,7 @@
     - [Copy to Clipboard with Options](#copy-to-clipboard-with-options)
     - [Import/Export Feature](#import/export-feature)
     - [Image Thumbnails](#image-thumbnails)
+    - [Fragment Selection Management](#fragment-selection-management)
 6. [Non-Functional Requirements](#non-functional-requirements)
     - [Performance](#performance)
     - [Usability](#usability)
@@ -78,6 +79,9 @@ The application is structured as a single-page interface divided into three main
 - **Buttons:**
     - **Add New Fragment:** Opens a prompt dialog to add a new fragment.
     - **Randomize:** Selects a random subset of fragments and adds them to the current prompt.
+    - **Unselect All:** Unselects all fragment checkboxes.
+    - **Save Fragment Selection:** Opens a modal to save the current fragment selection.
+- **Saved Selections List:** Displays a list of saved fragment selections, each with a delete button.
 
 #### 2. Center Column: Current Prompt and Images
 
@@ -127,6 +131,14 @@ The application is structured as a single-page interface divided into three main
 - **Buttons:**
     - **Export:** Triggers the download of the current application state as a JSON file.
     - **Import:** Opens a file dialog to select and import a JSON state file.
+
+#### 8. Modal: Save Fragment Selection
+
+- **Title:** "Save Fragment Selection"
+- **Input Field:** Text input for entering a name for the selection.
+- **Buttons:**
+    - **Save:** Saves the current fragment selection with the given name.
+    - **Cancel:** Closes the modal without saving.
 
 ---
 
@@ -281,6 +293,30 @@ The application is structured as a single-page interface divided into three main
     - The application attempts to load the image asynchronously.
     - If loading fails, a default "broken image" icon is shown instead.
 
+### Fragment Selection Management
+
+#### Saving Fragment Selections
+
+- **Description:** Users can save their current fragment selection for later use.
+- **Behavior:**
+    - Clicking the "Save Fragment Selection" button opens a modal.
+    - Users enter a name for the selection and confirm.
+    - The saved selection appears in the Saved Selections list.
+
+#### Restoring Saved Selections
+
+- **Description:** Users can restore a previously saved fragment selection.
+- **Behavior:**
+    - Clicking on a saved selection in the list restores that selection.
+    - The corresponding fragment checkboxes are updated to match the saved selection.
+
+#### Deleting Saved Selections
+
+- **Description:** Users can delete a saved fragment selection.
+- **Behavior:**
+    - Each saved selection has a delete button.
+    - Clicking the delete button removes the saved selection from the list.
+
 ---
 
 ## Non-Functional Requirements
@@ -327,7 +363,9 @@ The application state is managed as a JavaScript object and persisted in `localS
     },
     current_prompt: "user's current prompt text",
     prompt_history: [ "history_prompt1", "history_prompt2", ... ],
-    search_query: "" // Current search term for filtering history
+    search_query: "", // Current search term for filtering history
+    checked_fragments: [],
+    saved_selections: []
 }
 ```
 
@@ -339,6 +377,8 @@ The application state is managed as a JavaScript object and persisted in `localS
 - **current_prompt:** A string representing the prompt being edited or composed.
 - **prompt_history:** An array of strings representing previously created prompts.
 - **search_query:** A string representing the current search term for filtering the prompt history.
+- **checked_fragments:** An array of indices representing the currently checked prompt fragments.
+- **saved_selections:** An array of objects representing saved fragment selections.
 
 ---
 
@@ -425,6 +465,24 @@ The application state is managed as a JavaScript object and persisted in `localS
 1. **Action:** Click the "Import" button and select a JSON file.
 2. **Behavior:** The selected file is parsed and validated.
 3. **Result:** If valid, the imported state replaces the current application state, and the UI is updated accordingly.
+
+### Saving Fragment Selection
+
+1. **Action:** Click the "Save Fragment Selection" button.
+2. **Behavior:** A modal appears with an input field for the selection name.
+3. **Result:** Upon confirmation, the current fragment selection is saved with the given name and added to the Saved Selections list.
+
+### Restoring Saved Selection
+
+1. **Action:** Click on a saved selection in the Saved Selections list.
+2. **Behavior:** The corresponding fragment checkboxes are updated to match the saved selection.
+3. **Result:** The current prompt is updated with the restored fragments.
+
+### Deleting Saved Selection
+
+1. **Action:** Click the "Delete" button next to a saved selection.
+2. **Behavior:** The selected saved selection is removed from the list.
+3. **Result:** The saved selection is no longer available for restoration.
 
 ---
 

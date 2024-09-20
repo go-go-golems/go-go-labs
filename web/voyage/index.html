@@ -16,7 +16,15 @@
                 <!-- Prompt Fragments will be dynamically added here with checkboxes -->
             </div>
             <button id="add-fragment-btn">Add New Fragment</button>
-            <button id="randomize-btn" class="randomize-btn">Randomize</button>
+            <div class="button-group">
+                <button id="randomize-btn" class="randomize-btn">Randomize</button>
+                <button id="unselect-all-btn">Unselect All</button>
+            </div>
+            <button id="save-selection-btn">Save Fragment Selection</button>
+            <h3>Saved Selections</h3>
+            <div id="saved-selections-list">
+                <!-- Saved selections will be dynamically added here -->
+            </div>
         </div>
 
         <!-- Center Column: Current Prompt and Images -->
@@ -73,6 +81,16 @@
             <input type="text" id="new-image-url" placeholder="Paste image URL here">
             <button id="confirm-add-image-btn">Add</button>
             <button id="cancel-add-image-btn">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Modal for Saving Fragment Selection -->
+    <div class="modal" id="save-selection-modal">
+        <div class="modal-content">
+            <h3>Save Fragment Selection</h3>
+            <input type="text" id="selection-name" placeholder="Enter a name for this selection">
+            <button id="confirm-save-selection-btn">Save</button>
+            <button id="cancel-save-selection-btn">Cancel</button>
         </div>
     </div>
 
