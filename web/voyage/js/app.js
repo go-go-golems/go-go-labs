@@ -1,8 +1,8 @@
 import State from './state.js';
-import FragmentsColumn from './fragmentsColumn.js';
-import PromptColumn from './promptColumn.js';
-import OptionsColumn from './optionsColumn.js';
-import HistorySection from './historySection.js';
+import FragmentsColumn from './components/fragmentsColumn.js';
+import PromptColumn from './components/promptColumn.js';
+import OptionsColumn from './components/optionsColumn.js';
+import HistorySection from './components/historySection.js';
 import { showConfirmation } from './utils.js';
 
 class App {

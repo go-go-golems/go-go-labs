@@ -1,5 +1,5 @@
 import { html, render } from 'https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js';
-import { showConfirmation } from './utils.js';
+import { showConfirmation } from '../utils.js';
 
 class FragmentsColumn {
     constructor(state, updateUI) {
