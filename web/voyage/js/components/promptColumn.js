@@ -1,9 +1,12 @@
 import { html, render } from 'https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js';
 import { escapeRegExp, showConfirmation } from '../utils.js';
+import { setCurrentPrompt, addToHistory } from '../slices/promptHistorySlice.js';
+import { addImage, deleteImage } from '../slices/imagesSlice.js';
+import { setAspectRatio, setModelVersion } from '../slices/optionsSlice.js';
 
 class PromptColumn {
-    constructor(state, updateUI) {
-        this.state = state;
+    constructor(store, updateUI) {
+        this.store = store;
         this.updateUI = updateUI;
         this.element = document.getElementById('prompt-column');
         this.init();
@@ -20,17 +23,21 @@ class PromptColumn {
     }
 
     render() {
+        const state = this.store.getState();
+        const currentPrompt = state.promptHistory.current_prompt || '';
+        const images = state.images.images || [];
+
         const template = html`
             <h2>Current Prompt</h2>
             <div class="prompt-area">
-                <textarea id="current-prompt" rows="6" .value=${this.state.get('current_prompt')}></textarea>
+                <textarea id="current-prompt" rows="6" .value=${currentPrompt}></textarea>
                 <div class="buttons">
                     <button id="copy-clipboard-btn">Copy to Clipboard</button>
                     <button id="add-image-btn">Add Image URL</button>
                 </div>
                 <h3>Images</h3>
                 <div id="images-list">
-                    ${this.state.get('images').map((image, index) => html`
+                    ${images.map((image, index) => html`
                         <div class="list-item">
                             <img src=${image.thumbnail || image.url} 
                                  alt=${image.alt} 
@@ -48,16 +55,17 @@ class PromptColumn {
     }
 
     updateCurrentPrompt(value) {
-        this.state.set('current_prompt', value);
+        this.store.dispatch(setCurrentPrompt(value));
     }
 
     copyToClipboard() {
-        let promptToCopy = this.state.get('current_prompt');
-        const options = this.state.get('options');
+        const state = this.store.getState();
+        let promptToCopy = state.promptHistory.current_prompt;
+        const options = state.options;
         promptToCopy += ` --ar ${options.aspect_ratio} --v ${options.model_version}`;
         navigator.clipboard.writeText(promptToCopy).then(() => {
             showConfirmation("Prompt copied to clipboard!");
-            this.state.addToHistory(promptToCopy);
+            this.store.dispatch(addToHistory(promptToCopy));
             this.updateUI();
         }).catch(err => {
             alert('Failed to copy: ', err);
@@ -70,46 +78,15 @@ class PromptColumn {
         document.getElementById('new-image-url').focus();
     }
 
-    addImageToPrompt(url) {
-        let currentPrompt = this.state.get('current_prompt');
-        const newPrompt = currentPrompt ? `${url}, ${currentPrompt}` : url;
-        this.state.set('current_prompt', newPrompt.trim());
-        this.updateUI();
-    }
-
-    deleteImage(index) {
-        const images = this.state.get('images');
-        if (index >= 0 && index < images.length) {
-            const url = images[index].url;
-            images.splice(index, 1);
-            this.state.set('images', images);
-
-            let currentPrompt = this.state.get('current_prompt');
-            if (url) {
-                currentPrompt = this.removeImageFromPrompt(url, currentPrompt);
-            }
-            this.state.set('current_prompt', currentPrompt);
-
-            this.updateUI();
-            showConfirmation("Image deleted successfully!");
-        } else {
-            console.error("Invalid image index");
-        }
-    }
-
-    isImageInPrompt(url) {
-        const currentPrompt = this.state.get('current_prompt') || '';
-        return currentPrompt.includes(url);
-    }
-
     toggleImage(url) {
-        let currentPrompt = this.state.get('current_prompt') || '';
+        const state = this.store.getState();
+        let currentPrompt = state.promptHistory.current_prompt || '';
         if (this.isImageInPrompt(url)) {
             currentPrompt = this.removeImageFromPrompt(url, currentPrompt);
         } else {
             currentPrompt = this.addImageToPrompt(url, currentPrompt);
         }
-        this.state.set('current_prompt', currentPrompt);
+        this.store.dispatch(setCurrentPrompt(currentPrompt));
         this.updateUI();
         showConfirmation(`Image "${url}" toggled`);
     }
@@ -119,11 +96,21 @@ class PromptColumn {
     }
 
     removeImageFromPrompt(url, prompt) {
-        const regex = new RegExp(`(,\\s*)?${escapeRegExp(url)}(,\\s*)?`);
+        const regex = new RegExp(`(,\\s*)?${escapeRegExp(url)}(,\\s*)?`, 'g');
         let newPrompt = prompt.replace(regex, ',');
-        // Remove leading/trailing commas and whitespace
         newPrompt = newPrompt.replace(/^,\s*/, '').replace(/,\s*$/, '');
         return newPrompt;
+    }
+
+    deleteImage(index) {
+        this.store.dispatch(deleteImage(index));
+        this.updateUI();
+        showConfirmation("Image deleted successfully!");
+    }
+
+    isImageInPrompt(url) {
+        const currentPrompt = this.store.getState().promptHistory.current_prompt || '';
+        return currentPrompt.includes(url);
     }
 }
 

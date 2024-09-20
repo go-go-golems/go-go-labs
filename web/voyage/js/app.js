@@ -1,21 +1,27 @@
-import State from './state.js';
+import store from './store.js';
 import FragmentsColumn from './components/fragmentsColumn.js';
 import PromptColumn from './components/promptColumn.js';
 import OptionsColumn from './components/optionsColumn.js';
 import HistorySection from './components/historySection.js';
 import { showConfirmation } from './utils.js';
+import { addImage } from './slices/imagesSlice.js';
+import { setCurrentPrompt, addToHistory } from './slices/promptHistorySlice.js';
+import { replacePromptFragments } from './slices/promptFragmentsSlice.js';
+import { replaceImages } from './slices/imagesSlice.js';
+import { replaceOptions } from './slices/optionsSlice.js';
+import { replacePromptHistory } from './slices/promptHistorySlice.js';
 
 class App {
     constructor() {
-        this.state = new State();
-        this.fragmentsColumn = new FragmentsColumn(this.state, () => this.updateUI());
-        this.promptColumn = new PromptColumn(this.state, () => this.updateUI());
-        this.optionsColumn = new OptionsColumn(this.state, () => this.updateUI());
-        this.historySection = new HistorySection(this.state, () => this.updateUI());
+        this.fragmentsColumn = new FragmentsColumn(store, () => this.updateUI());
+        this.promptColumn = new PromptColumn(store, () => this.updateUI());
+        this.optionsColumn = new OptionsColumn(store, () => this.updateUI());
+        this.historySection = new HistorySection(store, () => this.updateUI());
 
         this.initModal();
         this.initImportExport();
-        this.initSaveSelectionModal();
+
+        store.subscribe(() => this.updateUI());
     }
 
     initModal() {
@@ -28,25 +34,18 @@ class App {
         document.getElementById('import-btn').addEventListener('click', () => this.importState());
     }
 
-    initSaveSelectionModal() {
-        document.getElementById('confirm-save-selection-btn').addEventListener('click', () => this.fragmentsColumn.saveFragmentSelection());
-        document.getElementById('cancel-save-selection-btn').addEventListener('click', () => this.fragmentsColumn.closeSaveSelectionModal());
-    }
-
     updateUI() {
         this.fragmentsColumn.render();
         this.promptColumn.render();
         this.optionsColumn.render();
         this.historySection.render();
-        this.state.save();
     }
 
     addImageURL() {
         const url = document.getElementById('new-image-url').value.trim();
         if (url) {
-            const images = this.state.get('images');
-            images.unshift({ url, thumbnail: "", alt: "New image" });
-            this.state.set('images', images);
+            const newImage = { url, thumbnail: "", alt: "New image" };
+            store.dispatch(addImage(newImage));
             this.updateUI();
             this.closeModal();
             showConfirmation("Image added successfully!");
@@ -58,7 +57,8 @@ class App {
     }
 
     exportState() {
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(this.state.data));
+        const state = store.getState();
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
         const downloadAnchorNode = document.createElement('a');
         downloadAnchorNode.setAttribute("href", dataStr);
         downloadAnchorNode.setAttribute("download", "midjourney_prompt_state.json");
@@ -78,8 +78,20 @@ class App {
             reader.onload = event => {
                 try {
                     const importedState = JSON.parse(event.target.result);
-                    this.state.data = importedState;
-                    this.state.save();
+                    
+                    if (importedState.promptFragments) {
+                        store.dispatch(replacePromptFragments(importedState.promptFragments));
+                    }
+                    if (importedState.images) {
+                        store.dispatch(replaceImages(importedState.images));
+                    }
+                    if (importedState.options) {
+                        store.dispatch(replaceOptions(importedState.options));
+                    }
+                    if (importedState.promptHistory) {
+                        store.dispatch(replacePromptHistory(importedState.promptHistory));
+                    }
+
                     this.updateUI();
                     showConfirmation("State imported successfully!");
                 } catch (error) {

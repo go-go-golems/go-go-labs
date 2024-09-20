@@ -1,8 +1,9 @@
 import { html, render } from 'https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js';
+import { setAspectRatio, setModelVersion } from '../slices/optionsSlice.js';
 
 class OptionsColumn {
-    constructor(state, updateUI) {
-        this.state = state;
+    constructor(store, updateUI) {
+        this.store = store;
         this.updateUI = updateUI;
         this.element = document.getElementById('options-column');
         this.init();
@@ -16,7 +17,9 @@ class OptionsColumn {
     }
 
     render() {
-        const options = this.state.get('options');
+        const state = this.store.getState();
+        const options = state.options;
+
         const template = html`
             <h2>Options</h2>
             <div>
@@ -67,16 +70,12 @@ class OptionsColumn {
     }
 
     handleAspectRatioChange(event) {
-        const options = this.state.get('options');
-        options.aspect_ratio = event.target.value;
-        this.state.set('options', options);
+        this.store.dispatch(setAspectRatio(event.target.value));
         this.updateUI();
     }
 
     handleModelVersionChange(event) {
-        const options = this.state.get('options');
-        options.model_version = event.target.value;
-        this.state.set('options', options);
+        this.store.dispatch(setModelVersion(event.target.value));
         this.updateUI();
     }
 }

@@ -1,9 +1,18 @@
 import { html, render } from 'https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js';
 import { showConfirmation } from '../utils.js';
+import {
+    addFragment,
+    deleteFragment,
+    toggleCheckedFragment,
+    unselectAllFragments,
+    saveSelection,
+    deleteSavedSelection
+} from '../slices/promptFragmentsSlice.js';
+import { setCurrentPrompt, addToHistory } from '../slices/promptHistorySlice.js';
 
 class FragmentsColumn {
-    constructor(state, updateUI) {
-        this.state = state;
+    constructor(store, updateUI) {
+        this.store = store;
         this.updateUI = updateUI;
         this.element = document.getElementById('fragments-column');
         this.init();
@@ -19,10 +28,11 @@ class FragmentsColumn {
     }
 
     render() {
-        const fragments = this.state.get('prompt_fragments') || [];
-        const checkedFragments = this.state.get('checked_fragments') || [];
-        const currentPrompt = this.state.get('current_prompt') || '';
-        const savedSelections = this.state.get('saved_selections') || [];
+        const state = this.store.getState();
+        const fragments = state.promptFragments.prompt_fragments || [];
+        const checkedFragments = state.promptFragments.checked_fragments || [];
+        const currentPrompt = state.promptHistory.current_prompt || '';
+        const savedSelections = state.promptFragments.saved_selections || [];
 
         const template = html`
             <h2>Prompt Fragments</h2>
@@ -49,13 +59,13 @@ class FragmentsColumn {
             <div class="list-item">
                 <input type="checkbox" id="fragment-${index}" 
                        ?checked=${checkedFragments.includes(index)}
-                       @change=${(e) => this.updateCheckedFragments(index, e.target.checked)}>
+                       @change=${() => this.store.dispatch(toggleCheckedFragment(index))}>
                 <label for="fragment-${index}" 
                        class=${this.isFragmentInPrompt(fragment, currentPrompt) ? 'active-fragment' : ''}
                        @click=${(e) => { e.preventDefault(); this.toggleFragment(fragment); }}>
                     ${fragment}
                 </label>
-                <button @click=${() => this.deleteFragment(index)}>Delete</button>
+                <button @click=${() => this.store.dispatch(deleteFragment(index))}>Delete</button>
             </div>
         `;
     }
@@ -64,7 +74,7 @@ class FragmentsColumn {
         return html`
             <div class="list-item">
                 <span @click=${() => this.restoreSavedSelection(savedSelection.selection)}>${savedSelection.name}</span>
-                <button @click=${() => this.deleteSavedSelection(index)}>Delete</button>
+                <button @click=${() => this.store.dispatch(deleteSavedSelection(index))}>Delete</button>
             </div>
         `;
     }
@@ -74,13 +84,17 @@ class FragmentsColumn {
     }
 
     toggleFragment(fragment) {
-        let currentPrompt = this.state.get('current_prompt') || "";
+        const state = this.store.getState();
+        let currentPrompt = state.promptHistory.current_prompt || "";
+
         if (this.isFragmentInPrompt(fragment, currentPrompt)) {
             currentPrompt = this.removeFragmentFromPrompt(fragment, currentPrompt);
         } else {
             currentPrompt = this.addFragmentToPrompt(fragment, currentPrompt);
         }
-        this.state.set('current_prompt', currentPrompt);
+
+        this.store.dispatch(setCurrentPrompt(currentPrompt.trim()));
+        this.store.dispatch(addToHistory(currentPrompt.trim()));
         this.updateUI();
         showConfirmation(`Fragment "${fragment}" toggled`);
     }
@@ -90,46 +104,34 @@ class FragmentsColumn {
     }
 
     removeFragmentFromPrompt(fragment, prompt) {
-        const regex = new RegExp(`(,\\s*)?${fragment}(,\\s*)?`);
+        const regex = new RegExp(`(,\\s*)?${this.escapeRegExp(fragment)}(,\\s*)?`, 'g');
         let newPrompt = prompt.replace(regex, ',');
-        // Remove leading/trailing commas and whitespace
         newPrompt = newPrompt.replace(/^,\s*/, '').replace(/,\s*$/, '');
         return newPrompt;
+    }
+
+    escapeRegExp(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
     addFragment() {
         const fragment = prompt("Enter new prompt fragment:");
         if (fragment) {
-            const fragments = this.state.get('prompt_fragments');
-            fragments.push(fragment.trim());
-            this.state.set('prompt_fragments', fragments);
+            this.store.dispatch(addFragment(fragment.trim()));
             this.updateUI();
             showConfirmation("Fragment added successfully!");
         }
     }
 
-    deleteFragment(index) {
-        const fragments = this.state.get('prompt_fragments');
-        fragments.splice(index, 1);
-        this.state.set('prompt_fragments', fragments);
-        
-        // Also update checked_fragments
-        const checkedFragments = this.state.get('checked_fragments') || [];
-        const updatedCheckedFragments = checkedFragments.filter(i => i !== index).map(i => i > index ? i - 1 : i);
-        this.state.set('checked_fragments', updatedCheckedFragments);
-        
-        this.updateUI();
-        showConfirmation("Fragment deleted successfully!");
-    }
-
     randomizeAndAddFragments() {
-        const fragments = this.state.get('prompt_fragments');
-        const checkedFragments = this.state.get('checked_fragments') || [];
+        const state = this.store.getState();
+        const fragments = state.promptFragments.prompt_fragments;
+        const checkedFragments = state.promptFragments.checked_fragments;
         const selectedFragments = checkedFragments.map(index => fragments[index]);
-        
+
         if (selectedFragments.length === 0) return;
 
-        const currentPrompt = this.state.get('current_prompt') || '';
+        const currentPrompt = state.promptHistory.current_prompt || '';
         const currentFragments = currentPrompt.split(',').map(f => f.trim());
 
         const availableFragments = selectedFragments.filter(f => !currentFragments.includes(f));
@@ -148,29 +150,14 @@ class FragmentsColumn {
         const fragmentsText = randomizedFragments.join(', ');
 
         const newPrompt = currentPrompt ? `${currentPrompt}, ${fragmentsText}` : fragmentsText;
-        this.state.set('current_prompt', newPrompt.trim());
+        this.store.dispatch(setCurrentPrompt(newPrompt.trim()));
+        this.store.dispatch(addToHistory(newPrompt.trim()));
         this.updateUI();
         showConfirmation("Random fragments added to prompt!");
     }
 
-    updateCheckedFragments(index, isChecked) {
-        const checkedFragments = this.state.get('checked_fragments') || [];
-        if (isChecked) {
-            if (!checkedFragments.includes(index)) {
-                checkedFragments.push(index);
-            }
-        } else {
-            const indexToRemove = checkedFragments.indexOf(index);
-            if (indexToRemove !== -1) {
-                checkedFragments.splice(indexToRemove, 1);
-            }
-        }
-        this.state.set('checked_fragments', checkedFragments);
-    }
-
     unselectAllFragments() {
-        const checkedFragments = [];
-        this.state.set('checked_fragments', checkedFragments);
+        this.store.dispatch(unselectAllFragments());
         this.updateUI();
         showConfirmation("All fragments unselected!");
     }
@@ -180,15 +167,21 @@ class FragmentsColumn {
         modal.style.display = 'flex';
         document.getElementById('selection-name').value = '';
         document.getElementById('selection-name').focus();
+
+        if (!this.saveSelectionListener) {
+            this.saveSelectionListener = () => this.saveFragmentSelection();
+            document.getElementById('confirm-save-selection-btn').addEventListener('click', this.saveSelectionListener);
+            document.getElementById('cancel-save-selection-btn').addEventListener('click', () => this.closeSaveSelectionModal());
+        }
     }
 
     saveFragmentSelection() {
         const name = document.getElementById('selection-name').value.trim();
         if (name) {
-            const checkedFragments = this.state.get('checked_fragments');
-            const savedSelections = this.state.get('saved_selections') || [];
-            savedSelections.push({ name, selection: checkedFragments });
-            this.state.set('saved_selections', savedSelections);
+            const state = this.store.getState();
+            const checkedFragments = state.promptFragments.checked_fragments;
+            const selection = { name, selection: checkedFragments };
+            this.store.dispatch(saveSelection(selection));
             this.updateUI();
             this.closeSaveSelectionModal();
             showConfirmation("Fragment selection saved!");
@@ -200,17 +193,11 @@ class FragmentsColumn {
     }
 
     restoreSavedSelection(selection) {
-        this.state.set('checked_fragments', selection);
+        selection.forEach(index => {
+            this.store.dispatch(toggleCheckedFragment(index));
+        });
         this.updateUI();
         showConfirmation("Saved selection restored!");
-    }
-
-    deleteSavedSelection(index) {
-        const savedSelections = this.state.get('saved_selections') || [];
-        savedSelections.splice(index, 1);
-        this.state.set('saved_selections', savedSelections);
-        this.updateUI();
-        showConfirmation("Saved selection deleted!");
     }
 }
 
