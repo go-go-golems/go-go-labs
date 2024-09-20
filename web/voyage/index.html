@@ -14,20 +14,7 @@
     <div class="container">
         <!-- Left Column: Prompt Fragments -->
         <div class="column" id="fragments-column">
-            <h2>Prompt Fragments</h2>
-            <div class="checkbox-group" id="fragments-list">
-                <!-- Prompt Fragments will be dynamically added here with checkboxes -->
-            </div>
-            <button id="add-fragment-btn">Add New Fragment</button>
-            <div class="button-group">
-                <button id="randomize-btn" class="randomize-btn">Randomize</button>
-                <button id="unselect-all-btn">Unselect All</button>
-            </div>
-            <button id="save-selection-btn">Save Fragment Selection</button>
-            <h3>Saved Selections</h3>
-            <div id="saved-selections-list">
-                <!-- Saved selections will be dynamically added here -->
-            </div>
+            <!-- Content will be dynamically rendered here by lit-html -->
         </div>
 
         <!-- Center Column: Current Prompt and Images -->
@@ -37,26 +24,7 @@
 
         <!-- Right Column: Options -->
         <div class="column" id="options-column">
-            <h2>Options</h2>
-            <div>
-                <h3>Aspect Ratio</h3>
-                <div id="aspect-ratio-options">
-                    <label><input type="radio" name="aspect-ratio" value="1:1"> 1:1</label><br>
-                    <label><input type="radio" name="aspect-ratio" value="16:9"> 16:9</label><br>
-                    <label><input type="radio" name="aspect-ratio" value="4:3"> 4:3</label>
-                </div>
-            </div>
-            <div>
-                <h3>Model Version</h3>
-                <select id="model-version-select">
-                    <option value="7">v7</option>
-                    <option value="6">v6</option>
-                    <option value="5">v5</option>
-                    <option value="4">v4</option>
-                    <option value="3">v3</option>
-                    <option value="2">v2</option>
-                </select>
-            </div>
+            <!-- Content will be dynamically rendered here by lit-html -->
         </div>
     </div>
 
@@ -100,13 +68,13 @@
     </div>
     <script type="module" src="https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js"></script>
 
-    <script type="module" src="utils.js"></script>
-    <script type="module" src="state.js"></script>
-    <script type="module" src="fragmentsColumn.js"></script>
-    <script type="module" src="promptColumn.js"></script>
-    <script type="module" src="optionsColumn.js"></script>
-    <script type="module" src="historySection.js"></script>
-    <script type="module" src="app.js"></script>
+    <script type="module" src="js/utils.js"></script>
+    <script type="module" src="js/state.js"></script>
+    <script type="module" src="js/fragmentsColumn.js"></script>
+    <script type="module" src="js/promptColumn.js"></script>
+    <script type="module" src="js/optionsColumn.js"></script>
+    <script type="module" src="js/historySection.js"></script>
+    <script type="module" src="js/app.js"></script>
 </body>
 
 </html>

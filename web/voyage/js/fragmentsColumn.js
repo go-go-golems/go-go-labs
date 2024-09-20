@@ -1,3 +1,4 @@
+import { html, render } from 'https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js';
 import { showConfirmation } from './utils.js';
 
 class FragmentsColumn {
@@ -9,85 +10,82 @@ class FragmentsColumn {
     }
 
     init() {
-        this.element.querySelector('#add-fragment-btn').addEventListener('click', () => this.addFragment());
-        this.element.querySelector('#randomize-btn').addEventListener('click', () => this.randomizeAndAddFragments());
-        this.element.querySelector('#unselect-all-btn').addEventListener('click', () => this.unselectAllFragments());
-        this.element.querySelector('#save-selection-btn').addEventListener('click', () => this.openSaveSelectionModal());
-        this.renderSavedSelections();
-        this.renderFragments();
+        this.element.addEventListener('click', (e) => {
+            if (e.target.id === 'add-fragment-btn') this.addFragment();
+            if (e.target.id === 'randomize-btn') this.randomizeAndAddFragments();
+            if (e.target.id === 'unselect-all-btn') this.unselectAllFragments();
+            if (e.target.id === 'save-selection-btn') this.openSaveSelectionModal();
+        });
     }
 
-    renderFragments() {
-        const fragmentsList = this.element.querySelector('#fragments-list');
-        fragmentsList.innerHTML = '';
+    render() {
         const fragments = this.state.get('prompt_fragments') || [];
         const checkedFragments = this.state.get('checked_fragments') || [];
         const currentPrompt = this.state.get('current_prompt') || '';
+        const savedSelections = this.state.get('saved_selections') || [];
 
-        console.log("currentPrompt", currentPrompt);
+        const template = html`
+            <h2>Prompt Fragments</h2>
+            <div class="checkbox-group" id="fragments-list">
+                ${fragments.map((fragment, index) => this.renderFragment(fragment, index, checkedFragments, currentPrompt))}
+            </div>
+            <button id="add-fragment-btn">Add New Fragment</button>
+            <div class="button-group">
+                <button id="randomize-btn" class="randomize-btn">Randomize</button>
+                <button id="unselect-all-btn">Unselect All</button>
+            </div>
+            <button id="save-selection-btn">Save Fragment Selection</button>
+            <h3>Saved Selections</h3>
+            <div id="saved-selections-list">
+                ${savedSelections.map((savedSelection, index) => this.renderSavedSelection(savedSelection, index))}
+            </div>
+        `;
 
-        fragments.forEach((fragment, index) => {
-            const div = document.createElement('div');
-            div.className = 'list-item';
-            const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.id = `fragment-${index}`;
-            checkbox.checked = checkedFragments.includes(index);
-            checkbox.addEventListener('change', () => this.updateCheckedFragments(index, checkbox.checked));
-            
-            const label = document.createElement('label');
-            label.htmlFor = `fragment-${index}`;
-            label.textContent = fragment;
-            label.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.toggleFragment(fragment);
-            });
-            
-            // Add visual feedback for active fragments
-            if (this.isFragmentInPrompt(fragment, currentPrompt)) {
-                label.classList.add('active-fragment');
-            }
+        render(template, this.element);
+    }
 
-            const deleteBtn = document.createElement('button');
-            deleteBtn.textContent = 'Delete';
-            deleteBtn.addEventListener('click', () => this.deleteFragment(index));
-            
-            div.appendChild(checkbox);
-            div.appendChild(label);
-            div.appendChild(deleteBtn);
-            fragmentsList.appendChild(div);
-        });
+    renderFragment(fragment, index, checkedFragments, currentPrompt) {
+        return html`
+            <div class="list-item">
+                <input type="checkbox" id="fragment-${index}" 
+                       ?checked=${checkedFragments.includes(index)}
+                       @change=${(e) => this.updateCheckedFragments(index, e.target.checked)}>
+                <label for="fragment-${index}" 
+                       class=${this.isFragmentInPrompt(fragment, currentPrompt) ? 'active-fragment' : ''}
+                       @click=${(e) => { e.preventDefault(); this.toggleFragment(fragment); }}>
+                    ${fragment}
+                </label>
+                <button @click=${() => this.deleteFragment(index)}>Delete</button>
+            </div>
+        `;
+    }
+
+    renderSavedSelection(savedSelection, index) {
+        return html`
+            <div class="list-item">
+                <span @click=${() => this.restoreSavedSelection(savedSelection.selection)}>${savedSelection.name}</span>
+                <button @click=${() => this.deleteSavedSelection(index)}>Delete</button>
+            </div>
+        `;
     }
 
     isFragmentInPrompt(fragment, prompt) {
         return prompt.includes(fragment);
     }
 
-    render() {
-        this.renderFragments();
-        this.renderSavedSelections();
-    }
-
     toggleFragment(fragment) {
         let currentPrompt = this.state.get('current_prompt') || "";
-        console.log("currentPrompt", currentPrompt);
-        console.log("toggle fragment", fragment);
         if (this.isFragmentInPrompt(fragment, currentPrompt)) {
-            console.log("removing fragment", fragment, currentPrompt);
             currentPrompt = this.removeFragmentFromPrompt(fragment, currentPrompt);
         } else {
-            console.log("adding fragment", fragment, currentPrompt);
             currentPrompt = this.addFragmentToPrompt(fragment, currentPrompt);
-            console.log("currentPrompt after adding", currentPrompt);
         }
-        console.log("currentPrompt after", currentPrompt);
         this.state.set('current_prompt', currentPrompt);
         this.updateUI();
         showConfirmation(`Fragment "${fragment}" toggled`);
     }
 
     addFragmentToPrompt(fragment, prompt) {
-        console.log("adding fragment to prompt", fragment, prompt);
         return prompt ? `${prompt}, ${fragment}` : fragment;
     }
 
@@ -199,26 +197,6 @@ class FragmentsColumn {
 
     closeSaveSelectionModal() {
         document.getElementById('save-selection-modal').style.display = 'none';
-    }
-
-    renderSavedSelections() {
-        const savedSelectionsList = this.element.querySelector('#saved-selections-list');
-        savedSelectionsList.innerHTML = '';
-        const savedSelections = this.state.get('saved_selections') || [];
-        savedSelections.forEach((savedSelection, index) => {
-            const div = document.createElement('div');
-            div.className = 'list-item';
-            const span = document.createElement('span');
-            span.textContent = savedSelection.name;
-            span.style.cursor = 'pointer';
-            span.addEventListener('click', () => this.restoreSavedSelection(savedSelection.selection));
-            const deleteBtn = document.createElement('button');
-            deleteBtn.textContent = 'Delete';
-            deleteBtn.addEventListener('click', () => this.deleteSavedSelection(index));
-            div.appendChild(span);
-            div.appendChild(deleteBtn);
-            savedSelectionsList.appendChild(div);
-        });
     }
 
     restoreSavedSelection(selection) {
