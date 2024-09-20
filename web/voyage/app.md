@@ -176,9 +176,10 @@ The application is structured as a single-page interface divided into three main
 
 #### Using Fragments
 
-- **Description:** Users can add fragments to the current prompt by clicking on the fragment text.
+- **Description:** Users can toggle prompt fragments in the current prompt by clicking on the fragment text.
 - **Behavior:**
-    - Clicked fragments are appended to the current prompt, separated by commas.
+    - If the clicked fragment is not in the current prompt, it is appended, separated by a comma.
+    - If the clicked fragment is already in the current prompt, it is removed, including any associated comma.
 
 #### Selecting Fragments for Randomization
 
@@ -251,7 +252,10 @@ The application is structured as a single-page interface divided into three main
 
 - **Description:** Clicking on a historical prompt loads it into the current prompt and updates the options accordingly.
 - **Behavior:**
-    - The aspect ratio and model version from the historical prompt are parsed and set as current selections.
+    - The prompt is parsed to extract `--v` and `--ar` options.
+    - These options are removed from the prompt text.
+    - The aspect ratio and model version are set based on the extracted options.
+    - The cleaned prompt (without options) is loaded into the current prompt textarea.
 
 ### Prompt Fragments Separated by Commas
 
@@ -451,8 +455,13 @@ The application state is managed as a JavaScript object and persisted in `localS
 ### Using a Historical Prompt
 
 1. **Action:** Click on a prompt within the filtered history list.
-2. **Behavior:** The selected prompt loads into the current prompt textarea, and options are updated accordingly.
-3. **Result:** The aspect ratio and model version are set based on the selected prompt's parameters.
+2. **Behavior:** 
+    - The selected prompt is parsed to extract `--v` and `--ar` options.
+    - These options are removed from the prompt text.
+    - The aspect ratio and model version options are updated based on the extracted values.
+3. **Result:** 
+    - The cleaned prompt (without options) is loaded into the current prompt textarea.
+    - The aspect ratio and model version UI elements are updated to reflect the extracted options.
 
 ### Exporting Application State
 
@@ -483,6 +492,15 @@ The application state is managed as a JavaScript object and persisted in `localS
 1. **Action:** Click the "Delete" button next to a saved selection.
 2. **Behavior:** The selected saved selection is removed from the list.
 3. **Result:** The saved selection is no longer available for restoration.
+
+### Toggling Prompt Fragments
+
+1. **Action:** Click on a prompt fragment in the fragments list.
+2. **Behavior:** 
+    - The application checks if the fragment is already present in the current prompt.
+    - If not present, the fragment is appended to the current prompt, separated by a comma if necessary.
+    - If already present, the fragment is removed from the current prompt, including any associated comma.
+3. **Result:** The current prompt is updated to either include or exclude the clicked fragment.
 
 ---
 

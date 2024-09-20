@@ -1,4 +1,4 @@
-import { highlightText } from './utils.js';
+import { highlightText, parsePromptOptions } from './utils.js';
 
 class HistorySection {
     constructor(state, updateUI) {
@@ -39,13 +39,15 @@ class HistorySection {
     }
 
     loadPromptFromHistory(prompt) {
-        this.state.set('current_prompt', prompt);
-        const arMatch = prompt.match(/--ar\s+(\d+:\d+)/i);
-        const vMatch = prompt.match(/--v\s+(\w+)/i);
+        const parsedOptions = parsePromptOptions(prompt);
+        
+        this.state.set('current_prompt', parsedOptions.cleanPrompt);
+        
         const options = this.state.get('options');
-        options.aspect_ratio = arMatch ? arMatch[1] : "16:9";
-        options.model_version = vMatch ? vMatch[1] : "v5";
+        options.aspect_ratio = parsedOptions.aspectRatio || options.aspect_ratio;
+        options.model_version = parsedOptions.modelVersion || options.model_version;
         this.state.set('options', options);
+        
         this.updateUI();
     }
 }

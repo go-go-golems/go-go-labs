@@ -20,3 +20,34 @@ export function showConfirmation(message) {
         confirmation.style.display = 'none';
     }, 3000);
 }
+
+export function parsePromptOptions(prompt) {
+    if (typeof prompt !== 'string') {
+        console.error('Invalid prompt: expected string, got', typeof prompt);
+        return { aspectRatio: null, modelVersion: null, cleanPrompt: '' };
+    }
+
+    const options = {
+        aspectRatio: null,
+        modelVersion: null,
+        cleanPrompt: prompt
+    };
+
+    try {
+        const arMatch = prompt.match(/--ar\s+(\d+:\d+)/i);
+        if (arMatch) {
+            options.aspectRatio = arMatch[1];
+            options.cleanPrompt = options.cleanPrompt.replace(arMatch[0], '').trim();
+        }
+
+        const vMatch = prompt.match(/--v\s+(\w+)/i);
+        if (vMatch) {
+            options.modelVersion = vMatch[1];
+            options.cleanPrompt = options.cleanPrompt.replace(vMatch[0], '').trim();
+        }
+    } catch (error) {
+        console.error('Error parsing prompt options:', error);
+    }
+
+    return options;
+}
