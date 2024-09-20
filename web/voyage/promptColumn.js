@@ -1,3 +1,4 @@
+import { html, render } from 'https://cdn.jsdelivr.net/gh/lit/dist@3/all/lit-all.min.js';
 import { escapeRegExp, showConfirmation } from './utils.js';
 
 class PromptColumn {
@@ -9,36 +10,41 @@ class PromptColumn {
     }
 
     init() {
-        this.element.querySelector('#copy-clipboard-btn').addEventListener('click', () => this.copyToClipboard());
-        this.element.querySelector('#add-image-btn').addEventListener('click', () => this.openModal());
-        this.element.querySelector('#current-prompt').addEventListener('input', (e) => this.updateCurrentPrompt(e.target.value));
+        this.element.addEventListener('click', (e) => {
+            if (e.target.id === 'copy-clipboard-btn') this.copyToClipboard();
+            if (e.target.id === 'add-image-btn') this.openModal();
+        });
+        this.element.addEventListener('input', (e) => {
+            if (e.target.id === 'current-prompt') this.updateCurrentPrompt(e.target.value);
+        });
     }
 
     render() {
-        const currentPrompt = this.element.querySelector('#current-prompt');
-        currentPrompt.value = this.state.get('current_prompt');
+        const template = html`
+            <h2>Current Prompt</h2>
+            <div class="prompt-area">
+                <textarea id="current-prompt" rows="6" .value=${this.state.get('current_prompt')}></textarea>
+                <div class="buttons">
+                    <button id="copy-clipboard-btn">Copy to Clipboard</button>
+                    <button id="add-image-btn">Add Image URL</button>
+                </div>
+                <h3>Images</h3>
+                <div id="images-list">
+                    ${this.state.get('images').map((image, index) => html`
+                        <div class="list-item">
+                            <img src=${image.thumbnail || image.url} 
+                                 alt=${image.alt} 
+                                 style="cursor: pointer; max-height: 100px;"
+                                 class=${this.isImageInPrompt(image.url) ? 'active-image' : ''}
+                                 @click=${() => this.toggleImage(image.url)}>
+                            <button @click=${() => this.deleteImage(index)}>Delete</button>
+                        </div>
+                    `)}
+                </div>
+            </div>
+        `;
 
-        const imagesList = this.element.querySelector('#images-list');
-        imagesList.innerHTML = '';
-        this.state.get('images').forEach((image, index) => {
-            const div = document.createElement('div');
-            div.className = 'list-item';
-            const img = document.createElement('img');
-            img.src = image.thumbnail || image.url;
-            img.alt = image.alt;
-            img.style.cursor = 'pointer';
-            img.addEventListener('click', () => this.addImageToPrompt(image.url));
-            const addBtn = document.createElement('button');
-            addBtn.textContent = 'Add to Prompt';
-            addBtn.addEventListener('click', () => this.addImageToPrompt(image.url));
-            const deleteBtn = document.createElement('button');
-            deleteBtn.textContent = 'Delete';
-            deleteBtn.addEventListener('click', () => this.deleteImage(index));
-            div.appendChild(img);
-            div.appendChild(addBtn);
-            div.appendChild(deleteBtn);
-            imagesList.appendChild(div);
-        });
+        render(template, this.element);
     }
 
     updateCurrentPrompt(value) {
@@ -80,8 +86,7 @@ class PromptColumn {
 
             let currentPrompt = this.state.get('current_prompt');
             if (url) {
-                const regex = new RegExp(`\\b${escapeRegExp(url)}\\b,?\\s*`, 'g');
-                currentPrompt = currentPrompt.replace(regex, '').replace(/,\s*,/g, ',').replace(/,\s*$/, '').trim();
+                currentPrompt = this.removeImageFromPrompt(url, currentPrompt);
             }
             this.state.set('current_prompt', currentPrompt);
 
@@ -90,6 +95,35 @@ class PromptColumn {
         } else {
             console.error("Invalid image index");
         }
+    }
+
+    isImageInPrompt(url) {
+        const currentPrompt = this.state.get('current_prompt') || '';
+        return currentPrompt.includes(url);
+    }
+
+    toggleImage(url) {
+        let currentPrompt = this.state.get('current_prompt') || '';
+        if (this.isImageInPrompt(url)) {
+            currentPrompt = this.removeImageFromPrompt(url, currentPrompt);
+        } else {
+            currentPrompt = this.addImageToPrompt(url, currentPrompt);
+        }
+        this.state.set('current_prompt', currentPrompt);
+        this.updateUI();
+        showConfirmation(`Image "${url}" toggled`);
+    }
+
+    addImageToPrompt(url, prompt) {
+        return prompt ? `${prompt}, ${url}` : url;
+    }
+
+    removeImageFromPrompt(url, prompt) {
+        const regex = new RegExp(`(,\\s*)?${escapeRegExp(url)}(,\\s*)?`);
+        let newPrompt = prompt.replace(regex, ',');
+        // Remove leading/trailing commas and whitespace
+        newPrompt = newPrompt.replace(/^,\s*/, '').replace(/,\s*$/, '');
+        return newPrompt;
     }
 }
 
