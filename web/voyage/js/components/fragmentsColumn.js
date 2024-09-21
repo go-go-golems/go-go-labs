@@ -13,7 +13,6 @@ import {
 } from "../slices/promptFragmentsSlice.js";
 import {
   setCurrentPrompt,
-  addToHistory,
 } from "../slices/promptHistorySlice.js";
 
 
@@ -124,7 +123,6 @@ class FragmentsColumn {
     }
 
     this.store.dispatch(setCurrentPrompt(currentPrompt.trim()));
-    this.store.dispatch(addToHistory(currentPrompt.trim()));
     this.updateUI();
     showConfirmation(`Fragment "${fragment}" toggled`);
   }
@@ -205,7 +203,6 @@ class FragmentsColumn {
       ? `${currentPrompt}, ${fragmentsText}`
       : fragmentsText;
     this.store.dispatch(setCurrentPrompt(newPrompt.trim()));
-    this.store.dispatch(addToHistory(newPrompt.trim()));
     this.updateUI();
     showConfirmation("Random fragments added to prompt!");
 
