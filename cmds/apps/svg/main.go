@@ -15,7 +15,7 @@ import (
 	"github.com/go-go-golems/clay/pkg/watcher"
 	"github.com/go-go-golems/go-go-labs/pkg/svg"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 var rootCmd = &cobra.Command{
