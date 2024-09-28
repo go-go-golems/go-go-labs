@@ -1,0 +1,12 @@
+svg:
+  width: 400
+  height: 300
+  background:
+    color: "#f0f0f0"
+  elements:
+    - type: image
+      href: "https://example.com/image.png"
+      x: 100
+      y: 50
+      width: 200
+      height: 200

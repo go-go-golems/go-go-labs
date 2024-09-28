@@ -1,0 +1,16 @@
+svg:
+  width: 400
+  height: 300
+  background:
+    color: "#ffffff"
+  elements:
+    - type: group
+      transform:
+        scale: [2, 1.5]
+        translate: [100, 100]
+      elements:
+        - type: circle
+          cx: 0
+          cy: 0
+          r: 25
+          fill: "#0000ff"

@@ -1,0 +1,13 @@
+svg:
+  width: 400
+  height: 300
+  background:
+    color: "#ffffff"
+  elements:
+    - type: line
+      x1: 50
+      y1: 50
+      x2: 350
+      y2: 250
+      stroke: "#0000ff"
+      stroke_width: 3

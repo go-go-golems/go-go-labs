@@ -17,6 +17,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/go-go-golems/go-go-labs/pkg/zinelayout"
+	"github.com/go-go-golems/go-go-labs/pkg/zinelayout/parser"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -44,6 +45,8 @@ var (
 	borderTypeString  *string
 	logLevelFlag      string
 	testBWFlag        bool
+	testDimensions    string
+	ppiFlag           int
 )
 
 func init() {
@@ -59,6 +62,8 @@ func init() {
 	borderTypeString = rootCmd.Flags().String("border-type", "", "Border type: plain, dotted, dashed, or corner")
 	rootCmd.Flags().StringVar(&logLevelFlag, "log-level", "info", "Set the logging level (debug, info, warn, error)")
 	rootCmd.Flags().BoolVar(&testBWFlag, "test-bw", false, "Generate black and white test images")
+	rootCmd.Flags().StringVar(&testDimensions, "test-dimensions", "", "Specify test image dimensions as 'width,height' (e.g., '600px,800px')")
+	rootCmd.Flags().IntVar(&ppiFlag, "ppi", 0, "Override the PPI (Pixels Per Inch) set in the layout")
 }
 
 func main() {
@@ -146,6 +151,17 @@ func run(cmd *cobra.Command, args []string) {
 			return
 		}
 
+		// Override PPI if flag is set
+		if ppiFlag > 0 {
+			zineLayout.Global.PPI = float64(ppiFlag)
+		}
+
+		// Use layout PPI or default to 300 if not set
+		ppi := zineLayout.Global.PPI
+		if ppi == 0 {
+			ppi = 300
+		}
+
 		// Override border settings from command-line flags only if they are set
 		if cmd.Flags().Changed("global-border") {
 			zineLayout.Global.Border.Enabled = *globalBorderFlag
@@ -189,14 +205,49 @@ func run(cmd *cobra.Command, args []string) {
 			fmt.Println()
 		}
 
+		// Parse test dimensions if provided
+		var width, height float64
+		if testDimensions != "" {
+			dimensions := strings.Split(testDimensions, ",")
+			if len(dimensions) != 2 {
+				fmt.Println("Error: Invalid test dimensions format. Use 'width,height'")
+				return
+			}
+
+			expressionParser := &parser.ExpressionParser{PPI: float64(ppi)}
+			widthValue, err := expressionParser.Parse(dimensions[0])
+			if err != nil {
+				fmt.Printf("Error parsing width: %v\n", err)
+				return
+			}
+			heightValue, err := expressionParser.Parse(dimensions[1])
+			if err != nil {
+				fmt.Printf("Error parsing height: %v\n", err)
+				return
+			}
+
+			uc := parser.UnitConverter{PPI: float64(ppi)}
+
+			width, err = uc.ToPixels(widthValue.Val, widthValue.Unit)
+			if err != nil {
+				fmt.Printf("Error converting width to pixels: %v\n", err)
+				return
+			}
+			height, err = uc.ToPixels(heightValue.Val, heightValue.Unit)
+			if err != nil {
+				fmt.Printf("Error converting height to pixels: %v\n", err)
+				return
+			}
+		}
+
 		// Read or generate input images
 		var inputImages []image.Image
 		if testFlag || testBWFlag {
 			totalInputImages := len(zineLayout.OutputPages) * zineLayout.PageSetup.GridSize.Columns * zineLayout.PageSetup.GridSize.Rows
 			if testBWFlag {
-				inputImages, err = zinelayout.GenerateTestImagesBW(totalInputImages)
+				inputImages, err = zinelayout.GenerateTestImagesBW(totalInputImages, int(width), int(height))
 			} else {
-				inputImages, err = zinelayout.GenerateTestImages(totalInputImages)
+				inputImages, err = zinelayout.GenerateTestImages(totalInputImages, int(width), int(height))
 			}
 		} else {
 			if len(args) == 0 {
@@ -316,6 +367,7 @@ func printZineLayout(zl zinelayout.ZineLayout) {
 	fmt.Printf("  GridSize: Rows: %d, Columns: %d\n", zl.PageSetup.GridSize.Rows, zl.PageSetup.GridSize.Columns)
 	fmt.Printf("  Margin: %+v\n", zl.PageSetup.Margin)
 	fmt.Printf("  PageBorder: Enabled: %v, Color: R:%d G:%d B:%d A:%d, Type: %s\n", zl.PageSetup.PageBorder.Enabled, zl.PageSetup.PageBorder.Color.R, zl.PageSetup.PageBorder.Color.G, zl.PageSetup.PageBorder.Color.B, zl.PageSetup.PageBorder.Color.A, zl.PageSetup.PageBorder.Type)
+	fmt.Printf("  PPI: %d\n", zl.Global.PPI)
 
 	fmt.Printf("OutputPages:\n")
 	for i, page := range zl.OutputPages {

@@ -84,6 +84,7 @@ require (
 	github.com/RoaringBitmap/roaring v0.6.1 // indirect
 	github.com/acomagu/bufpipe v1.0.4 // indirect
 	github.com/adrg/frontmatter v0.2.0 // indirect
+	github.com/ajstarks/svgo v0.0.0-20211024235047-1546f124cd8b // indirect
 	github.com/alecthomas/chroma/v2 v2.7.0 // indirect
 	github.com/andybalholm/cascadia v1.3.1 // indirect
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de // indirect

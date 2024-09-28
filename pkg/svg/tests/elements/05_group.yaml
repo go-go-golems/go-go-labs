@@ -1,0 +1,19 @@
+svg:
+  width: 400
+  height: 300
+  background:
+    color: "#f0f0f0"
+  elements:
+    - type: group
+      elements:
+        - type: rectangle
+          x: 50
+          y: 50
+          width: 100
+          height: 100
+          fill: "#ff0000"
+        - type: circle
+          cx: 150
+          cy: 150
+          r: 50
+          fill: "#0000ff"

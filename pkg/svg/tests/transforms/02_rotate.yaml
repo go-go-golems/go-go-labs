@@ -1,0 +1,17 @@
+svg:
+  width: 400
+  height: 300
+  background:
+    color: "#ffffff"
+  elements:
+    - type: group
+      transform:
+        rotate: 45
+        translate: [200, 150]
+      elements:
+        - type: rectangle
+          x: -50
+          y: -50
+          width: 100
+          height: 100
+          fill: "#00ff00"

@@ -11,7 +11,7 @@ import (
 	"golang.org/x/image/math/fixed"
 )
 
-func GenerateTestImages(count int) ([]image.Image, error) {
+func GenerateTestImages(count, width, height int) ([]image.Image, error) {
 	var images []image.Image
 
 	// Define a slice of 16 pale colors
@@ -34,8 +34,16 @@ func GenerateTestImages(count int) ([]image.Image, error) {
 		{255, 220, 220, 255}, // Less Pale Snow
 	}
 
+	// Use default dimensions if not specified
+	if width == 0 {
+		width = 600
+	}
+	if height == 0 {
+		height = 600 * 4 / 3
+	}
+
 	for i := 1; i <= count; i++ {
-		img := image.NewRGBA(image.Rect(0, 0, 600, 600*4/3))
+		img := image.NewRGBA(image.Rect(0, 0, width, height))
 
 		// Use the (i-1) % 16 to cycle through the colors
 		bgColor := paleColors[(i-1)%len(paleColors)]
@@ -64,11 +72,19 @@ func addLabel(img *image.RGBA, label string, textColor color.Color) {
 	d.DrawString(label)
 }
 
-func GenerateTestImagesBW(count int) ([]image.Image, error) {
+func GenerateTestImagesBW(count, width, height int) ([]image.Image, error) {
 	var images []image.Image
 
+	// Use default dimensions if not specified
+	if width == 0 {
+		width = 600
+	}
+	if height == 0 {
+		height = 600 * 4 / 3
+	}
+
 	for i := 1; i <= count; i++ {
-		img := image.NewGray(image.Rect(0, 0, 600, 600*4/3))
+		img := image.NewGray(image.Rect(0, 0, width, height))
 
 		// Alternate between white and light gray background
 		bgColor := color.Gray{Y: uint8(255 - (i%2)*20)}

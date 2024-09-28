@@ -1,0 +1,27 @@
+svg:
+  width: 500
+  height: 400
+  background:
+    color: "#f0f0f0"
+  elements:
+    - type: rectangle
+      x: 50
+      y: 50
+      width: 400
+      height: 300
+      fill: "#ffffff"
+      stroke: "#000000"
+      stroke_width: 2
+    - type: circle
+      cx: 250
+      cy: 200
+      r: 100
+      fill: "#ff0000"
+    - type: text
+      x: 250
+      y: 350
+      content: "Simple Scene"
+      font_size: "24px"
+      font_family: "Arial"
+      fill: "#000000"
+      text_anchor: "middle"

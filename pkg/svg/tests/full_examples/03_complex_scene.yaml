@@ -1,0 +1,54 @@
+svg:
+  width: 800
+  height: 600
+  background:
+    color: "#f0f0f0"
+  elements:
+    - type: group
+      transform:
+        translate: [400, 300]
+      elements:
+        - type: rectangle
+          x: -300
+          y: -200
+          width: 600
+          height: 400
+          fill: "#ffffff"
+          stroke: "#000000"
+          stroke_width: 4
+        - type: group
+          transform:
+            rotate: 30
+          elements:
+            - type: rectangle
+              x: -100
+              y: -100
+              width: 200
+              height: 200
+              fill: "#ff0000"
+            - type: circle
+              cx: 0
+              cy: 0
+              r: 75
+              fill: "#00ff00"
+        - type: text
+          x: 0
+          y: -150
+          content: "Complex Scene"
+          font_size: "36px"
+          font_family: "Arial"
+          fill: "#000000"
+          text_anchor: "middle"
+    - type: image
+      href: "https://example.com/logo.png"
+      x: 650
+      y: 50
+      width: 100
+      height: 100
+    - type: line
+      x1: 50
+      y1: 50
+      x2: 750
+      y2: 550
+      stroke: "#0000ff"
+      stroke_width: 2

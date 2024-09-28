@@ -1,0 +1,14 @@
+svg:
+  width: 400
+  height: 300
+  background:
+    color: "#ffffff"
+  elements:
+    - type: text
+      x: 200
+      y: 150
+      content: "Hello, SVG!"
+      font_size: "24px"
+      font_family: "Arial"
+      fill: "#000000"
+      text_anchor: "middle"
