@@ -3,7 +3,7 @@ package svg
 import (
 	"fmt"
 
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 // SVGDSL represents the root of the YAML DSL.
@@ -40,62 +40,42 @@ type ElementWrapper struct {
 }
 
 // UnmarshalYAML implements custom unmarshaling for the Element interface.
-func (ew *ElementWrapper) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	// Temporary map to extract the "type" field
-	var raw map[string]interface{}
-	if err := unmarshal(&raw); err != nil {
-		return err
+func (ew *ElementWrapper) UnmarshalYAML(value *yaml.Node) error {
+	var temp struct {
+		Type string `yaml:"type"`
 	}
-
-	typ, ok := raw["type"].(string)
-	if !ok {
-		return fmt.Errorf("missing or invalid type field")
+	if err := value.Decode(&temp); err != nil {
+		return err
 	}
 
 	// Based on the type, unmarshal into the appropriate struct
-	switch typ {
+	var element Element
+	switch temp.Type {
 	case "rectangle":
-		var rect Rectangle
-		if err := mapToStruct(raw, &rect); err != nil {
-			return err
-		}
-		ew.Element = &rect
+		element = &Rectangle{}
 	case "line":
-		var line Line
-		if err := mapToStruct(raw, &line); err != nil {
-			return err
-		}
-		ew.Element = &line
+		element = &Line{}
 	case "image":
-		var img Image
-		if err := mapToStruct(raw, &img); err != nil {
-			return err
-		}
-		ew.Element = &img
+		element = &Image{}
 	case "text":
-		var txt Text
-		if err := mapToStruct(raw, &txt); err != nil {
-			return err
-		}
-		ew.Element = &txt
+		element = &Text{}
 	case "group":
-		var grp Group
-		if err := mapToStruct(raw, &grp); err != nil {
-			return err
-		}
-		ew.Element = &grp
+		element = &Group{}
+	case "circle":
+		element = &Circle{}
 	default:
-		return fmt.Errorf("unsupported element type: %s", typ)
+		return fmt.Errorf("unsupported element type: %s", temp.Type)
 	}
 
+	if err := value.Decode(element); err != nil {
+		return err
+	}
+
+	ew.Element = element
 	return nil
 }
 
-// mapToStruct helps in converting a map to a struct using YAML marshalling.
-func mapToStruct(m map[string]interface{}, out interface{}) error {
-	data, err := yaml.Marshal(m)
-	if err != nil {
-		return err
-	}
-	return yaml.Unmarshal(data, out)
+// MarshalYAML implements custom marshaling for the Element interface.
+func (ew ElementWrapper) MarshalYAML() (interface{}, error) {
+	return ew.Element, nil
 }

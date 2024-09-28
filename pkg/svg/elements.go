@@ -2,6 +2,7 @@ package svg
 
 import (
 	svg "github.com/ajstarks/svgo"
+	"gopkg.in/yaml.v3"
 )
 
 // Element is the interface that all SVG elements implement.
@@ -68,6 +69,48 @@ type Group struct {
 	ID        string     `yaml:"id,omitempty"`
 	Transform *Transform `yaml:"transform,omitempty"`
 	Elements  []Element  `yaml:"elements"`
+}
+
+func (g *Group) GetElements() []Element {
+	return g.Elements
+}
+
+func (g *Group) MarshalYAML() (interface{}, error) {
+	wrapperElements := make([]ElementWrapper, len(g.Elements))
+	for i, elem := range g.Elements {
+		wrapperElements[i] = ElementWrapper{Element: elem}
+	}
+	return struct {
+		Type      string           `yaml:"type"`
+		ID        string           `yaml:"id,omitempty"`
+		Transform *Transform       `yaml:"transform,omitempty"`
+		Elements  []ElementWrapper `yaml:"elements"`
+	}{
+		Type:      g.Type,
+		ID:        g.ID,
+		Transform: g.Transform,
+		Elements:  wrapperElements,
+	}, nil
+}
+
+func (g *Group) UnmarshalYAML(value *yaml.Node) error {
+	var temp struct {
+		Type      string           `yaml:"type"`
+		ID        string           `yaml:"id,omitempty"`
+		Transform *Transform       `yaml:"transform,omitempty"`
+		Elements  []ElementWrapper `yaml:"elements"`
+	}
+	if err := value.Decode(&temp); err != nil {
+		return err
+	}
+	g.Type = temp.Type
+	g.ID = temp.ID
+	g.Transform = temp.Transform
+	g.Elements = make([]Element, len(temp.Elements))
+	for i, ew := range temp.Elements {
+		g.Elements[i] = ew.Element
+	}
+	return nil
 }
 
 // Circle represents an SVG circle.

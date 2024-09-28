@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	svg "github.com/ajstarks/svgo"
+	"gopkg.in/yaml.v3"
 )
 
 // buildStyles constructs the style string for fill, stroke, and stroke-width.
@@ -63,4 +64,20 @@ func RenderSVG(canvas *Canvas) (string, error) {
 	s.End()
 
 	return buf.String(), nil
+}
+
+// ParseYAML parses the YAML input and returns a Canvas
+func ParseYAML(input []byte) (*Canvas, error) {
+	var svgDSL SVGDSL
+	err := yaml.Unmarshal(input, &svgDSL)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing YAML: %v", err)
+	}
+	return &svgDSL.SVG, nil
+}
+
+// GenerateYAML generates YAML from a Canvas
+func GenerateYAML(canvas *Canvas) ([]byte, error) {
+	svgDSL := SVGDSL{SVG: *canvas}
+	return yaml.Marshal(svgDSL)
 }
