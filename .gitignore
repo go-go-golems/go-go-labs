@@ -25,3 +25,4 @@ dist/
 sqlite-vss
 test.db
 dist/config.yaml
+__debug*
