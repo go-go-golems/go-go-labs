@@ -4,7 +4,6 @@ body {
     padding: 0;
     display: grid;
     grid-template-rows: 1fr auto;
-    height: 100vh;
 }
 .container {
     display: grid;
@@ -52,7 +51,6 @@ textarea {
 .history {
     border-top: 1px solid #ccc;
     padding: 10px;
-    max-height: 200px;
     overflow: auto;
 }
 .modal {

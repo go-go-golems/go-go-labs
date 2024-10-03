@@ -92,7 +92,10 @@ class PromptColumn {
     }
 
     addImageToPrompt(url, prompt) {
-        return prompt ? `${prompt}, ${url}` : url;
+        if (this.isImageInPrompt(url)) {
+            return prompt;
+        }
+        return prompt ? `${url} ${prompt}` : url;
     }
 
     removeImageFromPrompt(url, prompt) {

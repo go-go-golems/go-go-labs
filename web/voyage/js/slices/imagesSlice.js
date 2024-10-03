@@ -14,6 +14,7 @@ const imagesSlice = createSlice({
     reducers: {
         addImage: (state, action) => {
             state.images.unshift(action.payload);
+            console.log(JSON.parse(JSON.stringify(state)));
         },
         deleteImage: (state, action) => {
             state.images.splice(action.payload, 1);
