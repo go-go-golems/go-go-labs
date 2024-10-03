@@ -1,0 +1,30 @@
+selectors:
+  - title: Page Title
+    selector: "h1.heading-element"
+    assemble: single
+  - title: Description
+    selector: ".markdown-body p"
+    assemble: single
+  - title: Links
+    selector: ".markdown-body ul li a"
+    assemble: hash
+    key_attribute: text
+    value_attribute: href
+  - title: Code Snippets
+    selector: ".highlight pre"
+    assemble: code_blocks
+  - title: Statistics
+    selector: ".statistics"
+    assemble: hash
+    children:
+      - title: Stars
+        selector: "#repo-stars-counter"
+        assemble: single
+      - title: Network
+        selector: "#repo-network-counter"
+        assemble: single
+  - title: Contributors
+    selector: ".contributors img"
+    assemble: list
+    attributes:
+      - alt

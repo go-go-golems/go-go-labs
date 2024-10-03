@@ -1,0 +1,18 @@
+selectors:
+  - title: Nested Structure
+    selector: ".container"
+    assemble: "hash"
+    children:
+      - title: Main Title
+        selector: "h1"
+        assemble: "single"
+      - title: Sections
+        selector: ".section"
+        assemble: "list"
+        children:
+          - title: Section Title
+            selector: "h2"
+            assemble: "single"
+          - title: Section Content
+            selector: "p"
+            assemble: "single"

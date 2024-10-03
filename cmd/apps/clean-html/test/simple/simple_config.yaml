@@ -1,0 +1,11 @@
+selectors:
+  - title: Simple Page
+    selector: "body"
+    assemble: "hash"
+    children:
+      - title: Title
+        selector: "#title"
+        assemble: "single"
+      - title: Content
+        selector: ".content"
+        assemble: "single"

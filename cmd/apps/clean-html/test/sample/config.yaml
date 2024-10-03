@@ -1,0 +1,48 @@
+selectors:
+  - title: Repository Information
+    selector: ".repository-content"
+    assemble: "hash"
+    children:
+      - title: Title
+        selector: "h1.heading-element"
+        assemble: "single"
+      - title: Description
+        selector: ".markdown-body p"
+        assemble: "concatenate"
+        transformations:
+          - "strip"
+      - title: Links
+        selector: ".markdown-body ul li a"
+        assemble: "hash"
+        key_attribute: "text"
+        value_attribute: "href"
+      - title: Code Snippets
+        selector: ".highlight pre"
+        assemble: "code_blocks"
+      - title: Policies
+        selector: ".markdown-body h2.heading-element"
+        assemble: "hash"
+        children:
+          - title: Policy Details
+            selector: "following-sibling::ul/li"
+            assemble: "list"
+  - title: Repository Statistics
+    selector: ".repository-content .statistics"
+    assemble: "hash"
+    children:
+      - title: Stars
+        selector: "#repo-stars-counter"
+        assemble: "single"
+      - title: Forks
+        selector: "#repo-network-counter"
+        assemble: "single"
+      - title: Contributors
+        selector: ".contributors .avatar"
+        assemble: "list"
+        attributes:
+          - "alt"
+  - title: External Resources
+    selector: ".HeaderMenu-dropdown-link.Link--external"
+    assemble: "list"
+    attributes:
+      - "href"

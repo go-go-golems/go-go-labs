@@ -1,0 +1,12 @@
+selectors:
+  - title: Link
+    selector: ".link"
+    assemble: "hash"
+    key_attribute: "text"
+    value_attribute: "href"
+  - title: Image
+    selector: ".image"
+    assemble: "hash"
+    attributes:
+      - "src"
+      - "alt"

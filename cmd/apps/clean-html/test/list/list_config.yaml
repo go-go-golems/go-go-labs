@@ -1,0 +1,4 @@
+selectors:
+  - title: Fruit List
+    selector: "#fruits li"
+    assemble: "list"
