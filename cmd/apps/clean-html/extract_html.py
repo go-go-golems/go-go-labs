@@ -41,7 +41,7 @@ def extract_data(soup, config, debug=False):
             texts = [element.get_text(strip=True) for element in elements]
             data = "\n".join(texts)
         elif assemble == "code_blocks":
-            data = [f"|\n{element.get_text()}" for element in elements]
+            data = [element.get_text() for element in elements]
         elif assemble == "list":
             if attributes:
                 data = [element.get(attribute) for element in elements for attribute in attributes]
@@ -110,6 +110,13 @@ def extract_data(soup, config, debug=False):
         if result is not None:
             extracted[selector.get('title')] = result
     return extracted
+
+def str_presenter(dumper, data):
+    if '\n' in data:  # check for multiline string
+        return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='|')
+    return dumper.represent_scalar('tag:yaml.org,2002:str', data)
+
+yaml.add_representer(str, str_presenter)
 
 @click.command()
 @click.option('--config', '-c', type=click.File('r'), required=True, help='YAML configuration file with selectors.')
