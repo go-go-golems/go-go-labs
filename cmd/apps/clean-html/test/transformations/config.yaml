@@ -1,0 +1,36 @@
+selectors:
+  - title: Content
+    selector: ".content"
+    assemble: "hash"
+    children:
+      - title: Description
+        selector: "p.description"
+        assemble: "single"
+        transformations:
+          - "remove_newlines"
+          - "trim_spaces"
+          - "capitalize"
+      - title: List Items
+        selector: "ul.list li"
+        assemble: "list"
+        transformations:
+          - "strip"
+          - "to_lowercase"
+      - title: Code Block
+        selector: ".code-block"
+        assemble: "single"
+        transformations:
+          - "strip"
+  - title: Metadata
+    selector: ".metadata"
+    assemble: "hash"
+    children:
+      - title: Author
+        selector: "span.author"
+        assemble: "single"
+        transformations:
+          - "strip"
+          - "to_uppercase"
+      - title: Date
+        selector: "span.date"
+        assemble: "single"

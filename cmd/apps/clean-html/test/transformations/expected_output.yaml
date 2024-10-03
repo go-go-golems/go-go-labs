@@ -1,0 +1,10 @@
+Content:
+  Description: "This is a multi-line description with some extra spaces."
+  List Items:
+    - "item one"
+    - "item two"
+    - "item three"
+  Code Block: "function example() { console.log(\"Hello, World!\"); }"
+Metadata:
+  Author: "JOHN DOE"
+  Date: "2023-05-15"

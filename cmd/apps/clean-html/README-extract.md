@@ -1,12 +1,11 @@
 # HTML Content Extractor
 
-This project provides a command-line tool to extract specific content from an HTML document using a YAML-based configuration file that specifies CSS selectors and titles. The extracted content is outputted in YAML format, making it easy to parse and reuse.
+This project provides a powerful command-line tool to extract specific content from HTML documents using a flexible YAML-based configuration file. The extracted content is outputted in YAML format, making it easy to parse and reuse.
 
 ## Table of Contents
 
 - [Introduction](#introduction)
 - [Features](#features)
-- [Installation](#installation)
 - [Usage](#usage)
   - [Configuration File Format](#configuration-file-format)
   - [Command-Line Usage](#command-line-usage)
@@ -16,58 +15,52 @@ This project provides a command-line tool to extract specific content from an HT
 
 ## Introduction
 
-The `extractor.py` script allows you to extract specific elements from an HTML file using CSS selectors defined in a YAML configuration file. This tool is particularly useful for extracting structured content such as headings, paragraphs, or code snippets from HTML documents, and presenting the extracted data in a YAML format.
+The HTML Content Extractor allows you to extract specific elements from an HTML file using CSS selectors defined in a YAML configuration file. This tool is particularly useful for extracting structured content such as headings, paragraphs, attributes, or code snippets from HTML documents, and presenting the extracted data in a YAML format.
 
 ## Features
 
 - **Customizable Selectors**: Define CSS selectors in a YAML file to control which parts of the HTML are extracted.
+- **Flexible Assembly Strategies**: Choose from various assembly methods like list, single, concatenate, code_blocks, and hash.
+- **Nested Selectors**: Support for hierarchical data extraction with nested selector objects.
+- **Attribute Extraction**: Extract specific attributes from HTML elements.
+- **Text Transformations**: Apply various transformations to extracted text, such as stripping whitespace, capitalizing, or converting to lowercase.
 - **Flexible Input/Output**: Reads HTML input from `stdin` and outputs extracted YAML content to `stdout`.
-- **Command-Line Flags**: Uses `click` to provide an easy-to-use command-line interface for configuration.
-- **YAML Output**: Outputs extracted content in a structured YAML format.
+- **Command-Line Interface**: Uses `click` to provide an easy-to-use command-line interface for configuration.
 
-## Installation
-
-To get started, clone this repository and install the required dependencies:
-
-```bash
-git clone https://github.com/yourusername/html-extractor.git
-cd html-extractor
-pip install -r requirements.txt
-```
-
-The dependencies are:
-- `click`
-- `pyyaml`
-- `beautifulsoup4`
-
-Alternatively, you can install them manually:
-
-```bash
-pip install click pyyaml beautifulsoup4
-```
 
 ## Usage
 
 ### Configuration File Format
 
-The configuration file should be written in YAML and define the list of selectors and titles for each section you want to extract. Here's an example `config.yaml` file:
+The configuration file should be written in YAML and define the list of selectors and extraction rules. Here's a basic example:
 
 ```yaml
 selectors:
-  - title: Repository Title
-    selector: "h1.heading-element"
-  - title: Repository Description
-    selector: ".markdown-body p"
-  - title: Code Snippets
-    selector: ".highlight"
-  - title: Policy Documentation
-    selector: ".markdown-body h2.heading-element"
+  - title: Content
+    selector: ".content"
+    assemble: "hash"
+    children:
+      - title: Description
+        selector: "p.description"
+        assemble: "single"
+        transformations:
+          - "remove_newlines"
+          - "trim_spaces"
+          - "capitalize"
+      - title: List Items
+        selector: "ul.list li"
+        assemble: "list"
+        transformations:
+          - "strip"
+          - "to_lowercase"
 ```
+
+For a complete guide on the configuration options, refer to the [HTML Extraction DSL Specification](extract-dsl.md).
 
 ### Command-Line Usage
 
-1. **Create a YAML configuration file** (`config.yaml`) that specifies the CSS selectors and titles for extraction.
-2. **Run the extractor** with the following command:
+1. Create a YAML configuration file (e.g., `config.yaml`) that specifies the CSS selectors and extraction rules.
+2. Run the extractor with the following command:
 
    ```bash
    cat your_html_file.html | python extractor.py --config config.yaml
@@ -75,62 +68,50 @@ selectors:
 
 This command will:
 - Read the HTML content from `your_html_file.html`.
-- Extract elements defined in the `config.yaml` file using the provided CSS selectors.
+- Extract elements defined in the `config.yaml` file using the provided CSS selectors and rules.
 - Output the extracted content as YAML to `stdout`.
-
-### Options
-
-- `--config, -c`: Specifies the path to the YAML configuration file.
 
 ## Examples
 
-Suppose you have the following HTML content in a file named `example.html`:
-
-```html
-<!DOCTYPE html>
-<html>
-  <body>
-    <h1 class="heading-element">Repository Title Example</h1>
-    <div class="markdown-body">
-      <p>This is a description of the repository.</p>
-      <div class="highlight">
-        <pre>def example_function():
-    print("Hello, world!")</pre>
-      </div>
-    </div>
-  </body>
-</html>
-```
-
-And the following YAML configuration file (`config.yaml`):
+Here's an example of extracting information from a GitHub repository page:
 
 ```yaml
 selectors:
-  - title: Repository Title
-    selector: "h1.heading-element"
-  - title: Repository Description
-    selector: ".markdown-body p"
-  - title: Code Snippets
-    selector: ".highlight pre"
+  - title: Repository Information
+    selector: ".markdown-body.entry-content.container-lg"
+    assemble: "hash"
+    children:
+      - title: Title
+        selector: "h1.heading-element"
+        assemble: "single"
+      - title: Description
+        selector: "p"
+        assemble: "concatenate"
+        transformations:
+          - "strip"
+      - title: Links
+        selector: ".markdown-heading h2:contains(\"Links\") a"
+        assemble: "hash"
+        key_attribute: "text"
+        value_attribute: "href"
+  - title: Repository Statistics
+    selector: "#repository-container-header"
+    assemble: "hash"
+    children:
+      - title: Stars
+        selector: "#repo-stars-counter"
+        assemble: "single"
+      - title: Forks
+        selector: "#repo-network-counter"
+        assemble: "single"
 ```
 
-Running the command:
+This configuration would extract the repository title, description, links, and statistics from a GitHub repository page.
 
-```bash
-cat example.html | python extractor.py --config config.yaml
-```
+For more examples and detailed explanations of the configuration options, please refer to the [HTML Extraction DSL Specification](extract-dsl.md).
 
-Would produce the following output:
+## Dependencies
 
-```yaml
-Repository Title:
-- Repository Title Example
-
-Repository Description:
-- This is a description of the repository.
-
-Code Snippets:
-- |
-  def example_function():
-      print("Hello, world!")
-```
+- `click`: For creating the command-line interface
+- `pyyaml`: For parsing YAML configuration files
+- `beautifulsoup4`: For HTML parsing and content extraction

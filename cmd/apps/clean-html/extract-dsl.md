@@ -24,10 +24,22 @@ selectors:
   - `concatenate`: Joins the text content of all matched elements with newlines.
   - `code_blocks`: Similar to concatenate, but formats each element as a code block.
   - `hash`: Creates a key-value pair for each element.
-- `attributes`: A list of attribute names to extract (used with `list` assembly).
-- `transformations`: A list of transformations to apply to the extracted text. Options include:
+- `attributes`: A list of attribute names to extract (used with `list` assembly). Can be a simple list of strings or a list of objects for more detailed configuration:
+  - Simple form: `["attr1", "attr2"]`
+  - Detailed form: 
+    ```yaml
+    - name: "attribute_name"
+      transformations:
+        - transformation1
+        - transformation2
+    ```
+- `transformations`: A list of transformations to apply to the extracted text or all attributes if not specified at the attribute level. Options include:
   - `strip`: Removes leading and trailing whitespace.
   - `capitalize`: Capitalizes the first character of the text.
+  - `remove_newlines`: Removes all newline characters from the text.
+  - `to_lowercase`: Converts the text to lowercase.
+  - `to_uppercase`: Converts the text to uppercase.
+  - `trim_spaces`: Reduces multiple consecutive spaces to a single space.
 - `children`: A list of nested selector objects for hierarchical extraction.
 - `key_attribute`: Specifies the attribute or "text" to use as the key in `hash` assembly (default: "text").
 - `value_attribute`: Specifies the attribute to use as the value in `hash` assembly (default: "href").
@@ -172,3 +184,25 @@ selectors:
 Note: When using ID selectors (e.g., "#main-content"), it's crucial to enclose the selector in quotes. This is because the "#" character is used for comments in YAML. Quoting the selector ensures that it's interpreted correctly as a CSS selector rather than the start of a comment.
 
 This complex example demonstrates nested selectors, multiple assembly strategies, transformations, and attribute extractions within a single configuration. All selectors are now explicitly quoted to ensure proper parsing.
+
+### 11. Attribute-Specific Transformations
+
+```yaml
+selectors:
+  - title: Product Details
+    selector: ".product"
+    assemble: list
+    attributes:
+      - name: "data-description"
+        transformations:
+          - remove_newlines
+          - trim_spaces
+      - name: "data-price"
+        transformations:
+          - strip
+      - "data-sku"  # No transformations for this attribute
+    transformations:
+      - to_lowercase  # This applies to the element's text content and any attributes without specific transformations
+```
+
+This example demonstrates how to apply transformations to specific attributes when using the `list` assembly method. The `data-description` attribute will have newlines removed and spaces trimmed, the `data-price` attribute will be stripped of leading and trailing whitespace, and the `data-sku` attribute will be extracted without any transformations. The `to_lowercase` transformation will be applied to the element's text content and any other extracted attributes that don't have specific transformations defined.

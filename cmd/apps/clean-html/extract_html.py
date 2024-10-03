@@ -9,7 +9,66 @@ def apply_transformations(text, transformations):
             text = text.strip()
         elif transform == "capitalize":
             text = text.capitalize()
+        elif transform == "remove_newlines":
+            text = text.replace('\n', '')
+        elif transform == "to_lowercase":
+            text = text.lower()
+        elif transform == "to_uppercase":
+            text = text.upper()
+        elif transform == "trim_spaces":
+            text = ' '.join(text.split())
     return text
+
+def extract_concatenate(elements):
+    texts = [element.get_text(strip=True) for element in elements]
+    return "\n".join(texts)
+
+def extract_code_blocks(elements):
+    return [element.get_text() for element in elements]
+
+def extract_list(elements, attributes):
+    if attributes:
+        data = []
+        for element in elements:
+            element_data = []
+            for attribute in attributes:
+                if isinstance(attribute, dict):
+                    attr_name = attribute['name']
+                    attr_transformations = attribute.get('transformations', [])
+                    if attr_name == "text":
+                        value = element.get_text(strip=True)
+                    else:
+                        value = element.get(attr_name)
+                    value = apply_transformations(value, attr_transformations)
+                    element_data.append(value)
+                else:
+                    if attribute == "text":
+                        element_data.append(element.get_text(strip=True))
+                    else:
+                        element_data.append(element.get(attribute))
+            data.extend(element_data)
+    else:
+        data = [element.get_text(strip=True) for element in elements]
+    return data
+
+def extract_hash(elements, key_attr, value_attr):
+    data = {}
+    for element in elements:
+        key = element.get_text(strip=True) if key_attr == 'text' else element.get(key_attr)
+        value = element.get(value_attr)
+        data[key] = value
+    return data
+
+def extract_single(elements):
+    return elements[0].get_text(strip=True) if elements else None
+
+def extract_table(elements):
+    headers = [th.get_text(strip=True) for th in elements[0].find_all('th')] if elements else []
+    rows = []
+    for element in elements:
+        row = [td.get_text(strip=True) for td in element.find_all('td')]
+        rows.append(row)
+    return {"headers": headers, "rows": rows}
 
 def extract_data(soup, config, debug=False):
     def process_selector(soup, selector_config, depth=0):
@@ -20,7 +79,6 @@ def extract_data(soup, config, debug=False):
             indent = "  " * depth
             print(f"{indent}Debug: Processing selector '{title}' with selector '{selector}'", file=sys.stderr)
 
-        # Check if selector is None or empty
         if not selector:
             print(f"{indent}Warning: Selector for '{title}' is missing or empty. Skipping.", file=sys.stderr)
             return None
@@ -35,46 +93,23 @@ def extract_data(soup, config, debug=False):
         if debug:
             print(f"{indent}Debug: Found {len(elements)} elements for selector '{selector}'", file=sys.stderr)
 
-        data = None
-
         if assemble == "concatenate":
-            texts = [element.get_text(strip=True) for element in elements]
-            data = "\n".join(texts)
+            data = extract_concatenate(elements)
         elif assemble == "code_blocks":
-            data = [element.get_text() for element in elements]
+            data = extract_code_blocks(elements)
         elif assemble == "list":
-            if attributes:
-                data = []
-                for element in elements:
-                    element_data = []
-                    for attribute in attributes:
-                        if attribute == "text":
-                            element_data.append(element.get_text(strip=True))
-                        else:
-                            element_data.append(element.get(attribute))
-                    data.extend(element_data)
-            else:
-                data = [element.get_text(strip=True) for element in elements]
+            data = extract_list(elements, attributes)
         elif assemble == "hash":
             key_attr = selector_config.get('key_attribute', 'text')
             value_attr = selector_config.get('value_attribute', 'href')
-            data = {}
-            for element in elements:
-                key = element.get_text(strip=True) if key_attr == 'text' else element.get(key_attr)
-                value = element.get(value_attr)
-                data[key] = value
+            data = extract_hash(elements, key_attr, value_attr)
         elif assemble == "single":
-            data = elements[0].get_text(strip=True) if elements else None
+            data = extract_single(elements)
         elif assemble == "table":
-            headers = [th.get_text(strip=True) for th in elements[0].find_all('th')] if elements else []
-            rows = []
-            for element in elements:
-                row = [td.get_text(strip=True) for td in element.find_all('td')]
-                rows.append(row)
-            data = {"headers": headers, "rows": rows}
+            data = extract_table(elements)
         else:
             print(f"{indent}Warning: Unknown assembly method '{assemble}' for '{title}'. Using 'list' as default.", file=sys.stderr)
-            data = [element.get_text(strip=True) for element in elements]
+            data = extract_list(elements, attributes)
 
         if debug:
             if isinstance(data, (str, list)):
