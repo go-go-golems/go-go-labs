@@ -1,0 +1,10 @@
+selectors:
+  - title: External Resources
+    selector: "h2#user-content-external-resources"
+    assemble: "hash"
+    children:
+      - title: Links
+        selector: "h2#user-content-external-resources + ul li a"
+        assemble: "hash"
+        key_attribute: "text"
+        value_attribute: "href"

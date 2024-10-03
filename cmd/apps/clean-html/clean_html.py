@@ -26,6 +26,12 @@ def simplify_html(soup, cleanup_whitespace, strip_pl_spans):
             preserved_attrs['id'] = tag.attrs['id']
         if 'class' in tag.attrs:
             preserved_attrs['class'] = tag.attrs['class']
+        if 'src' in tag.attrs:
+            preserved_attrs['src'] = tag.attrs['src']
+        if 'href' in tag.attrs:
+            preserved_attrs['href'] = tag.attrs['href']
+        if 'alt' in tag.attrs:
+            preserved_attrs['alt'] = tag.attrs['alt']
         tag.attrs = preserved_attrs
 
         # Strip pl-* spans if the flag is set

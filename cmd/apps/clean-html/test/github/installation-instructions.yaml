@@ -1,0 +1,8 @@
+selectors:
+  - title: Repository Information
+    selector: ".markdown-body.entry-content.container-lg"
+    assemble: "hash"
+    children:
+      - title: Installation Instructions
+        selector: "h2#user-content-installation + blockquote, h2#user-content-installation + div.highlight pre"
+        assemble: "code_blocks"

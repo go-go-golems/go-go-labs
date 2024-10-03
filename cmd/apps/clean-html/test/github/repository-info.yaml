@@ -1,0 +1,13 @@
+selectors:
+  - title: Repository Information
+    selector: ".markdown-body.entry-content.container-lg"
+    assemble: "hash"
+    children:
+      - title: Title
+        selector: "h1.heading-element"
+        assemble: "single"
+      - title: Description
+        selector: "p"
+        assemble: "concatenate"
+        transformations:
+          - "strip"

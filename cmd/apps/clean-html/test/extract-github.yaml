@@ -1,9 +1,0 @@
-selectors:
-  - title: Repository Title
-    selector: "h1.heading-element"
-  - title: Repository Description
-    selector: ".markdown-body p"
-  - title: Code Snippets
-    selector: ".highlight"
-  - title: Policy Documentation
-    selector: ".markdown-body h2.heading-element"

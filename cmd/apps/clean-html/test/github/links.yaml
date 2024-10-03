@@ -1,0 +1,11 @@
+selectors:
+  - title: Repository Information
+    selector: ".markdown-body.entry-content.container-lg"
+    assemble: "hash"
+    children:
+      - title: Links
+        selector: ".markdown-heading:has(h2:contains(\"Links\")) + ul li a"
+        assemble: "list"
+        attributes:
+          - "text"
+          - "href"

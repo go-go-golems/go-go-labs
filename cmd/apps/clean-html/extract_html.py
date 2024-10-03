@@ -44,7 +44,15 @@ def extract_data(soup, config, debug=False):
             data = [element.get_text() for element in elements]
         elif assemble == "list":
             if attributes:
-                data = [element.get(attribute) for element in elements for attribute in attributes]
+                data = []
+                for element in elements:
+                    element_data = []
+                    for attribute in attributes:
+                        if attribute == "text":
+                            element_data.append(element.get_text(strip=True))
+                        else:
+                            element_data.append(element.get(attribute))
+                    data.extend(element_data)
             else:
                 data = [element.get_text(strip=True) for element in elements]
         elif assemble == "hash":

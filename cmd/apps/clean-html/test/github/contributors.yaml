@@ -1,0 +1,8 @@
+selectors:
+  - title: Repository Information
+    selector: ".markdown-body.entry-content.container-lg"
+    assemble: "hash"
+    children:
+      - title: Contributors
+        selector: "ul.list-style-none.d-flex.flex-wrap.mb-n2 li a img.avatar.circle"
+        assemble: "list"

@@ -1,0 +1,12 @@
+selectors:
+  - title: Repository Information
+    selector: ".markdown-body.entry-content.container-lg"
+    assemble: "hash"
+    children:
+      - title: Policies
+        selector: "h2#user-content-policies"
+        assemble: "hash"
+        children:
+          - title: Policy Details
+            selector: "h2#user-content-policies ~ ul li a"
+            assemble: "list"

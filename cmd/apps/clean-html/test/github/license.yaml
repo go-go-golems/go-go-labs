@@ -1,0 +1,8 @@
+selectors:
+  - title: Repository Information
+    selector: ".markdown-body.entry-content.container-lg"
+    assemble: "hash"
+    children:
+      - title: License
+        attribute: "text"
+        selector: ".Layout-sidebar h3:contains(\"License\") + div .Link--muted"

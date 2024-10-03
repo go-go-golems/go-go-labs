@@ -1,0 +1,51 @@
+selectors:
+  - title: Repository Information
+    selector: ".markdown-body.entry-content.container-lg"
+    assemble: "hash"
+    children:
+      - title: Title
+        selector: "h1.heading-element"
+        assemble: "single"
+      - title: Description
+        selector: "p"
+        assemble: "concatenate"
+        transformations:
+          - "strip"
+      - title: Links
+        selector: ".markdown-heading h2:contains(\"Links\") a"
+        assemble: "hash"
+        key_attribute: "text"
+        value_attribute: "href"
+      - title: Installation Instructions
+        selector: "h2#user-content-installation + blockquote, h2#user-content-installation + div.highlight pre"
+        assemble: "code_blocks"
+      - title: Policies
+        selector: "h2#user-content-policies"
+        assemble: "hash"
+        children:
+          - title: Policy Details
+            selector: "h2#user-content-policies ~ ul li a"
+            assemble: "list"
+      - title: License
+        attribute: "text"
+        selector: ".Layout-sidebar h3:contains(\"License\") + div .Link--muted"
+  - title: Repository Statistics
+    selector: "#repository-container-header"
+    assemble: "hash"
+    children:
+      - title: Stars
+        selector: "#repo-stars-counter"
+        assemble: "single"
+      - title: Forks
+        selector: "#repo-network-counter"
+        assemble: "single"
+      - title: Contributors
+        selector: "ul.list-style-none.d-flex.flex-wrap.mb-n2 li a img.avatar.circle"
+        assemble: "list"
+        attributes:
+          - "alt"
+  - title: External Resources
+    selector: ".Link--external"
+    assemble: "list"
+    attributes:
+      - "href"
