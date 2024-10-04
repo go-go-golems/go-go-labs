@@ -302,15 +302,15 @@ func main() {
 
 	rootCmd.Flags().Int64Var(&cp.MaxFileSize, "max-file-size", 1024*1024, "Maximum size of individual files in bytes")
 	rootCmd.Flags().Int64Var(&cp.MaxTotalSize, "max-total-size", 10*1024*1024, "Maximum total size of all files in bytes")
-	rootCmd.Flags().StringSliceVar(&cp.IncludeExts, "include", []string{}, "List of file extensions to include (e.g., .go,.js)")
-	rootCmd.Flags().StringSliceVar(&cp.ExcludeExts, "exclude", []string{}, "List of file extensions to exclude (e.g., .exe,.dll)")
-	rootCmd.Flags().StringVar(&cp.StatsLevel, "stats", "none", "Level of statistics to show: none, total, or detailed")
-	rootCmd.Flags().StringSlice("match-filename", []string{}, "List of regular expressions to match filenames")
-	rootCmd.Flags().StringSlice("match-path", []string{}, "List of regular expressions to match full paths")
-	rootCmd.Flags().BoolVar(&cp.ListOnly, "list", false, "List filenames only without printing content")
-	rootCmd.Flags().StringSliceVar(&cp.ExcludeDirs, "exclude-dirs", []string{}, "List of directories to exclude")
+	rootCmd.Flags().StringSliceVarP(&cp.IncludeExts, "include", "i", []string{}, "List of file extensions to include (e.g., .go,.js)")
+	rootCmd.Flags().StringSliceVarP(&cp.ExcludeExts, "exclude", "e", []string{}, "List of file extensions to exclude (e.g., .exe,.dll)")
+	rootCmd.Flags().StringVarP(&cp.StatsLevel, "stats", "s", "none", "Level of statistics to show: none, total, or detailed")
+	rootCmd.Flags().StringSliceP("match-filename", "f", []string{}, "List of regular expressions to match filenames")
+	rootCmd.Flags().StringSliceP("match-path", "p", []string{}, "List of regular expressions to match full paths")
+	rootCmd.Flags().BoolVarP(&cp.ListOnly, "list", "l", false, "List filenames only without printing content")
+	rootCmd.Flags().StringSliceVarP(&cp.ExcludeDirs, "exclude-dirs", "x", []string{}, "List of directories to exclude")
 	rootCmd.Flags().BoolVar(&cp.DisableGitIgnore, "disable-gitignore", false, "Disable .gitignore filter")
-	rootCmd.Flags().StringVar(&cp.DelimiterType, "delimiter", "default", "Type of delimiter to use between files: default, xml, markdown, simple, begin-end")
+	rootCmd.Flags().StringVarP(&cp.DelimiterType, "delimiter", "d", "default", "Type of delimiter to use between files: default, xml, markdown, simple, begin-end")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)

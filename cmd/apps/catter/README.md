@@ -42,20 +42,20 @@ catter [flags] <file1> <directory1> ...
 
 - `--max-file-size`: Maximum size of individual files in bytes (default: 1MB)
 - `--max-total-size`: Maximum total size of all processed files in bytes (default: 10MB)
-- `--include`: List of file extensions to include (e.g., .go,.js)
-- `--exclude`: List of file extensions to exclude (e.g., .exe,.dll)
-- `--stats`: Level of statistics to show: none, total, or detailed (default: none)
-- `--match-filename`: List of regular expressions to match filenames
-- `--match-path`: List of regular expressions to match full paths
-- `--list`: List filenames only without printing content
-- `--exclude-dirs`: List of directories to exclude
+- `-i, --include`: List of file extensions to include (e.g., .go,.js)
+- `-e, --exclude`: List of file extensions to exclude (e.g., .exe,.dll)
+- `-s, --stats`: Level of statistics to show: none, total, or detailed (default: none)
+- `-f, --match-filename`: List of regular expressions to match filenames
+- `-p, --match-path`: List of regular expressions to match full paths
+- `-l, --list`: List filenames only without printing content
+- `-x, --exclude-dirs`: List of directories to exclude
 - `--disable-gitignore`: Disable .gitignore filter
-- `--delimiter`: Type of delimiter to use between files: default, xml, markdown, simple, begin-end (default: default)
+- `-d, --delimiter`: Type of delimiter to use between files: default, xml, markdown, simple, begin-end (default: default)
 
 ### Example
 
 ```
-catter --max-file-size=500000 --max-total-size=5000000 --include=.go,.js --exclude=.tmp,.log --stats=detailed --match-filename="^main" --exclude-dirs="vendor,node_modules" /path/to/your/codebase --delimiter=markdown
+catter --max-file-size=500000 --max-total-size=5000000 -i .go,.js -e .tmp,.log -s detailed -f "^main" -p "src/" -x vendor,node_modules -d markdown /path/to/your/codebase
 ```
 
 This command will:
@@ -65,17 +65,18 @@ This command will:
 - Exclude .tmp and .log files
 - Print detailed statistics, including token counts per file and directory
 - Only process files with names starting with "main"
+- Only process files in paths containing "src/"
 - Exclude the "vendor" and "node_modules" directories
 - Respect .gitignore rules
-- Print the content of each file to stdout
+- Use markdown-style delimiters between files
 
 ## Output
 
 The program outputs two types of information:
 
-1. File contents (stdout): The content of each processed file is printed to standard output, separated by markdown-style separators.
+1. File contents (stdout): The content of each processed file is printed to standard output, separated by the specified delimiter.
 
-2. Statistics (stderr): Depending on the `--stats` flag:
+2. Statistics (stderr): Depending on the `-s, --stats` flag:
     - `none`: No statistics are shown (default)
     - `total`: Only the total token count is shown
     - `detailed`: A full summary is printed, including:
