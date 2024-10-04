@@ -7,6 +7,5 @@ selectors:
   - title: Image
     selector: ".image"
     assemble: "hash"
-    attributes:
-      - "src"
-      - "alt"
+    key_attribute: "src"
+    value_attribute: "alt"

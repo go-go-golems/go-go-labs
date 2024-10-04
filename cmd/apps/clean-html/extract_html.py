@@ -2,6 +2,28 @@ import click
 import yaml
 from bs4 import BeautifulSoup
 import sys
+from dataclasses import dataclass, field
+from typing import List, Optional, Union, Dict, Any
+
+@dataclass
+class AttributeConfig:
+    name: str
+    transformations: List[str] = field(default_factory=list)
+
+@dataclass
+class SelectorConfig:
+    title: str
+    selector: str
+    assemble: str = "list"
+    attributes: List[Union[str, AttributeConfig]] = field(default_factory=list)
+    transformations: List[str] = field(default_factory=list)
+    children: List['SelectorConfig'] = field(default_factory=list)
+    key_attribute: str = "text"
+    value_attribute: str = "href"
+
+@dataclass
+class ExtractConfig:
+    selectors: List[SelectorConfig]
 
 def apply_transformations(text, transformations):
     for transform in transformations:
@@ -26,15 +48,22 @@ def extract_concatenate(elements):
 def extract_code_blocks(elements):
     return [element.get_text() for element in elements]
 
+def filter_empty(data):
+    if isinstance(data, list):
+        return [item for item in data if item]
+    elif isinstance(data, dict):
+        return {k: v for k, v in data.items() if k and v}
+    return data
+
 def extract_list(elements, attributes):
     if attributes:
         data = []
         for element in elements:
             element_data = []
             for attribute in attributes:
-                if isinstance(attribute, dict):
-                    attr_name = attribute['name']
-                    attr_transformations = attribute.get('transformations', [])
+                if isinstance(attribute, AttributeConfig):
+                    attr_name = attribute.name
+                    attr_transformations = attribute.transformations
                     if attr_name == "text":
                         value = element.get_text(strip=True)
                     else:
@@ -46,17 +75,18 @@ def extract_list(elements, attributes):
                         element_data.append(element.get_text(strip=True))
                     else:
                         element_data.append(element.get(attribute))
-            data.extend(element_data)
+            data.extend(filter_empty(element_data))
     else:
         data = [element.get_text(strip=True) for element in elements]
-    return data
+    return filter_empty(data)
 
 def extract_hash(elements, key_attr, value_attr):
     data = {}
     for element in elements:
         key = element.get_text(strip=True) if key_attr == 'text' else element.get(key_attr)
-        value = element.get(value_attr)
-        data[key] = value
+        value = element.get_text(strip=True) if value_attr == 'text' else element.get(value_attr)
+        if key and value:
+            data[key] = value
     return data
 
 def extract_single(elements):
@@ -70,10 +100,10 @@ def extract_table(elements):
         rows.append(row)
     return {"headers": headers, "rows": rows}
 
-def extract_data(soup, config, debug=False):
-    def process_selector(soup, selector_config, depth=0):
-        title = selector_config.get('title')
-        selector = selector_config.get('selector')
+def extract_data(soup, config: ExtractConfig, debug=False):
+    def process_selector(soup, selector_config: SelectorConfig, depth=0):
+        title = selector_config.title
+        selector = selector_config.selector
         
         if debug:
             indent = "  " * depth
@@ -83,10 +113,10 @@ def extract_data(soup, config, debug=False):
             print(f"{indent}Warning: Selector for '{title}' is missing or empty. Skipping.", file=sys.stderr)
             return None
 
-        assemble = selector_config.get('assemble', 'list')
-        children = selector_config.get('children', [])
-        attributes = selector_config.get('attributes', [])
-        transformations = selector_config.get('transformations', [])
+        assemble = selector_config.assemble
+        children = selector_config.children
+        attributes = selector_config.attributes
+        transformations = selector_config.transformations
 
         elements = soup.select(selector)
         
@@ -100,8 +130,8 @@ def extract_data(soup, config, debug=False):
         elif assemble == "list":
             data = extract_list(elements, attributes)
         elif assemble == "hash":
-            key_attr = selector_config.get('key_attribute', 'text')
-            value_attr = selector_config.get('value_attribute', 'href')
+            key_attr = selector_config.key_attribute
+            value_attr = selector_config.value_attribute
             data = extract_hash(elements, key_attr, value_attr)
         elif assemble == "single":
             data = extract_single(elements)
@@ -110,6 +140,8 @@ def extract_data(soup, config, debug=False):
         else:
             print(f"{indent}Warning: Unknown assembly method '{assemble}' for '{title}'. Using 'list' as default.", file=sys.stderr)
             data = extract_list(elements, attributes)
+
+        data = filter_empty(data)
 
         if debug:
             if isinstance(data, (str, list)):
@@ -140,7 +172,7 @@ def extract_data(soup, config, debug=False):
                     print(f"{indent}  Debug: Processing child {i+1}/{len(children)} for '{title}': {child}", file=sys.stderr)
                 child_result = process_selector(soup, child, depth + 1)
                 if child_result is not None:
-                    child_data[child.get('title')] = child_result
+                    child_data[child.title] = child_result
             data = child_data
             if debug:
                 print(f"{indent}Debug: Finished processing children for '{title}'", file=sys.stderr)
@@ -148,10 +180,10 @@ def extract_data(soup, config, debug=False):
         return data
 
     extracted = {}
-    for selector in config.get('selectors', []):
+    for selector in config.selectors:
         result = process_selector(soup, selector)
         if result is not None:
-            extracted[selector.get('title')] = result
+            extracted[selector.title] = result
     return extracted
 
 def str_presenter(dumper, data):
@@ -160,6 +192,33 @@ def str_presenter(dumper, data):
     return dumper.represent_scalar('tag:yaml.org,2002:str', data)
 
 yaml.add_representer(str, str_presenter)
+
+def load_config(config_file) -> ExtractConfig:
+    config_data = yaml.safe_load(config_file)
+    selectors = []
+    for selector_data in config_data.get('selectors', []):
+        attributes = []
+        for attr in selector_data.get('attributes', []):
+            if isinstance(attr, dict):
+                attributes.append(AttributeConfig(**attr))
+            else:
+                attributes.append(attr)
+        
+        children = [SelectorConfig(**child) for child in selector_data.get('children', [])]
+        
+        selector = SelectorConfig(
+            title=selector_data['title'],
+            selector=selector_data['selector'],
+            assemble=selector_data.get('assemble', 'list'),
+            attributes=attributes,
+            transformations=selector_data.get('transformations', []),
+            children=children,
+            key_attribute=selector_data.get('key_attribute', 'text'),
+            value_attribute=selector_data.get('value_attribute', 'href')
+        )
+        selectors.append(selector)
+    
+    return ExtractConfig(selectors=selectors)
 
 @click.command()
 @click.option('--config', '-c', type=click.File('r'), required=True, help='YAML configuration file with selectors.')
@@ -174,7 +233,7 @@ def extract_content(config, input, output, debug):
         print("Debug: Starting extraction process", file=sys.stderr)
 
     # Load YAML configuration
-    config_data = yaml.safe_load(config)
+    config_data = load_config(config)
 
     if debug:
         print(f"Debug: Loaded configuration: {config_data}", file=sys.stderr)
