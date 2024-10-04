@@ -34,6 +34,20 @@ type CodePrinter struct {
 	DefaultExcludeExts []string
 }
 
+type FlagResults struct {
+	MaxFileSize       int64
+	MaxTotalSize      int64
+	IncludeExts       []string
+	ExcludeExts       []string
+	StatsLevel        string
+	MatchFilenameStrs []string
+	MatchPathStrs     []string
+	ListOnly          bool
+	ExcludeDirs       []string
+	DisableGitIgnore  bool
+	DelimiterType     string
+}
+
 func NewCodePrinter() *CodePrinter {
 	tokenCounter, err := tiktoken.GetEncoding("cl100k_base")
 	if err != nil {
@@ -246,74 +260,99 @@ func (cp *CodePrinter) printSummary() {
 	}
 }
 
+func init() {
+	CatterCmd.Flags().Int64("max-file-size", 1024*1024, "Maximum size of individual files in bytes")
+	CatterCmd.Flags().Int64("max-total-size", 10*1024*1024, "Maximum total size of all files in bytes")
+	CatterCmd.Flags().Bool("disable-gitignore", false, "Disable .gitignore filter")
+
+	// Add shorthand flags
+	CatterCmd.Flags().StringSliceP("include", "i", []string{}, "List of file extensions to include (e.g., .go,.js)")
+	CatterCmd.Flags().StringSliceP("exclude", "e", []string{}, "List of file extensions to exclude (e.g., .exe,.dll)")
+	CatterCmd.Flags().StringP("stats", "s", "none", "Level of statistics to show: none, total, or detailed")
+	CatterCmd.Flags().StringSliceP("match-filename", "f", []string{}, "List of regular expressions to match filenames")
+	CatterCmd.Flags().StringSliceP("match-path", "p", []string{}, "List of regular expressions to match full paths")
+	CatterCmd.Flags().BoolP("list", "l", false, "List filenames only without printing content")
+	CatterCmd.Flags().StringSliceP("exclude-dirs", "x", []string{}, "List of directories to exclude")
+	CatterCmd.Flags().StringP("delimiter", "d", "default", "Type of delimiter to use between files: default, xml, markdown, simple, begin-end")
+}
+
 func main() {
-	cp := NewCodePrinter()
-
-	rootCmd := &cobra.Command{
-		Use:   "catter",
-		Short: "Print file contents with token counting for LLM context",
-		Long:  `A CLI tool to print file contents, recursively process directories, and count tokens for LLM context preparation.`,
-		Run: func(cmd *cobra.Command, args []string) {
-			// Convert string flags to regular expressions
-			if matchFilenameStrs, _ := cmd.Flags().GetStringSlice("match-filename"); len(matchFilenameStrs) > 0 {
-				for _, matchFilenameStr := range matchFilenameStrs {
-					re, err := regexp.Compile(matchFilenameStr)
-					if err != nil {
-						fmt.Fprintf(os.Stderr, "Invalid match-filename regex: %v\n", err)
-						os.Exit(1)
-					}
-					cp.MatchFilenames = append(cp.MatchFilenames, re)
-				}
-			}
-
-			if matchPathStrs, _ := cmd.Flags().GetStringSlice("match-path"); len(matchPathStrs) > 0 {
-				for _, matchPathStr := range matchPathStrs {
-					re, err := regexp.Compile(matchPathStr)
-					if err != nil {
-						fmt.Fprintf(os.Stderr, "Invalid match-path regex: %v\n", err)
-						os.Exit(1)
-					}
-					cp.MatchPaths = append(cp.MatchPaths, re)
-				}
-			}
-
-			// Initialize gitignore filter if not disabled
-			if !cp.DisableGitIgnore {
-				if _, err := os.Stat(".gitignore"); err == nil {
-					gitIgnoreFilter, err := gitignore.NewFromFile(".gitignore")
-					if err != nil {
-						fmt.Fprintf(os.Stderr, "Error initializing gitignore filter from file: %v\n", err)
-						os.Exit(1)
-					}
-					cp.GitIgnoreFilter = gitIgnoreFilter
-				} else {
-					gitIgnoreFilter, err := gitignore.NewRepository(".")
-					if err != nil {
-						fmt.Fprintf(os.Stderr, "Error initializing gitignore filter: %v\n", err)
-						os.Exit(1)
-					}
-					cp.GitIgnoreFilter = gitIgnoreFilter
-				}
-			}
-
-			cp.Run(cmd, args)
-		},
-	}
-
-	rootCmd.Flags().Int64Var(&cp.MaxFileSize, "max-file-size", 1024*1024, "Maximum size of individual files in bytes")
-	rootCmd.Flags().Int64Var(&cp.MaxTotalSize, "max-total-size", 10*1024*1024, "Maximum total size of all files in bytes")
-	rootCmd.Flags().StringSliceVarP(&cp.IncludeExts, "include", "i", []string{}, "List of file extensions to include (e.g., .go,.js)")
-	rootCmd.Flags().StringSliceVarP(&cp.ExcludeExts, "exclude", "e", []string{}, "List of file extensions to exclude (e.g., .exe,.dll)")
-	rootCmd.Flags().StringVarP(&cp.StatsLevel, "stats", "s", "none", "Level of statistics to show: none, total, or detailed")
-	rootCmd.Flags().StringSliceP("match-filename", "f", []string{}, "List of regular expressions to match filenames")
-	rootCmd.Flags().StringSliceP("match-path", "p", []string{}, "List of regular expressions to match full paths")
-	rootCmd.Flags().BoolVarP(&cp.ListOnly, "list", "l", false, "List filenames only without printing content")
-	rootCmd.Flags().StringSliceVarP(&cp.ExcludeDirs, "exclude-dirs", "x", []string{}, "List of directories to exclude")
-	rootCmd.Flags().BoolVar(&cp.DisableGitIgnore, "disable-gitignore", false, "Disable .gitignore filter")
-	rootCmd.Flags().StringVarP(&cp.DelimiterType, "delimiter", "d", "default", "Type of delimiter to use between files: default, xml, markdown, simple, begin-end")
-
-	if err := rootCmd.Execute(); err != nil {
+	if err := CatterCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+}
+
+var CatterCmd = &cobra.Command{
+	Use:   "catter",
+	Short: "Print file contents with token counting for LLM context",
+	Long:  `A CLI tool to print file contents, recursively process directories, and count tokens for LLM context preparation.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		flagResults := &FlagResults{}
+
+		// Populate the FlagResults struct
+		flagResults.MaxFileSize, _ = cmd.Flags().GetInt64("max-file-size")
+		flagResults.MaxTotalSize, _ = cmd.Flags().GetInt64("max-total-size")
+		flagResults.IncludeExts, _ = cmd.Flags().GetStringSlice("include")
+		flagResults.ExcludeExts, _ = cmd.Flags().GetStringSlice("exclude")
+		flagResults.StatsLevel, _ = cmd.Flags().GetString("stats")
+		flagResults.MatchFilenameStrs, _ = cmd.Flags().GetStringSlice("match-filename")
+		flagResults.MatchPathStrs, _ = cmd.Flags().GetStringSlice("match-path")
+		flagResults.ListOnly, _ = cmd.Flags().GetBool("list")
+		flagResults.ExcludeDirs, _ = cmd.Flags().GetStringSlice("exclude-dirs")
+		flagResults.DisableGitIgnore, _ = cmd.Flags().GetBool("disable-gitignore")
+		flagResults.DelimiterType, _ = cmd.Flags().GetString("delimiter")
+
+		// Update CodePrinter with flag results
+		cp := NewCodePrinter()
+		cp.MaxFileSize = flagResults.MaxFileSize
+		cp.MaxTotalSize = flagResults.MaxTotalSize
+		cp.IncludeExts = flagResults.IncludeExts
+		cp.ExcludeExts = flagResults.ExcludeExts
+		cp.StatsLevel = flagResults.StatsLevel
+		cp.ListOnly = flagResults.ListOnly
+		cp.ExcludeDirs = flagResults.ExcludeDirs
+		cp.DisableGitIgnore = flagResults.DisableGitIgnore
+		cp.DelimiterType = flagResults.DelimiterType
+
+		// Convert string flags to regular expressions
+		for _, matchFilenameStr := range flagResults.MatchFilenameStrs {
+			re, err := regexp.Compile(matchFilenameStr)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Invalid match-filename regex: %v\n", err)
+				os.Exit(1)
+			}
+			cp.MatchFilenames = append(cp.MatchFilenames, re)
+		}
+
+		for _, matchPathStr := range flagResults.MatchPathStrs {
+			re, err := regexp.Compile(matchPathStr)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Invalid match-path regex: %v\n", err)
+				os.Exit(1)
+			}
+			cp.MatchPaths = append(cp.MatchPaths, re)
+		}
+
+		// Initialize gitignore filter if not disabled
+		if !cp.DisableGitIgnore {
+			if _, err := os.Stat(".gitignore"); err == nil {
+				gitIgnoreFilter, err := gitignore.NewFromFile(".gitignore")
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Error initializing gitignore filter from file: %v\n", err)
+					os.Exit(1)
+				}
+				cp.GitIgnoreFilter = gitIgnoreFilter
+			} else {
+				gitIgnoreFilter, err := gitignore.NewRepository(".")
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Error initializing gitignore filter: %v\n", err)
+					os.Exit(1)
+				}
+				cp.GitIgnoreFilter = gitIgnoreFilter
+			}
+		}
+
+		cp.Run(cmd, args)
+	},
 }
