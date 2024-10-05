@@ -63,6 +63,12 @@ func (ew *ElementWrapper) UnmarshalYAML(value *yaml.Node) error {
 		element = &Group{}
 	case "circle":
 		element = &Circle{}
+	case "triangle":
+		element = &Triangle{}
+	case "ellipse":
+		element = &Ellipse{}
+	case "polygon":
+		element = &Polygon{}
 	default:
 		return fmt.Errorf("unsupported element type: %s", temp.Type)
 	}

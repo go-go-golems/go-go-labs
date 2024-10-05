@@ -126,6 +126,42 @@ type Circle struct {
 	Transform   *Transform `yaml:"transform,omitempty"`
 }
 
+// Triangle represents an SVG triangle.
+type Triangle struct {
+	Type        string     `yaml:"type"`
+	ID          string     `yaml:"id,omitempty"`
+	Points      [][2]int   `yaml:"points"`
+	Fill        string     `yaml:"fill,omitempty"`
+	Stroke      string     `yaml:"stroke,omitempty"`
+	StrokeWidth int        `yaml:"stroke_width,omitempty"`
+	Transform   *Transform `yaml:"transform,omitempty"`
+}
+
+// Ellipse represents an SVG ellipse.
+type Ellipse struct {
+	Type        string     `yaml:"type"`
+	ID          string     `yaml:"id,omitempty"`
+	CX          int        `yaml:"cx"`
+	CY          int        `yaml:"cy"`
+	RX          int        `yaml:"rx"`
+	RY          int        `yaml:"ry"`
+	Fill        string     `yaml:"fill,omitempty"`
+	Stroke      string     `yaml:"stroke,omitempty"`
+	StrokeWidth int        `yaml:"stroke_width,omitempty"`
+	Transform   *Transform `yaml:"transform,omitempty"`
+}
+
+// Polygon represents an SVG polygon.
+type Polygon struct {
+	Type        string     `yaml:"type"`
+	ID          string     `yaml:"id,omitempty"`
+	Points      [][2]int   `yaml:"points"`
+	Fill        string     `yaml:"fill,omitempty"`
+	Stroke      string     `yaml:"stroke,omitempty"`
+	StrokeWidth int        `yaml:"stroke_width,omitempty"`
+	Transform   *Transform `yaml:"transform,omitempty"`
+}
+
 // Render methods for each element type
 // ... (same as in the original file)
 
@@ -198,6 +234,54 @@ func (c *Circle) Render(canvas *svg.SVG) {
 	}
 	canvas.Circle(c.CX, c.CY, c.R, styles)
 	if c.Transform != nil {
+		canvas.Gend()
+	}
+}
+
+// Render renders the triangle onto the SVG canvas.
+func (t *Triangle) Render(canvas *svg.SVG) {
+	styles := buildStyles(t.Fill, t.Stroke, t.StrokeWidth)
+	if t.Transform != nil {
+		canvas.Gtransform(buildTransform(t.Transform))
+	}
+	x := make([]int, len(t.Points))
+	y := make([]int, len(t.Points))
+	for i, point := range t.Points {
+		x[i] = point[0]
+		y[i] = point[1]
+	}
+	canvas.Polygon(x, y, styles)
+	if t.Transform != nil {
+		canvas.Gend()
+	}
+}
+
+// Render renders the ellipse onto the SVG canvas.
+func (e *Ellipse) Render(canvas *svg.SVG) {
+	styles := buildStyles(e.Fill, e.Stroke, e.StrokeWidth)
+	if e.Transform != nil {
+		canvas.Gtransform(buildTransform(e.Transform))
+	}
+	canvas.Ellipse(e.CX, e.CY, e.RX, e.RY, styles)
+	if e.Transform != nil {
+		canvas.Gend()
+	}
+}
+
+// Render renders the polygon onto the SVG canvas.
+func (p *Polygon) Render(canvas *svg.SVG) {
+	styles := buildStyles(p.Fill, p.Stroke, p.StrokeWidth)
+	if p.Transform != nil {
+		canvas.Gtransform(buildTransform(p.Transform))
+	}
+	x := make([]int, len(p.Points))
+	y := make([]int, len(p.Points))
+	for i, point := range p.Points {
+		x[i] = point[0]
+		y[i] = point[1]
+	}
+	canvas.Polygon(x, y, styles)
+	if p.Transform != nil {
 		canvas.Gend()
 	}
 }

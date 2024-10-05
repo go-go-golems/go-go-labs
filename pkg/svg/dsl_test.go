@@ -280,6 +280,25 @@ svg:
       cy: 200
       r: 30
       fill: "#00ff00"
+    - type: triangle
+      points:
+        - [300, 300]
+        - [350, 300]
+        - [325, 350]
+      fill: "#0000ff"
+    - type: ellipse
+      cx: 500
+      cy: 300
+      rx: 60
+      ry: 40
+      fill: "#ffff00"
+    - type: polygon
+      points:
+        - [600, 100]
+        - [650, 150]
+        - [600, 200]
+        - [550, 150]
+      fill: "#ff00ff"
 `
 	var svgDSL SVGDSL
 	err := yaml.Unmarshal([]byte(yamlInput), &svgDSL)
@@ -310,6 +329,24 @@ svg:
 					R:    30,
 					Fill: "#00ff00",
 				}},
+				{Element: &Triangle{
+					Type:   "triangle",
+					Points: [][2]int{{300, 300}, {350, 300}, {325, 350}},
+					Fill:   "#0000ff",
+				}},
+				{Element: &Ellipse{
+					Type: "ellipse",
+					CX:   500,
+					CY:   300,
+					RX:   60,
+					RY:   40,
+					Fill: "#ffff00",
+				}},
+				{Element: &Polygon{
+					Type:   "polygon",
+					Points: [][2]int{{600, 100}, {650, 150}, {600, 200}, {550, 150}},
+					Fill:   "#ff00ff",
+				}},
 			},
 		},
 	}
@@ -333,5 +370,121 @@ id: invalid1
 	expectedError := "unsupported element type: invalid_type"
 	if err.Error() != expectedError {
 		t.Errorf("Unexpected error message. Got %q, want %q", err.Error(), expectedError)
+	}
+}
+
+func TestUnmarshalTriangle(t *testing.T) {
+	yamlInput := `
+type: triangle
+id: triangle1
+points:
+  - [100, 100]
+  - [200, 100]
+  - [150, 200]
+fill: "#00ff00"
+stroke: "#000000"
+stroke_width: 2
+`
+	var element ElementWrapper
+	err := yaml.Unmarshal([]byte(yamlInput), &element)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal Triangle: %v", err)
+	}
+
+	triangle, ok := element.Element.(*Triangle)
+	if !ok {
+		t.Fatalf("Expected Triangle, got %T", element.Element)
+	}
+
+	expected := &Triangle{
+		Type:        "triangle",
+		ID:          "triangle1",
+		Points:      [][2]int{{100, 100}, {200, 100}, {150, 200}},
+		Fill:        "#00ff00",
+		Stroke:      "#000000",
+		StrokeWidth: 2,
+	}
+
+	if !reflect.DeepEqual(triangle, expected) {
+		t.Errorf("Unmarshaled Triangle doesn't match expected. Got %+v, want %+v", triangle, expected)
+	}
+}
+
+func TestUnmarshalEllipse(t *testing.T) {
+	yamlInput := `
+type: ellipse
+id: ellipse1
+cx: 200
+cy: 150
+rx: 100
+ry: 50
+fill: "#ffff00"
+stroke: "#000000"
+stroke_width: 2
+`
+	var element ElementWrapper
+	err := yaml.Unmarshal([]byte(yamlInput), &element)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal Ellipse: %v", err)
+	}
+
+	ellipse, ok := element.Element.(*Ellipse)
+	if !ok {
+		t.Fatalf("Expected Ellipse, got %T", element.Element)
+	}
+
+	expected := &Ellipse{
+		Type:        "ellipse",
+		ID:          "ellipse1",
+		CX:          200,
+		CY:          150,
+		RX:          100,
+		RY:          50,
+		Fill:        "#ffff00",
+		Stroke:      "#000000",
+		StrokeWidth: 2,
+	}
+
+	if !reflect.DeepEqual(ellipse, expected) {
+		t.Errorf("Unmarshaled Ellipse doesn't match expected. Got %+v, want %+v", ellipse, expected)
+	}
+}
+
+func TestUnmarshalPolygon(t *testing.T) {
+	yamlInput := `
+type: polygon
+id: polygon1
+points:
+  - [100, 100]
+  - [200, 100]
+  - [250, 200]
+  - [150, 250]
+  - [50, 200]
+fill: "#ff00ff"
+stroke: "#000000"
+stroke_width: 2
+`
+	var element ElementWrapper
+	err := yaml.Unmarshal([]byte(yamlInput), &element)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal Polygon: %v", err)
+	}
+
+	polygon, ok := element.Element.(*Polygon)
+	if !ok {
+		t.Fatalf("Expected Polygon, got %T", element.Element)
+	}
+
+	expected := &Polygon{
+		Type:        "polygon",
+		ID:          "polygon1",
+		Points:      [][2]int{{100, 100}, {200, 100}, {250, 200}, {150, 250}, {50, 200}},
+		Fill:        "#ff00ff",
+		Stroke:      "#000000",
+		StrokeWidth: 2,
+	}
+
+	if !reflect.DeepEqual(polygon, expected) {
+		t.Errorf("Unmarshaled Polygon doesn't match expected. Got %+v, want %+v", polygon, expected)
 	}
 }

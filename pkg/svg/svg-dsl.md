@@ -10,6 +10,9 @@
      - [Image](#image)
      - [Text](#text)
      - [Group](#group)
+     - [Triangle](#triangle)
+     - [Ellipse](#ellipse)
+     - [Polygon](#polygon)
    - [Transformations](#transformations)
    - [Attributes Overview](#attributes-overview)
 3. [Code Snippets](#code-snippets)
@@ -75,15 +78,18 @@ svg:
 
 ### Elements
 
-An array of drawable objects within the SVG canvas. Supported element types include:
+An array of drawable objects within the SVG canvas. The following are the only supported element types:
 
 - **rectangle**
 - **line**
 - **image**
 - **text**
 - **group**
+- **triangle**
+- **ellipse**
+- **polygon**
 
-Each element type has specific attributes (detailed below).
+Each element type has specific attributes (detailed below). No other element types are supported in this DSL.
 
 ```yaml
 elements:
@@ -224,6 +230,72 @@ Groups multiple elements together, allowing for scoped transformations.
       # Nested line attributes
 ```
 
+#### Ellipse
+
+Draws an ellipse on the canvas.
+
+- **type**: `"ellipse"`
+- **id**: (Optional) Identifier for the element.
+- **cx**: X-coordinate of the center.
+- **cy**: Y-coordinate of the center.
+- **rx**: Horizontal radius.
+- **ry**: Vertical radius.
+- **fill**: Fill color (hex code or `none`).
+- **stroke**: Border color (hex code or `none`).
+- **stroke_width**: Thickness of the border.
+
+```yaml
+- type: ellipse
+  id: ellipse1
+  cx: 200
+  cy: 150
+  rx: 100
+  ry: 50
+  fill: "#ffff00"
+  stroke: "#000000"
+  stroke_width: 2
+```
+
+#### Triangle
+
+Draws a triangle on the canvas.
+
+- **type**: `"triangle"`
+- **id**: (Optional) Identifier for the element.
+- **points**: Array of three [x, y] coordinate pairs.
+- **fill**: Fill color (hex code or `none`).
+- **stroke**: Border color (hex code or `none`).
+- **stroke_width**: Thickness of the border.
+
+```yaml
+- type: triangle
+  id: triangle1
+  points: [[100, 100], [200, 100], [150, 200]]
+  fill: "#00ff00"
+  stroke: "#000000"
+  stroke_width: 2
+```
+
+#### Polygon
+
+Draws a polygon on the canvas.
+
+- **type**: `"polygon"`
+- **id**: (Optional) Identifier for the element.
+- **points**: Array of [x, y] coordinate pairs (minimum 3 points).
+- **fill**: Fill color (hex code or `none`).
+- **stroke**: Border color (hex code or `none`).
+- **stroke_width**: Thickness of the border.
+
+```yaml
+- type: polygon
+  id: polygon1
+  points: [[100, 100], [200, 100], [250, 200], [150, 250], [50, 200]]
+  fill: "#ff00ff"
+  stroke: "#000000"
+  stroke_width: 2
+```
+
 ### Transformations
 
 Transformations can be applied to individual elements or groups to manipulate their position, rotation, and scale.
@@ -328,6 +400,42 @@ While each element type has specific attributes, some common attributes across m
       y2: 40
       stroke: "#ff00ff"
       stroke_width: 2
+```
+
+### Ellipse Example
+
+```yaml
+- type: ellipse
+  id: ellipse1
+  cx: 200
+  cy: 150
+  rx: 100
+  ry: 50
+  fill: "#ffff00"
+  stroke: "#000000"
+  stroke_width: 2
+```
+
+### Triangle Example
+
+```yaml
+- type: triangle
+  id: triangle1
+  points: [[100, 100], [200, 100], [150, 200]]
+  fill: "#00ff00"
+  stroke: "#000000"
+  stroke_width: 2
+```
+
+### Polygon Example
+
+```yaml
+- type: polygon
+  id: polygon1
+  points: [[100, 100], [200, 100], [250, 200], [150, 250], [50, 200]]
+  fill: "#ff00ff"
+  stroke: "#000000"
+  stroke_width: 2
 ```
 
 ---
@@ -616,3 +724,8 @@ Constructs an 800x600 pixel SVG with a background image. The main group is cente
 </svg>
 ```
 
+---
+
+## Conclusion
+
+The YAML-based DSL for SVG provides a user-friendly and maintainable way to create and manage SVG graphics. By abstracting the verbose SVG XML syntax, this DSL allows developers and designers to define complex graphics with ease. The inclusion of text elements further broadens its applicability, enabling the addition of labels, annotations, and dynamic text content within SVGs. With the addition of triangle, ellipse, and polygon as drawable objects, the DSL now offers even more flexibility and versatility in creating a wide range of SVG graphics.
