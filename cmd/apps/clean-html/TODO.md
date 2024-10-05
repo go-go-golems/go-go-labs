@@ -1,12 +1,22 @@
+## Small things
+
+- [ ] remove entry list entries
+- [ ] add format string filtering
+- [ ] Add support for JSON output format in addition to YAML
+
 ## For sure
 
+- [ ] check if we can be better about whitespace when extracting HTML text
+
 - [ ] Add regular expressions transformations
-- [ ] Add to_markdown transformation
-- [ ] Add support for JSON output format in addition to YAML
-- [ ] Add support for extracting and parsing microdata and RDF
+- [ ] add to markdown transformation
 
 - [ ] Implement error handling and reporting for invalid selectors or extraction failures
+
+## Later
+
 - [ ] Add support for extracting data from tables with colspan and rowspan
+- [ ] Add support for extracting and parsing microdata and RDFa
 
 - [ ] Add the possibility to select which selectors are used (for example with tags)
 
