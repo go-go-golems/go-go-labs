@@ -14,38 +14,42 @@ import (
 )
 
 type CodePrinter struct {
-	MaxFileSize        int64
-	MaxTotalSize       int64
-	IncludeExts        []string
-	ExcludeExts        []string
-	CurrentSize        int64
-	TotalTokens        int
-	FileCount          int
-	TokenCounter       *tiktoken.Tiktoken
-	TokenCounts        map[string]int
-	StatsLevel         string
-	MatchFilenames     []*regexp.Regexp
-	MatchPaths         []*regexp.Regexp
-	ListOnly           bool
-	ExcludeDirs        []string
-	GitIgnoreFilter    gitignore.GitIgnore
-	DisableGitIgnore   bool
-	DelimiterType      string
-	DefaultExcludeExts []string
+	MaxFileSize           int64
+	MaxTotalSize          int64
+	IncludeExts           []string
+	ExcludeExts           []string
+	CurrentSize           int64
+	TotalTokens           int
+	FileCount             int
+	TokenCounter          *tiktoken.Tiktoken
+	TokenCounts           map[string]int
+	StatsLevel            string
+	MatchFilenames        []*regexp.Regexp
+	MatchPaths            []*regexp.Regexp
+	ListOnly              bool
+	ExcludeDirs           []string
+	GitIgnoreFilter       gitignore.GitIgnore
+	DisableGitIgnore      bool
+	DelimiterType         string
+	DefaultExcludeExts    []string
+	ExcludeMatchFilenames []*regexp.Regexp
+	ExcludeMatchPaths     []*regexp.Regexp
 }
 
 type FlagResults struct {
-	MaxFileSize       int64
-	MaxTotalSize      int64
-	IncludeExts       []string
-	ExcludeExts       []string
-	StatsLevel        string
-	MatchFilenameStrs []string
-	MatchPathStrs     []string
-	ListOnly          bool
-	ExcludeDirs       []string
-	DisableGitIgnore  bool
-	DelimiterType     string
+	MaxFileSize              int64
+	MaxTotalSize             int64
+	IncludeExts              []string
+	ExcludeExts              []string
+	StatsLevel               string
+	MatchFilenameStrs        []string
+	MatchPathStrs            []string
+	ListOnly                 bool
+	ExcludeDirs              []string
+	DisableGitIgnore         bool
+	DelimiterType            string
+	ExcludeMatchFilenameStrs []string
+	ExcludeMatchPathStrs     []string
 }
 
 func NewCodePrinter() *CodePrinter {
@@ -190,6 +194,18 @@ func (cp *CodePrinter) shouldProcessFile(filePath string, fileInfo os.FileInfo) 
 		}
 	}
 
+	for _, re := range cp.ExcludeMatchFilenames {
+		if re.MatchString(filepath.Base(filePath)) {
+			return false
+		}
+	}
+
+	for _, re := range cp.ExcludeMatchPaths {
+		if re.MatchString(filePath) {
+			return false
+		}
+	}
+
 	if !cp.DisableGitIgnore && cp.GitIgnoreFilter.Ignore(filePath) {
 		return false
 	}
@@ -274,6 +290,8 @@ func init() {
 	CatterCmd.Flags().BoolP("list", "l", false, "List filenames only without printing content")
 	CatterCmd.Flags().StringSliceP("exclude-dirs", "x", []string{}, "List of directories to exclude")
 	CatterCmd.Flags().StringP("delimiter", "d", "default", "Type of delimiter to use between files: default, xml, markdown, simple, begin-end")
+	CatterCmd.Flags().StringSliceP("exclude-match-filename", "F", []string{}, "List of regular expressions to exclude matching filenames")
+	CatterCmd.Flags().StringSliceP("exclude-match-path", "P", []string{}, "List of regular expressions to exclude matching full paths")
 }
 
 func main() {
@@ -302,6 +320,8 @@ var CatterCmd = &cobra.Command{
 		flagResults.ExcludeDirs, _ = cmd.Flags().GetStringSlice("exclude-dirs")
 		flagResults.DisableGitIgnore, _ = cmd.Flags().GetBool("disable-gitignore")
 		flagResults.DelimiterType, _ = cmd.Flags().GetString("delimiter")
+		flagResults.ExcludeMatchFilenameStrs, _ = cmd.Flags().GetStringSlice("exclude-match-filename")
+		flagResults.ExcludeMatchPathStrs, _ = cmd.Flags().GetStringSlice("exclude-match-path")
 
 		// Update CodePrinter with flag results
 		cp := NewCodePrinter()
@@ -332,6 +352,25 @@ var CatterCmd = &cobra.Command{
 				os.Exit(1)
 			}
 			cp.MatchPaths = append(cp.MatchPaths, re)
+		}
+
+		// Convert exclude match string flags to regular expressions
+		for _, excludeMatchFilenameStr := range flagResults.ExcludeMatchFilenameStrs {
+			re, err := regexp.Compile(excludeMatchFilenameStr)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Invalid exclude-match-filename regex: %v\n", err)
+				os.Exit(1)
+			}
+			cp.ExcludeMatchFilenames = append(cp.ExcludeMatchFilenames, re)
+		}
+
+		for _, excludeMatchPathStr := range flagResults.ExcludeMatchPathStrs {
+			re, err := regexp.Compile(excludeMatchPathStr)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Invalid exclude-match-path regex: %v\n", err)
+				os.Exit(1)
+			}
+			cp.ExcludeMatchPaths = append(cp.ExcludeMatchPaths, re)
 		}
 
 		// Initialize gitignore filter if not disabled
