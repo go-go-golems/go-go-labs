@@ -1,0 +1,20 @@
+selectors:
+  - title: Fruit List
+    selector: "#fruits li"
+    assemble: "list"
+
+  - title: Vegetable List with Empty
+    selector: "#vegetables li"
+    assemble: "list"
+
+  - title: Fruit Details
+    selector: "#fruit-details li"
+    assemble: "hash"
+    key_attribute: "data-name"
+    value_attribute: "data-color"
+
+  - title: Vegetable Details with Empty
+    selector: "#vegetable-details li"
+    assemble: "hash"
+    key_attribute: "data-name"
+    value_attribute: "data-color"
