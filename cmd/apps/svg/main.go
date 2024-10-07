@@ -13,6 +13,7 @@ import (
 	"github.com/bmatcuk/doublestar/v4"
 	"github.com/go-go-golems/clay/pkg/autoreload"
 	"github.com/go-go-golems/clay/pkg/watcher"
+	"github.com/go-go-golems/go-emrichen/pkg/emrichen"
 	"github.com/go-go-golems/go-go-labs/pkg/svg"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -122,15 +123,37 @@ func runServe(cmd *cobra.Command, args []string) {
 
 func renderSVGFromYAML(inputFile string) string {
 	// Read input YAML file
-	yamlData, err := ioutil.ReadFile(inputFile)
+	yamlData, err := os.ReadFile(inputFile)
 	if err != nil {
 		fmt.Printf("Error reading input file: %v\n", err)
 		os.Exit(1)
 	}
 
+	// Create an Emrichen interpreter
+	interpreter, err := emrichen.NewInterpreter()
+	if err != nil {
+		fmt.Printf("Error creating Emrichen interpreter: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Process the YAML with Emrichen
+	var processedYAML interface{}
+	err = yaml.Unmarshal(yamlData, interpreter.CreateDecoder(&processedYAML))
+	if err != nil {
+		fmt.Printf("Error processing YAML with Emrichen: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Marshal the processed YAML back to bytes
+	processedYAMLBytes, err := yaml.Marshal(processedYAML)
+	if err != nil {
+		fmt.Printf("Error marshaling processed YAML: %v\n", err)
+		os.Exit(1)
+	}
+
 	// Parse YAML into SVGDSL struct
 	var dsl svg.SVGDSL
-	err = yaml.Unmarshal(yamlData, &dsl)
+	err = yaml.Unmarshal(processedYAMLBytes, &dsl)
 	if err != nil {
 		fmt.Printf("Error parsing YAML: %v\n", err)
 		os.Exit(1)
@@ -187,9 +210,28 @@ func renderSVGFromYAMLWithErrorAndPanic(inputFile string) (svgOutput string, err
 		return "", fmt.Errorf("error reading input file: %w", err)
 	}
 
+	// Create an Emrichen interpreter
+	interpreter, err := emrichen.NewInterpreter()
+	if err != nil {
+		return "", fmt.Errorf("error creating Emrichen interpreter: %w", err)
+	}
+
+	// Process the YAML with Emrichen
+	var processedYAML interface{}
+	err = yaml.Unmarshal(yamlData, interpreter.CreateDecoder(&processedYAML))
+	if err != nil {
+		return "", fmt.Errorf("error processing YAML with Emrichen: %w", err)
+	}
+
+	// Marshal the processed YAML back to bytes
+	processedYAMLBytes, err := yaml.Marshal(processedYAML)
+	if err != nil {
+		return "", fmt.Errorf("error marshaling processed YAML: %w", err)
+	}
+
 	// Parse YAML into SVGDSL struct
 	var dsl svg.SVGDSL
-	err = yaml.Unmarshal(yamlData, &dsl)
+	err = yaml.Unmarshal(processedYAMLBytes, &dsl)
 	if err != nil {
 		return "", fmt.Errorf("error parsing YAML: %w", err)
 	}
