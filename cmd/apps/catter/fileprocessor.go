@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/denormal/go-gitignore"
@@ -286,6 +287,7 @@ func (fp *FileProcessor) applyLimits(content []byte, tokens []uint) string {
 		if fp.MaxLines > 0 && lineCount >= fp.MaxLines {
 			break
 		}
+		sort.Strings(paths)
 
 		if fp.MaxTokens > 0 && tokenCount+len(lineTokens) > fp.MaxTokens {
 			remainingTokens := fp.MaxTokens - tokenCount
