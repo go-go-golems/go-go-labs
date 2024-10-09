@@ -20,3 +20,10 @@ Error computing stats: error creating filewalker: either fs.FS must be set or pa
 
 - [x] Add more succinct flags
 
+- [ ] fix bug when computing stats
+
+```
+❯ go run ./cmd/apps/catter --stats overview
+Error computing stats: error creating filewalker: either fs.FS must be set or paths must not be empty
+```
+

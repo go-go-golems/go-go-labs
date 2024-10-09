@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 
 	"github.com/denormal/go-gitignore"
@@ -59,6 +58,7 @@ func NewFileProcessor() *FileProcessor {
 			".exe", ".dll", ".so", ".dylib",
 			".pdf", ".doc", ".docx", ".xls", ".xlsx",
 			".bin", ".dat", ".db", ".sqlite",
+			".woff", ".ttf", ".eot", ".svg", ".webp", ".woff2",
 		},
 		MaxLines:  0,
 		MaxTokens: 0,
@@ -287,7 +287,6 @@ func (fp *FileProcessor) applyLimits(content []byte, tokens []uint) string {
 		if fp.MaxLines > 0 && lineCount >= fp.MaxLines {
 			break
 		}
-		sort.Strings(paths)
 
 		if fp.MaxTokens > 0 && tokenCount+len(lineTokens) > fp.MaxTokens {
 			remainingTokens := fp.MaxTokens - tokenCount
