@@ -23,7 +23,7 @@ func init() {
 
 	CatterCmd.Flags().StringSliceP("include", "i", []string{}, "List of file extensions to include (e.g., .go,.js)")
 	CatterCmd.Flags().StringSliceP("exclude", "e", []string{}, "List of file extensions to exclude (e.g., .exe,.dll)")
-	CatterCmd.Flags().StringP("stats", "s", "none", "Level of statistics to show: none, total, or detailed")
+	CatterCmd.Flags().StringSliceP("stats", "s", []string{}, "Types of statistics to show: overview, dir, full")
 	CatterCmd.Flags().StringSliceP("match-filename", "f", []string{}, "List of regular expressions to match filenames")
 	CatterCmd.Flags().StringSliceP("match-path", "p", []string{}, "List of regular expressions to match full paths")
 	CatterCmd.Flags().BoolP("list", "l", false, "List filenames only without printing content")
@@ -31,6 +31,9 @@ func init() {
 	CatterCmd.Flags().StringP("delimiter", "d", "default", "Type of delimiter to use between files: default, xml, markdown, simple, begin-end")
 	CatterCmd.Flags().StringSliceP("exclude-match-filename", "F", []string{}, "List of regular expressions to exclude matching filenames")
 	CatterCmd.Flags().StringSliceP("exclude-match-path", "P", []string{}, "List of regular expressions to exclude matching full paths")
+
+	CatterCmd.Flags().Int("max-lines", 0, "Maximum number of lines to print per file (0 for no limit)")
+	CatterCmd.Flags().Int("max-tokens", 0, "Maximum number of tokens to print per file (0 for no limit)")
 }
 
 func runCatter(cmd *cobra.Command, args []string) {
@@ -40,7 +43,7 @@ func runCatter(cmd *cobra.Command, args []string) {
 	fp.MaxTotalSize, _ = cmd.Flags().GetInt64("max-total-size")
 	fp.IncludeExts, _ = cmd.Flags().GetStringSlice("include")
 	fp.ExcludeExts, _ = cmd.Flags().GetStringSlice("exclude")
-	fp.StatsLevel, _ = cmd.Flags().GetString("stats")
+	fp.StatsTypes, _ = cmd.Flags().GetStringSlice("stats")
 	fp.ListOnly, _ = cmd.Flags().GetBool("list")
 	fp.ExcludeDirs, _ = cmd.Flags().GetStringSlice("exclude-dirs")
 	fp.DisableGitIgnore, _ = cmd.Flags().GetBool("disable-gitignore")
@@ -50,6 +53,9 @@ func runCatter(cmd *cobra.Command, args []string) {
 	matchPathStrs, _ := cmd.Flags().GetStringSlice("match-path")
 	excludeMatchFilenameStrs, _ := cmd.Flags().GetStringSlice("exclude-match-filename")
 	excludeMatchPathStrs, _ := cmd.Flags().GetStringSlice("exclude-match-path")
+
+	fp.MaxLines, _ = cmd.Flags().GetInt("max-lines")
+	fp.MaxTokens, _ = cmd.Flags().GetInt("max-tokens")
 
 	fp.MatchFilenames = compileRegexps(matchFilenameStrs)
 	fp.MatchPaths = compileRegexps(matchPathStrs)

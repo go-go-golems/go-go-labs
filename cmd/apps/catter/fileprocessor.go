@@ -1,11 +1,12 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 
 	"github.com/denormal/go-gitignore"
@@ -22,7 +23,7 @@ type FileProcessor struct {
 	FileCount             int
 	TokenCounter          *tiktoken.Tiktoken
 	TokenCounts           map[string]int
-	StatsLevel            string
+	StatsTypes            []string // Replace StatsLevel with StatsTypes
 	MatchFilenames        []*regexp.Regexp
 	MatchPaths            []*regexp.Regexp
 	ListOnly              bool
@@ -33,6 +34,8 @@ type FileProcessor struct {
 	DefaultExcludeExts    []string
 	ExcludeMatchFilenames []*regexp.Regexp
 	ExcludeMatchPaths     []*regexp.Regexp
+	MaxLines              int
+	MaxTokens             int
 }
 
 func NewFileProcessor() *FileProcessor {
@@ -45,7 +48,7 @@ func NewFileProcessor() *FileProcessor {
 	return &FileProcessor{
 		TokenCounter: tokenCounter,
 		TokenCounts:  make(map[string]int),
-		StatsLevel:   "none",
+		StatsTypes:   []string{},
 		ExcludeDirs:  []string{},
 		DefaultExcludeExts: []string{
 			".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff",
@@ -56,21 +59,47 @@ func NewFileProcessor() *FileProcessor {
 			".pdf", ".doc", ".docx", ".xls", ".xlsx",
 			".bin", ".dat", ".db", ".sqlite",
 		},
+		MaxLines:  0,
+		MaxTokens: 0,
 	}
 }
 
 func (fp *FileProcessor) ProcessPaths(paths []string) {
-	for _, path := range paths {
-		fp.processPath(path)
-		if fp.CurrentSize >= fp.MaxTotalSize {
-			_, _ = fmt.Fprintf(os.Stderr, "Reached maximum total size limit of %d bytes\n", fp.MaxTotalSize)
-			break
+	if len(fp.StatsTypes) > 0 {
+		fp.processStats(paths)
+	} else {
+		for _, path := range paths {
+			fp.processPath(path)
+			if fp.CurrentSize >= fp.MaxTotalSize {
+				_, _ = fmt.Fprintf(os.Stderr, "Reached maximum total size limit of %d bytes\n", fp.MaxTotalSize)
+				break
+			}
+		}
+	}
+}
+
+func (fp *FileProcessor) processStats(paths []string) {
+	stats, err := ComputeStats(paths)
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "Error computing stats: %v\n", err)
+		return
+	}
+
+	config := Config{}
+	for _, statType := range fp.StatsTypes {
+		switch strings.ToLower(statType) {
+		case "overview":
+			config.OutputFlags |= OutputOverview
+		case "dir":
+			config.OutputFlags |= OutputDirStructure
+		case "full":
+			config.OutputFlags |= OutputFullStructure
+		default:
+			_, _ = fmt.Fprintf(os.Stderr, "Unknown stat type: %s\n", statType)
 		}
 	}
 
-	if fp.StatsLevel != "none" {
-		fp.printSummary()
-	}
+	PrintStats(stats, config)
 }
 
 func (fp *FileProcessor) processPath(path string) {
@@ -213,44 +242,64 @@ func (fp *FileProcessor) printFileContent(filePath string, _ os.FileInfo) {
 		}
 	}
 
-	switch fp.DelimiterType {
-	case "xml":
-		fmt.Printf("<file name=\"%s\">\n<content>\n%s\n</content>\n</file>\n", filePath, string(content))
-	case "markdown":
-		fmt.Printf("## File: %s\n\n```\n%s\n```\n\n", filePath, string(content))
-	case "simple":
-		fmt.Printf("===\n\nFile: %s\n\n---\n\n%s\n\n===\n\n", filePath, string(content))
-	default:
-		fmt.Printf("=== BEGIN: %s ===\n%s\n=== END: %s ===\n\n", filePath, string(content), filePath)
-	}
-
-	fp.CurrentSize += int64(len(content))
-	fp.FileCount++
-
 	tokens := fp.TokenCounter.Encode(string(content), nil, nil)
 	tokenCount := len(tokens)
 	fp.TokenCounts[filePath] = tokenCount
 	fp.TotalTokens += tokenCount
+
+	// Apply max lines and max tokens limits
+	uintTokens := make([]uint, len(tokens))
+	for i, t := range tokens {
+		uintTokens[i] = uint(t)
+	}
+	limitedContent := fp.applyLimits(content, uintTokens)
+
+	switch fp.DelimiterType {
+	case "xml":
+		fmt.Printf("<file name=\"%s\">\n<content>\n%s\n</content>\n</file>\n", filePath, limitedContent)
+	case "markdown":
+		fmt.Printf("## File: %s\n\n```\n%s\n```\n\n", filePath, limitedContent)
+	case "simple":
+		fmt.Printf("===\n\nFile: %s\n\n---\n\n%s\n\n===\n\n", filePath, limitedContent)
+	default:
+		fmt.Printf("=== BEGIN: %s ===\n%s\n=== END: %s ===\n\n", filePath, limitedContent, filePath)
+	}
+
+	fp.CurrentSize += int64(len(content))
+	fp.FileCount++
 }
 
-func (fp *FileProcessor) printSummary() {
-	if fp.StatsLevel == "total" {
-		_, _ = fmt.Fprintf(os.Stderr, "\nTotal tokens: %d\n", fp.TotalTokens)
-	} else if fp.StatsLevel == "detailed" {
-		_, _ = fmt.Fprintf(os.Stderr, "\nSummary:\n")
-		_, _ = fmt.Fprintf(os.Stderr, "Total files processed: %d\n", fp.FileCount)
-		_, _ = fmt.Fprintf(os.Stderr, "Total size processed: %d bytes\n", fp.CurrentSize)
-		_, _ = fmt.Fprintf(os.Stderr, "Total tokens: %d\n", fp.TotalTokens)
-		_, _ = fmt.Fprintf(os.Stderr, "\nToken counts per file/directory:\n")
-
-		paths := make([]string, 0, len(fp.TokenCounts))
-		for path := range fp.TokenCounts {
-			paths = append(paths, path)
-		}
-		sort.Strings(paths)
-
-		for _, path := range paths {
-			_, _ = fmt.Fprintf(os.Stderr, "%s: %d tokens\n", path, fp.TokenCounts[path])
-		}
+func (fp *FileProcessor) applyLimits(content []byte, tokens []uint) string {
+	if fp.MaxLines == 0 && fp.MaxTokens == 0 {
+		return string(content)
 	}
+
+	var limitedContent bytes.Buffer
+	scanner := bufio.NewScanner(bytes.NewReader(content))
+	lineCount := 0
+	tokenCount := 0
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		lineTokens := fp.TokenCounter.Encode(line, nil, nil)
+
+		if fp.MaxLines > 0 && lineCount >= fp.MaxLines {
+			break
+		}
+
+		if fp.MaxTokens > 0 && tokenCount+len(lineTokens) > fp.MaxTokens {
+			remainingTokens := fp.MaxTokens - tokenCount
+			if remainingTokens > 0 {
+				decodedLine := fp.TokenCounter.Decode(lineTokens[:remainingTokens])
+				limitedContent.WriteString(decodedLine)
+			}
+			break
+		}
+
+		limitedContent.WriteString(line + "\n")
+		lineCount++
+		tokenCount += len(lineTokens)
+	}
+
+	return limitedContent.String()
 }
