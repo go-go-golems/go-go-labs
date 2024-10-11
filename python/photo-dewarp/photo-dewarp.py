@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import argparse
 import sys
+import random
 
 def order_points(pts):
     """
@@ -195,20 +196,55 @@ def detect_rectangle_hough(image, debug=False):
     pts = np.array([top_left, top_right, bottom_right, bottom_left], dtype="float32")
     return pts
 
-def detect_rectangle_morphology(image, debug=False):
+def detect_rectangle_morphology(image, debug=False, interactive=False):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(gray, (5,5), 0)
-    thresh = cv2.adaptiveThreshold(blurred, 255,
-                                   cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                                   cv2.THRESH_BINARY_INV, 11, 2)
 
+    # Initial parameters
+    block_size = 11
+    C = 2
+
+    def update_threshold(block_size, C):
+        thresh = cv2.adaptiveThreshold(blurred, 255,
+                                       cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                       cv2.THRESH_BINARY_INV, block_size, C)
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
+        closed = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel, iterations=2)
+        return thresh, closed
+
+    thresh, closed = update_threshold(block_size, C)
+
+    if interactive:
+        print(f"Initial Block Size: {block_size}")
+        print(f"Initial C: {C}")
+        print("Use the following keys to adjust parameters:")
+        print("'b' to increase Block Size, 'B' to decrease")
+        print("'c' to increase C, 'C' to decrease")
+        print("'q' to quit")
+
+        while True:
+            cv2.imshow('Adaptive Threshold', thresh)
+            cv2.imshow('Morphological Closing', closed)
+            key = cv2.waitKey(0) & 0xFF
+            
+            if key == ord('b'):
+                block_size += 2
+            elif key == ord('B'):
+                block_size = max(3, block_size - 2)
+            elif key == ord('c'):
+                C += 1
+            elif key == ord('C'):
+                C = max(0, C - 1)
+            elif key == ord('q'):
+                break
+            
+            block_size = block_size if block_size % 2 == 1 else block_size + 1
+            thresh, closed = update_threshold(block_size, C)
+            print(f"Block Size: {block_size}, C: {C}")
+
+        cv2.destroyAllWindows()
     if debug:
         debug_show("Adaptive Threshold", thresh)
-
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
-    closed = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel, iterations=2)
-
-    if debug:
         debug_show("Morphological Closing", closed)
 
     contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -252,7 +288,100 @@ def detect_rectangle_features(image, debug=False):
     # Placeholder: Returning None as feature-based detection is non-trivial without a reference
     return None
 
-def extract_and_correct_photo(image_path, output_path=None, display=True, debug=False, method='contour'):
+# TODO: This is not working yet
+def detect_rectangle_growing(image, debug=False):
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    height, width = gray.shape
+    
+    def is_edge(x, y, threshold=30):
+        if x == 0 or y == 0 or x == width-1 or y == height-1:
+            return True
+        differences = [
+            abs(int(gray[y, x]) - int(gray[y-1, x])),
+            abs(int(gray[y, x]) - int(gray[y+1, x])),
+            abs(int(gray[y, x]) - int(gray[y, x-1])),
+            abs(int(gray[y, x]) - int(gray[y, x+1]))
+        ]
+        return max(differences) > threshold
+
+    def grow_region(start_x, start_y):
+        stack = [(start_x, start_y)]
+        region = set()
+        iterations = 0
+        max_iterations = width * height  # Set a maximum number of iterations
+        jump_size = min(width, height) // 10  # Start with a large jump
+
+        while stack and iterations < max_iterations:
+            x, y = stack.pop()
+            if (x, y) not in region and 0 <= x < width and 0 <= y < height:
+                if not is_edge(x, y):
+                    region.add((x, y))
+                    # Add points with larger jumps
+                    for dx, dy in [(jump_size, 0), (-jump_size, 0), (0, jump_size), (0, -jump_size)]:
+                        new_x, new_y = x + dx, y + dy
+                        if 0 <= new_x < width and 0 <= new_y < height:
+                            stack.append((new_x, new_y))
+                else:
+                    # If we hit an edge, refine the search
+                    if jump_size > 1:
+                        jump_size //= 2
+                        stack.append((x, y))  # Re-add the point for refined search
+                    else:
+                        # Add adjacent points for fine-grained edge detection
+                        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                            new_x, new_y = x + dx, y + dy
+                            if 0 <= new_x < width and 0 <= new_y < height:
+                                stack.append((new_x, new_y))
+
+            iterations += 1
+            if iterations % 1000 == 0 and debug:
+                print(f"Grow iteration: {iterations}, Region size: {len(region)}, Jump size: {jump_size}")
+
+        if iterations == max_iterations and debug:
+            print("Warning: Maximum iterations reached in region growing")
+        return region
+    # Start with multiple random points
+    attempts = 10
+    regions = []
+    for i in range(attempts):
+        start_x = random.randint(width//4, 3*width//4)
+        start_y = random.randint(height//4, 3*height//4)
+        if debug:
+            print(f"Attempt {i+1}: Starting point ({start_x}, {start_y})")
+        region = grow_region(start_x, start_y)
+        regions.append(region)
+        if debug:
+            print(f"Attempt {i+1}: Region size: {len(region)}")
+
+    # Select the largest region
+    largest_region = max(regions, key=len)
+    if debug:
+        print(f"Largest region size: {len(largest_region)}")
+
+    # Find the bounding rectangle of the largest region
+    min_x = min(x for x, _ in largest_region)
+    max_x = max(x for x, _ in largest_region)
+    min_y = min(y for _, y in largest_region)
+    max_y = max(y for _, y in largest_region)
+
+    if debug:
+        print(f"Bounding rectangle: ({min_x}, {min_y}) to ({max_x}, {max_y})")
+        debug_image = image.copy()
+        for x, y in largest_region:
+            debug_image[y, x] = [0, 255, 0]  # Mark region in green
+        cv2.rectangle(debug_image, (min_x, min_y), (max_x, max_y), (0, 0, 255), 2)
+        debug_show("Growing Rectangle Detection", debug_image)
+
+    # Convert rectangle to points
+    pts = np.array([
+        [min_x, min_y],  # Top-left
+        [max_x, min_y],  # Top-right
+        [max_x, max_y],  # Bottom-right
+        [min_x, max_y]   # Bottom-left
+    ], dtype="float32")
+
+    return pts
+def extract_and_correct_photo(image_path, output_path=None, display=True, debug=False, method='contour', interactive=False):
     image = cv2.imread(image_path)
     if image is None:
         print(f"Error: Unable to load image at path '{image_path}'.")
@@ -264,9 +393,11 @@ def extract_and_correct_photo(image_path, output_path=None, display=True, debug=
     if method == 'hough':
         pts = detect_rectangle_hough(image, debug)
     elif method == 'morphology':
-        pts = detect_rectangle_morphology(image, debug)
+        pts = detect_rectangle_morphology(image, debug, interactive)
     elif method == 'features':
         pts = detect_rectangle_features(image, debug)
+    elif method == 'growing':
+        pts = detect_rectangle_growing(image, debug)
     else:  # Default to contour method
         edged = cv2.Canny(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), 50, 200)
         if debug:
@@ -307,11 +438,12 @@ def main():
     parser.add_argument("-o", "--output", help="Path to save the corrected photo.", default=None)
     parser.add_argument("-d", "--display", action="store_true", help="Display the corrected photo.")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode to step through the process.")
-    parser.add_argument("-m", "--method", choices=['contour', 'hough', 'morphology', 'features'], 
+    parser.add_argument("-m", "--method", choices=['contour', 'hough', 'morphology', 'features', 'growing'], 
                         default='contour', help="Method to use for rectangle detection.")
+    parser.add_argument("-i", "--interactive", action="store_true", help="Enable interactive mode for parameter tuning.")
     args = parser.parse_args()
 
-    extract_and_correct_photo(args.image_path, args.output, args.display, args.debug, args.method)
+    extract_and_correct_photo(args.image_path, args.output, args.display, args.debug, args.method, args.interactive)
 
 if __name__ == "__main__":
     main()
