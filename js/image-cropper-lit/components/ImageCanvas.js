@@ -20,17 +20,29 @@ class ImageCanvas extends LitElement {
             margin-top: 10px;
             font-family: Arial, sans-serif;
         }
+        #zoom-controls {
+            margin-top: 10px;
+        }
+        #zoom-controls button {
+            margin: 0 5px;
+            padding: 5px 10px;
+            font-size: 14px;
+        }
     `;
 
     static properties = {
         activeImage: { type: Object },
         points: { type: Array },
+        zoomLevel: { type: Number },
     };
 
     constructor() {
         super();
         this.activeImage = null;
         this.points = [];
+        this.zoomLevel = 1;
+        this.baseWidth = 800;
+        this.baseHeight = 600;
         this.scale = 1;
         this.offsetX = 0;
         this.offsetY = 0;
@@ -40,19 +52,48 @@ class ImageCanvas extends LitElement {
     render() {
         console.log('ImageCanvas: Rendering', {
             activeImage: this.activeImage ? 'present' : 'null',
-            pointsCount: this.points.length
+            pointsCount: this.points.length,
+            zoomLevel: this.zoomLevel
         });
         return html`
             <div id="canvas-container">
-                <canvas id="imageCanvas" width="800" height="600"></canvas>
+                <canvas id="imageCanvas" width="${this.baseWidth * this.zoomLevel}" height="${this.baseHeight * this.zoomLevel}"></canvas>
                 <div id="info">
                     ${this.activeImage ? `Image dimensions: ${this.activeImage.width} x ${this.activeImage.height}` : ''}
                     ${this.points.map((point, index) => html`
                         <div>Point ${index + 1}: (${Math.round(point.x)}, ${Math.round(point.y)})</div>
                     `)}
                 </div>
+                <div id="zoom-controls">
+                    <button @click="${this.zoomOut}">-</button>
+                    <span>Zoom: ${(this.zoomLevel * 100).toFixed(0)}%</span>
+                    <button @click="${this.zoomIn}">+</button>
+                </div>
             </div>
         `;
+    }
+
+    zoomIn() {
+        this.zoomLevel = Math.min(this.zoomLevel + 0.1, 3);
+        this.updateZoom();
+    }
+
+    zoomOut() {
+        this.zoomLevel = Math.max(this.zoomLevel - 0.1, 0.5);
+        this.updateZoom();
+    }
+
+    updateZoom() {
+        this.dispatchEvent(new CustomEvent('zoom-updated', {
+            detail: this.zoomLevel,
+            bubbles: true,
+            composed: true
+        }));
+        this.requestUpdate();
+        // Redraw after the canvas has been resized
+        this.updateComplete.then(() => {
+            this.draw();
+        });
     }
 
     firstUpdated() {
@@ -82,15 +123,18 @@ class ImageCanvas extends LitElement {
         if (this.points.length < 4) {
             this.points = [...this.points, imagePoint];
             
+            this.dispatchPointsUpdated();
+            
             if (this.points.length === 4) {
                 this.orderPoints();
+                this.dispatchPointsUpdated(); // Dispatch again after ordering
+                
+                // Dispatch box-closed event after points are updated
                 this.dispatchEvent(new CustomEvent('box-closed', {
                     bubbles: true,
                     composed: true
                 }));
             }
-            
-            this.dispatchPointsUpdated();
         }
     }
 
@@ -139,7 +183,8 @@ class ImageCanvas extends LitElement {
     draw() {
         console.log('ImageCanvas: Drawing', {
             activeImage: this.activeImage ? 'present' : 'null',
-            pointsCount: this.points.length
+            pointsCount: this.points.length,
+            zoomLevel: this.zoomLevel
         });
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         if (!this.activeImage) return;
