@@ -3,6 +3,8 @@ import './ImageList.js';
 import './ImageCanvas.js';
 import './Controls.js';
 import './Previews.js';
+import { applyPerspectiveTransform } from '../utils/perspectiveTransform.js';
+import { downloadImage } from '../utils/download.js';
 
 class ImageCropperApp extends LitElement {
     static styles = css`
@@ -61,18 +63,18 @@ class ImageCropperApp extends LitElement {
                         @points-updated="${this.onPointsUpdated}"
                         @box-closed="${this.onBoxClosed}">
                     </image-canvas>
-                    <controls 
+                    <image-controls 
                         .points="${this.points}"
                         .boxClosed="${this.boxClosed}"
                         @undo="${this.undoPoint}" 
                         @clear="${this.clearPoints}" 
                         @extract="${this.extractImage}">
-                    </controls>
-                    <previews 
+                    </image-controls>
+                    <image-previews 
                         .activeImage="${this.images[this.activeImageIndex]?.img}" 
                         .points="${this.points}"
                         .boxClosed="${this.boxClosed}">
-                    </previews>
+                    </image-previews>
                     <div id="fileInputContainer">
                         <input type="file" id="fileInput" multiple @change="${this.handleFileInput}">
                     </div>
@@ -99,9 +101,12 @@ class ImageCropperApp extends LitElement {
         console.log('ImageCropperApp: Loading image', file.name);
         return new Promise((resolve, reject) => {
             const img = new Image();
-            img.src = URL.createObjectURL(file);
-            img.onload = () => resolve(img);
+            img.onload = () => {
+                console.log('ImageCropperApp: Image loaded', file.name);
+                resolve(img);
+            };
             img.onerror = reject;
+            img.src = URL.createObjectURL(file);
         });
     }
 
@@ -120,9 +125,9 @@ class ImageCropperApp extends LitElement {
     onPointsUpdated(e) {
         console.log('ImageCropperApp: Points updated', e.detail);
         this.points = e.detail;
+        this.boxClosed = this.points.length === 4;
         if (this.activeImageIndex !== -1) {
             this.images[this.activeImageIndex].points = this.points;
-            this.boxClosed = this.points.length === 4;
             this.requestUpdate();
         }
     }
@@ -138,18 +143,17 @@ class ImageCropperApp extends LitElement {
         console.log('ImageCropperApp: Undoing point');
         if (this.points.length > 0) {
             this.points = this.points.slice(0, -1);
+            this.boxClosed = this.points.length === 4;
             this.requestUpdate();
         }
     }
 
-    async extractImage() {
+    extractImage() {
         console.log('ImageCropperApp: Extracting image');
         if (this.points.length === 4 && this.activeImageIndex !== -1) {
-            const { applyPerspectiveTransform } = await import('../utils/perspectiveTransform.js');
-            const { downloadImage } = await import('../utils/download.js');
             const activeImage = this.images[this.activeImageIndex].img;
             const transformedCanvas = applyPerspectiveTransform(activeImage, this.points);
-            downloadImage(transformedCanvas);
+            downloadImage(transformedCanvas, `cropped-image-${this.activeImageIndex + 1}.png`);
         }
     }
 }

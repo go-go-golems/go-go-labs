@@ -17,7 +17,10 @@
     <image-cropper-app></image-cropper-app>
 
     <!-- Perspective Transform Library -->
-    <script src="https://cdn.jsdelivr.net/npm/perspective-transform@1.1.3/dist/perspective-transform.min.js"></script>
+    <script type="module">
+        import PerspT from './thirdparty/perspective-transform.js';
+        window.PerspT = PerspT;
+    </script>
     
     <!-- Lit Library -->
     <script type="module" src="https://unpkg.com/lit@2.6.1/index.js?module"></script>
@@ -26,4 +29,3 @@
     <script type="module" src="./components/ImageCropperApp.js"></script>
 </body>
 </html>
-

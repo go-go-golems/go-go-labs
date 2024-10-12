@@ -13,6 +13,8 @@ class ImageCanvas extends LitElement {
         canvas {
             border: 1px solid black;
             cursor: crosshair;
+            max-width: 100%;
+            height: auto;
         }
         #info {
             margin-top: 10px;
@@ -42,7 +44,7 @@ class ImageCanvas extends LitElement {
         });
         return html`
             <div id="canvas-container">
-                <canvas id="imageCanvas" width="500" height="400"></canvas>
+                <canvas id="imageCanvas" width="800" height="600"></canvas>
                 <div id="info">
                     ${this.activeImage ? `Image dimensions: ${this.activeImage.width} x ${this.activeImage.height}` : ''}
                     ${this.points.map((point, index) => html`
@@ -79,15 +81,36 @@ class ImageCanvas extends LitElement {
         
         if (this.points.length < 4) {
             this.points = [...this.points, imagePoint];
-            this.dispatchPointsUpdated();
             
             if (this.points.length === 4) {
+                this.orderPoints();
                 this.dispatchEvent(new CustomEvent('box-closed', {
                     bubbles: true,
                     composed: true
                 }));
             }
+            
+            this.dispatchPointsUpdated();
         }
+    }
+
+    orderPoints() {
+        // Sort points based on their y-coordinate (top to bottom)
+        this.points.sort((a, b) => a.y - b.y);
+
+        // The first two points are the top points
+        // Sort them based on their x-coordinate
+        if (this.points[0].x > this.points[1].x) {
+            [this.points[0], this.points[1]] = [this.points[1], this.points[0]];
+        }
+
+        // The last two points are the bottom points
+        // Sort them based on their x-coordinate
+        if (this.points[2].x < this.points[3].x) {
+            [this.points[2], this.points[3]] = [this.points[3], this.points[2]];
+        }
+
+        console.log('ImageCanvas: Points ordered', this.points);
     }
 
     canvasToImageCoordinates(canvasX, canvasY) {
