@@ -20,6 +20,10 @@ class Previews extends LitElement {
     };
 
     render() {
+        if (this.points.length !== 4) {
+            return html``;
+        }
+
         return html`
             <div id="previews">
                 <canvas id="selectedPreview" width="200" height="200"></canvas>
@@ -42,11 +46,11 @@ class Previews extends LitElement {
 
     updatePreviews() {
         if (!this.activeImage || this.points.length !== 4) {
-            this.clearCanvas(this.selectedPreview);
-            this.clearCanvas(this.transformedPreview);
-            return;
+          this.clearCanvas(this.selectedPreview);
+          this.clearCanvas(this.transformedPreview);
+          return;
         }
-
+      
         const selectedCtx = this.selectedPreview.getContext('2d');
         this.clearCanvas(this.selectedPreview);
         
@@ -58,13 +62,12 @@ class Previews extends LitElement {
         const height = maxY - minY;
         
         selectedCtx.drawImage(this.activeImage, minX, minY, width, height, 0, 0, this.selectedPreview.width, this.selectedPreview.height);
-
+      
         const transformedCanvas = applyPerspectiveTransform(this.activeImage, this.points);
         const transformedCtx = this.transformedPreview.getContext('2d');
         this.clearCanvas(this.transformedPreview);
         transformedCtx.drawImage(transformedCanvas, 0, 0, this.transformedPreview.width, this.transformedPreview.height);
-    }
-
+      }
     clearCanvas(canvas) {
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);

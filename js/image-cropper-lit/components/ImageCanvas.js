@@ -14,6 +14,10 @@ class ImageCanvas extends LitElement {
             border: 1px solid black;
             cursor: crosshair;
         }
+        #info {
+            margin-top: 10px;
+            font-family: Arial, sans-serif;
+        }
     `;
 
     static properties = {
@@ -25,12 +29,21 @@ class ImageCanvas extends LitElement {
         super();
         this.activeImage = null;
         this.points = [];
+        this.scale = 1;
+        this.offsetX = 0;
+        this.offsetY = 0;
     }
 
     render() {
         return html`
             <div id="canvas-container">
                 <canvas id="imageCanvas" width="500" height="400"></canvas>
+                <div id="info">
+                    ${this.activeImage ? `Image dimensions: ${this.activeImage.width} x ${this.activeImage.height}` : ''}
+                    ${this.points.map((point, index) => html`
+                        <div>Point ${index + 1}: (${Math.round(point.x)}, ${Math.round(point.y)})</div>
+                    `)}
+                </div>
             </div>
         `;
     }
@@ -51,12 +64,27 @@ class ImageCanvas extends LitElement {
     handleCanvasClick(event) {
         if (!this.activeImage) return;
         const rect = this.canvas.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
+        const canvasX = event.clientX - rect.left;
+        const canvasY = event.clientY - rect.top;
+        
+        const imagePoint = this.canvasToImageCoordinates(canvasX, canvasY);
+        
         if (this.points.length < 4) {
-            this.points = [...this.points, { x, y }];
+            this.points = [...this.points, imagePoint];
             this.dispatchPointsUpdated();
         }
+    }
+
+    canvasToImageCoordinates(canvasX, canvasY) {
+        const imageX = (canvasX - this.offsetX) / this.scale;
+        const imageY = (canvasY - this.offsetY) / this.scale;
+        return { x: imageX, y: imageY };
+    }
+
+    imageToCanvasCoordinates(imageX, imageY) {
+        const canvasX = imageX * this.scale + this.offsetX;
+        const canvasY = imageY * this.scale + this.offsetY;
+        return { x: canvasX, y: canvasY };
     }
 
     dispatchPointsUpdated() {
@@ -71,28 +99,36 @@ class ImageCanvas extends LitElement {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         if (!this.activeImage) return;
 
-        const scale = Math.min(this.canvas.width / this.activeImage.width, this.canvas.height / this.activeImage.height);
-        const scaledWidth = this.activeImage.width * scale;
-        const scaledHeight = this.activeImage.height * scale;
-        const offsetX = (this.canvas.width - scaledWidth) / 2;
-        const offsetY = (this.canvas.height - scaledHeight) / 2;
+        this.scale = Math.min(this.canvas.width / this.activeImage.width, this.canvas.height / this.activeImage.height);
+        const scaledWidth = this.activeImage.width * this.scale;
+        const scaledHeight = this.activeImage.height * this.scale;
+        this.offsetX = (this.canvas.width - scaledWidth) / 2;
+        this.offsetY = (this.canvas.height - scaledHeight) / 2;
 
-        this.ctx.drawImage(this.activeImage, offsetX, offsetY, scaledWidth, scaledHeight);
+        this.ctx.drawImage(this.activeImage, this.offsetX, this.offsetY, scaledWidth, scaledHeight);
 
         if (this.points.length === 4) {
             this.ctx.beginPath();
-            this.ctx.moveTo(this.points[0].x, this.points[0].y);
-            this.points.forEach(point => this.ctx.lineTo(point.x, point.y));
+            const startPoint = this.imageToCanvasCoordinates(this.points[0].x, this.points[0].y);
+            this.ctx.moveTo(startPoint.x, startPoint.y);
+            this.points.forEach(point => {
+                const canvasPoint = this.imageToCanvasCoordinates(point.x, point.y);
+                this.ctx.lineTo(canvasPoint.x, canvasPoint.y);
+            });
             this.ctx.closePath();
             this.ctx.strokeStyle = 'yellow';
+            this.ctx.lineWidth = 2;
             this.ctx.stroke();
         }
 
-        this.points.forEach(point => {
-            this.ctx.fillStyle = 'red';
+        this.points.forEach((point, index) => {
+            const canvasPoint = this.imageToCanvasCoordinates(point.x, point.y);
             this.ctx.beginPath();
-            this.ctx.arc(point.x, point.y, 5, 0, 2 * Math.PI);
+            this.ctx.arc(canvasPoint.x, canvasPoint.y, 5, 0, 2 * Math.PI);
+            this.ctx.fillStyle = 'red';
             this.ctx.fill();
+            this.ctx.fillStyle = 'white';
+            this.ctx.fillText((index + 1).toString(), canvasPoint.x - 3, canvasPoint.y + 3);
         });
     }
 }
