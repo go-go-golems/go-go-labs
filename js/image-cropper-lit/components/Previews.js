@@ -17,10 +17,16 @@ class Previews extends LitElement {
     static properties = {
         activeImage: { type: Object },
         points: { type: Array },
+        boxClosed: { type: Boolean },
     };
 
     render() {
-        if (this.points.length !== 4) {
+        console.log('Previews: Rendering', {
+            activeImage: this.activeImage ? 'present' : 'null',
+            pointsCount: this.points.length,
+            boxClosed: this.boxClosed
+        });
+        if (!this.boxClosed) {
             return html``;
         }
 
@@ -33,18 +39,21 @@ class Previews extends LitElement {
     }
 
     firstUpdated() {
+        console.log('Previews: First updated');
         this.selectedPreview = this.renderRoot.querySelector('#selectedPreview');
         this.transformedPreview = this.renderRoot.querySelector('#transformedPreview');
         this.updatePreviews();
     }
 
     updated(changedProperties) {
-        if (changedProperties.has('activeImage') || changedProperties.has('points')) {
+        console.log('Previews: Updated', changedProperties);
+        if (changedProperties.has('activeImage') || changedProperties.has('points') || changedProperties.has('boxClosed')) {
             this.updatePreviews();
         }
     }
 
     updatePreviews() {
+        console.log('Previews: Updating previews');
         if (!this.activeImage || this.points.length !== 4) {
           this.clearCanvas(this.selectedPreview);
           this.clearCanvas(this.transformedPreview);
@@ -69,6 +78,7 @@ class Previews extends LitElement {
         transformedCtx.drawImage(transformedCanvas, 0, 0, this.transformedPreview.width, this.transformedPreview.height);
       }
     clearCanvas(canvas) {
+        console.log('Previews: Clearing canvas', canvas.id);
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
     }

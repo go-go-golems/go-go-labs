@@ -6,8 +6,7 @@ A modern web application for batch processing images with perspective correction
 
 - Multiple image upload
 - Intuitive quadrilateral selection for perspective correction
-- Batch processing capabilities
-- Real-time preview of selection
+- Real-time preview of selection and transformed image
 - One-click download of processed images
 - Display of image dimensions and point coordinates
 
@@ -18,8 +17,8 @@ A modern web application for batch processing images with perspective correction
 1. **ImageCropperApp**: The main component that orchestrates the entire application.
 2. **ImageList**: Displays thumbnails of uploaded images and manages image selection.
 3. **ImageCanvas**: Renders the active image and handles point selection for perspective correction.
-4. **Controls**: Provides buttons for undoing, clearing, and extracting the image.
-5. **Previews**: Shows real-time previews of the selected area and the transformed image.
+4. **Controls**: Provides buttons for undoing, clearing, and downloading the image.
+5. **Previews**: Shows real-time previews of the selected area and the transformed image when the quadrilateral is closed.
 
 ### Image Upload and Management
 
@@ -29,9 +28,9 @@ Users can upload multiple images using the file input. The `ImageCropperApp` com
 
 The `ImageCanvas` component renders the active image and allows users to select four points to define the area for perspective correction. It also displays the image dimensions and the coordinates of the selected points.
 
-### Perspective Correction
+### Perspective Correction and Preview
 
-Once four points are selected, the application uses these points to apply a perspective transform. The `Previews` component shows a real-time preview of the selected area and the transformed image.
+Once four points are selected, closing the quadrilateral, the application uses these points to apply a perspective transform. The `Previews` component shows a real-time preview of the selected area and the transformed image.
 
 ## Usage
 
@@ -39,9 +38,9 @@ Once four points are selected, the application uses these points to apply a pers
 2. Upload one or more images using the file input.
 3. Click on an image thumbnail in the `ImageList` to select it for editing.
 4. Click on the main canvas to place four points, defining the area for perspective correction.
-5. Use the "Undo" or "Clear" buttons to adjust your selection if needed.
-6. Once four points are placed, the previews will become visible.
-7. Click "Extract and Download" to process and download the corrected image.
+5. Once the fourth point is placed, the previews will become visible.
+6. Use the "Undo" or "Clear" buttons to adjust your selection if needed.
+7. Click "Download" to process and download the corrected image.
 8. Repeat steps 3-7 for each image in your batch.
 
 ## Development

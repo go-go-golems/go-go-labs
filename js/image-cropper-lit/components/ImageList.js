@@ -26,6 +26,10 @@ class ImageList extends LitElement {
     };
 
     render() {
+        console.log('ImageList: Rendering', {
+            imagesCount: this.images.length,
+            activeIndex: this.activeIndex
+        });
         return html`
             <div id="image-list">
                 ${this.images.map((image, index) => html`
@@ -42,6 +46,7 @@ class ImageList extends LitElement {
     }
 
     selectImage(index) {
+        console.log('ImageList: Image selected', index);
         this.dispatchEvent(new CustomEvent('image-selected', {
             detail: index,
             bubbles: true,

@@ -1,7 +1,18 @@
 export function applyPerspectiveTransform(img, points) {
+    console.log('PerspectiveTransform: Applying transform', {
+        imgWidth: img.width,
+        imgHeight: img.height,
+        points: points
+    });
+
     const srcPoints = points.flatMap(p => [p.x, p.y]);
     const dstPoints = [0, 0, img.width, 0, img.width, img.height, 0, img.height];
     
+    console.log('PerspectiveTransform: Source and destination points', {
+        srcPoints: srcPoints,
+        dstPoints: dstPoints
+    });
+
     const perspT = PerspT(srcPoints, dstPoints);
     
     const tempCanvas = document.createElement('canvas');
@@ -18,5 +29,8 @@ export function applyPerspectiveTransform(img, points) {
     
     const imageData = tempCtx.getImageData(0, 0, img.width, img.height);
     const outputImageData = outputCtx.createImageData(img.width, img.height);
+
+    console.log('PerspectiveTransform: Transform applied');
     
+    return outputCanvas;
 }
