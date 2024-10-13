@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Camera Stream with Resolutions</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        #videoElement { max-width: 100%; background-color: #000; }
+        #controls { margin: 20px; }
+        #cameraSelect, #resolutionSelect { padding: 5px; }
+        #downloadButton { padding: 10px 20px; font-size: 16px; }
+        #progressBar, #countdownBar {
+            width: 100%;
+            background-color: #ddd;
+            display: none;
+            margin-bottom: 10px;
+        }
+        #progressBarFill, #countdownBarFill {
+            width: 0%;
+            height: 30px;
+            background-color: #4CAF50;
+            text-align: center;
+            line-height: 30px;
+            color: white;
+            transition: width 0.1s linear;
+        }
+        #countdownBarFill {
+            background-color: #FFA500;
+        }
+    </style>
+</head>
+<body>
+    <h1>Camera Stream with Resolutions</h1>
+    <div id="controls">
+        <label for="cameraSelect">Select Camera: </label>
+        <select id="cameraSelect"></select>
+        <label for="resolutionSelect">Select Resolution: </label>
+        <select id="resolutionSelect"></select>
+        <label for="frameCountSelect">Number of Frames: </label>
+        <select id="frameCountSelect">
+            <option value="5">5</option>
+            <option value="10">10</option>
+            <option value="20">20</option>
+        </select>
+        <label for="countdownSpeedSelect">Countdown Speed (s): </label>
+        <select id="countdownSpeedSelect">
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+        </select>
+        <button id="startCaptureButton">Start Capture</button>
+    </div>
+    <div id="countdownBar">
+        <div id="countdownBarFill">Preparing...</div>
+    </div>
+    <div id="progressBar">
+        <div id="progressBarFill">0%</div>
+    </div>
+    <video id="videoElement" autoplay playsinline></video>
+
+    <script>
+        const videoElement = document.getElementById('videoElement');
+        const cameraSelect = document.getElementById('cameraSelect');
+        const resolutionSelect = document.getElementById('resolutionSelect');
+        const downloadButton = document.getElementById('downloadButton');
+        const frameCountSelect = document.getElementById('frameCountSelect');
+        const countdownSpeedSelect = document.getElementById('countdownSpeedSelect');
+        const startCaptureButton = document.getElementById('startCaptureButton');
+        const progressBar = document.getElementById('progressBar');
+        const progressBarFill = document.getElementById('progressBarFill');
+        const countdownBar = document.getElementById('countdownBar');
+        const countdownBarFill = document.getElementById('countdownBarFill');
+        let currentStream;
+        let currentDeviceId;
+        let captureRunCount = 0;
+
+        async function getConnectedCameras() {
+            try {
+                // Request access to video to get device labels
+                await navigator.mediaDevices.getUserMedia({ video: true });
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                cameraSelect.innerHTML = '';
+                videoDevices.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.text = device.label || `Camera ${index + 1}`;
+                    cameraSelect.appendChild(option);
+                });
+                if (videoDevices.length > 0) {
+                    currentDeviceId = videoDevices[0].deviceId;
+                    await populateResolutions(currentDeviceId);
+                    await startStream(currentDeviceId);
+                    cameraSelect.value = currentDeviceId;
+                }
+            } catch (error) {
+                console.error('Error accessing cameras: ', error);
+            }
+        }
+
+        async function populateResolutions(deviceId) {
+            resolutionSelect.innerHTML = '';
+            // Common resolutions to test
+            const resolutions = [
+                { width: 1920, height: 1080 },
+                { width: 1280, height: 720 },
+                { width: 1024, height: 576 },
+                { width: 800, height: 600 },
+                { width: 640, height: 480 },
+                { width: 320, height: 240 }
+            ];
+
+            for (let res of resolutions) {
+                const supported = await testResolution(deviceId, res.width, res.height);
+                if (supported) {
+                    const option = document.createElement('option');
+                    option.value = JSON.stringify({ width: res.width, height: res.height });
+                    option.text = `${res.width} x ${res.height}`;
+                    resolutionSelect.appendChild(option);
+                }
+            }
+
+            if (resolutionSelect.options.length === 0) {
+                const option = document.createElement('option');
+                option.value = '';
+                option.text = 'Default Resolution';
+                resolutionSelect.appendChild(option);
+            }
+        }
+
+        async function testResolution(deviceId, width, height) {
+            const constraints = {
+                video: {
+                    deviceId: { exact: deviceId },
+                    width: { exact: width },
+                    height: { exact: height }
+                },
+                audio: false
+            };
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                stream.getTracks().forEach(track => track.stop());
+                return true;
+            } catch (error) {
+                return false;
+            }
+        }
+
+        async function startStream(deviceId, resolution) {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+            }
+            let constraints = {
+                video: {
+                    deviceId: { exact: deviceId }
+                },
+                audio: false
+            };
+
+            if (resolution) {
+                const res = JSON.parse(resolution);
+                constraints.video.width = { exact: res.width };
+                constraints.video.height = { exact: res.height };
+                // Set video element size to match selected resolution
+                videoElement.style.width = `${res.width}px`;
+                videoElement.style.height = `${res.height}px`;
+            } else {
+                // Reset to default size if no resolution is selected
+                videoElement.style.width = '640px';
+                videoElement.style.height = '480px';
+            }
+
+            try {
+                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                videoElement.srcObject = currentStream;
+            } catch (error) {
+                console.error('Error starting video stream: ', error);
+            }
+        }
+
+        function captureFrame(frameNumber, runNumber) {
+            const canvas = document.createElement('canvas');
+            canvas.width = videoElement.videoWidth;
+            canvas.height = videoElement.videoHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob(blob => {
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                const paddedFrameNumber = String(frameNumber).padStart(3, '0');
+                link.download = `frame_${runNumber}_${paddedFrameNumber}.png`;
+                link.click();
+            }, 'image/png');
+        }
+
+        function updateProgressBar(current, total) {
+            const percentage = (current / total) * 100;
+            progressBarFill.style.width = `${percentage}%`;
+            progressBarFill.textContent = `${Math.round(percentage)}%`;
+        }
+
+        async function startCapture() {
+            const frameCount = parseInt(frameCountSelect.value);
+            const countdownSpeed = parseInt(countdownSpeedSelect.value);
+            captureRunCount++;
+            countdownBar.style.display = 'block';
+            progressBar.style.display = 'block';
+            startCaptureButton.disabled = true;
+
+            // Countdown before starting capture
+                await countdown(3);
+
+            for (let i = 1; i <= frameCount; i++) {
+                await countdown(countdownSpeed);
+                captureFrame(i, captureRunCount);
+                updateProgressBar(i, frameCount);
+            }
+
+            startCaptureButton.disabled = false;
+            setTimeout(() => {
+                countdownBar.style.display = 'none';
+                progressBar.style.display = 'none';
+                progressBarFill.style.width = '0%';
+                progressBarFill.textContent = '0%';
+                countdownBarFill.style.width = '0%';
+                countdownBarFill.textContent = 'Preparing...';
+            }, 1000);
+        }
+
+        function countdown(seconds) {
+            return new Promise(resolve => {
+                let startTime = Date.now();
+                let endTime = startTime + seconds * 1000;
+
+                function updateCountdown() {
+                    let now = Date.now();
+                    let remaining = Math.max(0, endTime - now);
+                    let percent = 100 - (remaining / (seconds * 1000) * 100);
+
+                    countdownBarFill.style.width = `${percent}%`;
+                    countdownBarFill.textContent = `${Math.ceil(remaining / 1000)}`;
+
+                    if (remaining > 0) {
+                        requestAnimationFrame(updateCountdown);
+                    } else {
+                        resolve();
+                    }
+                }
+
+                updateCountdown();
+            });
+        }
+
+        cameraSelect.addEventListener('change', async event => {
+            currentDeviceId = event.target.value;
+            await populateResolutions(currentDeviceId);
+            const selectedResolution = resolutionSelect.value;
+            await startStream(currentDeviceId, selectedResolution);
+        });
+
+        resolutionSelect.addEventListener('change', async event => {
+            const selectedResolution = event.target.value;
+            await startStream(currentDeviceId, selectedResolution);
+        });
+
+        startCaptureButton.addEventListener('click', startCapture);
+
+        // Initialize
+        getConnectedCameras();
+    </script>
+</body>
+</html>

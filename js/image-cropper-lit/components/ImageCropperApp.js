@@ -145,7 +145,7 @@ class ImageCropperApp extends LitElement {
             const image = this.images[i];
             if (image.points && image.points.length === 4) {
                 const transformedCanvas = applyPerspectiveTransform(image.img, image.points);
-                await downloadImage(transformedCanvas, `cropped-image-${i + 1}.png`);
+                await downloadImage(transformedCanvas, `cropped-image-${i + 1}.jpg`);
             }
         }
     }
@@ -234,7 +234,7 @@ class ImageCropperApp extends LitElement {
         if (this.points.length === 4 && this.activeImageIndex !== -1) {
             const activeImage = this.images[this.activeImageIndex].img;
             const transformedCanvas = applyPerspectiveTransform(activeImage, this.points);
-            downloadImage(transformedCanvas, `cropped-image-${this.activeImageIndex + 1}.png`);
+            downloadImage(transformedCanvas, `cropped-image-${this.activeImageIndex + 1}.jpg`);
         }
     }
 
