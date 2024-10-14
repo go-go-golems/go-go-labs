@@ -1,0 +1,66 @@
+<h3>Job Details: {{.ID}}</h3>
+<table>
+    <tr>
+        <th>Rule</th>
+        <td>{{.Rule}}</td>
+    </tr>
+    <tr>
+        <th>Start Time</th>
+        <td>{{.StartTime.Format "2006-01-02 15:04:05"}}</td>
+    </tr>
+    <tr>
+        <th>End Time</th>
+        <td>{{if .EndTime.IsZero}}N/A{{else}}{{.EndTime.Format "2006-01-02 15:04:05"}}{{end}}</td>
+    </tr>
+    <tr>
+        <th>Duration</th>
+        <td>{{if .Duration.Seconds}}{{.Duration}}{{else}}N/A{{end}}</td>
+    </tr>
+    <tr>
+        <th>Status</th>
+        <td>{{.Status}}</td>
+    </tr>
+    <tr>
+        <th>External ID</th>
+        <td>{{if .ExternalID}}{{.ExternalID}}{{else}}N/A{{end}}</td>
+    </tr>
+</table>
+
+<h4>Resources:</h4>
+<table>
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Value</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .Resources}}
+        <tr>
+            <td>{{.Name}}</td>
+            <td>{{.Value}}</td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+
+<h4>Wildcards:</h4>
+<table>
+    <thead>
+        <tr>
+            <th>Key</th>
+            <th>Value</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range $key, $value := .Wildcards}}
+        <tr>
+            <td>{{$key}}</td>
+            <td>{{$value}}</td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+
+<h4>Details:</h4>
+<pre><code>{{.Details}}</code></pre>
