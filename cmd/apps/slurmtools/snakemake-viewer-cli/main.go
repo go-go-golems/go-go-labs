@@ -10,12 +10,12 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
-	"github.com/go-go-golems/glazed/pkg/doc"
 	"github.com/go-go-golems/glazed/pkg/help"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/spf13/cobra"
 	"github.com/go-go-golems/go-go-labs/pkg/snakemake"
+	"github.com/go-go-golems/go-go-labs/pkg/snakemake/doc"
 )
 
 type SnakemakeViewerCommand struct {
