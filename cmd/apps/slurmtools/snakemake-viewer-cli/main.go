@@ -13,9 +13,9 @@ import (
 	"github.com/go-go-golems/glazed/pkg/help"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
-	"github.com/spf13/cobra"
 	"github.com/go-go-golems/go-go-labs/pkg/snakemake"
 	"github.com/go-go-golems/go-go-labs/pkg/snakemake/doc"
+	"github.com/spf13/cobra"
 )
 
 type SnakemakeViewerCommand struct {
@@ -42,12 +42,6 @@ func NewSnakemakeViewerCommand() (*SnakemakeViewerCommand, error) {
 			cmds.WithShort("View parsed Snakemake log information"),
 			cmds.WithFlags(
 				parameters.NewParameterDefinition(
-					"logfiles",
-					parameters.ParameterTypeStringList,
-					parameters.WithHelp("Paths to the Snakemake log files"),
-					parameters.WithRequired(true),
-				),
-				parameters.NewParameterDefinition(
 					"verbose",
 					parameters.ParameterTypeBool,
 					parameters.WithHelp("Display verbose output"),
@@ -71,6 +65,14 @@ func NewSnakemakeViewerCommand() (*SnakemakeViewerCommand, error) {
 					parameters.WithHelp("Specify data to output: rules, summary, jobs, or all"),
 					parameters.WithDefault("jobs"),
 					parameters.WithChoices("rules", "summary", "jobs", "all"),
+				),
+			),
+			cmds.WithArguments(
+				parameters.NewParameterDefinition(
+					"logfiles",
+					parameters.ParameterTypeStringList,
+					parameters.WithHelp("Paths to the Snakemake log files"),
+					parameters.WithRequired(true),
 				),
 			),
 			cmds.WithLayersList(
