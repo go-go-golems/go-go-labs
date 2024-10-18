@@ -71,7 +71,7 @@ func NewCodePrinter() *CodePrinter {
 			".zip", ".tar", ".gz", ".rar",
 			".exe", ".dll", ".so", ".dylib",
 			".pdf", ".doc", ".docx", ".xls", ".xlsx",
-			".bin", ".dat", ".db", ".sqlite",
+			".bin", ".dat", ".db", ".sqlite", ".ico", ".lock", ".tmp", ".woff", ".ttf", ".eot", ".svg",
 		},
 	}
 }
