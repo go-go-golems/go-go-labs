@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/go-go-golems/clay/pkg/filefilter"
 	"os"
 	"path/filepath"
 	"sort"
@@ -86,7 +87,7 @@ func (s *Stats) AddFile(path string, stats FileStats) {
 	s.Total.FileCount++ // Increment FileCount for total
 }
 
-func ComputeStats(paths []string, filter *FileFilter) (*Stats, error) {
+func ComputeStats(paths []string, filter *filefilter.FileFilter) (*Stats, error) {
 	stats := NewStats()
 	tokenCounter, err := tiktoken.GetEncoding("cl100k_base")
 	if err != nil {
@@ -198,24 +199,4 @@ func getSortedDirs(stats *Stats) []string {
 	}
 	sort.Strings(dirs)
 	return dirs
-}
-
-func countFilesByType(stats *Stats, ext string) int {
-	count := 0
-	for file := range stats.Files {
-		if strings.ToLower(filepath.Ext(file)) == ext {
-			count++
-		}
-	}
-	return count
-}
-
-func countFilesInDir(stats *Stats, dir string) int {
-	count := 0
-	for file := range stats.Files {
-		if filepath.Dir(file) == dir {
-			count++
-		}
-	}
-	return count
 }

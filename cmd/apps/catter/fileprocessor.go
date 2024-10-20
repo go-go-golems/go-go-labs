@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"github.com/denormal/go-gitignore"
+	"github.com/go-go-golems/clay/pkg/filefilter"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,18 +14,19 @@ import (
 )
 
 type FileProcessor struct {
-	MaxTotalSize  int64
-	CurrentSize   int64
-	TotalTokens   int
-	FileCount     int
-	TokenCounter  *tiktoken.Tiktoken
-	TokenCounts   map[string]int
-	StatsTypes    []string
-	ListOnly      bool
-	DelimiterType string
-	MaxLines      int
-	MaxTokens     int
-	Filter        *FileFilter
+	MaxTotalSize    int64
+	CurrentSize     int64
+	TotalTokens     int
+	FileCount       int
+	TokenCounter    *tiktoken.Tiktoken
+	TokenCounts     map[string]int
+	StatsTypes      []string
+	ListOnly        bool
+	DelimiterType   string
+	MaxLines        int
+	MaxTokens       int
+	Filter          *filefilter.FileFilter
+	GitIgnoreFilter gitignore.GitIgnore
 }
 
 type FileProcessorOption func(*FileProcessor)
@@ -36,11 +39,12 @@ func NewFileProcessor(options ...FileProcessorOption) *FileProcessor {
 	}
 
 	fp := &FileProcessor{
-		TokenCounter: tokenCounter,
-		TokenCounts:  make(map[string]int),
-		StatsTypes:   []string{},
-		MaxLines:     0,
-		MaxTokens:    0,
+		TokenCounter:    tokenCounter,
+		TokenCounts:     make(map[string]int),
+		StatsTypes:      []string{},
+		MaxLines:        0,
+		MaxTokens:       0,
+		GitIgnoreFilter: nil,
 	}
 
 	for _, option := range options {
@@ -86,9 +90,18 @@ func WithMaxTokens(maxTokens int) FileProcessorOption {
 	}
 }
 
-func WithFileFilter(filter *FileFilter) FileProcessorOption {
+func WithFileFilter(filter *filefilter.FileFilter) FileProcessorOption {
 	return func(fp *FileProcessor) {
 		fp.Filter = filter
+		if fp.GitIgnoreFilter != nil {
+			fp.Filter.GitIgnoreFilter = fp.GitIgnoreFilter
+		}
+	}
+}
+
+func WithGitIgnoreFilter(gitIgnoreFilter gitignore.GitIgnore) FileProcessorOption {
+	return func(fp *FileProcessor) {
+		fp.GitIgnoreFilter = gitIgnoreFilter
 	}
 }
 
