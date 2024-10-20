@@ -2,30 +2,34 @@ package main
 
 import (
 	"fmt"
-	"github.com/denormal/go-gitignore"
-	"github.com/go-go-golems/clay/pkg/filewalker"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/denormal/go-gitignore"
+	"github.com/go-go-golems/clay/pkg/filewalker"
+	"gopkg.in/yaml.v3"
 )
 
 type FileFilter struct {
-	MaxFileSize                   int64
-	IncludeExts                   []string
-	ExcludeExts                   []string
-	MatchFilenames                []*regexp.Regexp
-	MatchPaths                    []*regexp.Regexp
-	ExcludeDirs                   []string
-	GitIgnoreFilter               gitignore.GitIgnore
-	DisableGitIgnore              bool
-	DefaultExcludedExts           []string
-	DefaultExcludedDirs           []string
-	DefaultExcludedMatchFilenames []*regexp.Regexp
-	ExcludeMatchFilenames         []*regexp.Regexp
-	ExcludeMatchPaths             []*regexp.Regexp
-	DisableDefaultFilters         bool
-	Verbose                       bool
+	MaxFileSize           int64               `yaml:"max-file-size,omitempty"`
+	IncludeExts           []string            `yaml:"include-exts,omitempty"`
+	ExcludeExts           []string            `yaml:"exclude-exts,omitempty"`
+	MatchFilenames        []*regexp.Regexp    `yaml:"match-filenames,omitempty"`
+	MatchPaths            []*regexp.Regexp    `yaml:"match-paths,omitempty"`
+	ExcludeDirs           []string            `yaml:"exclude-dirs,omitempty"`
+	GitIgnoreFilter       gitignore.GitIgnore `yaml:"-"`
+	DisableGitIgnore      bool                `yaml:"disable-gitignore,omitempty"`
+	ExcludeMatchFilenames []*regexp.Regexp    `yaml:"exclude-match-filenames,omitempty"`
+	ExcludeMatchPaths     []*regexp.Regexp    `yaml:"exclude-match-paths,omitempty"`
+	DisableDefaultFilters bool                `yaml:"disable-default-filters,omitempty"`
+	Verbose               bool                `yaml:"verbose,omitempty"`
+
+	// Default values (not serialized)
+	DefaultExcludedExts           []string         `yaml:"-"`
+	DefaultExcludedDirs           []string         `yaml:"-"`
+	DefaultExcludedMatchFilenames []*regexp.Regexp `yaml:"-"`
 }
 
 type FileFilterOption func(*FileFilter)
@@ -303,4 +307,37 @@ func (ff *FileFilter) shouldProcessFile(filePath string) bool {
 	}
 
 	return true
+}
+
+// ToYAML serializes the FileFilter to YAML format
+func (ff *FileFilter) ToYAML() ([]byte, error) {
+	return yaml.Marshal(ff)
+}
+
+// FromYAML deserializes the FileFilter from YAML format
+func FromYAML(data []byte) (*FileFilter, error) {
+	ff := NewFileFilter() // This ensures default values are set
+	err := yaml.Unmarshal(data, ff)
+	if err != nil {
+		return nil, err
+	}
+	return ff, nil
+}
+
+// SaveToFile saves the FileFilter configuration to a YAML file
+func (ff *FileFilter) SaveToFile(filename string) error {
+	data, err := ff.ToYAML()
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filename, data, 0644)
+}
+
+// LoadFromFile loads a FileFilter configuration from a YAML file
+func LoadFromFile(filename string) (*FileFilter, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	return FromYAML(data)
 }

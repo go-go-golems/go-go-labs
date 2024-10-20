@@ -1,6 +1,6 @@
 ## Next steps
-- [ ] properly count files when computing stats
 - [ ] allow loading of filter rules from a .catter.yaml file
+- [ ] go over the rules to match directories, because currently it uses Contains, which is a bit too broad. We should use something like gitignore with / at the end or not. This links to the task of fixing gitignore package.
 
 ## Glazed converstion
 
@@ -10,12 +10,15 @@
 - [ ] turn filter into a utility package
 - [ ] add glazed flag layer for filter options (to reuse in other commands)
 
-## Ideas
+## YAML settings
 
-### Stats
+- [ ] Add profiles to catter.yaml
+
+## Ideas
 
 - [ ] Filter out binary files
 - [ ] Verify gitignore to ignore .history for example
+- [ ] Add web API + rest 
 
 ## Done
 
@@ -23,3 +26,4 @@
 - [x] fix bug when computing stats
 - [x] Show token count per directory / file type
 - [x] AST walker generic per file / per directory (when called with directory, given list of files in the directory, potentially also the results for each of the files in that directory first).
+- [x] properly count files when computing stats

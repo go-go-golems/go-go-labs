@@ -37,50 +37,42 @@ func init() {
 	CatterCmd.Flags().Int("max-tokens", 0, "Maximum number of tokens to print per file (0 for no limit)")
 	CatterCmd.Flags().Bool("print-filters", false, "Print configured filters")
 	CatterCmd.Flags().BoolP("verbose", "v", false, "Enable verbose logging of filtered/unfiltered paths")
+	CatterCmd.Flags().String("filter-yaml", "", "Path to YAML file containing filter configuration")
+	CatterCmd.Flags().Bool("print-filter-yaml", false, "Print the current filter configuration as YAML and exit")
 }
 
 func runCatter(cmd *cobra.Command, args []string) {
-	maxFileSize, _ := cmd.Flags().GetInt64("max-file-size")
 	maxTotalSize, _ := cmd.Flags().GetInt64("max-total-size")
-	includeExts, _ := cmd.Flags().GetStringSlice("include")
-	excludeExts, _ := cmd.Flags().GetStringSlice("exclude")
 	statsTypes, _ := cmd.Flags().GetStringSlice("stats")
-	matchFilenameStrs, _ := cmd.Flags().GetStringSlice("match-filename")
-	matchPathStrs, _ := cmd.Flags().GetStringSlice("match-path")
 	listOnly, _ := cmd.Flags().GetBool("list")
-	excludeDirs, _ := cmd.Flags().GetStringSlice("exclude-dirs")
 	delimiterType, _ := cmd.Flags().GetString("delimiter")
-	excludeMatchFilenameStrs, _ := cmd.Flags().GetStringSlice("exclude-match-filename")
-	excludeMatchPathStrs, _ := cmd.Flags().GetStringSlice("exclude-match-path")
 	maxLines, _ := cmd.Flags().GetInt("max-lines")
 	maxTokens, _ := cmd.Flags().GetInt("max-tokens")
-	disableGitIgnore, _ := cmd.Flags().GetBool("disable-gitignore")
-	disableDefaultFilters, _ := cmd.Flags().GetBool("disable-default-filters")
-	printFilters, _ := cmd.Flags().GetBool("print-filters")
-	verbose, _ := cmd.Flags().GetBool("verbose")
+	filterYAMLPath, _ := cmd.Flags().GetString("filter-yaml")
+	printFilterYAML, _ := cmd.Flags().GetBool("print-filter-yaml")
 
-	fileFilterOptions := []FileFilterOption{
-		WithMaxFileSize(maxFileSize),
-		WithIncludeExts(includeExts),
-		WithExcludeExts(excludeExts),
-		WithMatchFilenames(matchFilenameStrs),
-		WithMatchPaths(matchPathStrs),
-		WithExcludeDirs(excludeDirs),
-		WithExcludeMatchFilenames(excludeMatchFilenameStrs),
-		WithExcludeMatchPaths(excludeMatchPathStrs),
-		WithDisableGitIgnore(disableGitIgnore),
-		WithDisableDefaultFilters(disableDefaultFilters),
-		WithVerbose(verbose),
+	fileFilter := NewFileFilter()
+
+	if filterYAMLPath != "" {
+		var err error
+		fileFilter, err = LoadFromFile(filterYAMLPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error loading filter configuration from YAML: %v\n", err)
+			os.Exit(1)
+		}
+	} else {
+		fileFilter = NewFileFilter()
 	}
 
-	if !disableGitIgnore {
-		fileFilterOptions = append(fileFilterOptions, WithGitIgnoreFilter(initGitIgnoreFilter()))
-	}
+	applyFlagOverrides(cmd, fileFilter)
 
-	fileFilter := NewFileFilter(fileFilterOptions...)
-
-	if printFilters {
-		fileFilter.PrintConfiguredFilters()
+	if printFilterYAML {
+		yamlData, err := fileFilter.ToYAML()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error generating YAML: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println(string(yamlData))
 		return
 	}
 
@@ -132,4 +124,40 @@ func initGitIgnoreFilter() gitignore.GitIgnore {
 		os.Exit(1)
 	}
 	return gitIgnoreFilter
+}
+
+func applyFlagOverrides(cmd *cobra.Command, ff *FileFilter) {
+	if maxFileSize, _ := cmd.Flags().GetInt64("max-file-size"); maxFileSize != 0 {
+		ff.MaxFileSize = maxFileSize
+	}
+	if includeExts, _ := cmd.Flags().GetStringSlice("include"); len(includeExts) > 0 {
+		ff.IncludeExts = includeExts
+	}
+	if excludeExts, _ := cmd.Flags().GetStringSlice("exclude"); len(excludeExts) > 0 {
+		ff.ExcludeExts = excludeExts
+	}
+	if matchFilenameStrs, _ := cmd.Flags().GetStringSlice("match-filename"); len(matchFilenameStrs) > 0 {
+		ff.MatchFilenames = compileRegexps(matchFilenameStrs)
+	}
+	if matchPathStrs, _ := cmd.Flags().GetStringSlice("match-path"); len(matchPathStrs) > 0 {
+		ff.MatchPaths = compileRegexps(matchPathStrs)
+	}
+	if excludeDirs, _ := cmd.Flags().GetStringSlice("exclude-dirs"); len(excludeDirs) > 0 {
+		ff.ExcludeDirs = excludeDirs
+	}
+	if excludeMatchFilenameStrs, _ := cmd.Flags().GetStringSlice("exclude-match-filename"); len(excludeMatchFilenameStrs) > 0 {
+		ff.ExcludeMatchFilenames = compileRegexps(excludeMatchFilenameStrs)
+	}
+	if excludeMatchPathStrs, _ := cmd.Flags().GetStringSlice("exclude-match-path"); len(excludeMatchPathStrs) > 0 {
+		ff.ExcludeMatchPaths = compileRegexps(excludeMatchPathStrs)
+	}
+	if disableGitIgnore, _ := cmd.Flags().GetBool("disable-gitignore"); disableGitIgnore {
+		ff.DisableGitIgnore = disableGitIgnore
+	}
+	if disableDefaultFilters, _ := cmd.Flags().GetBool("disable-default-filters"); disableDefaultFilters {
+		ff.DisableDefaultFilters = disableDefaultFilters
+	}
+	if verbose, _ := cmd.Flags().GetBool("verbose"); verbose {
+		ff.Verbose = verbose
+	}
 }
