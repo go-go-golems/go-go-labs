@@ -82,14 +82,17 @@ func (s *Stats) AddFile(path string, stats FileStats) {
 	s.Total.Size += stats.Size
 }
 
-func ComputeStats(paths []string) (*Stats, error) {
+func ComputeStats(paths []string, filter *FileFilter) (*Stats, error) {
 	stats := NewStats()
 	tokenCounter, err := tiktoken.GetEncoding("cl100k_base")
 	if err != nil {
 		return nil, fmt.Errorf("error initializing tiktoken: %v", err)
 	}
 
-	walker, err := filewalker.NewWalker(filewalker.WithPaths(paths))
+	walker, err := filewalker.NewWalker(
+		filewalker.WithPaths(paths),
+		filewalker.WithFilter(filter.FilterNode),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("error creating filewalker: %v", err)
 	}

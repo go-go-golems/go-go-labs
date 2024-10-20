@@ -6,36 +6,24 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
-	"github.com/denormal/go-gitignore"
 	"github.com/weaviate/tiktoken-go"
 )
 
 type FileProcessor struct {
-	MaxFileSize           int64
-	MaxTotalSize          int64
-	IncludeExts           []string
-	ExcludeExts           []string
-	CurrentSize           int64
-	TotalTokens           int
-	FileCount             int
-	TokenCounter          *tiktoken.Tiktoken
-	TokenCounts           map[string]int
-	StatsTypes            []string // Replace StatsLevel with StatsTypes
-	MatchFilenames        []*regexp.Regexp
-	MatchPaths            []*regexp.Regexp
-	ListOnly              bool
-	ExcludeDirs           []string
-	GitIgnoreFilter       gitignore.GitIgnore
-	DisableGitIgnore      bool
-	DelimiterType         string
-	DefaultExcludeExts    []string
-	ExcludeMatchFilenames []*regexp.Regexp
-	ExcludeMatchPaths     []*regexp.Regexp
-	MaxLines              int
-	MaxTokens             int
+	MaxTotalSize  int64
+	CurrentSize   int64
+	TotalTokens   int
+	FileCount     int
+	TokenCounter  *tiktoken.Tiktoken
+	TokenCounts   map[string]int
+	StatsTypes    []string
+	ListOnly      bool
+	DelimiterType string
+	MaxLines      int
+	MaxTokens     int
+	Filter        *FileFilter
 }
 
 func NewFileProcessor() *FileProcessor {
@@ -49,19 +37,21 @@ func NewFileProcessor() *FileProcessor {
 		TokenCounter: tokenCounter,
 		TokenCounts:  make(map[string]int),
 		StatsTypes:   []string{},
-		ExcludeDirs:  []string{},
-		DefaultExcludeExts: []string{
-			".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff",
-			".mp3", ".wav", ".ogg", ".flac",
-			".mp4", ".avi", ".mov", ".wmv",
-			".zip", ".tar", ".gz", ".rar",
-			".exe", ".dll", ".so", ".dylib",
-			".pdf", ".doc", ".docx", ".xls", ".xlsx",
-			".bin", ".dat", ".db", ".sqlite",
-			".woff", ".ttf", ".eot", ".svg", ".webp", ".woff2",
+		MaxLines:     0,
+		MaxTokens:    0,
+		Filter: &FileFilter{
+			ExcludeDirs: []string{".git", ".history", ".idea"},
+			DefaultExcludeExts: []string{
+				".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff",
+				".mp3", ".wav", ".ogg", ".flac",
+				".mp4", ".avi", ".mov", ".wmv",
+				".zip", ".tar", ".gz", ".rar",
+				".exe", ".dll", ".so", ".dylib",
+				".pdf", ".doc", ".docx", ".xls", ".xlsx",
+				".bin", ".dat", ".db", ".sqlite",
+				".woff", ".ttf", ".eot", ".svg", ".webp", ".woff2",
+			},
 		},
-		MaxLines:  0,
-		MaxTokens: 0,
 	}
 }
 
@@ -80,7 +70,7 @@ func (fp *FileProcessor) ProcessPaths(paths []string) {
 }
 
 func (fp *FileProcessor) processStats(paths []string) {
-	stats, err := ComputeStats(paths)
+	stats, err := ComputeStats(paths, fp.Filter)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error computing stats: %v\n", err)
 		return
@@ -104,31 +94,18 @@ func (fp *FileProcessor) processStats(paths []string) {
 }
 
 func (fp *FileProcessor) processPath(path string) {
-	fileInfo, err := os.Stat(path)
-	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Error accessing %s: %v\n", path, err)
-		return
-	}
-
-	if fileInfo.IsDir() {
-		fp.processDirectory(path)
-	} else {
-		if fp.shouldProcessFile(path, fileInfo) {
-			fp.printFileContent(path, fileInfo)
+	if fp.Filter.FilterPath(path) {
+		if fileInfo, err := os.Stat(path); err == nil {
+			if fileInfo.IsDir() {
+				fp.processDirectory(path)
+			} else {
+				fp.printFileContent(path, fileInfo)
+			}
 		}
 	}
 }
 
 func (fp *FileProcessor) processDirectory(dirPath string) {
-	if strings.HasSuffix(dirPath, ".git") {
-		return
-	}
-	for _, excludedDir := range fp.ExcludeDirs {
-		if strings.Contains(dirPath, excludedDir) {
-			return
-		}
-	}
-
 	files, err := os.ReadDir(dirPath)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error reading directory %s: %v\n", dirPath, err)
@@ -138,88 +115,15 @@ func (fp *FileProcessor) processDirectory(dirPath string) {
 	dirTokens := 0
 	for _, file := range files {
 		fullPath := filepath.Join(dirPath, file.Name())
-		fp.processPath(fullPath)
-		dirTokens += fp.TokenCounts[fullPath]
-		if fp.CurrentSize >= fp.MaxTotalSize {
-			break
+		if fp.Filter.FilterPath(fullPath) {
+			fp.processPath(fullPath)
+			dirTokens += fp.TokenCounts[fullPath]
+			if fp.CurrentSize >= fp.MaxTotalSize {
+				break
+			}
 		}
 	}
 	fp.TokenCounts[dirPath] = dirTokens
-}
-
-func (fp *FileProcessor) shouldProcessFile(filePath string, fileInfo os.FileInfo) bool {
-	ext := strings.ToLower(filepath.Ext(filePath))
-
-	// Check against default excluded extensions
-	for _, excludedExt := range fp.DefaultExcludeExts {
-		if ext == excludedExt {
-			return false
-		}
-	}
-
-	if fileInfo.Size() > fp.MaxFileSize {
-		return false
-	}
-
-	if len(fp.IncludeExts) > 0 {
-		included := false
-		for _, includedExt := range fp.IncludeExts {
-			if ext == strings.ToLower(includedExt) {
-				included = true
-				break
-			}
-		}
-		if !included {
-			return false
-		}
-	}
-
-	for _, excludedExt := range fp.ExcludeExts {
-		if ext == strings.ToLower(excludedExt) {
-			return false
-		}
-	}
-
-	if len(fp.MatchFilenames) > 0 || len(fp.MatchPaths) > 0 {
-		filenameMatch := false
-		pathMatch := false
-
-		for _, re := range fp.MatchFilenames {
-			if re.MatchString(filepath.Base(filePath)) {
-				filenameMatch = true
-				break
-			}
-		}
-
-		for _, re := range fp.MatchPaths {
-			if re.MatchString(filePath) {
-				pathMatch = true
-				break
-			}
-		}
-
-		if !filenameMatch && !pathMatch {
-			return false
-		}
-	}
-
-	for _, re := range fp.ExcludeMatchFilenames {
-		if re.MatchString(filepath.Base(filePath)) {
-			return false
-		}
-	}
-
-	for _, re := range fp.ExcludeMatchPaths {
-		if re.MatchString(filePath) {
-			return false
-		}
-	}
-
-	if !fp.DisableGitIgnore && fp.GitIgnoreFilter != nil && fp.GitIgnoreFilter.Ignore(filePath) {
-		return false
-	}
-
-	return true
 }
 
 func (fp *FileProcessor) printFileContent(filePath string, _ os.FileInfo) {

@@ -39,31 +39,32 @@ func init() {
 func runCatter(cmd *cobra.Command, args []string) {
 	fp := NewFileProcessor()
 
-	fp.MaxFileSize, _ = cmd.Flags().GetInt64("max-file-size")
 	fp.MaxTotalSize, _ = cmd.Flags().GetInt64("max-total-size")
-	fp.IncludeExts, _ = cmd.Flags().GetStringSlice("include")
-	fp.ExcludeExts, _ = cmd.Flags().GetStringSlice("exclude")
 	fp.StatsTypes, _ = cmd.Flags().GetStringSlice("stats")
 	fp.ListOnly, _ = cmd.Flags().GetBool("list")
-	fp.ExcludeDirs, _ = cmd.Flags().GetStringSlice("exclude-dirs")
-	fp.DisableGitIgnore, _ = cmd.Flags().GetBool("disable-gitignore")
 	fp.DelimiterType, _ = cmd.Flags().GetString("delimiter")
+	fp.MaxLines, _ = cmd.Flags().GetInt("max-lines")
+	fp.MaxTokens, _ = cmd.Flags().GetInt("max-tokens")
+
+	// Initialize FileFilter
+	fp.Filter.MaxFileSize, _ = cmd.Flags().GetInt64("max-file-size")
+	fp.Filter.IncludeExts, _ = cmd.Flags().GetStringSlice("include")
+	fp.Filter.ExcludeExts, _ = cmd.Flags().GetStringSlice("exclude")
+	fp.Filter.ExcludeDirs, _ = cmd.Flags().GetStringSlice("exclude-dirs")
+	fp.Filter.DisableGitIgnore, _ = cmd.Flags().GetBool("disable-gitignore")
 
 	matchFilenameStrs, _ := cmd.Flags().GetStringSlice("match-filename")
 	matchPathStrs, _ := cmd.Flags().GetStringSlice("match-path")
 	excludeMatchFilenameStrs, _ := cmd.Flags().GetStringSlice("exclude-match-filename")
 	excludeMatchPathStrs, _ := cmd.Flags().GetStringSlice("exclude-match-path")
 
-	fp.MaxLines, _ = cmd.Flags().GetInt("max-lines")
-	fp.MaxTokens, _ = cmd.Flags().GetInt("max-tokens")
+	fp.Filter.MatchFilenames = compileRegexps(matchFilenameStrs)
+	fp.Filter.MatchPaths = compileRegexps(matchPathStrs)
+	fp.Filter.ExcludeMatchFilenames = compileRegexps(excludeMatchFilenameStrs)
+	fp.Filter.ExcludeMatchPaths = compileRegexps(excludeMatchPathStrs)
 
-	fp.MatchFilenames = compileRegexps(matchFilenameStrs)
-	fp.MatchPaths = compileRegexps(matchPathStrs)
-	fp.ExcludeMatchFilenames = compileRegexps(excludeMatchFilenameStrs)
-	fp.ExcludeMatchPaths = compileRegexps(excludeMatchPathStrs)
-
-	if !fp.DisableGitIgnore {
-		fp.GitIgnoreFilter = initGitIgnoreFilter()
+	if !fp.Filter.DisableGitIgnore {
+		fp.Filter.GitIgnoreFilter = initGitIgnoreFilter()
 	}
 
 	if len(args) < 1 {
@@ -78,7 +79,7 @@ func compileRegexps(patterns []string) []*regexp.Regexp {
 	for _, pattern := range patterns {
 		re, err := regexp.Compile(pattern)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Invalid regex pattern: %v\n", err)
+			_, _ = fmt.Fprintf(os.Stderr, "Invalid regex pattern: %v\n", err)
 			os.Exit(1)
 		}
 		regexps = append(regexps, re)
@@ -90,7 +91,7 @@ func initGitIgnoreFilter() gitignore.GitIgnore {
 	if _, err := os.Stat(".gitignore"); err == nil {
 		gitIgnoreFilter, err := gitignore.NewFromFile(".gitignore")
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error initializing gitignore filter from file: %v\n", err)
+			_, _ = fmt.Fprintf(os.Stderr, "Error initializing gitignore filter from file: %v\n", err)
 			os.Exit(1)
 		}
 		return gitIgnoreFilter
@@ -98,7 +99,7 @@ func initGitIgnoreFilter() gitignore.GitIgnore {
 
 	gitIgnoreFilter, err := gitignore.NewRepository(".")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error initializing gitignore filter: %v\n", err)
+		_, _ = fmt.Fprintf(os.Stderr, "Error initializing gitignore filter: %v\n", err)
 		os.Exit(1)
 	}
 	return gitIgnoreFilter
