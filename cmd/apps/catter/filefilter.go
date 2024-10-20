@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/denormal/go-gitignore"
 	"github.com/go-go-golems/clay/pkg/filewalker"
 	"os"
@@ -24,6 +25,7 @@ type FileFilter struct {
 	ExcludeMatchFilenames         []*regexp.Regexp
 	ExcludeMatchPaths             []*regexp.Regexp
 	DisableDefaultFilters         bool
+	Verbose                       bool
 }
 
 type FileFilterOption func(*FileFilter)
@@ -107,6 +109,12 @@ func WithExcludeMatchPaths(patterns []string) FileFilterOption {
 	}
 }
 
+func WithVerbose(verbose bool) FileFilterOption {
+	return func(ff *FileFilter) {
+		ff.Verbose = verbose
+	}
+}
+
 // Initialize default values
 var (
 	DefaultExcludedExts = []string{
@@ -121,7 +129,7 @@ var (
 	}
 
 	DefaultExcludedDirs = []string{
-		".git", ".svn", "node_modules", "vendor",
+		".git", ".svn", "node_modules", "vendor", ".history", ".idea", ".vscode",
 	}
 
 	DefaultExcludedMatchFilenames = []*regexp.Regexp{
@@ -132,24 +140,55 @@ var (
 	}
 )
 
+func (ff *FileFilter) PrintConfiguredFilters() {
+	fmt.Println("Configured Filters:")
+	fmt.Printf("  Max File Size: %d bytes\n", ff.MaxFileSize)
+	fmt.Printf("  Include Extensions: %v\n", ff.IncludeExts)
+	fmt.Printf("  Exclude Extensions: %v\n", ff.ExcludeExts)
+	fmt.Printf("  Match Filenames: %v\n", ff.MatchFilenames)
+	fmt.Printf("  Match Paths: %v\n", ff.MatchPaths)
+	fmt.Printf("  Exclude Directories: %v\n", ff.ExcludeDirs)
+	fmt.Printf("  Exclude Match Filenames: %v\n", ff.ExcludeMatchFilenames)
+	fmt.Printf("  Exclude Match Paths: %v\n", ff.ExcludeMatchPaths)
+	fmt.Printf("  Disable GitIgnore: %v\n", ff.DisableGitIgnore)
+	fmt.Printf("  Disable Default Filters: %v\n", ff.DisableDefaultFilters)
+	fmt.Printf("  Default Excluded Extensions: %v\n", ff.DefaultExcludedExts)
+	fmt.Printf("  Default Excluded Directories: %v\n", ff.DefaultExcludedDirs)
+	fmt.Printf("  Default Excluded Match Filenames: %v\n", ff.DefaultExcludedMatchFilenames)
+	fmt.Printf("  Verbose: %v\n", ff.Verbose)
+}
+
 func (ff *FileFilter) FilterNode(node *filewalker.Node) bool {
+	result := false
 	if node.GetType() == filewalker.DirectoryNode {
-		return !ff.isExcludedDir(node.GetPath())
+		result = !ff.isExcludedDir(node.GetPath())
+	} else {
+		result = ff.FilterPath(node.GetPath())
 	}
-	return ff.FilterPath(node.GetPath())
+
+	if ff.Verbose {
+		if result {
+			fmt.Printf("Including: %s\n", node.GetPath())
+		} else {
+			fmt.Printf("Excluding: %s\n", node.GetPath())
+		}
+	}
+
+	return result
 }
 
 func (ff *FileFilter) FilterPath(filePath string) bool {
-	fileInfo, err := os.Stat(filePath)
-	if err != nil {
-		return false
+	result := ff.shouldProcessFile(filePath)
+
+	if ff.Verbose {
+		if result {
+			fmt.Printf("Including: %s\n", filePath)
+		} else {
+			fmt.Printf("Excluding: %s\n", filePath)
+		}
 	}
 
-	if fileInfo.IsDir() {
-		return !ff.isExcludedDir(filePath)
-	}
-
-	return ff.shouldProcessFile(filePath, fileInfo)
+	return result
 }
 
 func (ff *FileFilter) isExcludedDir(dirPath string) bool {
@@ -168,7 +207,13 @@ func (ff *FileFilter) isExcludedDir(dirPath string) bool {
 	return false
 }
 
-func (ff *FileFilter) shouldProcessFile(filePath string, fileInfo os.FileInfo) bool {
+func (ff *FileFilter) shouldProcessFile(filePath string) bool {
+	fileInfo, err := os.Stat(filePath)
+	if err != nil {
+		// If we can't get file info, we'll exclude the file
+		return false
+	}
+
 	ext := strings.ToLower(filepath.Ext(filePath))
 
 	// Check against default excluded extensions
@@ -247,7 +292,8 @@ func (ff *FileFilter) shouldProcessFile(filePath string, fileInfo os.FileInfo) b
 		}
 	}
 
-	if !ff.DisableGitIgnore && ff.GitIgnoreFilter != nil && ff.GitIgnoreFilter.Ignore(filePath) {
+	// TODO: fix upstream bug where "." / root panics
+	if filePath != "." && !ff.DisableGitIgnore && ff.GitIgnoreFilter != nil && ff.GitIgnoreFilter.Ignore(filePath) {
 		return false
 	}
 

@@ -35,6 +35,8 @@ func init() {
 
 	CatterCmd.Flags().Int("max-lines", 0, "Maximum number of lines to print per file (0 for no limit)")
 	CatterCmd.Flags().Int("max-tokens", 0, "Maximum number of tokens to print per file (0 for no limit)")
+	CatterCmd.Flags().Bool("print-filters", false, "Print configured filters")
+	CatterCmd.Flags().BoolP("verbose", "v", false, "Enable verbose logging of filtered/unfiltered paths")
 }
 
 func runCatter(cmd *cobra.Command, args []string) {
@@ -54,6 +56,8 @@ func runCatter(cmd *cobra.Command, args []string) {
 	maxTokens, _ := cmd.Flags().GetInt("max-tokens")
 	disableGitIgnore, _ := cmd.Flags().GetBool("disable-gitignore")
 	disableDefaultFilters, _ := cmd.Flags().GetBool("disable-default-filters")
+	printFilters, _ := cmd.Flags().GetBool("print-filters")
+	verbose, _ := cmd.Flags().GetBool("verbose")
 
 	fileFilterOptions := []FileFilterOption{
 		WithMaxFileSize(maxFileSize),
@@ -66,6 +70,7 @@ func runCatter(cmd *cobra.Command, args []string) {
 		WithExcludeMatchPaths(excludeMatchPathStrs),
 		WithDisableGitIgnore(disableGitIgnore),
 		WithDisableDefaultFilters(disableDefaultFilters),
+		WithVerbose(verbose),
 	}
 
 	if !disableGitIgnore {
@@ -73,6 +78,11 @@ func runCatter(cmd *cobra.Command, args []string) {
 	}
 
 	fileFilter := NewFileFilter(fileFilterOptions...)
+
+	if printFilters {
+		fileFilter.PrintConfiguredFilters()
+		return
+	}
 
 	fileProcessorOptions := []FileProcessorOption{
 		WithMaxTotalSize(maxTotalSize),
