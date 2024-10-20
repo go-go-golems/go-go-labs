@@ -19,7 +19,7 @@
 
 ## Ideas
 
-- [ ] Filter out binary files
+- [x] Filter out binary files
 - [ ] Verify gitignore to ignore .history for example
 - [ ] Add web API + rest 
 - [ ] add a filter to process each file (maybe?? with lua or bash commands? Look at how git hooks are defined?)

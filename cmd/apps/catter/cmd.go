@@ -40,6 +40,7 @@ func init() {
 	CatterCmd.Flags().BoolP("verbose", "v", false, "Enable verbose logging of filtered/unfiltered paths")
 	CatterCmd.Flags().String("filter-yaml", "", "Path to YAML file containing filter configuration")
 	CatterCmd.Flags().Bool("print-filter-yaml", false, "Print the current filter configuration as YAML and exit")
+	CatterCmd.Flags().Bool("filter-binary", true, "Filter out binary files")
 }
 
 func runCatter(cmd *cobra.Command, args []string) {
@@ -167,5 +168,9 @@ func applyFlagOverrides(cmd *cobra.Command, ff *filefilter.FileFilter) {
 	}
 	if verbose, _ := cmd.Flags().GetBool("verbose"); verbose {
 		ff.Verbose = verbose
+	}
+
+	if filterBinary, _ := cmd.Flags().GetBool("filter-binary"); filterBinary {
+		ff.FilterBinaryFiles = filterBinary
 	}
 }
