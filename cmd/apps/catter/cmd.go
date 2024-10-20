@@ -20,6 +20,7 @@ func init() {
 	CatterCmd.Flags().Int64("max-file-size", 1024*1024, "Maximum size of individual files in bytes")
 	CatterCmd.Flags().Int64("max-total-size", 10*1024*1024, "Maximum total size of all files in bytes")
 	CatterCmd.Flags().Bool("disable-gitignore", false, "Disable .gitignore filter")
+	CatterCmd.Flags().Bool("disable-default-filters", false, "Disable default file and directory filters")
 
 	CatterCmd.Flags().StringSliceP("include", "i", []string{}, "List of file extensions to include (e.g., .go,.js)")
 	CatterCmd.Flags().StringSliceP("exclude", "e", []string{}, "List of file extensions to exclude (e.g., .exe,.dll)")
@@ -37,35 +38,53 @@ func init() {
 }
 
 func runCatter(cmd *cobra.Command, args []string) {
-	fp := NewFileProcessor()
-
-	fp.MaxTotalSize, _ = cmd.Flags().GetInt64("max-total-size")
-	fp.StatsTypes, _ = cmd.Flags().GetStringSlice("stats")
-	fp.ListOnly, _ = cmd.Flags().GetBool("list")
-	fp.DelimiterType, _ = cmd.Flags().GetString("delimiter")
-	fp.MaxLines, _ = cmd.Flags().GetInt("max-lines")
-	fp.MaxTokens, _ = cmd.Flags().GetInt("max-tokens")
-
-	// Initialize FileFilter
-	fp.Filter.MaxFileSize, _ = cmd.Flags().GetInt64("max-file-size")
-	fp.Filter.IncludeExts, _ = cmd.Flags().GetStringSlice("include")
-	fp.Filter.ExcludeExts, _ = cmd.Flags().GetStringSlice("exclude")
-	fp.Filter.ExcludeDirs, _ = cmd.Flags().GetStringSlice("exclude-dirs")
-	fp.Filter.DisableGitIgnore, _ = cmd.Flags().GetBool("disable-gitignore")
-
+	maxFileSize, _ := cmd.Flags().GetInt64("max-file-size")
+	maxTotalSize, _ := cmd.Flags().GetInt64("max-total-size")
+	includeExts, _ := cmd.Flags().GetStringSlice("include")
+	excludeExts, _ := cmd.Flags().GetStringSlice("exclude")
+	statsTypes, _ := cmd.Flags().GetStringSlice("stats")
 	matchFilenameStrs, _ := cmd.Flags().GetStringSlice("match-filename")
 	matchPathStrs, _ := cmd.Flags().GetStringSlice("match-path")
+	listOnly, _ := cmd.Flags().GetBool("list")
+	excludeDirs, _ := cmd.Flags().GetStringSlice("exclude-dirs")
+	delimiterType, _ := cmd.Flags().GetString("delimiter")
 	excludeMatchFilenameStrs, _ := cmd.Flags().GetStringSlice("exclude-match-filename")
 	excludeMatchPathStrs, _ := cmd.Flags().GetStringSlice("exclude-match-path")
+	maxLines, _ := cmd.Flags().GetInt("max-lines")
+	maxTokens, _ := cmd.Flags().GetInt("max-tokens")
+	disableGitIgnore, _ := cmd.Flags().GetBool("disable-gitignore")
+	disableDefaultFilters, _ := cmd.Flags().GetBool("disable-default-filters")
 
-	fp.Filter.MatchFilenames = compileRegexps(matchFilenameStrs)
-	fp.Filter.MatchPaths = compileRegexps(matchPathStrs)
-	fp.Filter.ExcludeMatchFilenames = compileRegexps(excludeMatchFilenameStrs)
-	fp.Filter.ExcludeMatchPaths = compileRegexps(excludeMatchPathStrs)
-
-	if !fp.Filter.DisableGitIgnore {
-		fp.Filter.GitIgnoreFilter = initGitIgnoreFilter()
+	fileFilterOptions := []FileFilterOption{
+		WithMaxFileSize(maxFileSize),
+		WithIncludeExts(includeExts),
+		WithExcludeExts(excludeExts),
+		WithMatchFilenames(matchFilenameStrs),
+		WithMatchPaths(matchPathStrs),
+		WithExcludeDirs(excludeDirs),
+		WithExcludeMatchFilenames(excludeMatchFilenameStrs),
+		WithExcludeMatchPaths(excludeMatchPathStrs),
+		WithDisableGitIgnore(disableGitIgnore),
+		WithDisableDefaultFilters(disableDefaultFilters),
 	}
+
+	if !disableGitIgnore {
+		fileFilterOptions = append(fileFilterOptions, WithGitIgnoreFilter(initGitIgnoreFilter()))
+	}
+
+	fileFilter := NewFileFilter(fileFilterOptions...)
+
+	fileProcessorOptions := []FileProcessorOption{
+		WithMaxTotalSize(maxTotalSize),
+		WithStatsTypes(statsTypes),
+		WithListOnly(listOnly),
+		WithDelimiterType(delimiterType),
+		WithMaxLines(maxLines),
+		WithMaxTokens(maxTokens),
+		WithFileFilter(fileFilter),
+	}
+
+	fp := NewFileProcessor(fileProcessorOptions...)
 
 	if len(args) < 1 {
 		args = append(args, ".")

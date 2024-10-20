@@ -10,18 +10,127 @@ import (
 )
 
 type FileFilter struct {
-	MaxFileSize           int64
-	IncludeExts           []string
-	ExcludeExts           []string
-	MatchFilenames        []*regexp.Regexp
-	MatchPaths            []*regexp.Regexp
-	ExcludeDirs           []string
-	GitIgnoreFilter       gitignore.GitIgnore
-	DisableGitIgnore      bool
-	DefaultExcludeExts    []string
-	ExcludeMatchFilenames []*regexp.Regexp
-	ExcludeMatchPaths     []*regexp.Regexp
+	MaxFileSize                   int64
+	IncludeExts                   []string
+	ExcludeExts                   []string
+	MatchFilenames                []*regexp.Regexp
+	MatchPaths                    []*regexp.Regexp
+	ExcludeDirs                   []string
+	GitIgnoreFilter               gitignore.GitIgnore
+	DisableGitIgnore              bool
+	DefaultExcludedExts           []string
+	DefaultExcludedDirs           []string
+	DefaultExcludedMatchFilenames []*regexp.Regexp
+	ExcludeMatchFilenames         []*regexp.Regexp
+	ExcludeMatchPaths             []*regexp.Regexp
+	DisableDefaultFilters         bool
 }
+
+type FileFilterOption func(*FileFilter)
+
+func NewFileFilter(options ...FileFilterOption) *FileFilter {
+	ff := &FileFilter{
+		MaxFileSize:                   1024 * 1024, // 1MB default
+		DefaultExcludedExts:           DefaultExcludedExts,
+		DefaultExcludedDirs:           DefaultExcludedDirs,
+		DefaultExcludedMatchFilenames: DefaultExcludedMatchFilenames,
+	}
+	for _, option := range options {
+		option(ff)
+	}
+	return ff
+}
+
+func WithMaxFileSize(size int64) FileFilterOption {
+	return func(ff *FileFilter) {
+		ff.MaxFileSize = size
+	}
+}
+
+func WithIncludeExts(exts []string) FileFilterOption {
+	return func(ff *FileFilter) {
+		ff.IncludeExts = exts
+	}
+}
+
+func WithExcludeExts(exts []string) FileFilterOption {
+	return func(ff *FileFilter) {
+		ff.ExcludeExts = exts
+	}
+}
+
+func WithMatchFilenames(patterns []string) FileFilterOption {
+	return func(ff *FileFilter) {
+		ff.MatchFilenames = compileRegexps(patterns)
+	}
+}
+
+func WithMatchPaths(patterns []string) FileFilterOption {
+	return func(ff *FileFilter) {
+		ff.MatchPaths = compileRegexps(patterns)
+	}
+}
+
+func WithExcludeDirs(dirs []string) FileFilterOption {
+	return func(ff *FileFilter) {
+		ff.ExcludeDirs = dirs
+	}
+}
+
+func WithGitIgnoreFilter(filter gitignore.GitIgnore) FileFilterOption {
+	return func(ff *FileFilter) {
+		ff.GitIgnoreFilter = filter
+	}
+}
+
+func WithDisableGitIgnore(disable bool) FileFilterOption {
+	return func(ff *FileFilter) {
+		ff.DisableGitIgnore = disable
+	}
+}
+
+func WithDisableDefaultFilters(disable bool) FileFilterOption {
+	return func(ff *FileFilter) {
+		ff.DisableDefaultFilters = disable
+	}
+}
+
+func WithExcludeMatchFilenames(patterns []string) FileFilterOption {
+	return func(ff *FileFilter) {
+		ff.ExcludeMatchFilenames = compileRegexps(patterns)
+	}
+}
+
+func WithExcludeMatchPaths(patterns []string) FileFilterOption {
+	return func(ff *FileFilter) {
+		ff.ExcludeMatchPaths = compileRegexps(patterns)
+	}
+}
+
+// Initialize default values
+var (
+	DefaultExcludedExts = []string{
+		".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff",
+		".mp3", ".wav", ".ogg", ".flac",
+		".mp4", ".avi", ".mov", ".wmv",
+		".zip", ".tar", ".gz", ".rar",
+		".exe", ".dll", ".so", ".dylib",
+		".pdf", ".doc", ".docx", ".xls", ".xlsx",
+		".bin", ".dat", ".db", ".sqlite",
+		".woff", ".ttf", ".eot", ".svg", ".webp", ".woff2",
+	}
+
+	DefaultExcludedDirs = []string{
+		".git", ".svn", "node_modules", "vendor",
+	}
+
+	DefaultExcludedMatchFilenames = []*regexp.Regexp{
+		regexp.MustCompile(`.*-lock\.json$`),
+		regexp.MustCompile(`go\.sum$`),
+		regexp.MustCompile(`yarn\.lock$`),
+		regexp.MustCompile(`package-lock\.json$`),
+	}
+)
 
 func (ff *FileFilter) FilterNode(node *filewalker.Node) bool {
 	if node.GetType() == filewalker.DirectoryNode {
@@ -44,8 +153,12 @@ func (ff *FileFilter) FilterPath(filePath string) bool {
 }
 
 func (ff *FileFilter) isExcludedDir(dirPath string) bool {
-	if strings.HasSuffix(dirPath, ".git") {
-		return true
+	if !ff.DisableDefaultFilters {
+		for _, excludedDir := range ff.DefaultExcludedDirs {
+			if strings.Contains(dirPath, excludedDir) {
+				return true
+			}
+		}
 	}
 	for _, excludedDir := range ff.ExcludeDirs {
 		if strings.Contains(dirPath, excludedDir) {
@@ -59,9 +172,11 @@ func (ff *FileFilter) shouldProcessFile(filePath string, fileInfo os.FileInfo) b
 	ext := strings.ToLower(filepath.Ext(filePath))
 
 	// Check against default excluded extensions
-	for _, excludedExt := range ff.DefaultExcludeExts {
-		if ext == excludedExt {
-			return false
+	if !ff.DisableDefaultFilters {
+		for _, excludedExt := range ff.DefaultExcludedExts {
+			if ext == excludedExt {
+				return false
+			}
 		}
 	}
 
@@ -108,6 +223,15 @@ func (ff *FileFilter) shouldProcessFile(filePath string, fileInfo os.FileInfo) b
 
 		if !filenameMatch && !pathMatch {
 			return false
+		}
+	}
+
+	// Check against default excluded match filenames
+	if !ff.DisableDefaultFilters {
+		for _, re := range ff.DefaultExcludedMatchFilenames {
+			if re.MatchString(filepath.Base(filePath)) {
+				return false
+			}
 		}
 	}
 

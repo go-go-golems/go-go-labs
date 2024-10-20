@@ -26,32 +26,69 @@ type FileProcessor struct {
 	Filter        *FileFilter
 }
 
-func NewFileProcessor() *FileProcessor {
+type FileProcessorOption func(*FileProcessor)
+
+func NewFileProcessor(options ...FileProcessorOption) *FileProcessor {
 	tokenCounter, err := tiktoken.GetEncoding("cl100k_base")
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error initializing tiktoken: %v\n", err)
 		os.Exit(1)
 	}
 
-	return &FileProcessor{
+	fp := &FileProcessor{
 		TokenCounter: tokenCounter,
 		TokenCounts:  make(map[string]int),
 		StatsTypes:   []string{},
 		MaxLines:     0,
 		MaxTokens:    0,
-		Filter: &FileFilter{
-			ExcludeDirs: []string{".git", ".history", ".idea"},
-			DefaultExcludeExts: []string{
-				".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff",
-				".mp3", ".wav", ".ogg", ".flac",
-				".mp4", ".avi", ".mov", ".wmv",
-				".zip", ".tar", ".gz", ".rar",
-				".exe", ".dll", ".so", ".dylib",
-				".pdf", ".doc", ".docx", ".xls", ".xlsx",
-				".bin", ".dat", ".db", ".sqlite",
-				".woff", ".ttf", ".eot", ".svg", ".webp", ".woff2",
-			},
-		},
+	}
+
+	for _, option := range options {
+		option(fp)
+	}
+
+	return fp
+}
+
+func WithMaxTotalSize(size int64) FileProcessorOption {
+	return func(fp *FileProcessor) {
+		fp.MaxTotalSize = size
+	}
+}
+
+func WithStatsTypes(types []string) FileProcessorOption {
+	return func(fp *FileProcessor) {
+		fp.StatsTypes = types
+	}
+}
+
+func WithListOnly(listOnly bool) FileProcessorOption {
+	return func(fp *FileProcessor) {
+		fp.ListOnly = listOnly
+	}
+}
+
+func WithDelimiterType(delimiterType string) FileProcessorOption {
+	return func(fp *FileProcessor) {
+		fp.DelimiterType = delimiterType
+	}
+}
+
+func WithMaxLines(maxLines int) FileProcessorOption {
+	return func(fp *FileProcessor) {
+		fp.MaxLines = maxLines
+	}
+}
+
+func WithMaxTokens(maxTokens int) FileProcessorOption {
+	return func(fp *FileProcessor) {
+		fp.MaxTokens = maxTokens
+	}
+}
+
+func WithFileFilter(filter *FileFilter) FileProcessorOption {
+	return func(fp *FileProcessor) {
+		fp.Filter = filter
 	}
 }
 
@@ -94,7 +131,7 @@ func (fp *FileProcessor) processStats(paths []string) {
 }
 
 func (fp *FileProcessor) processPath(path string) {
-	if fp.Filter.FilterPath(path) {
+	if fp.Filter == nil || fp.Filter.FilterPath(path) {
 		if fileInfo, err := os.Stat(path); err == nil {
 			if fileInfo.IsDir() {
 				fp.processDirectory(path)
@@ -115,7 +152,7 @@ func (fp *FileProcessor) processDirectory(dirPath string) {
 	dirTokens := 0
 	for _, file := range files {
 		fullPath := filepath.Join(dirPath, file.Name())
-		if fp.Filter.FilterPath(fullPath) {
+		if fp.Filter != nil && fp.Filter.FilterPath(fullPath) {
 			fp.processPath(fullPath)
 			dirTokens += fp.TokenCounts[fullPath]
 			if fp.CurrentSize >= fp.MaxTotalSize {
