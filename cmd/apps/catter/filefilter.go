@@ -217,6 +217,10 @@ func (ff *FileFilter) shouldProcessFile(filePath string) bool {
 
 	ext := strings.ToLower(filepath.Ext(filePath))
 
+	if fileInfo.IsDir() {
+		return !ff.isExcludedDir(filePath)
+	}
+
 	// Check against default excluded extensions
 	if !ff.DisableDefaultFilters {
 		for _, excludedExt := range ff.DefaultExcludedExts {
