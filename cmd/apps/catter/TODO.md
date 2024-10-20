@@ -1,5 +1,5 @@
 ## Next steps
-- [ ] allow loading of filter rules from a .catter.yaml file
+
 - [ ] go over the rules to match directories, because currently it uses Contains, which is a bit too broad. We should use something like gitignore with / at the end or not. This links to the task of fixing gitignore package.
 
 ## Glazed converstion
@@ -14,12 +14,15 @@
 ## YAML settings
 
 - [x] Add profiles to catter.yaml
+- [x] allow loading of filter rules from a .catter.yaml file
+- [x] load profile from CATTER_PROFILE env variable
 
 ## Ideas
 
 - [ ] Filter out binary files
 - [ ] Verify gitignore to ignore .history for example
 - [ ] Add web API + rest 
+- [ ] add a filter to process each file (maybe?? with lua or bash commands? Look at how git hooks are defined?)
 
 ## Done
 

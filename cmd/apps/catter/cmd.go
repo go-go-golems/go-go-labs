@@ -51,6 +51,12 @@ func runCatter(cmd *cobra.Command, args []string) {
 	maxTokens, _ := cmd.Flags().GetInt("max-tokens")
 	filterYAMLPath, _ := cmd.Flags().GetString("filter-yaml")
 	filterProfile, _ := cmd.Flags().GetString("filter-profile")
+
+	// Check for CATTER_PROFILE environment variable if not set by flag
+	if filterProfile == "" {
+		filterProfile = os.Getenv("CATTER_PROFILE")
+	}
+
 	printFilterYAML, _ := cmd.Flags().GetBool("print-filter-yaml")
 
 	fileFilter, err := loadFileFilter(filterYAMLPath, filterProfile)
@@ -158,6 +164,13 @@ func applyFlagOverrides(cmd *cobra.Command, ff *FileFilter) {
 }
 
 func loadFileFilter(filterYAMLPath, filterProfile string) (*FileFilter, error) {
+	// If filterYAMLPath is not set, check for .catter-filter.yaml
+	if filterYAMLPath == "" {
+		if _, err := os.Stat(".catter-filter.yaml"); err == nil {
+			filterYAMLPath = ".catter-filter.yaml"
+		}
+	}
+
 	if filterYAMLPath == "" {
 		if filterProfile != "" {
 			return nil, fmt.Errorf("filter profile specified but no filter YAML file provided")
