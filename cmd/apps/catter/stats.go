@@ -16,6 +16,7 @@ type FileStats struct {
 	TokenCount int
 	LineCount  int
 	Size       int64
+	FileCount  int // Add FileCount field
 }
 
 type Stats struct {
@@ -63,6 +64,7 @@ func (s *Stats) AddFile(path string, stats FileStats) {
 	fileTypeStats.TokenCount += stats.TokenCount
 	fileTypeStats.LineCount += stats.LineCount
 	fileTypeStats.Size += stats.Size
+	fileTypeStats.FileCount++ // Increment FileCount for file type
 	s.FileTypes[ext] = fileTypeStats
 
 	// Update directory stats
@@ -71,6 +73,7 @@ func (s *Stats) AddFile(path string, stats FileStats) {
 	dirStats.TokenCount += stats.TokenCount
 	dirStats.LineCount += stats.LineCount
 	dirStats.Size += stats.Size
+	dirStats.FileCount++ // Increment FileCount for directory
 	s.Dirs[dir] = dirStats
 
 	// Update DirFiles map
@@ -80,6 +83,7 @@ func (s *Stats) AddFile(path string, stats FileStats) {
 	s.Total.TokenCount += stats.TokenCount
 	s.Total.LineCount += stats.LineCount
 	s.Total.Size += stats.Size
+	s.Total.FileCount++ // Increment FileCount for total
 }
 
 func ComputeStats(paths []string, filter *FileFilter) (*Stats, error) {
@@ -113,6 +117,7 @@ func ComputeStats(paths []string, filter *FileFilter) (*Stats, error) {
 				TokenCount: tokenCount,
 				LineCount:  lineCount,
 				Size:       size,
+				FileCount:  1, // Initialize FileCount for file stats
 			}
 
 			stats.AddFile(node.Path, fileStats)
@@ -141,7 +146,7 @@ func PrintStats(stats *Stats, config Config) {
 
 func printOverview(stats *Stats) {
 	fmt.Println("Overview:")
-	fmt.Printf("Total Files: %d\n", len(stats.Files))
+	fmt.Printf("Total Files: %d\n", stats.Total.FileCount) // Use Total.FileCount
 	fmt.Printf("Total Directories: %d\n", len(stats.Dirs))
 	fmt.Printf("Total Tokens: %d\n", stats.Total.TokenCount)
 	fmt.Printf("Total Lines: %d\n", stats.Total.LineCount)
@@ -150,7 +155,7 @@ func printOverview(stats *Stats) {
 	fmt.Println("\nFile Type Statistics:")
 	for ext, typeStats := range stats.FileTypes {
 		fmt.Printf("  %s:\n    Files: %d, Tokens: %d, Lines: %d, Size: %d bytes\n",
-			ext, len(stats.DirFiles[ext]), typeStats.TokenCount, typeStats.LineCount, typeStats.Size)
+			ext, typeStats.FileCount, typeStats.TokenCount, typeStats.LineCount, typeStats.Size)
 	}
 	fmt.Println() // Add a newline for better separation
 }
@@ -161,7 +166,7 @@ func printDirStructure(stats *Stats) {
 	for _, dir := range dirs {
 		dirStats := stats.Dirs[dir]
 		fmt.Printf("  %s:\n    Files: %d, Tokens: %d, Lines: %d, Size: %d bytes\n",
-			dir, len(stats.DirFiles[dir]), dirStats.TokenCount, dirStats.LineCount, dirStats.Size)
+			dir, dirStats.FileCount, dirStats.TokenCount, dirStats.LineCount, dirStats.Size)
 	}
 	fmt.Println() // Add a newline for better separation
 }

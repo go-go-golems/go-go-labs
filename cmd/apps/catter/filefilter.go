@@ -126,10 +126,11 @@ var (
 		".pdf", ".doc", ".docx", ".xls", ".xlsx",
 		".bin", ".dat", ".db", ".sqlite",
 		".woff", ".ttf", ".eot", ".svg", ".webp", ".woff2",
+		".lock",
 	}
 
 	DefaultExcludedDirs = []string{
-		".git", ".svn", "node_modules", "vendor", ".history", ".idea", ".vscode",
+		".git", ".svn", "node_modules", "vendor", ".history", ".idea", ".vscode", ".yardoc", "build", "dist", "sorbet",
 	}
 
 	DefaultExcludedMatchFilenames = []*regexp.Regexp{
