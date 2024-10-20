@@ -9,10 +9,11 @@
 - [ ] make a custom verb for the stats
 - [ ] turn filter into a utility package
 - [ ] add glazed flag layer for filter options (to reuse in other commands)
+- [ ] add glazed help system for catter
 
 ## YAML settings
 
-- [ ] Add profiles to catter.yaml
+- [x] Add profiles to catter.yaml
 
 ## Ideas
 

@@ -38,6 +38,7 @@ func init() {
 	CatterCmd.Flags().Bool("print-filters", false, "Print configured filters")
 	CatterCmd.Flags().BoolP("verbose", "v", false, "Enable verbose logging of filtered/unfiltered paths")
 	CatterCmd.Flags().String("filter-yaml", "", "Path to YAML file containing filter configuration")
+	CatterCmd.Flags().String("filter-profile", "", "Name of the filter profile to use from the YAML configuration")
 	CatterCmd.Flags().Bool("print-filter-yaml", false, "Print the current filter configuration as YAML and exit")
 }
 
@@ -49,19 +50,13 @@ func runCatter(cmd *cobra.Command, args []string) {
 	maxLines, _ := cmd.Flags().GetInt("max-lines")
 	maxTokens, _ := cmd.Flags().GetInt("max-tokens")
 	filterYAMLPath, _ := cmd.Flags().GetString("filter-yaml")
+	filterProfile, _ := cmd.Flags().GetString("filter-profile")
 	printFilterYAML, _ := cmd.Flags().GetBool("print-filter-yaml")
 
-	fileFilter := NewFileFilter()
-
-	if filterYAMLPath != "" {
-		var err error
-		fileFilter, err = LoadFromFile(filterYAMLPath)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error loading filter configuration from YAML: %v\n", err)
-			os.Exit(1)
-		}
-	} else {
-		fileFilter = NewFileFilter()
+	fileFilter, err := loadFileFilter(filterYAMLPath, filterProfile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading filter configuration: %v\n", err)
+		os.Exit(1)
 	}
 
 	applyFlagOverrides(cmd, fileFilter)
@@ -160,4 +155,29 @@ func applyFlagOverrides(cmd *cobra.Command, ff *FileFilter) {
 	if verbose, _ := cmd.Flags().GetBool("verbose"); verbose {
 		ff.Verbose = verbose
 	}
+}
+
+func loadFileFilter(filterYAMLPath, filterProfile string) (*FileFilter, error) {
+	if filterYAMLPath == "" {
+		if filterProfile != "" {
+			return nil, fmt.Errorf("filter profile specified but no filter YAML file provided")
+		}
+		return NewFileFilter(), nil
+	}
+
+	config, err := LoadFromFile(filterYAMLPath)
+	if err != nil {
+		return nil, fmt.Errorf("error loading filter configuration from YAML: %v", err)
+	}
+
+	if filterProfile == "" {
+		return config, nil
+	}
+
+	profileFilter, ok := config.Profiles[filterProfile]
+	if !ok {
+		return nil, fmt.Errorf("specified filter profile '%s' not found in the configuration", filterProfile)
+	}
+
+	return profileFilter, nil
 }

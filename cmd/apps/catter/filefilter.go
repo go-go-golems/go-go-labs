@@ -13,18 +13,19 @@ import (
 )
 
 type FileFilter struct {
-	MaxFileSize           int64               `yaml:"max-file-size,omitempty"`
-	IncludeExts           []string            `yaml:"include-exts,omitempty"`
-	ExcludeExts           []string            `yaml:"exclude-exts,omitempty"`
-	MatchFilenames        []*regexp.Regexp    `yaml:"match-filenames,omitempty"`
-	MatchPaths            []*regexp.Regexp    `yaml:"match-paths,omitempty"`
-	ExcludeDirs           []string            `yaml:"exclude-dirs,omitempty"`
-	GitIgnoreFilter       gitignore.GitIgnore `yaml:"-"`
-	DisableGitIgnore      bool                `yaml:"disable-gitignore,omitempty"`
-	ExcludeMatchFilenames []*regexp.Regexp    `yaml:"exclude-match-filenames,omitempty"`
-	ExcludeMatchPaths     []*regexp.Regexp    `yaml:"exclude-match-paths,omitempty"`
-	DisableDefaultFilters bool                `yaml:"disable-default-filters,omitempty"`
-	Verbose               bool                `yaml:"verbose,omitempty"`
+	MaxFileSize           int64                  `yaml:"max-file-size,omitempty"`
+	IncludeExts           []string               `yaml:"include-exts,omitempty"`
+	ExcludeExts           []string               `yaml:"exclude-exts,omitempty"`
+	MatchFilenames        []*regexp.Regexp       `yaml:"match-filenames,omitempty"`
+	MatchPaths            []*regexp.Regexp       `yaml:"match-paths,omitempty"`
+	ExcludeDirs           []string               `yaml:"exclude-dirs,omitempty"`
+	GitIgnoreFilter       gitignore.GitIgnore    `yaml:"-"`
+	DisableGitIgnore      bool                   `yaml:"disable-gitignore,omitempty"`
+	ExcludeMatchFilenames []*regexp.Regexp       `yaml:"exclude-match-filenames,omitempty"`
+	ExcludeMatchPaths     []*regexp.Regexp       `yaml:"exclude-match-paths,omitempty"`
+	DisableDefaultFilters bool                   `yaml:"disable-default-filters,omitempty"`
+	Verbose               bool                   `yaml:"verbose,omitempty"`
+	Profiles              map[string]*FileFilter `yaml:"profiles,omitempty"`
 
 	// Default values (not serialized)
 	DefaultExcludedExts           []string         `yaml:"-"`
@@ -321,6 +322,14 @@ func FromYAML(data []byte) (*FileFilter, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Initialize profiles if they exist
+	for _, profile := range ff.Profiles {
+		profile.DefaultExcludedExts = ff.DefaultExcludedExts
+		profile.DefaultExcludedDirs = ff.DefaultExcludedDirs
+		profile.DefaultExcludedMatchFilenames = ff.DefaultExcludedMatchFilenames
+	}
+
 	return ff, nil
 }
 
