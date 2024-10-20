@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/go-go-golems/clay/pkg/filefilter"
 	"os"
 	"regexp"
+
+	"github.com/go-go-golems/clay/pkg/filefilter"
 
 	"github.com/denormal/go-gitignore"
 	"github.com/spf13/cobra"
@@ -41,6 +42,7 @@ func init() {
 	CatterCmd.Flags().String("filter-yaml", "", "Path to YAML file containing filter configuration")
 	CatterCmd.Flags().Bool("print-filter-yaml", false, "Print the current filter configuration as YAML and exit")
 	CatterCmd.Flags().Bool("filter-binary", true, "Filter out binary files")
+	CatterCmd.Flags().String("filter-profile", "", "Name of the filter profile to use")
 }
 
 func runCatter(cmd *cobra.Command, args []string) {
@@ -54,17 +56,33 @@ func runCatter(cmd *cobra.Command, args []string) {
 	printFilterYAML, _ := cmd.Flags().GetBool("print-filter-yaml")
 	disableGitIgnore, _ := cmd.Flags().GetBool("disable-gitignore")
 
-	fileFilter := filefilter.NewFileFilter()
+	filterProfile, _ := cmd.Flags().GetString("filter-profile")
+
+	// Check for CATTER_PROFILE environment variable if not set by flag
+	if filterProfile == "" {
+		filterProfile = os.Getenv("CATTER_PROFILE")
+	}
+
+	var fileFilter *filefilter.FileFilter
 
 	if filterYAMLPath != "" {
 		var err error
-		fileFilter, err = filefilter.LoadFromFile(filterYAMLPath)
+		fileFilter, err = filefilter.LoadFromFile(filterYAMLPath, filterProfile)
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "Error loading filter configuration from YAML: %v\n", err)
 			os.Exit(1)
 		}
 	} else {
-		fileFilter = filefilter.NewFileFilter()
+		// Check for default .catter-filter.yaml in the current directory
+		if _, err := os.Stat(".catter-filter.yaml"); err == nil {
+			fileFilter, err = filefilter.LoadFromFile(".catter-filter.yaml", filterProfile)
+			if err != nil {
+				_, _ = fmt.Fprintf(os.Stderr, "Error loading default filter configuration: %v\n", err)
+				os.Exit(1)
+			}
+		} else {
+			fileFilter = filefilter.NewFileFilter()
+		}
 	}
 
 	var gitIgnoreFilter gitignore.GitIgnore
