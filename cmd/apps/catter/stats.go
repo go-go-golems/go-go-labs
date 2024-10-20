@@ -89,7 +89,7 @@ func ComputeStats(paths []string) (*Stats, error) {
 		return nil, fmt.Errorf("error initializing tiktoken: %v", err)
 	}
 
-	walker, err := filewalker.NewWalker()
+	walker, err := filewalker.NewWalker(filewalker.WithPaths(paths))
 	if err != nil {
 		return nil, fmt.Errorf("error creating filewalker: %v", err)
 	}
