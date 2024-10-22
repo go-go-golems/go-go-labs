@@ -293,7 +293,7 @@ func initGitIgnoreFilter() gitignore.GitIgnore {
 	if _, err := os.Stat(".gitignore"); err == nil {
 		gitIgnoreFilter, err := gitignore.NewFromFile(".gitignore")
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error initializing gitignore filter from file: %v\n", err)
+			_, _ = fmt.Fprintf(os.Stderr, "Error initializing gitignore filter from file: %v\n", err)
 			os.Exit(1)
 		}
 		return gitIgnoreFilter
@@ -301,7 +301,7 @@ func initGitIgnoreFilter() gitignore.GitIgnore {
 
 	gitIgnoreFilter, err := gitignore.NewRepository(".")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error initializing gitignore filter: %v\n", err)
+		_, _ = fmt.Fprintf(os.Stderr, "Error initializing gitignore filter: %v\n", err)
 		os.Exit(1)
 	}
 	return gitIgnoreFilter
@@ -312,7 +312,7 @@ func compileRegexps(patterns []string) []*regexp.Regexp {
 	for _, pattern := range patterns {
 		re, err := regexp.Compile(pattern)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Invalid regex pattern: %v\n", err)
+			_, _ = fmt.Fprintf(os.Stderr, "Invalid regex pattern: %v\n", err)
 			os.Exit(1)
 		}
 		regexps = append(regexps, re)

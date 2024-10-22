@@ -5,6 +5,7 @@
 ## Glazed converstion
 
 - [x] convert to glazed command
+- [ ] restore short flags
 - [ ] restore CATTER_PROFILE env variable
 - [ ] print out stats using glazed
 - [ ] make a custom verb for the stats
