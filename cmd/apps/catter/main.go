@@ -49,7 +49,6 @@ func main() {
 		os.Exit(1)
 	}
 }
-
 func getMiddlewares(
 	commandSettings *cli.GlazedCommandSettings,
 	cmd *cobra.Command,

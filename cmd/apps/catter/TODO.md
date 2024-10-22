@@ -5,13 +5,14 @@
 ## Glazed converstion
 
 - [x] convert to glazed command
-- [ ] restore short flags
-- [ ] restore CATTER_PROFILE env variable
-- [ ] print out stats using glazed
+- [x] restore short flags
+- [x] restore CATTER_PROFILE env variable
+- [x] print out stats using glazed
 - [ ] make a custom verb for the stats
-- [ ] turn filter into a utility package
-- [ ] add glazed flag layer for filter options (to reuse in other commands)
+- [x] turn filter into a utility package
+- [x] add glazed flag layer for filter options (to reuse in other commands)
 - [ ] add glazed help system for catter
+- [ ] fix print-filters
 
 ## YAML settings
 
