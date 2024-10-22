@@ -3,14 +3,17 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
-	"github.com/denormal/go-gitignore"
-	"github.com/go-go-golems/clay/pkg/filefilter"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 
+	"github.com/denormal/go-gitignore"
+	"github.com/go-go-golems/clay/pkg/filefilter"
+	"github.com/go-go-golems/glazed/pkg/middlewares"
+	"github.com/go-go-golems/glazed/pkg/types"
 	"github.com/weaviate/tiktoken-go"
 )
 
@@ -29,6 +32,8 @@ type FileProcessor struct {
 	Filter          *filefilter.FileFilter
 	GitIgnoreFilter gitignore.GitIgnore
 	PrintFilters    bool
+	Processor       *middlewares.TableProcessor
+	Stats           *Stats
 }
 
 type FileProcessorOption func(*FileProcessor)
@@ -114,9 +119,22 @@ func WithPrintFilters(printFilters bool) FileProcessorOption {
 	}
 }
 
+func WithProcessor(processor *middlewares.TableProcessor) FileProcessorOption {
+	return func(fp *FileProcessor) {
+		fp.Processor = processor
+	}
+}
+
 func (fp *FileProcessor) ProcessPaths(paths []string) {
 	if fp.PrintFilters {
 		fp.printConfiguredFilters()
+		return
+	}
+
+	fp.Stats = NewStats()
+	err := fp.Stats.ComputeStats(paths, fp.Filter)
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "Error computing stats: %v\n", err)
 		return
 	}
 
@@ -134,12 +152,6 @@ func (fp *FileProcessor) ProcessPaths(paths []string) {
 }
 
 func (fp *FileProcessor) processStats(paths []string) {
-	stats, err := ComputeStats(paths, fp.Filter)
-	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Error computing stats: %v\n", err)
-		return
-	}
-
 	config := Config{}
 	for _, statType := range fp.StatsTypes {
 		switch strings.ToLower(statType) {
@@ -154,7 +166,10 @@ func (fp *FileProcessor) processStats(paths []string) {
 		}
 	}
 
-	PrintStats(stats, config)
+	err := fp.Stats.PrintStats(config, fp.Processor)
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "Error printing stats: %v\n", err)
+	}
 }
 
 func (fp *FileProcessor) processPath(path string) {
@@ -190,9 +205,15 @@ func (fp *FileProcessor) processDirectory(dirPath string) {
 	fp.TokenCounts[dirPath] = dirTokens
 }
 
-func (fp *FileProcessor) printFileContent(filePath string, _ os.FileInfo) {
+func (fp *FileProcessor) printFileContent(filePath string, fileInfo os.FileInfo) {
 	if fp.ListOnly {
 		fmt.Println(filePath)
+		return
+	}
+
+	fileStats, ok := fp.Stats.GetStats(filePath)
+	if !ok {
+		_, _ = fmt.Fprintf(os.Stderr, "Error: Stats not found for file %s\n", filePath)
 		return
 	}
 
@@ -202,7 +223,7 @@ func (fp *FileProcessor) printFileContent(filePath string, _ os.FileInfo) {
 		return
 	}
 
-	if fp.CurrentSize+int64(len(content)) > fp.MaxTotalSize {
+	if fp.CurrentSize+fileStats.Size > fp.MaxTotalSize {
 		remainingSize := fp.MaxTotalSize - fp.CurrentSize
 		if remainingSize > 0 {
 			content = content[:remainingSize]
@@ -211,34 +232,44 @@ func (fp *FileProcessor) printFileContent(filePath string, _ os.FileInfo) {
 		}
 	}
 
-	tokens := fp.TokenCounter.Encode(string(content), nil, nil)
-	tokenCount := len(tokens)
-	fp.TokenCounts[filePath] = tokenCount
-	fp.TotalTokens += tokenCount
+	fp.TokenCounts[filePath] = fileStats.TokenCount
+	fp.TotalTokens += fileStats.TokenCount
 
 	// Apply max lines and max tokens limits
-	uintTokens := make([]uint, len(tokens))
-	for i, t := range tokens {
-		uintTokens[i] = uint(t)
-	}
-	limitedContent := fp.applyLimits(content, uintTokens)
+	limitedContent := fp.applyLimits(content, fileStats)
 
-	switch fp.DelimiterType {
-	case "xml":
-		fmt.Printf("<file name=\"%s\">\n<content>\n%s\n</content>\n</file>\n", filePath, limitedContent)
-	case "markdown":
-		fmt.Printf("## File: %s\n\n```\n%s\n```\n\n", filePath, limitedContent)
-	case "simple":
-		fmt.Printf("===\n\nFile: %s\n\n---\n\n%s\n\n===\n\n", filePath, limitedContent)
-	default:
-		fmt.Printf("=== BEGIN: %s ===\n%s\n=== END: %s ===\n\n", filePath, limitedContent, filePath)
+	if fp.Processor == nil {
+		switch fp.DelimiterType {
+		case "xml":
+			fmt.Printf("<file name=\"%s\">\n<content>\n%s\n</content>\n</file>\n", filePath, limitedContent)
+		case "markdown":
+			fmt.Printf("## File: %s\n\n```\n%s\n```\n\n", filePath, limitedContent)
+		case "simple":
+			fmt.Printf("===\n\nFile: %s\n\n---\n\n%s\n\n===\n\n", filePath, limitedContent)
+		default:
+			fmt.Printf("=== BEGIN: %s ===\n%s\n=== END: %s ===\n\n", filePath, limitedContent, filePath)
+		}
 	}
 
-	fp.CurrentSize += int64(len(content))
+	fp.CurrentSize += fileStats.Size
 	fp.FileCount++
+
+	if fp.Processor != nil {
+		ctx := context.Background()
+		err := fp.Processor.AddRow(ctx, types.NewRow(
+			types.MRP("Path", filePath),
+			types.MRP("Size", fileStats.Size),
+			types.MRP("TokenCount", fileStats.TokenCount),
+			types.MRP("LineCount", fileStats.LineCount),
+			types.MRP("Content", limitedContent),
+		))
+		if err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "Error adding row to processor: %v\n", err)
+		}
+	}
 }
 
-func (fp *FileProcessor) applyLimits(content []byte, tokens []uint) string {
+func (fp *FileProcessor) applyLimits(content []byte, fileStats FileStats) string {
 	if fp.MaxLines == 0 && fp.MaxTokens == 0 {
 		return string(content)
 	}
