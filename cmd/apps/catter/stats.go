@@ -136,7 +136,7 @@ func (s *Stats) ComputeStats(paths []string, filter *filefilter.FileFilter) erro
 	return nil
 }
 
-func (s *Stats) PrintStats(config Config, processor *middlewares.TableProcessor) error {
+func (s *Stats) PrintStats(config Config, processor middlewares.Processor) error {
 	ctx := context.Background()
 
 	if processor != nil {
@@ -172,7 +172,7 @@ func (s *Stats) PrintStats(config Config, processor *middlewares.TableProcessor)
 	return nil
 }
 
-func (s *Stats) printOverviewAndFileTypes(ctx context.Context, processor *middlewares.TableProcessor) error {
+func (s *Stats) printOverviewAndFileTypes(ctx context.Context, processor middlewares.Processor) error {
 	// Add total stats
 	if err := processor.AddRow(ctx, types.NewRow(
 		types.MRP("Type", "Total"),
@@ -202,7 +202,7 @@ func (s *Stats) printOverviewAndFileTypes(ctx context.Context, processor *middle
 	return nil
 }
 
-func (s *Stats) printDirStructure(ctx context.Context, processor *middlewares.TableProcessor) error {
+func (s *Stats) printDirStructure(ctx context.Context, processor middlewares.Processor) error {
 	dirs := s.getSortedDirs()
 	for _, dir := range dirs {
 		dirStats := s.Dirs[dir]
@@ -221,7 +221,7 @@ func (s *Stats) printDirStructure(ctx context.Context, processor *middlewares.Ta
 	return nil
 }
 
-func (s *Stats) printFullStructure(ctx context.Context, processor *middlewares.TableProcessor) error {
+func (s *Stats) printFullStructure(ctx context.Context, processor middlewares.Processor) error {
 	dirs := s.getSortedDirs()
 	for _, dir := range dirs {
 		dirStats := s.Dirs[dir]

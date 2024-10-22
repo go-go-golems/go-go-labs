@@ -36,7 +36,7 @@ func main() {
 	catterCmd, err := NewCatterCommand()
 	cobra.CheckErr(err)
 
-	cobraCmd, err := cli.BuildCobraCommandFromCommand(catterCmd,
+	cobraCmd, err := cli.BuildCobraCommandFromGlazeCommand(catterCmd,
 		cli.WithCobraMiddlewaresFunc(getMiddlewares),
 	)
 	cobra.CheckErr(err)

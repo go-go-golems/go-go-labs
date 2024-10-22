@@ -32,7 +32,7 @@ type FileProcessor struct {
 	Filter          *filefilter.FileFilter
 	GitIgnoreFilter gitignore.GitIgnore
 	PrintFilters    bool
-	Processor       *middlewares.TableProcessor
+	Processor       middlewares.Processor
 	Stats           *Stats
 }
 
@@ -119,7 +119,7 @@ func WithPrintFilters(printFilters bool) FileProcessorOption {
 	}
 }
 
-func WithProcessor(processor *middlewares.TableProcessor) FileProcessorOption {
+func WithProcessor(processor middlewares.Processor) FileProcessorOption {
 	return func(fp *FileProcessor) {
 		fp.Processor = processor
 	}
@@ -238,7 +238,19 @@ func (fp *FileProcessor) printFileContent(filePath string, fileInfo os.FileInfo)
 	// Apply max lines and max tokens limits
 	limitedContent := fp.applyLimits(content, fileStats)
 
-	if fp.Processor == nil {
+	if fp.Processor != nil {
+		ctx := context.Background()
+		err := fp.Processor.AddRow(ctx, types.NewRow(
+			types.MRP("Path", filePath),
+			types.MRP("Size", fileStats.Size),
+			types.MRP("TokenCount", fileStats.TokenCount),
+			types.MRP("LineCount", fileStats.LineCount),
+			types.MRP("Content", limitedContent),
+		))
+		if err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "Error adding row to processor: %v\n", err)
+		}
+	} else {
 		switch fp.DelimiterType {
 		case "xml":
 			fmt.Printf("<file name=\"%s\">\n<content>\n%s\n</content>\n</file>\n", filePath, limitedContent)
@@ -253,20 +265,6 @@ func (fp *FileProcessor) printFileContent(filePath string, fileInfo os.FileInfo)
 
 	fp.CurrentSize += fileStats.Size
 	fp.FileCount++
-
-	if fp.Processor != nil {
-		ctx := context.Background()
-		err := fp.Processor.AddRow(ctx, types.NewRow(
-			types.MRP("Path", filePath),
-			types.MRP("Size", fileStats.Size),
-			types.MRP("TokenCount", fileStats.TokenCount),
-			types.MRP("LineCount", fileStats.LineCount),
-			types.MRP("Content", limitedContent),
-		))
-		if err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "Error adding row to processor: %v\n", err)
-		}
-	}
 }
 
 func (fp *FileProcessor) applyLimits(content []byte, fileStats FileStats) string {

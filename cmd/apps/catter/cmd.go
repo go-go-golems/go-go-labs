@@ -10,6 +10,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
+	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
 
 	"github.com/denormal/go-gitignore"
@@ -39,7 +40,9 @@ type CatterSettings struct {
 	FilterBinary          bool     `glazed.parameter:"filter-binary"`
 	FilterProfile         string   `glazed.parameter:"filter-profile"`
 	Paths                 []string `glazed.parameter:"paths"`
+	Glazed                bool     `glazed.parameter:"glazed"`
 }
+
 type CatterCommand struct {
 	*cmds.CommandDescription
 }
@@ -189,6 +192,12 @@ func NewCatterCommand() (*CatterCommand, error) {
 					parameters.ParameterTypeString,
 					parameters.WithHelp("Name of the filter profile to use"),
 				),
+				parameters.NewParameterDefinition(
+					"glazed",
+					parameters.ParameterTypeBool,
+					parameters.WithHelp("Enable Glazed structured output"),
+					parameters.WithDefault(false),
+				),
 			),
 			cmds.WithArguments(
 				parameters.NewParameterDefinition(
@@ -205,7 +214,7 @@ func NewCatterCommand() (*CatterCommand, error) {
 	}, nil
 }
 
-func (c *CatterCommand) Run(ctx context.Context, parsedLayers *layers.ParsedLayers) error {
+func (c *CatterCommand) RunIntoGlazeProcessor(ctx context.Context, parsedLayers *layers.ParsedLayers, gp middlewares.Processor) error {
 	s := &CatterSettings{}
 	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
 	if err != nil {
@@ -233,20 +242,6 @@ func (c *CatterCommand) Run(ctx context.Context, parsedLayers *layers.ParsedLaye
 
 	applyFlagOverrides(s, fileFilter)
 
-	if s.PrintFilterYAML {
-		yamlData, err := fileFilter.ToYAML()
-		if err != nil {
-			return fmt.Errorf("error generating YAML: %w", err)
-		}
-		fmt.Println(string(yamlData))
-		return nil
-	}
-
-	var gitIgnoreFilter gitignore.GitIgnore
-	if !s.DisableGitIgnore {
-		gitIgnoreFilter = initGitIgnoreFilter()
-	}
-
 	fileProcessorOptions := []FileProcessorOption{
 		WithMaxTotalSize(s.MaxTotalSize),
 		WithStatsTypes(s.Stats),
@@ -254,9 +249,11 @@ func (c *CatterCommand) Run(ctx context.Context, parsedLayers *layers.ParsedLaye
 		WithDelimiterType(s.Delimiter),
 		WithMaxLines(s.MaxLines),
 		WithMaxTokens(s.MaxTokens),
-		WithGitIgnoreFilter(gitIgnoreFilter),
+		WithGitIgnoreFilter(initGitIgnoreFilter()),
 		WithFileFilter(fileFilter),
-		WithPrintFilters(s.PrintFilters), // Add this line
+	}
+	if s.Glazed {
+		fileProcessorOptions = append(fileProcessorOptions, WithProcessor(gp))
 	}
 
 	fp := NewFileProcessor(fileProcessorOptions...)
