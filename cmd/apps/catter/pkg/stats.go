@@ -203,12 +203,21 @@ func (s *Stats) printOverviewAndFileTypes(ctx context.Context, processor middlew
 }
 
 func (s *Stats) printDirStructure(ctx context.Context, processor middlewares.Processor) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("error getting current working directory: %v", err)
+	}
+
 	dirs := s.getSortedDirs()
 	for _, dir := range dirs {
 		dirStats := s.Dirs[dir]
+		relDir, err := filepath.Rel(cwd, dir)
+		if err != nil {
+			relDir = dir // Fallback to absolute path if relative path can't be determined
+		}
 		if err := processor.AddRow(ctx, types.NewRow(
 			types.MRP("Type", "Directory"),
-			types.MRP("Name", dir),
+			types.MRP("Name", relDir),
 			types.MRP("FileCount", dirStats.FileCount),
 			types.MRP("TokenCount", dirStats.TokenCount),
 			types.MRP("LineCount", dirStats.LineCount),
@@ -222,12 +231,21 @@ func (s *Stats) printDirStructure(ctx context.Context, processor middlewares.Pro
 }
 
 func (s *Stats) printFullStructure(ctx context.Context, processor middlewares.Processor) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("error getting current working directory: %v", err)
+	}
+
 	dirs := s.getSortedDirs()
 	for _, dir := range dirs {
 		dirStats := s.Dirs[dir]
+		relDir, err := filepath.Rel(cwd, dir)
+		if err != nil {
+			relDir = dir // Fallback to absolute path if relative path can't be determined
+		}
 		if err := processor.AddRow(ctx, types.NewRow(
 			types.MRP("Type", "Directory"),
-			types.MRP("Name", dir),
+			types.MRP("Name", relDir),
 			types.MRP("FileCount", dirStats.FileCount),
 			types.MRP("TokenCount", dirStats.TokenCount),
 			types.MRP("LineCount", dirStats.LineCount),
@@ -241,10 +259,13 @@ func (s *Stats) printFullStructure(ctx context.Context, processor middlewares.Pr
 
 		for _, file := range files {
 			fileStats := s.Files[file]
+			relFile, err := filepath.Rel(cwd, file)
+			if err != nil {
+				relFile = file // Fallback to absolute path if relative path can't be determined
+			}
 			if err := processor.AddRow(ctx, types.NewRow(
 				types.MRP("Type", "File"),
-				types.MRP("Name", filepath.Base(file)),
-				types.MRP("Path", file),
+				types.MRP("Name", relFile),
 				types.MRP("TokenCount", fileStats.TokenCount),
 				types.MRP("LineCount", fileStats.LineCount),
 				types.MRP("Size", fileStats.Size),
@@ -275,30 +296,54 @@ func (s *Stats) PrintOverview() {
 
 func (s *Stats) PrintDirStructure() {
 	fmt.Println("Directory Structure:")
+	cwd, err := os.Getwd()
+	if err != nil {
+		fmt.Printf("Error getting current working directory: %v\n", err)
+		cwd = "" // Set to empty string to fall back to absolute paths
+	}
+
 	dirs := s.getSortedDirs()
 	for _, dir := range dirs {
 		dirStats := s.Dirs[dir]
-		fmt.Printf("  %s:\n    Files: %d, Tokens: %d, Lines: %d, Size: %d bytes\n",
-			dir, dirStats.FileCount, dirStats.TokenCount, dirStats.LineCount, dirStats.Size)
+		relDir, err := filepath.Rel(cwd, dir)
+		if err != nil {
+			relDir = dir // Fallback to absolute path if relative path can't be determined
+		}
+		fmt.Printf("%s:\n  Files: %d, Tokens: %d, Lines: %d, Size: %d bytes\n",
+			relDir, dirStats.FileCount, dirStats.TokenCount, dirStats.LineCount, dirStats.Size)
 	}
 	fmt.Println()
 }
 
 func (s *Stats) PrintFullStructure() {
 	fmt.Println("Full Structure:")
+	cwd, err := os.Getwd()
+	if err != nil {
+		fmt.Printf("Error getting current working directory: %v\n", err)
+		cwd = "" // Set to empty string to fall back to absolute paths
+	}
+
 	dirs := s.getSortedDirs()
 	for _, dir := range dirs {
 		dirStats := s.Dirs[dir]
+		relDir, err := filepath.Rel(cwd, dir)
+		if err != nil {
+			relDir = dir // Fallback to absolute path if relative path can't be determined
+		}
 		fmt.Printf("%s:\n  Tokens: %d, Lines: %d, Size: %d bytes\n",
-			dir, dirStats.TokenCount, dirStats.LineCount, dirStats.Size)
+			relDir, dirStats.TokenCount, dirStats.LineCount, dirStats.Size)
 
 		files := s.DirFiles[dir]
 		sort.Strings(files)
 
 		for _, file := range files {
 			fileStats := s.Files[file]
+			relFile, err := filepath.Rel(cwd, file)
+			if err != nil {
+				relFile = file // Fallback to absolute path if relative path can't be determined
+			}
 			fmt.Printf("  %s:\n    Tokens: %d, Lines: %d, Size: %d bytes\n",
-				filepath.Base(file), fileStats.TokenCount, fileStats.LineCount, fileStats.Size)
+				relFile, fileStats.TokenCount, fileStats.LineCount, fileStats.Size)
 		}
 		fmt.Println()
 	}
