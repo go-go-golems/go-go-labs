@@ -2,6 +2,7 @@ package snakemake
 
 import (
 	"time"
+	"github.com/go-go-golems/go-go-labs/pkg/jobreports"
 )
 
 // Resource represents a resource with a name and value.
@@ -20,21 +21,22 @@ const (
 
 // Job represents a Snakemake job with its details.
 type Job struct {
-	ID           string
-	Rule         string
-	StartTime    time.Time
-	EndTime      time.Time
-	Duration     time.Duration
-	Status       JobStatus
-	Input        []string
-	Output       []string
-	Reason       string
-	Threads      int
-	Details      map[string]string
-	Resources    []Resource
-	Wildcards    map[string]string
-	ExternalID   string
-	ScannerError string // New field to store scanner error
+	ID                 string
+	Rule               string
+	StartTime          time.Time
+	EndTime            time.Time
+	Duration           time.Duration
+	Status             JobStatus
+	Input              []string
+	Output             []string
+	Reason             string
+	Threads            int
+	Details            map[string]string
+	Resources          []Resource
+	Wildcards          map[string]string
+	ExternalID         string
+	ScannerError       string
+	JobReport          *jobreports.Job
 }
 
 // Rule represents a Snakemake rule with its associated jobs and resources.
