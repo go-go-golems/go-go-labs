@@ -36,19 +36,37 @@ func main() {
 	catterCmd, err := NewCatterCommand()
 	cobra.CheckErr(err)
 
-	cobraCmd, err := cli.BuildCobraCommandFromGlazeCommand(catterCmd,
+	catterStatsCmd, err := NewCatterStatsCommand()
+	cobra.CheckErr(err)
+
+	rootCmd := &cobra.Command{
+		Use:   "catter",
+		Short: "Catter - File content and statistics tool",
+		Long:  "A CLI tool to print file contents and statistics for LLM context preparation.",
+	}
+
+	catterCobraCmd, err := cli.BuildCobraCommandFromGlazeCommand(catterCmd,
 		cli.WithCobraMiddlewaresFunc(getMiddlewares),
 	)
 	cobra.CheckErr(err)
 
-	_, err = initRootCmd(cobraCmd)
+	catterStatsCobraCmd, err := cli.BuildCobraCommandFromGlazeCommand(catterStatsCmd,
+		cli.WithCobraMiddlewaresFunc(getMiddlewares),
+	)
 	cobra.CheckErr(err)
 
-	if err := cobraCmd.ExecuteContext(ctx); err != nil {
+	rootCmd.AddCommand(catterCobraCmd)
+	rootCmd.AddCommand(catterStatsCobraCmd)
+
+	_, err = initRootCmd(rootCmd)
+	cobra.CheckErr(err)
+
+	if err := rootCmd.ExecuteContext(ctx); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error executing command: %v\n", err)
 		os.Exit(1)
 	}
 }
+
 func getMiddlewares(
 	commandSettings *cli.GlazedCommandSettings,
 	cmd *cobra.Command,

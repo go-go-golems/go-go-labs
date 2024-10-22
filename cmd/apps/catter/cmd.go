@@ -17,7 +17,6 @@ import (
 
 type CatterSettings struct {
 	MaxTotalSize  int64    `glazed.parameter:"max-total-size"`
-	Stats         []string `glazed.parameter:"stats"`
 	List          bool     `glazed.parameter:"list"`
 	Delimiter     string   `glazed.parameter:"delimiter"`
 	MaxLines      int      `glazed.parameter:"max-lines"`
@@ -46,21 +45,15 @@ func NewCatterCommand() (*CatterCommand, error) {
 
 	return &CatterCommand{
 		CommandDescription: cmds.NewCommandDescription(
-			"catter",
+			"print",
 			cmds.WithShort("Print file contents with token counting for LLM context"),
 			cmds.WithLong("A CLI tool to print file contents, recursively process directories, and count tokens for LLM context preparation."),
 			cmds.WithFlags(
 				parameters.NewParameterDefinition(
 					"max-total-size",
 					parameters.ParameterTypeInteger,
-					parameters.WithHelp("Maximum total size of all files in bytes"),
-					parameters.WithDefault(int64(10*1024*1024)),
-				),
-				parameters.NewParameterDefinition(
-					"stats",
-					parameters.ParameterTypeStringList,
-					parameters.WithHelp("Types of statistics to show: overview, dir, full"),
-					parameters.WithShortFlag("s"),
+					parameters.WithHelp("Maximum total size of all files in bytes (default no limit)"),
+					parameters.WithDefault(0),
 				),
 				parameters.NewParameterDefinition(
 					"list",
@@ -134,33 +127,13 @@ func (c *CatterCommand) RunIntoGlazeProcessor(ctx context.Context, parsedLayers 
 		return fmt.Errorf("error initializing settings: %w", err)
 	}
 
-	layer, ok := parsedLayers.Get(filefilter.FileFilterSlug)
-	if !ok {
-		return fmt.Errorf("file filter layer not found")
-	}
-	ff, err := filefilter.CreateFileFilterFromSettings(layer)
+	ff, err := createFileFilter(parsedLayers, s.FilterYAML, s.FilterProfile)
 	if err != nil {
-		return fmt.Errorf("error creating file filter: %w", err)
-	}
-
-	if s.FilterYAML != "" {
-		ff, err = filefilter.LoadFromFile(s.FilterYAML, s.FilterProfile)
-		if err != nil {
-			return fmt.Errorf("error loading filter configuration from YAML: %w", err)
-		}
-	} else {
-		// Check for default .catter-filter.yaml in the current directory
-		if _, err := os.Stat(".catter-filter.yaml"); err == nil {
-			ff, err = filefilter.LoadFromFile(".catter-filter.yaml", s.FilterProfile)
-			if err != nil {
-				return fmt.Errorf("error loading default filter configuration: %w", err)
-			}
-		}
+		return err
 	}
 
 	fileProcessorOptions := []pkg.FileProcessorOption{
 		pkg.WithMaxTotalSize(s.MaxTotalSize),
-		pkg.WithStatsTypes(s.Stats),
 		pkg.WithListOnly(s.List),
 		pkg.WithDelimiterType(s.Delimiter),
 		pkg.WithMaxLines(s.MaxLines),
@@ -180,4 +153,33 @@ func (c *CatterCommand) RunIntoGlazeProcessor(ctx context.Context, parsedLayers 
 
 	fp.ProcessPaths(s.Paths)
 	return nil
+}
+
+// Helper function to create file filter
+func createFileFilter(parsedLayers *layers.ParsedLayers, filterYAML, filterProfile string) (*filefilter.FileFilter, error) {
+	layer, ok := parsedLayers.Get(filefilter.FileFilterSlug)
+	if !ok {
+		return nil, fmt.Errorf("file filter layer not found")
+	}
+	ff, err := filefilter.CreateFileFilterFromSettings(layer)
+	if err != nil {
+		return nil, fmt.Errorf("error creating file filter: %w", err)
+	}
+
+	if filterYAML != "" {
+		ff, err = filefilter.LoadFromFile(filterYAML, filterProfile)
+		if err != nil {
+			return nil, fmt.Errorf("error loading filter configuration from YAML: %w", err)
+		}
+	} else {
+		// Check for default .catter-filter.yaml in the current directory
+		if _, err := os.Stat(".catter-filter.yaml"); err == nil {
+			ff, err = filefilter.LoadFromFile(".catter-filter.yaml", filterProfile)
+			if err != nil {
+				return nil, fmt.Errorf("error loading default filter configuration: %w", err)
+			}
+		}
+	}
+
+	return ff, nil
 }

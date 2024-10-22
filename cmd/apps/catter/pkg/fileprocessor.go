@@ -23,7 +23,6 @@ type FileProcessor struct {
 	FileCount     int
 	TokenCounter  *tiktoken.Tiktoken
 	TokenCounts   map[string]int
-	StatsTypes    []string
 	ListOnly      bool
 	DelimiterType string
 	MaxLines      int
@@ -46,7 +45,6 @@ func NewFileProcessor(options ...FileProcessorOption) *FileProcessor {
 	fp := &FileProcessor{
 		TokenCounter: tokenCounter,
 		TokenCounts:  make(map[string]int),
-		StatsTypes:   []string{},
 		MaxLines:     0,
 		MaxTokens:    0,
 		PrintFilters: false,
@@ -62,12 +60,6 @@ func NewFileProcessor(options ...FileProcessorOption) *FileProcessor {
 func WithMaxTotalSize(size int64) FileProcessorOption {
 	return func(fp *FileProcessor) {
 		fp.MaxTotalSize = size
-	}
-}
-
-func WithStatsTypes(types []string) FileProcessorOption {
-	return func(fp *FileProcessor) {
-		fp.StatsTypes = types
 	}
 }
 
@@ -126,40 +118,14 @@ func (fp *FileProcessor) ProcessPaths(paths []string) {
 		return
 	}
 
-	if len(fp.StatsTypes) > 0 {
-		fp.processStats(paths)
-	} else {
-		for _, path := range paths {
-			fp.processPath(path)
-			if fp.CurrentSize >= fp.MaxTotalSize {
-				_, _ = fmt.Fprintf(os.Stderr, "Reached maximum total size limit of %d bytes\n", fp.MaxTotalSize)
-				break
-			}
+	for _, path := range paths {
+		fp.processPath(path)
+		if fp.MaxTotalSize != 0 && fp.CurrentSize >= fp.MaxTotalSize {
+			_, _ = fmt.Fprintf(os.Stderr, "Reached maximum total size limit of %d bytes\n", fp.MaxTotalSize)
+			break
 		}
 	}
 }
-
-func (fp *FileProcessor) processStats(paths []string) {
-	config := Config{}
-	for _, statType := range fp.StatsTypes {
-		switch strings.ToLower(statType) {
-		case "overview":
-			config.OutputFlags |= OutputOverview
-		case "dir":
-			config.OutputFlags |= OutputDirStructure
-		case "full":
-			config.OutputFlags |= OutputFullStructure
-		default:
-			_, _ = fmt.Fprintf(os.Stderr, "Unknown stat type: %s\n", statType)
-		}
-	}
-
-	err := fp.Stats.PrintStats(config, fp.Processor)
-	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Error printing stats: %v\n", err)
-	}
-}
-
 func (fp *FileProcessor) processPath(path string) {
 	if fp.Filter == nil || fp.Filter.FilterPath(path) {
 		if fileInfo, err := os.Stat(path); err == nil {
@@ -318,7 +284,6 @@ func (fp *FileProcessor) printConfiguredFilters() {
 	fmt.Printf("Max Total Size: %d bytes\n", fp.MaxTotalSize)
 	fmt.Printf("Max Lines: %d\n", fp.MaxLines)
 	fmt.Printf("Max Tokens: %d\n", fp.MaxTokens)
-	printStringList("Stats Types", fp.StatsTypes)
 	fmt.Printf("List Only: %v\n", fp.ListOnly)
 	fmt.Printf("Delimiter Type: %s\n", fp.DelimiterType)
 }
