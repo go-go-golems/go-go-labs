@@ -40,7 +40,6 @@ type CatterSettings struct {
 	FilterProfile         string   `glazed.parameter:"filter-profile"`
 	Paths                 []string `glazed.parameter:"paths"`
 }
-
 type CatterCommand struct {
 	*cmds.CommandDescription
 }
@@ -85,53 +84,63 @@ func NewCatterCommand() (*CatterCommand, error) {
 					"include",
 					parameters.ParameterTypeStringList,
 					parameters.WithHelp("List of file extensions to include (e.g., .go,.js)"),
+					parameters.WithShortFlag("i"),
 				),
 				parameters.NewParameterDefinition(
 					"exclude",
 					parameters.ParameterTypeStringList,
 					parameters.WithHelp("List of file extensions to exclude (e.g., .exe,.dll)"),
+					parameters.WithShortFlag("e"),
 				),
 				parameters.NewParameterDefinition(
 					"stats",
 					parameters.ParameterTypeStringList,
 					parameters.WithHelp("Types of statistics to show: overview, dir, full"),
+					parameters.WithShortFlag("s"),
 				),
 				parameters.NewParameterDefinition(
 					"match-filename",
 					parameters.ParameterTypeStringList,
 					parameters.WithHelp("List of regular expressions to match filenames"),
+					parameters.WithShortFlag("f"),
 				),
 				parameters.NewParameterDefinition(
 					"match-path",
 					parameters.ParameterTypeStringList,
 					parameters.WithHelp("List of regular expressions to match full paths"),
+					parameters.WithShortFlag("p"),
 				),
 				parameters.NewParameterDefinition(
 					"list",
 					parameters.ParameterTypeBool,
 					parameters.WithHelp("List filenames only without printing content"),
 					parameters.WithDefault(false),
+					parameters.WithShortFlag("l"),
 				),
 				parameters.NewParameterDefinition(
 					"exclude-dirs",
 					parameters.ParameterTypeStringList,
 					parameters.WithHelp("List of directories to exclude"),
+					parameters.WithShortFlag("x"),
 				),
 				parameters.NewParameterDefinition(
 					"delimiter",
 					parameters.ParameterTypeString,
 					parameters.WithHelp("Type of delimiter to use between files: default, xml, markdown, simple, begin-end"),
 					parameters.WithDefault("default"),
+					parameters.WithShortFlag("d"),
 				),
 				parameters.NewParameterDefinition(
 					"exclude-match-filename",
 					parameters.ParameterTypeStringList,
 					parameters.WithHelp("List of regular expressions to exclude matching filenames"),
+					parameters.WithShortFlag("F"),
 				),
 				parameters.NewParameterDefinition(
 					"exclude-match-path",
 					parameters.ParameterTypeStringList,
 					parameters.WithHelp("List of regular expressions to exclude matching full paths"),
+					parameters.WithShortFlag("P"),
 				),
 				parameters.NewParameterDefinition(
 					"max-lines",
@@ -156,6 +165,7 @@ func NewCatterCommand() (*CatterCommand, error) {
 					parameters.ParameterTypeBool,
 					parameters.WithHelp("Enable verbose logging of filtered/unfiltered paths"),
 					parameters.WithDefault(false),
+					parameters.WithShortFlag("v"),
 				),
 				parameters.NewParameterDefinition(
 					"filter-yaml",
@@ -246,6 +256,7 @@ func (c *CatterCommand) Run(ctx context.Context, parsedLayers *layers.ParsedLaye
 		WithMaxTokens(s.MaxTokens),
 		WithGitIgnoreFilter(gitIgnoreFilter),
 		WithFileFilter(fileFilter),
+		WithPrintFilters(s.PrintFilters), // Add this line
 	}
 
 	fp := NewFileProcessor(fileProcessorOptions...)

@@ -8,6 +8,7 @@ import (
 	"github.com/go-go-golems/clay/pkg/filefilter"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/weaviate/tiktoken-go"
@@ -27,6 +28,7 @@ type FileProcessor struct {
 	MaxTokens       int
 	Filter          *filefilter.FileFilter
 	GitIgnoreFilter gitignore.GitIgnore
+	PrintFilters    bool
 }
 
 type FileProcessorOption func(*FileProcessor)
@@ -45,6 +47,7 @@ func NewFileProcessor(options ...FileProcessorOption) *FileProcessor {
 		MaxLines:        0,
 		MaxTokens:       0,
 		GitIgnoreFilter: nil,
+		PrintFilters:    false,
 	}
 
 	for _, option := range options {
@@ -105,7 +108,18 @@ func WithGitIgnoreFilter(gitIgnoreFilter gitignore.GitIgnore) FileProcessorOptio
 	}
 }
 
+func WithPrintFilters(printFilters bool) FileProcessorOption {
+	return func(fp *FileProcessor) {
+		fp.PrintFilters = printFilters
+	}
+}
+
 func (fp *FileProcessor) ProcessPaths(paths []string) {
+	if fp.PrintFilters {
+		fp.printConfiguredFilters()
+		return
+	}
+
 	if len(fp.StatsTypes) > 0 {
 		fp.processStats(paths)
 	} else {
@@ -257,4 +271,53 @@ func (fp *FileProcessor) applyLimits(content []byte, tokens []uint) string {
 	}
 
 	return limitedContent.String()
+}
+
+func (fp *FileProcessor) printConfiguredFilters() {
+	fmt.Println("Configured Filters:")
+	fmt.Println("-------------------")
+
+	if fp.Filter == nil {
+		fmt.Println("No filters configured.")
+		return
+	}
+
+	fmt.Printf("Max File Size: %d bytes\n", fp.Filter.MaxFileSize)
+	fmt.Printf("Disable Default Filters: %v\n", fp.Filter.DisableDefaultFilters)
+	fmt.Printf("Disable GitIgnore: %v\n", fp.Filter.DisableGitIgnore)
+	fmt.Printf("Filter Binary Files: %v\n", fp.Filter.FilterBinaryFiles)
+	fmt.Printf("Verbose: %v\n", fp.Filter.Verbose)
+
+	printStringList("Include Extensions", fp.Filter.IncludeExts)
+	printStringList("Exclude Extensions", fp.Filter.ExcludeExts)
+	printStringList("Exclude Directories", fp.Filter.ExcludeDirs)
+
+	printRegexpList("Match Filenames", fp.Filter.MatchFilenames)
+	printRegexpList("Match Paths", fp.Filter.MatchPaths)
+	printRegexpList("Exclude Match Filenames", fp.Filter.ExcludeMatchFilenames)
+	printRegexpList("Exclude Match Paths", fp.Filter.ExcludeMatchPaths)
+
+	fmt.Println("\nFile Processor Settings:")
+	fmt.Printf("Max Total Size: %d bytes\n", fp.MaxTotalSize)
+	fmt.Printf("Max Lines: %d\n", fp.MaxLines)
+	fmt.Printf("Max Tokens: %d\n", fp.MaxTokens)
+	printStringList("Stats Types", fp.StatsTypes)
+	fmt.Printf("List Only: %v\n", fp.ListOnly)
+	fmt.Printf("Delimiter Type: %s\n", fp.DelimiterType)
+}
+
+func printStringList(name string, list []string) {
+	if len(list) > 0 {
+		fmt.Printf("%s: %s\n", name, strings.Join(list, ", "))
+	}
+}
+
+func printRegexpList(name string, list []*regexp.Regexp) {
+	if len(list) > 0 {
+		patterns := make([]string, len(list))
+		for i, re := range list {
+			patterns[i] = re.String()
+		}
+		fmt.Printf("%s: %s\n", name, strings.Join(patterns, ", "))
+	}
 }
