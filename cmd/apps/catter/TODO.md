@@ -4,7 +4,8 @@
 
 ## Glazed converstion
 
-- [ ] convert to glazed command
+- [x] convert to glazed command
+- [ ] restore CATTER_PROFILE env variable
 - [ ] print out stats using glazed
 - [ ] make a custom verb for the stats
 - [ ] turn filter into a utility package
