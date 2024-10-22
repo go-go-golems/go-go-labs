@@ -25,7 +25,7 @@ require (
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-chi/chi/v5 v5.0.8
 	github.com/go-git/go-git/v5 v5.9.0
-	github.com/go-go-golems/clay v0.1.18
+	github.com/go-go-golems/clay v0.1.19
 	github.com/go-go-golems/geppetto v0.2.25
 	github.com/go-go-golems/glazed v0.5.19
 	github.com/go-go-golems/go-emrichen v0.0.2

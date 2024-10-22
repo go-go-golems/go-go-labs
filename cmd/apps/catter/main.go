@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/catter/cmds"
 	"os"
 
 	clay "github.com/go-go-golems/clay/pkg"
@@ -33,10 +34,10 @@ func initRootCmd(rootCmd *cobra.Command) (*help.HelpSystem, error) {
 func main() {
 	ctx := context.Background()
 
-	catterCmd, err := NewCatterCommand()
+	catterCmd, err := cmds.NewCatterCommand()
 	cobra.CheckErr(err)
 
-	catterStatsCmd, err := NewCatterStatsCommand()
+	catterStatsCmd, err := cmds.NewCatterStatsCommand()
 	cobra.CheckErr(err)
 
 	rootCmd := &cobra.Command{

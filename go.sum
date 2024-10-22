@@ -269,8 +269,8 @@ github.com/go-git/go-git/v5 v5.9.0/go.mod h1:RKIqga24sWdMGZF+1Ekv9kylsDz6LzdTSI2
 github.com/go-gl/glfw v0.0.0-20190409004039-e6da0acd62b1/go.mod h1:vR7hzQXu2zJy9AVAgeJqvqgH9Q5CA+iKCZ2gyEVpxRU=
 github.com/go-gl/glfw/v3.3/glfw v0.0.0-20191125211704-12ad95a8df72/go.mod h1:tQ2UAYgL5IevRw8kRxooKSPJfGvJ9fJQFa0TUsXzTg8=
 github.com/go-gl/glfw/v3.3/glfw v0.0.0-20200222043503-6f7a984d4dc4/go.mod h1:tQ2UAYgL5IevRw8kRxooKSPJfGvJ9fJQFa0TUsXzTg8=
-github.com/go-go-golems/clay v0.1.18 h1:V7vpCi53Vq9x/MFzpyXPTnbYjAJMVBWqNImJ/M3EQds=
-github.com/go-go-golems/clay v0.1.18/go.mod h1:LjUUiOcPwsmF6aYa1AYjyNFXHsW9SIiKbFuhdaFxYaU=
+github.com/go-go-golems/clay v0.1.19 h1:UxgId//YrgcpgDGNT2869i4Nwxq8KWODjfeemCVRSRI=
+github.com/go-go-golems/clay v0.1.19/go.mod h1:LjUUiOcPwsmF6aYa1AYjyNFXHsW9SIiKbFuhdaFxYaU=
 github.com/go-go-golems/geppetto v0.2.25 h1:K/EEsAKA37w8RVJw3bWDzOj/4G62ttbkBhNaTX7v5G4=
 github.com/go-go-golems/geppetto v0.2.25/go.mod h1:pX5LnwQLwAEBn4EHCF3GlmusbwSITAIfK0DphsZlpNs=
 github.com/go-go-golems/glazed v0.5.19 h1:QQChMZQmDxGNq5xMVWBB9HHja9VYPhSc+XodJmGcJw8=
