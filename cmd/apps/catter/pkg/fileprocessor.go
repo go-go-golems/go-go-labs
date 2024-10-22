@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -18,7 +19,7 @@ import (
 
 type FileProcessor struct {
 	MaxTotalSize  int64
-	CurrentSize   int64
+	TotalSize     int64
 	TotalTokens   int
 	FileCount     int
 	TokenCounter  *tiktoken.Tiktoken
@@ -34,6 +35,11 @@ type FileProcessor struct {
 }
 
 type FileProcessorOption func(*FileProcessor)
+
+var (
+	ErrMaxTokensExceeded    = errors.New("maximum total tokens limit reached")
+	ErrMaxTotalSizeExceeded = errors.New("maximum total size limit reached")
+)
 
 func NewFileProcessor(options ...FileProcessorOption) *FileProcessor {
 	tokenCounter, err := tiktoken.GetEncoding("cl100k_base")
@@ -105,100 +111,131 @@ func WithProcessor(processor middlewares.Processor) FileProcessorOption {
 	}
 }
 
-func (fp *FileProcessor) ProcessPaths(paths []string) {
+func (fp *FileProcessor) ProcessPaths(paths []string) error {
 	if fp.PrintFilters {
 		fp.printConfiguredFilters()
-		return
+		return nil
 	}
 
 	fp.Stats = NewStats()
 	err := fp.Stats.ComputeStats(paths, fp.Filter)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error computing stats: %v\n", err)
-		return
+		return err
 	}
 
 	for _, path := range paths {
-		fp.processPath(path)
-		if fp.MaxTotalSize != 0 && fp.CurrentSize >= fp.MaxTotalSize {
-			_, _ = fmt.Fprintf(os.Stderr, "Reached maximum total size limit of %d bytes\n", fp.MaxTotalSize)
-			break
-		}
-	}
-}
-func (fp *FileProcessor) processPath(path string) {
-	if fp.Filter == nil || fp.Filter.FilterPath(path) {
-		if fileInfo, err := os.Stat(path); err == nil {
-			if fileInfo.IsDir() {
-				fp.processDirectory(path)
+		err := fp.processPath(path)
+		if err != nil {
+			if errors.Is(err, ErrMaxTokensExceeded) {
+				_, _ = fmt.Fprintf(os.Stderr, "Reached maximum total tokens limit of %d\n", fp.MaxTokens)
+				return nil
+			} else if errors.Is(err, ErrMaxTotalSizeExceeded) {
+				_, _ = fmt.Fprintf(os.Stderr, "Reached maximum total size limit of %d bytes\n", fp.MaxTotalSize)
+				return nil
 			} else {
-				fp.printFileContent(path, fileInfo)
+				_, _ = fmt.Fprintf(os.Stderr, "Error processing path %s: %v\n", path, err)
+				return err
 			}
 		}
 	}
+
+	return nil
 }
 
-func (fp *FileProcessor) processDirectory(dirPath string) {
+func (fp *FileProcessor) processPath(path string) error {
+	if fp.MaxTokens != 0 && fp.TotalTokens >= fp.MaxTokens {
+		return ErrMaxTokensExceeded
+	}
+	if fp.MaxTotalSize != 0 && fp.TotalSize >= fp.MaxTotalSize {
+		return ErrMaxTotalSizeExceeded
+	}
+
+	if fp.Filter == nil || fp.Filter.FilterPath(path) {
+		if fileInfo, err := os.Stat(path); err == nil {
+			if fileInfo.IsDir() {
+				return fp.processDirectory(path)
+			} else {
+				return fp.printFileContent(path)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (fp *FileProcessor) processDirectory(dirPath string) error {
 	files, err := os.ReadDir(dirPath)
 	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Error reading directory %s: %v\n", dirPath, err)
-		return
+		return fmt.Errorf("error reading directory %s: %w", dirPath, err)
 	}
 
 	dirTokens := 0
 	for _, file := range files {
 		fullPath := filepath.Join(dirPath, file.Name())
-		if fp.Filter != nil && fp.Filter.FilterPath(fullPath) {
-			fp.processPath(fullPath)
-			dirTokens += fp.TokenCounts[fullPath]
-			if fp.CurrentSize >= fp.MaxTotalSize {
-				break
-			}
+		err := fp.processPath(fullPath)
+		if err != nil {
+			return err // Propagate the error up
 		}
+		dirTokens += fp.TokenCounts[fullPath]
 	}
 	fp.TokenCounts[dirPath] = dirTokens
+	return nil
 }
 
-func (fp *FileProcessor) printFileContent(filePath string, fileInfo os.FileInfo) {
+func (fp *FileProcessor) printFileContent(filePath string) error {
 	if fp.ListOnly {
 		fmt.Println(filePath)
-		return
+		return nil
 	}
 
 	fileStats, ok := fp.Stats.GetStats(filePath)
 	if !ok {
 		_, _ = fmt.Fprintf(os.Stderr, "Error: Stats not found for file %s\n", filePath)
-		return
+		return nil
 	}
 
 	content, err := os.ReadFile(filePath)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Error reading file %s: %v\n", filePath, err)
-		return
+		return nil
 	}
 
-	if fp.CurrentSize+fileStats.Size > fp.MaxTotalSize {
-		remainingSize := fp.MaxTotalSize - fp.CurrentSize
-		if remainingSize > 0 {
-			content = content[:remainingSize]
-		} else {
-			return
-		}
-	}
+	limitedContent := fp.applyLimits(content)
+	actualSize := int64(len(limitedContent))
+	actualTokenCount := len(fp.TokenCounter.Encode(limitedContent, nil, nil))
+
+	fileStats.Size = actualSize
+	fileStats.TokenCount = actualTokenCount
 
 	fp.TokenCounts[filePath] = fileStats.TokenCount
 	fp.TotalTokens += fileStats.TokenCount
 
-	// Apply max lines and max tokens limits
-	limitedContent := fp.applyLimits(content, fileStats)
+	if fp.MaxTotalSize != 0 && fp.TotalSize+actualSize > fp.MaxTotalSize {
+		remainingSize := fp.MaxTotalSize - fp.TotalSize
+		if remainingSize > 0 {
+			content = content[:remainingSize]
+			actualSize = remainingSize
+		} else {
+			return ErrMaxTotalSizeExceeded
+		}
+	}
+	if fp.MaxTokens != 0 && fp.TotalTokens+actualTokenCount > fp.MaxTokens {
+		return ErrMaxTokensExceeded
+	}
+
+	actualLineCount := strings.Count(string(limitedContent), "\n")
 
 	if fp.Processor != nil {
 		ctx := context.Background()
 		err := fp.Processor.AddRow(ctx, types.NewRow(
 			types.MRP("Path", filePath),
-			types.MRP("Size", fileStats.Size),
-			types.MRP("TokenCount", fileStats.TokenCount),
-			types.MRP("LineCount", fileStats.LineCount),
+			types.MRP("FileSize", fileStats.Size),
+			types.MRP("FileTokenCount", fileStats.TokenCount),
+			types.MRP("FileLineCount", fileStats.LineCount),
+			types.MRP("ActualSize", actualSize),
+			types.MRP("ActualTokenCount", actualTokenCount),
+			types.MRP("ActualLineCount", actualLineCount),
 			types.MRP("Content", limitedContent),
 		))
 		if err != nil {
@@ -217,11 +254,13 @@ func (fp *FileProcessor) printFileContent(filePath string, fileInfo os.FileInfo)
 		}
 	}
 
-	fp.CurrentSize += fileStats.Size
+	fp.TotalSize += actualSize
 	fp.FileCount++
+
+	return nil
 }
 
-func (fp *FileProcessor) applyLimits(content []byte, fileStats FileStats) string {
+func (fp *FileProcessor) applyLimits(content []byte) string {
 	if fp.MaxLines == 0 && fp.MaxTokens == 0 {
 		return string(content)
 	}
