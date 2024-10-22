@@ -151,8 +151,7 @@ func (c *CatterCommand) RunIntoGlazeProcessor(ctx context.Context, parsedLayers 
 		s.Paths = append(s.Paths, ".")
 	}
 
-	fp.ProcessPaths(s.Paths)
-	return nil
+	return fp.ProcessPaths(s.Paths)
 }
 
 // Helper function to create file filter
