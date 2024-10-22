@@ -10,7 +10,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/denormal/go-gitignore"
 	"github.com/go-go-golems/clay/pkg/filefilter"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/types"
@@ -18,22 +17,21 @@ import (
 )
 
 type FileProcessor struct {
-	MaxTotalSize    int64
-	CurrentSize     int64
-	TotalTokens     int
-	FileCount       int
-	TokenCounter    *tiktoken.Tiktoken
-	TokenCounts     map[string]int
-	StatsTypes      []string
-	ListOnly        bool
-	DelimiterType   string
-	MaxLines        int
-	MaxTokens       int
-	Filter          *filefilter.FileFilter
-	GitIgnoreFilter gitignore.GitIgnore
-	PrintFilters    bool
-	Processor       middlewares.Processor
-	Stats           *Stats
+	MaxTotalSize  int64
+	CurrentSize   int64
+	TotalTokens   int
+	FileCount     int
+	TokenCounter  *tiktoken.Tiktoken
+	TokenCounts   map[string]int
+	StatsTypes    []string
+	ListOnly      bool
+	DelimiterType string
+	MaxLines      int
+	MaxTokens     int
+	Filter        *filefilter.FileFilter
+	PrintFilters  bool
+	Processor     middlewares.Processor
+	Stats         *Stats
 }
 
 type FileProcessorOption func(*FileProcessor)
@@ -46,13 +44,12 @@ func NewFileProcessor(options ...FileProcessorOption) *FileProcessor {
 	}
 
 	fp := &FileProcessor{
-		TokenCounter:    tokenCounter,
-		TokenCounts:     make(map[string]int),
-		StatsTypes:      []string{},
-		MaxLines:        0,
-		MaxTokens:       0,
-		GitIgnoreFilter: nil,
-		PrintFilters:    false,
+		TokenCounter: tokenCounter,
+		TokenCounts:  make(map[string]int),
+		StatsTypes:   []string{},
+		MaxLines:     0,
+		MaxTokens:    0,
+		PrintFilters: false,
 	}
 
 	for _, option := range options {
@@ -101,15 +98,6 @@ func WithMaxTokens(maxTokens int) FileProcessorOption {
 func WithFileFilter(filter *filefilter.FileFilter) FileProcessorOption {
 	return func(fp *FileProcessor) {
 		fp.Filter = filter
-		if fp.GitIgnoreFilter != nil {
-			fp.Filter.GitIgnoreFilter = fp.GitIgnoreFilter
-		}
-	}
-}
-
-func WithGitIgnoreFilter(gitIgnoreFilter gitignore.GitIgnore) FileProcessorOption {
-	return func(fp *FileProcessor) {
-		fp.GitIgnoreFilter = gitIgnoreFilter
 	}
 }
 

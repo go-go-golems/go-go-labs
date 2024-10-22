@@ -166,6 +166,7 @@ func (c *CatterCommand) RunIntoGlazeProcessor(ctx context.Context, parsedLayers 
 		pkg.WithMaxLines(s.MaxLines),
 		pkg.WithMaxTokens(s.MaxTokens),
 		pkg.WithFileFilter(ff),
+		pkg.WithPrintFilters(s.PrintFilters),
 	}
 	if s.Glazed {
 		fileProcessorOptions = append(fileProcessorOptions, pkg.WithProcessor(gp))

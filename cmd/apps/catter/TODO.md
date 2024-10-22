@@ -13,6 +13,7 @@
 - [x] add glazed flag layer for filter options (to reuse in other commands)
 - [ ] add glazed help system for catter
 - [ ] fix print-filters
+- [ ] fix catter profile
 
 ## YAML settings
 
