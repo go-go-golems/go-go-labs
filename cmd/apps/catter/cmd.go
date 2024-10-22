@@ -39,7 +39,7 @@ func NewCatterCommand() (*CatterCommand, error) {
 		return nil, fmt.Errorf("could not create Glazed parameter layer: %w", err)
 	}
 
-	fileFilterLayer, err := NewFileFilterParameterLayer()
+	fileFilterLayer, err := filefilter.NewFileFilterParameterLayer()
 	if err != nil {
 		return nil, fmt.Errorf("could not create file filter parameter layer: %w", err)
 	}
@@ -134,7 +134,11 @@ func (c *CatterCommand) RunIntoGlazeProcessor(ctx context.Context, parsedLayers 
 		return fmt.Errorf("error initializing settings: %w", err)
 	}
 
-	ff, err := CreateFileFilterFromSettings(parsedLayers)
+	layer, ok := parsedLayers.Get(filefilter.FileFilterSlug)
+	if !ok {
+		return fmt.Errorf("file filter layer not found")
+	}
+	ff, err := filefilter.CreateFileFilterFromSettings(layer)
 	if err != nil {
 		return fmt.Errorf("error creating file filter: %w", err)
 	}
