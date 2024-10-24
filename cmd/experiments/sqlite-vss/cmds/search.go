@@ -3,7 +3,6 @@ package cmds
 import (
 	"context"
 	"fmt"
-	geppetto_cmds "github.com/go-go-golems/geppetto/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	cmds_middlewares "github.com/go-go-golems/glazed/pkg/cmds/middlewares"
@@ -12,6 +11,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
 	"github.com/go-go-golems/go-go-labs/cmd/experiments/sqlite-vss/pkg"
+	geppetto_cmds "github.com/go-go-golems/pinocchio/pkg/cmds"
 	"github.com/pkg/errors"
 	"os"
 	"strings"

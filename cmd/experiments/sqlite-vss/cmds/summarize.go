@@ -3,9 +3,9 @@ package cmds
 import (
 	"embed"
 	_ "embed"
-	geppetto_cmds "github.com/go-go-golems/geppetto/pkg/cmds"
 	glazed_cmds "github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/alias"
+	geppetto_cmds "github.com/go-go-golems/pinocchio/pkg/cmds"
 	"github.com/pkg/errors"
 )
 
