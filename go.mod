@@ -26,9 +26,10 @@ require (
 	github.com/go-chi/chi/v5 v5.1.0
 	github.com/go-git/go-git/v5 v5.9.0
 	github.com/go-go-golems/clay v0.1.19
-	github.com/go-go-golems/geppetto v0.2.25
-	github.com/go-go-golems/glazed v0.5.19
+	github.com/go-go-golems/geppetto v0.4.22
+	github.com/go-go-golems/glazed v0.5.20
 	github.com/go-go-golems/go-emrichen v0.0.2
+	github.com/go-go-golems/pinocchio v0.0.1
 	github.com/google/uuid v1.6.0
 	github.com/googollee/go-socket.io v1.7.0
 	github.com/gorilla/websocket v1.5.3
@@ -70,9 +71,14 @@ require (
 )
 
 require (
+	github.com/go-go-golems/bobatea v0.0.11 // indirect
+	github.com/gorilla/mux v1.8.1 // indirect
+	github.com/huandu/go-clone v1.7.2 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
+	github.com/sashabaranov/go-openai v1.32.3 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
+	github.com/tcnksm/go-input v0.0.0-20180404061846-548a7d7a8ee8 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 )
 

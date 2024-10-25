@@ -1,2 +1,4 @@
 - [ ] allow glazed commands to use a coroutine in lua
 - [ ] allow streaming writer commansd to use a coroutine in lua
+- [ ] Register a pinocchio repository / sqleton repository as a module
+- [ ] Register lua functions as tools for LLMs

@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -42,7 +41,7 @@ var port int
 
 func init() {
 	renderCmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output file (default is stdout)")
-	renderCmd.MarkFlagRequired("input")
+	_ = renderCmd.MarkFlagRequired("input")
 
 	serveCmd.Flags().IntVarP(&port, "port", "p", 8080, "Port to serve on")
 
@@ -52,7 +51,7 @@ func init() {
 func runRender(cmd *cobra.Command, args []string) {
 	if len(args) < 1 {
 		fmt.Println("Error: Input file is required")
-		cmd.Usage()
+		_ = cmd.Usage()
 		os.Exit(1)
 	}
 
@@ -60,7 +59,7 @@ func runRender(cmd *cobra.Command, args []string) {
 	svgOutput := renderSVGFromYAML(inputFile)
 
 	if outputFile != "" {
-		err := ioutil.WriteFile(outputFile, []byte(svgOutput), 0644)
+		err := os.WriteFile(outputFile, []byte(svgOutput), 0644)
 		if err != nil {
 			fmt.Printf("Error writing output file: %v\n", err)
 			os.Exit(1)
@@ -74,7 +73,7 @@ func runRender(cmd *cobra.Command, args []string) {
 func runServe(cmd *cobra.Command, args []string) {
 	if len(args) < 1 {
 		fmt.Println("Error: Directory to watch is required")
-		cmd.Usage()
+		_ = cmd.Usage()
 		os.Exit(1)
 	}
 
@@ -90,7 +89,7 @@ func runServe(cmd *cobra.Command, args []string) {
 	http.HandleFunc("/autoreload.js", func(w http.ResponseWriter, r *http.Request) {
 		js := wsServer.GetJavaScript("/ws")
 		w.Header().Set("Content-Type", "application/javascript")
-		w.Write([]byte(js))
+		_, _ = w.Write([]byte(js))
 	})
 
 	// Serve the main page
@@ -177,23 +176,23 @@ func renderMainPage(w http.ResponseWriter, directory string) {
 	}
 
 	w.Header().Set("Content-Type", "text/html")
-	fmt.Fprintf(w, "<html><head><title>SVG Renderer</title><script src='/autoreload.js'></script></head><body>")
+	_, _ = fmt.Fprintf(w, "<html><head><title>SVG Renderer</title><script src='/autoreload.js'></script></head><body>")
 
 	for _, file := range files {
 		fileName := filepath.Base(file)
 		sectionTitle := strings.TrimSuffix(fileName, filepath.Ext(fileName))
 
-		fmt.Fprintf(w, "<h2>%s</h2>", sectionTitle)
+		_, _ = fmt.Fprintf(w, "<h2>%s</h2>", sectionTitle)
 
 		svgOutput, err := renderSVGFromYAMLWithErrorAndPanic(file)
 		if err != nil {
-			fmt.Fprintf(w, "<div style='color: red; white-space: pre-wrap;'>Error rendering SVG: %+v</div>", err)
+			_, _ = fmt.Fprintf(w, "<div style='color: red; white-space: pre-wrap;'>Error rendering SVG: %+v</div>", err)
 		} else {
-			fmt.Fprintf(w, "<div>%s</div>", svgOutput)
+			_, _ = fmt.Fprintf(w, "<div>%s</div>", svgOutput)
 		}
 	}
 
-	fmt.Fprintf(w, "</body></html>")
+	_, _ = fmt.Fprintf(w, "</body></html>")
 }
 
 // Updated function to handle errors and panics
@@ -205,7 +204,7 @@ func renderSVGFromYAMLWithErrorAndPanic(inputFile string) (svgOutput string, err
 	}()
 
 	// Read input YAML file
-	yamlData, err := ioutil.ReadFile(inputFile)
+	yamlData, err := os.ReadFile(inputFile)
 	if err != nil {
 		return "", fmt.Errorf("error reading input file: %w", err)
 	}

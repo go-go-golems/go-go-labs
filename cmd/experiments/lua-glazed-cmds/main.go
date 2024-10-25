@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	lua2 "github.com/go-go-golems/go-go-labs/cmd/experiments/lua-glazed-cmds/lua"
+	lua3 "github.com/go-go-golems/glazed/pkg/lua"
 	"math/rand"
 
 	"github.com/go-go-golems/glazed/pkg/middlewares/table"
@@ -93,7 +93,7 @@ func PrintGlazedTableInLua(glazedTable *types.Table) error {
 	defer L.Close()
 
 	// Convert Glazed table to Lua table
-	luaTable := lua2.GlazedTableToLuaTable(L, glazedTable)
+	luaTable := lua3.GlazedTableToLuaTable(L, glazedTable)
 
 	// Set the Lua table as a global variable
 	L.SetGlobal("glazed_table", luaTable)
@@ -128,25 +128,25 @@ func main() {
 	L := lua.NewState()
 	defer L.Close()
 	//
-	//fmt.Println("Step 1: Run AnimalListCommand")
-	//fmt.Println("---")
-	//// Step 1: Run AnimalListCommand
-	//runAnimalListCommand(L)
-	//
-	//fmt.Println("\nStep 2: Handle Lua table parsing")
-	//fmt.Println("---")
-	//// Step 2: Handle Lua table parsing
-	//handleLuaTableParsing(L)
-	//
-	//fmt.Println("\nStep 3: Pass parsed layers to Lua")
-	//fmt.Println("---")
-	//// Step 3: Pass parsed layers to Lua
-	//passParsedLayersToLua(L)
-	//
-	//fmt.Println("\nStep 4: Test nested Lua table with AnimalListCommand")
-	//fmt.Println("---")
-	//// Step 4: Test nested Lua table with AnimalListCommand
-	//testNestedLuaTableWithAnimalListCommand(L)
+	fmt.Println("Step 1: Run AnimalListCommand")
+	fmt.Println("---")
+	// Step 1: Run AnimalListCommand
+	runAnimalListCommand(L)
+
+	fmt.Println("\nStep 2: Handle Lua table parsing")
+	fmt.Println("---")
+	// Step 2: Handle Lua table parsing
+	handleLuaTableParsing(L)
+
+	fmt.Println("\nStep 3: Pass parsed layers to Lua")
+	fmt.Println("---")
+	// Step 3: Pass parsed layers to Lua
+	passParsedLayersToLua(L)
+
+	fmt.Println("\nStep 4: Test nested Lua table with AnimalListCommand")
+	fmt.Println("---")
+	// Step 4: Test nested Lua table with AnimalListCommand
+	testNestedLuaTableWithAnimalListCommand(L)
 
 	fmt.Println("\nStep 5: Test registered command")
 	fmt.Println("---")
@@ -224,7 +224,7 @@ func handleLuaTableParsing(L *lua.LState) {
 	luaTable := L.GetGlobal("params").(*lua.LTable)
 
 	err = middlewares.ExecuteMiddlewares(parameterLayers, parsedLayers,
-		lua2.ParseLuaTableMiddleware(L, luaTable, "user"),
+		lua3.ParseLuaTableMiddleware(L, luaTable, "user"),
 	)
 	if err != nil {
 		panic(err)
@@ -236,7 +236,7 @@ func handleLuaTableParsing(L *lua.LState) {
 func passParsedLayersToLua(L *lua.LState) {
 	// Assuming you have parsedLayers available from the previous step
 	parsedLayers := createDemoParsedLayers()
-	luaTable := lua2.ParsedLayersToLuaTable(L, parsedLayers)
+	luaTable := lua3.ParsedLayersToLuaTable(L, parsedLayers)
 
 	L.SetGlobal("parsed_layers", luaTable)
 
@@ -257,7 +257,7 @@ func passParsedLayersToLua(L *lua.LState) {
 
 	animalParsedLayers := createParsedLayers(cmd)
 
-	luaTable = lua2.ParsedLayersToLuaTable(L, animalParsedLayers)
+	luaTable = lua3.ParsedLayersToLuaTable(L, animalParsedLayers)
 
 	L.SetGlobal("parsed_layers", luaTable)
 
@@ -293,7 +293,7 @@ func testNestedLuaTableWithAnimalListCommand(L *lua.LState) {
 	// Define middlewares
 	middlewares_ := []middlewares.Middleware{
 		// Parse from Lua table (highest priority)
-		lua2.ParseNestedLuaTableMiddleware(L, luaTable),
+		lua3.ParseNestedLuaTableMiddleware(L, luaTable),
 		// Set defaults (lowest priority)
 		middlewares.SetFromDefaults(parameters.WithParseStepSource("defaults")),
 	}
@@ -331,7 +331,7 @@ func testRegisteredCommand() {
 
 	// Create and register your GlazeCommands
 	animalListCmd, _ := NewAnimalListCommand()
-	lua2.RegisterGlazedCommand(L, animalListCmd)
+	lua3.RegisterGlazedCommand(L, animalListCmd)
 
 	// Run a Lua script that uses the registered command
 	script := `

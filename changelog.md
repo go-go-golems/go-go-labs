@@ -8,3 +8,13 @@ Added a new command-line interface for parsing and displaying job reports. This 
 - Allows users to choose between summary, job details, or all data
 - Provides verbose output option
 - Implements both legacy text output and structured Glazed output
+
+# Lua Server Test Files
+
+Added a set of Lua test files to demonstrate various server functionalities.
+
+- Created `lua/` subdirectory with example Lua files
+- Added `hello.lua` for basic string responses and query parameter handling
+- Added `echo.lua` for echoing request details
+- Added `calculator.lua` for simple arithmetic operations
+- Added `counter.lua` to demonstrate maintaining state between requests
