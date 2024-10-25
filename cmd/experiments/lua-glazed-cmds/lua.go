@@ -11,6 +11,40 @@ import (
 	lua "github.com/yuin/gopher-lua"
 )
 
+// ParseNestedLuaTableToParsedLayers parses a nested Lua table into ParsedLayers
+func ParseNestedLuaTableToParsedLayers(luaTable *lua.LTable, parameterLayers *layers.ParameterLayers) (*layers.ParsedLayers, error) {
+	parsedLayers := layers.NewParsedLayers()
+	var conversionErrors []string
+
+	luaTable.ForEach(func(key, value lua.LValue) {
+		if keyStr, ok := key.(lua.LString); ok {
+			layerName := string(keyStr)
+			layer, ok := parameterLayers.Get(layerName)
+			if !ok {
+				conversionErrors = append(conversionErrors, fmt.Sprintf("layer '%s' not found", layerName))
+				return
+			}
+
+			if nestedTable, ok := value.(*lua.LTable); ok {
+				parsedLayer, err := ParseLuaTableToLayer(nestedTable, layer)
+				if err != nil {
+					conversionErrors = append(conversionErrors, err.Error())
+				} else {
+					parsedLayers.Set(layerName, parsedLayer)
+				}
+			} else {
+				conversionErrors = append(conversionErrors, fmt.Sprintf("invalid value for layer '%s': expected table, got %s", layerName, value.Type()))
+			}
+		}
+	})
+
+	if len(conversionErrors) > 0 {
+		return nil, fmt.Errorf("parameter conversion errors: %s", strings.Join(conversionErrors, "; "))
+	}
+
+	return parsedLayers, nil
+}
+
 // ParseLuaTableToLayer parses a Lua table into a ParsedLayer
 func ParseLuaTableToLayer(luaTable *lua.LTable, layer layers.ParameterLayer) (*layers.ParsedLayer, error) {
 	params := make(map[string]interface{})
@@ -35,7 +69,7 @@ func ParseLuaTableToLayer(luaTable *lua.LTable, layer layers.ParameterLayer) (*l
 	}
 
 	// Parse parameters using the layer's definitions
-	parsedParams, err := layer.GetParameterDefinitions().GatherParametersFromMap(params, true)
+	parsedParams, err := layer.GetParameterDefinitions().GatherParametersFromMap(params, true, parameters.WithParseStepSource("lua"))
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +85,7 @@ func ParseLuaTableMiddleware(luaTable *lua.LTable, layerName string) middlewares
 			// Look up the specific layer
 			layer, ok := layers_.Get(layerName)
 			if !ok {
-				return fmt.Errorf("layer 'user' not found")
+				return fmt.Errorf("layer '%s' not found", layerName)
 			}
 
 			parsedLayer, err := ParseLuaTableToLayer(luaTable, layer)
@@ -60,6 +94,23 @@ func ParseLuaTableMiddleware(luaTable *lua.LTable, layerName string) middlewares
 			}
 
 			parsedLayers.GetOrCreate(layer).MergeParameters(parsedLayer)
+			return next(layers_, parsedLayers)
+		}
+	}
+}
+
+// Middleware to parse nested Lua table into ParsedLayers
+func ParseNestedLuaTableMiddleware(luaTable *lua.LTable) middlewares.Middleware {
+	return func(next middlewares.HandlerFunc) middlewares.HandlerFunc {
+		return func(layers_ *layers.ParameterLayers, parsedLayers *layers.ParsedLayers) error {
+			newParsedLayers, err := ParseNestedLuaTableToParsedLayers(luaTable, layers_)
+			if err != nil {
+				return err
+			}
+
+			// Merge the new parsed layers with the existing ones
+			parsedLayers.Merge(newParsedLayers)
+
 			return next(layers_, parsedLayers)
 		}
 	}

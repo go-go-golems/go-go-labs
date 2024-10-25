@@ -51,7 +51,6 @@ func NewAnimalListCommand() (*AnimalListCommand, error) {
 		),
 	}, nil
 }
-
 func (c *AnimalListCommand) RunIntoGlazeProcessor(
 	ctx context.Context,
 	parsedLayers *layers.ParsedLayers,
@@ -63,12 +62,21 @@ func (c *AnimalListCommand) RunIntoGlazeProcessor(
 	}
 
 	animals := []string{"Lion", "Elephant", "Giraffe", "Zebra", "Monkey", "Penguin", "Kangaroo", "Koala", "Tiger", "Bear"}
+	habitats := []string{"Savanna", "Jungle", "Forest", "Arctic", "Desert", "Grassland", "Mountains", "Wetlands"}
+	diets := []string{"Carnivore", "Herbivore", "Omnivore"}
 
 	for i := 0; i < s.Count; i++ {
 		animalIndex := rand.Intn(len(animals))
+		habitatIndex := rand.Intn(len(habitats))
+		dietIndex := rand.Intn(len(diets))
+		weight := rand.Float64()*1000 + 1 // Random weight between 1 and 1001 kg
+
 		row := types.NewRow(
 			types.MRP("id", i+1),
 			types.MRP("animal", animals[animalIndex]),
+			types.MRP("habitat", habitats[habitatIndex]),
+			types.MRP("diet", diets[dietIndex]),
+			types.MRP("weight_kg", fmt.Sprintf("%.2f", weight)),
 		)
 		if err := gp.AddRow(ctx, row); err != nil {
 			return err
@@ -119,21 +127,32 @@ func main() {
 	L := lua.NewState()
 	defer L.Close()
 
+	fmt.Println("Step 1: Run AnimalListCommand")
+	fmt.Println("---")
 	// Step 1: Run AnimalListCommand
 	runAnimalListCommand(L)
 
+	fmt.Println("\nStep 2: Handle Lua table parsing")
+	fmt.Println("---")
 	// Step 2: Handle Lua table parsing
 	handleLuaTableParsing(L)
 
+	fmt.Println("\nStep 3: Pass parsed layers to Lua")
+	fmt.Println("---")
 	// Step 3: Pass parsed layers to Lua
 	passParsedLayersToLua(L)
+
+	fmt.Println("\nStep 4: Test nested Lua table with AnimalListCommand")
+	fmt.Println("---")
+	// Step 4: Test nested Lua table with AnimalListCommand
+	testNestedLuaTableWithAnimalListCommand(L)
 }
 
 func runAnimalListCommand(L *lua.LState) {
 	animalListCmd, err := NewAnimalListCommand()
 	cobra.CheckErr(err)
 
-	gp := glazed_middlewares.NewTableProcessor(glazed_middlewares.WithPrependTableMiddleware(&table.NullTableMiddleware{}))
+	gp := glazed_middlewares.NewTableProcessor(glazed_middlewares.WithTableMiddleware(&table.NullTableMiddleware{}))
 
 	parsedLayers := createParsedLayers(animalListCmd)
 
@@ -238,5 +257,64 @@ func passParsedLayersToLua(L *lua.LState) {
 
 	if err := L.DoString(script); err != nil {
 		fmt.Printf("Error executing Lua script: %v\n", err)
+	}
+}
+
+func testNestedLuaTableWithAnimalListCommand(L *lua.LState) {
+	animalListCmd, err := NewAnimalListCommand()
+	cobra.CheckErr(err)
+
+	// Create a nested Lua table
+	script := `
+		params = {
+			default = {
+				count = 3
+			},
+			glazed = {
+				fields = {"animal", "diet"}
+			}
+		}
+	`
+	if err := L.DoString(script); err != nil {
+		panic(err)
+	}
+
+	luaTable := L.GetGlobal("params").(*lua.LTable)
+
+	// Create parsed layers
+	parsedLayers := layers.NewParsedLayers()
+
+	// Define middlewares
+	middlewares_ := []middlewares.Middleware{
+		// Parse from Lua table (highest priority)
+		ParseNestedLuaTableMiddleware(luaTable),
+		// Set defaults (lowest priority)
+		middlewares.SetFromDefaults(parameters.WithParseStepSource("defaults")),
+	}
+
+	// Execute middlewares
+	err = middlewares.ExecuteMiddlewares(animalListCmd.Layers, parsedLayers, middlewares_...)
+	if err != nil {
+		panic(err)
+	}
+
+	glazedLayer, ok := parsedLayers.Get(settings.GlazedSlug)
+	if !ok {
+		panic("Glazed layer not found")
+	}
+	gp, err := settings.SetupTableProcessor(glazedLayer, glazed_middlewares.WithTableMiddleware(&table.NullTableMiddleware{}))
+	cobra.CheckErr(err)
+
+	ctx := context.Background()
+
+	// Run the command with the parsed layers
+	err = animalListCmd.RunIntoGlazeProcessor(ctx, parsedLayers, gp)
+	cobra.CheckErr(err)
+	err = gp.Close(ctx)
+	cobra.CheckErr(err)
+
+	fmt.Println("\nTesting AnimalListCommand with nested Lua table:")
+	if err := PrintGlazedTableInLua(gp.Table); err != nil {
+		fmt.Printf("Error: %v\n", err)
 	}
 }
