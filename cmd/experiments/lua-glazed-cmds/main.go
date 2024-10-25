@@ -119,24 +119,23 @@ func main() {
 	L := lua.NewState()
 	defer L.Close()
 
+	// Step 1: Run AnimalListCommand
+	runAnimalListCommand(L)
+
+	// Step 2: Handle Lua table parsing
+	handleLuaTableParsing(L)
+
+	// Step 3: Pass parsed layers to Lua
+	passParsedLayersToLua(L)
+}
+
+func runAnimalListCommand(L *lua.LState) {
 	animalListCmd, err := NewAnimalListCommand()
 	cobra.CheckErr(err)
 
 	gp := glazed_middlewares.NewTableProcessor(glazed_middlewares.WithPrependTableMiddleware(&table.NullTableMiddleware{}))
 
-	defaultLayer, ok := animalListCmd.Layers.Get(layers.DefaultSlug)
-	if !ok {
-		panic("default layer not found")
-	}
-	cobra.CheckErr(err)
-	parsedParameters, err := defaultLayer.GetParameterDefinitions().GatherParametersFromMap(map[string]interface{}{
-		"count": 5,
-	}, true)
-	cobra.CheckErr(err)
-
-	defaultParsedLayer, err := layers.NewParsedLayer(defaultLayer, layers.WithParsedParameters(parsedParameters))
-	cobra.CheckErr(err)
-	parsedLayers := layers.NewParsedLayers(layers.WithParsedLayer(layers.DefaultSlug, defaultParsedLayer))
+	parsedLayers := createParsedLayers(animalListCmd)
 
 	ctx := context.Background()
 
@@ -148,7 +147,24 @@ func main() {
 	if err := PrintGlazedTableInLua(gp.Table); err != nil {
 		fmt.Printf("Error: %v\n", err)
 	}
-	// Lua script to create a table
+}
+
+func createParsedLayers(cmd *AnimalListCommand) *layers.ParsedLayers {
+	defaultLayer, ok := cmd.Layers.Get(layers.DefaultSlug)
+	if !ok {
+		panic("default layer not found")
+	}
+	parsedParameters, err := defaultLayer.GetParameterDefinitions().GatherParametersFromMap(map[string]interface{}{
+		"count": 5,
+	}, true)
+	cobra.CheckErr(err)
+
+	defaultParsedLayer, err := layers.NewParsedLayer(defaultLayer, layers.WithParsedParameters(parsedParameters))
+	cobra.CheckErr(err)
+	return layers.NewParsedLayers(layers.WithParsedLayer(layers.DefaultSlug, defaultParsedLayer))
+}
+
+func handleLuaTableParsing(L *lua.LState) {
 	script := `
 		params = {
 			name = "John Doe",
@@ -159,7 +175,6 @@ func main() {
 		panic(err)
 	}
 
-	// Define parameter definitions
 	paramDefs := parameters.NewParameterDefinitions(
 		parameters.WithParameterDefinitionList([]*parameters.ParameterDefinition{
 			parameters.NewParameterDefinition("name", parameters.ParameterTypeString),
@@ -167,7 +182,6 @@ func main() {
 		}),
 	)
 
-	// Create a parameter layer
 	layer, err := layers.NewParameterLayer("user", "User Information",
 		layers.WithDescription("Parameters related to user information"),
 		layers.WithParameterDefinitions(paramDefs.ToList()...),
@@ -176,17 +190,14 @@ func main() {
 		panic(err)
 	}
 
-	// Create parameter layers and add the created layer
 	parameterLayers := layers.NewParameterLayers(
 		layers.WithLayers(layer),
 	)
 
-	// Create parsedLayers
-	parsedLayers = layers.NewParsedLayers()
+	parsedLayers := layers.NewParsedLayers()
 
 	luaTable := L.GetGlobal("params").(*lua.LTable)
 
-	// Execute middlewares
 	err = middlewares.ExecuteMiddlewares(parameterLayers, parsedLayers,
 		ParseLuaTableMiddleware(luaTable, "user"),
 	)
@@ -195,4 +206,37 @@ func main() {
 	}
 
 	fmt.Println("Parsed parameters:", parsedLayers.GetDataMap())
+}
+
+func passParsedLayersToLua(L *lua.LState) {
+	// Assuming you have parsedLayers available from the previous step
+	parsedLayers := createDemoParsedLayers()
+	luaTable := ParsedLayersToLuaTable(L, parsedLayers)
+
+	L.SetGlobal("parsed_layers", luaTable)
+
+	script := `
+    for layer_name, layer_data in pairs(parsed_layers) do
+        print("Layer: " .. layer_name)
+        for param_name, param_value in pairs(layer_data) do
+            print("  " .. param_name .. ": " .. tostring(param_value))
+        end
+    end
+`
+
+	if err := L.DoString(script); err != nil {
+		fmt.Printf("Error executing Lua script: %v\n", err)
+	}
+
+	cmd, _ := NewAnimalListCommand()
+
+	animalParsedLayers := createParsedLayers(cmd)
+
+	luaTable = ParsedLayersToLuaTable(L, animalParsedLayers)
+
+	L.SetGlobal("parsed_layers", luaTable)
+
+	if err := L.DoString(script); err != nil {
+		fmt.Printf("Error executing Lua script: %v\n", err)
+	}
 }

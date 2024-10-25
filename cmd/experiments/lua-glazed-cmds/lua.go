@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/middlewares"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/glazed/pkg/types"
-	"github.com/yuin/gopher-lua"
-	"strings"
+	lua "github.com/yuin/gopher-lua"
 )
 
 // ParseLuaTableToLayer parses a Lua table into a ParsedLayer
@@ -294,4 +295,27 @@ func InterfaceToLuaValue(L *lua.LState, value interface{}) lua.LValue {
 	default:
 		return lua.LString(fmt.Sprintf("%v", v))
 	}
+}
+
+// ParsedLayerToLuaTable converts a ParsedLayer to a Lua table
+func ParsedLayerToLuaTable(L *lua.LState, parsedLayer *layers.ParsedLayer) *lua.LTable {
+	luaTable := L.CreateTable(0, len(parsedLayer.Parameters.ToMap()))
+
+	parsedLayer.Parameters.ForEach(func(name string, param *parameters.ParsedParameter) {
+		luaTable.RawSetString(name, InterfaceToLuaValue(L, param.Value))
+	})
+
+	return luaTable
+}
+
+// ParsedLayersToLuaTable converts ParsedLayers to a nested Lua table
+func ParsedLayersToLuaTable(L *lua.LState, parsedLayers *layers.ParsedLayers) *lua.LTable {
+	luaTable := L.CreateTable(0, parsedLayers.Len())
+
+	parsedLayers.ForEach(func(layerName string, parsedLayer *layers.ParsedLayer) {
+		layerTable := ParsedLayerToLuaTable(L, parsedLayer)
+		luaTable.RawSetString(layerName, layerTable)
+	})
+
+	return luaTable
 }
