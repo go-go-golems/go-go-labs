@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	lua2 "github.com/go-go-golems/go-go-labs/cmd/experiments/lua-glazed-cmds/lua"
 	"math/rand"
 
 	"github.com/go-go-golems/glazed/pkg/middlewares/table"
@@ -92,7 +93,7 @@ func PrintGlazedTableInLua(glazedTable *types.Table) error {
 	defer L.Close()
 
 	// Convert Glazed table to Lua table
-	luaTable := GlazedTableToLuaTable(L, glazedTable)
+	luaTable := lua2.GlazedTableToLuaTable(L, glazedTable)
 
 	// Set the Lua table as a global variable
 	L.SetGlobal("glazed_table", luaTable)
@@ -223,7 +224,7 @@ func handleLuaTableParsing(L *lua.LState) {
 	luaTable := L.GetGlobal("params").(*lua.LTable)
 
 	err = middlewares.ExecuteMiddlewares(parameterLayers, parsedLayers,
-		ParseLuaTableMiddleware(luaTable, "user"),
+		lua2.ParseLuaTableMiddleware(luaTable, "user"),
 	)
 	if err != nil {
 		panic(err)
@@ -235,7 +236,7 @@ func handleLuaTableParsing(L *lua.LState) {
 func passParsedLayersToLua(L *lua.LState) {
 	// Assuming you have parsedLayers available from the previous step
 	parsedLayers := createDemoParsedLayers()
-	luaTable := ParsedLayersToLuaTable(L, parsedLayers)
+	luaTable := lua2.ParsedLayersToLuaTable(L, parsedLayers)
 
 	L.SetGlobal("parsed_layers", luaTable)
 
@@ -256,7 +257,7 @@ func passParsedLayersToLua(L *lua.LState) {
 
 	animalParsedLayers := createParsedLayers(cmd)
 
-	luaTable = ParsedLayersToLuaTable(L, animalParsedLayers)
+	luaTable = lua2.ParsedLayersToLuaTable(L, animalParsedLayers)
 
 	L.SetGlobal("parsed_layers", luaTable)
 
@@ -292,7 +293,7 @@ func testNestedLuaTableWithAnimalListCommand(L *lua.LState) {
 	// Define middlewares
 	middlewares_ := []middlewares.Middleware{
 		// Parse from Lua table (highest priority)
-		ParseNestedLuaTableMiddleware(luaTable),
+		lua2.ParseNestedLuaTableMiddleware(luaTable),
 		// Set defaults (lowest priority)
 		middlewares.SetFromDefaults(parameters.WithParseStepSource("defaults")),
 	}
@@ -330,7 +331,7 @@ func testRegisteredCommand() {
 
 	// Create and register your GlazeCommands
 	animalListCmd, _ := NewAnimalListCommand()
-	RegisterGlazedCommand(L, animalListCmd)
+	lua2.RegisterGlazedCommand(L, animalListCmd)
 
 	// Run a Lua script that uses the registered command
 	script := `
@@ -347,10 +348,15 @@ func testRegisteredCommand() {
 			print(string.format("Animal %d: %s, Diet: %s", i, row.animal, row.diet))
 		end
 
-		-- You can also access parameter information
-		print("Parameters for animal_list command:")
-		for name, info in pairs(animal_list_params) do
-			print(string.format("  %s (%s): %s", name, info.type, info.description))
+		-- Print parameter information for animal_list command
+		print("\nParameters for animal_list command:")
+		for layer_name, layer_params in pairs(animal_list_params) do
+			print("Layer: " .. layer_name)
+			for param_name, param_info in pairs(layer_params) do
+				print(string.format("  %s (%s): %s", param_name, param_info.type, param_info.description))
+				print(string.format("    Default: %s", tostring(param_info.default)))
+				print(string.format("    Required: %s", tostring(param_info.required)))
+			end
 		end
 	`
 	if err := L.DoString(script); err != nil {
