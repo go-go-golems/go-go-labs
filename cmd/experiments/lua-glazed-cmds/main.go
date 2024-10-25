@@ -224,7 +224,7 @@ func handleLuaTableParsing(L *lua.LState) {
 	luaTable := L.GetGlobal("params").(*lua.LTable)
 
 	err = middlewares.ExecuteMiddlewares(parameterLayers, parsedLayers,
-		lua2.ParseLuaTableMiddleware(luaTable, "user"),
+		lua2.ParseLuaTableMiddleware(L, luaTable, "user"),
 	)
 	if err != nil {
 		panic(err)
@@ -293,7 +293,7 @@ func testNestedLuaTableWithAnimalListCommand(L *lua.LState) {
 	// Define middlewares
 	middlewares_ := []middlewares.Middleware{
 		// Parse from Lua table (highest priority)
-		lua2.ParseNestedLuaTableMiddleware(luaTable),
+		lua2.ParseNestedLuaTableMiddleware(L, luaTable),
 		// Set defaults (lowest priority)
 		middlewares.SetFromDefaults(parameters.WithParseStepSource("defaults")),
 	}

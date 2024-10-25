@@ -24,7 +24,7 @@ func CallGlazedCommandFromLua(L *lua2.LState, cmd cmds.GlazeCommand, luaTable *l
 	// Define middlewares
 	middlewares_ := []middlewares.Middleware{
 		// Parse from Lua table (highest priority)
-		ParseNestedLuaTableMiddleware(luaTable),
+		ParseNestedLuaTableMiddleware(L, luaTable),
 		// Set defaults (lowest priority)
 		middlewares.SetFromDefaults(parameters.WithParseStepSource("defaults")),
 	}
@@ -91,7 +91,7 @@ func CallGlazedBareCommandFromLua(L *lua2.LState, cmd cmds.BareCommand, luaTable
 	parsedLayers := layers.NewParsedLayers()
 
 	middlewares_ := []middlewares.Middleware{
-		ParseNestedLuaTableMiddleware(luaTable),
+		ParseNestedLuaTableMiddleware(L, luaTable),
 		middlewares.SetFromDefaults(parameters.WithParseStepSource("defaults")),
 	}
 
@@ -116,7 +116,7 @@ func CallGlazedWriterCommandFromLua(L *lua2.LState, cmd cmds.WriterCommand, luaT
 	parsedLayers := layers.NewParsedLayers()
 
 	middlewares_ := []middlewares.Middleware{
-		ParseNestedLuaTableMiddleware(luaTable),
+		ParseNestedLuaTableMiddleware(L, luaTable),
 		middlewares.SetFromDefaults(parameters.WithParseStepSource("defaults")),
 	}
 
