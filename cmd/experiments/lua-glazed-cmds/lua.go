@@ -1,12 +1,18 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
+	"github.com/go-go-golems/glazed/pkg/middlewares/table"
+
+	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/middlewares"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
+	glazed_middlewares "github.com/go-go-golems/glazed/pkg/middlewares"
+	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
 	lua "github.com/yuin/gopher-lua"
 )
@@ -369,4 +375,128 @@ func ParsedLayersToLuaTable(L *lua.LState, parsedLayers *layers.ParsedLayers) *l
 	})
 
 	return luaTable
+}
+
+// CallGlazedCommandFromLua executes a GlazeCommand with parameters from a Lua table
+func CallGlazedCommandFromLua(L *lua.LState, cmd cmds.GlazeCommand, luaTable *lua.LTable) (*types.Table, error) {
+	// Create parsed layers
+	parsedLayers := layers.NewParsedLayers()
+
+	// Define middlewares
+	middlewares_ := []middlewares.Middleware{
+		// Parse from Lua table (highest priority)
+		ParseNestedLuaTableMiddleware(luaTable),
+		// Set defaults (lowest priority)
+		middlewares.SetFromDefaults(parameters.WithParseStepSource("defaults")),
+	}
+
+	// Execute middlewares
+	err := middlewares.ExecuteMiddlewares(cmd.Description().Layers, parsedLayers, middlewares_...)
+	if err != nil {
+		return nil, fmt.Errorf("error executing middlewares: %v", err)
+	}
+
+	glazedLayer, ok := parsedLayers.Get(settings.GlazedSlug)
+	if !ok {
+		return nil, fmt.Errorf("glazed layer not found")
+	}
+	gp, err := settings.SetupTableProcessor(glazedLayer, glazed_middlewares.WithTableMiddleware(&table.NullTableMiddleware{}))
+	if err != nil {
+		return nil, fmt.Errorf("error setting up table processor: %v", err)
+	}
+
+	ctx := context.Background()
+
+	// Run the command with the parsed layers
+	err = cmd.RunIntoGlazeProcessor(ctx, parsedLayers, gp)
+	if err != nil {
+		return nil, fmt.Errorf("error running command: %v", err)
+	}
+	err = gp.Close(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error closing processor: %v", err)
+	}
+
+	return gp.Table, nil
+}
+
+// LuaCallGlazedCommand is a Lua-callable wrapper for CallGlazedCommandFromLua
+func LuaCallGlazedCommand(L *lua.LState) int {
+	// Get the GlazeCommand from the first argument (userdata)
+	cmdUD := L.CheckUserData(1)
+	cmd, ok := cmdUD.Value.(cmds.GlazeCommand)
+	if !ok {
+		L.ArgError(1, "GlazeCommand expected")
+		return 0
+	}
+
+	// Get the Lua table from the second argument
+	luaTable := L.CheckTable(2)
+
+	// Call the Go function
+	result, err := CallGlazedCommandFromLua(L, cmd, luaTable)
+	if err != nil {
+		L.Push(lua.LNil)
+		L.Push(lua.LString(err.Error()))
+		return 2
+	}
+
+	// Convert the result to a Lua table
+	luaResult := GlazedTableToLuaTable(L, result)
+	L.Push(luaResult)
+	return 1
+}
+
+// RegisterGlazedCommand registers a GlazeCommand in the Lua state
+func RegisterGlazedCommand(L *lua.LState, cmd cmds.GlazeCommand) {
+	desc := cmd.Description()
+	name := desc.Name
+
+	// Create a new function that wraps the command
+	fn := L.NewFunction(func(L *lua.LState) int {
+		// Get the Lua table from the first argument
+		luaTable := L.CheckTable(1)
+
+		// Call the Go function
+		result, err := CallGlazedCommandFromLua(L, cmd, luaTable)
+		if err != nil {
+			L.Push(lua.LNil)
+			L.Push(lua.LString(err.Error()))
+			return 2
+		}
+
+		// Convert the result to a Lua table
+		luaResult := GlazedTableToLuaTable(L, result)
+		L.Push(luaResult)
+		return 1
+	})
+
+	// Convert command name to a valid Lua identifier
+	luaName := strings.ReplaceAll(name, "-", "_")
+
+	// Register the function in the global environment
+	L.SetGlobal(luaName, fn)
+
+	// Update the parameter information global name
+	paramsGlobalName := luaName + "_params"
+
+	// Register the function in the global environment
+	L.SetGlobal(name, fn)
+
+	// Optionally, you can also register parameter information
+	defaultLayer, ok := desc.GetDefaultLayer()
+	if !ok {
+		// TODO error handling
+		return
+	}
+	paramsTable := L.CreateTable(0, len(defaultLayer.GetParameterDefinitions().ToList()))
+	defaultLayer.GetParameterDefinitions().ForEach(func(param *parameters.ParameterDefinition) {
+		paramInfo := L.CreateTable(0, 4)
+		paramInfo.RawSetString("name", lua.LString(param.Name))
+		paramInfo.RawSetString("type", lua.LString(string(param.Type)))
+		paramInfo.RawSetString("description", lua.LString(param.Help))
+		paramInfo.RawSetString("default", InterfaceToLuaValue(L, param.Default))
+		paramsTable.RawSetString(param.Name, paramInfo)
+	})
+	L.SetGlobal(paramsGlobalName, paramsTable)
 }

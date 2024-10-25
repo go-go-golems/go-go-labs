@@ -126,26 +126,31 @@ func PrintGlazedTableInLua(glazedTable *types.Table) error {
 func main() {
 	L := lua.NewState()
 	defer L.Close()
+	//
+	//fmt.Println("Step 1: Run AnimalListCommand")
+	//fmt.Println("---")
+	//// Step 1: Run AnimalListCommand
+	//runAnimalListCommand(L)
+	//
+	//fmt.Println("\nStep 2: Handle Lua table parsing")
+	//fmt.Println("---")
+	//// Step 2: Handle Lua table parsing
+	//handleLuaTableParsing(L)
+	//
+	//fmt.Println("\nStep 3: Pass parsed layers to Lua")
+	//fmt.Println("---")
+	//// Step 3: Pass parsed layers to Lua
+	//passParsedLayersToLua(L)
+	//
+	//fmt.Println("\nStep 4: Test nested Lua table with AnimalListCommand")
+	//fmt.Println("---")
+	//// Step 4: Test nested Lua table with AnimalListCommand
+	//testNestedLuaTableWithAnimalListCommand(L)
 
-	fmt.Println("Step 1: Run AnimalListCommand")
+	fmt.Println("\nStep 5: Test registered command")
 	fmt.Println("---")
-	// Step 1: Run AnimalListCommand
-	runAnimalListCommand(L)
-
-	fmt.Println("\nStep 2: Handle Lua table parsing")
-	fmt.Println("---")
-	// Step 2: Handle Lua table parsing
-	handleLuaTableParsing(L)
-
-	fmt.Println("\nStep 3: Pass parsed layers to Lua")
-	fmt.Println("---")
-	// Step 3: Pass parsed layers to Lua
-	passParsedLayersToLua(L)
-
-	fmt.Println("\nStep 4: Test nested Lua table with AnimalListCommand")
-	fmt.Println("---")
-	// Step 4: Test nested Lua table with AnimalListCommand
-	testNestedLuaTableWithAnimalListCommand(L)
+	// Step 5: Test registered command
+	testRegisteredCommand()
 }
 
 func runAnimalListCommand(L *lua.LState) {
@@ -316,5 +321,39 @@ func testNestedLuaTableWithAnimalListCommand(L *lua.LState) {
 	fmt.Println("\nTesting AnimalListCommand with nested Lua table:")
 	if err := PrintGlazedTableInLua(gp.Table); err != nil {
 		fmt.Printf("Error: %v\n", err)
+	}
+}
+
+func testRegisteredCommand() {
+	L := lua.NewState()
+	defer L.Close()
+
+	// Create and register your GlazeCommands
+	animalListCmd, _ := NewAnimalListCommand()
+	RegisterGlazedCommand(L, animalListCmd)
+
+	// Run a Lua script that uses the registered command
+	script := `
+		local params = {
+			default = {
+				count = 3
+			},
+			glazed = {
+				fields = {"animal", "diet"}
+			}
+		}
+		local result = animal_list(params)
+		for i, row in ipairs(result) do
+			print(string.format("Animal %d: %s, Diet: %s", i, row.animal, row.diet))
+		end
+
+		-- You can also access parameter information
+		print("Parameters for animal_list command:")
+		for name, info in pairs(animal_list_params) do
+			print(string.format("  %s (%s): %s", name, info.type, info.description))
+		end
+	`
+	if err := L.DoString(script); err != nil {
+		fmt.Printf("Error executing Lua script: %v\n", err)
 	}
 }
