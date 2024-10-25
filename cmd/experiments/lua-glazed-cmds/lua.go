@@ -5,6 +5,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/middlewares"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
+	"github.com/go-go-golems/glazed/pkg/types"
 	"github.com/yuin/gopher-lua"
 	"strings"
 )
@@ -241,5 +242,56 @@ func LuaValueToInterface(value lua.LValue) interface{} {
 		}
 	default:
 		return v.String()
+	}
+}
+
+// GlazedTableToLuaTable converts a Glazed table to a Lua table
+func GlazedTableToLuaTable(L *lua.LState, glazedTable *types.Table) *lua.LTable {
+	luaTable := L.CreateTable(len(glazedTable.Rows), 0)
+
+	for i, row := range glazedTable.Rows {
+		rowTable := L.CreateTable(0, len(glazedTable.Columns))
+		for _, col := range glazedTable.Columns {
+			value, ok := row.Get(col)
+			if !ok {
+				continue
+			}
+			rowTable.RawSetString(col, InterfaceToLuaValue(L, value))
+		}
+		luaTable.RawSetInt(i+1, rowTable)
+	}
+
+	return luaTable
+}
+
+// InterfaceToLuaValue converts a Go interface{} to a Lua value
+func InterfaceToLuaValue(L *lua.LState, value interface{}) lua.LValue {
+	switch v := value.(type) {
+	case nil:
+		return lua.LNil
+	case bool:
+		return lua.LBool(v)
+	case int:
+		return lua.LNumber(v)
+	case int64:
+		return lua.LNumber(v)
+	case float64:
+		return lua.LNumber(v)
+	case string:
+		return lua.LString(v)
+	case []interface{}:
+		table := L.CreateTable(len(v), 0)
+		for i, item := range v {
+			table.RawSetInt(i+1, InterfaceToLuaValue(L, item))
+		}
+		return table
+	case map[string]interface{}:
+		table := L.CreateTable(0, len(v))
+		for key, item := range v {
+			table.RawSetString(key, InterfaceToLuaValue(L, item))
+		}
+		return table
+	default:
+		return lua.LString(fmt.Sprintf("%v", v))
 	}
 }

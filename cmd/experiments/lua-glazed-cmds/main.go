@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"math/rand"
+
 	"github.com/go-go-golems/glazed/pkg/middlewares/table"
 	"github.com/spf13/cobra"
-	"math/rand"
 
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
@@ -77,6 +78,43 @@ func (c *AnimalListCommand) RunIntoGlazeProcessor(
 	return nil
 }
 
+// PrintGlazedTableInLua converts a Glazed table to a Lua table and prints it using a Lua script
+func PrintGlazedTableInLua(glazedTable *types.Table) error {
+	L := lua.NewState()
+	defer L.Close()
+
+	// Convert Glazed table to Lua table
+	luaTable := GlazedTableToLuaTable(L, glazedTable)
+
+	// Set the Lua table as a global variable
+	L.SetGlobal("glazed_table", luaTable)
+
+	// Lua script to print the table
+	script := `
+		function print_table(t, indent)
+			indent = indent or ""
+			for k, v in pairs(t) do
+				if type(v) == "table" then
+					print(indent .. tostring(k) .. ":")
+					print_table(v, indent .. "  ")
+				else
+					print(indent .. tostring(k) .. ": " .. tostring(v))
+				end
+			end
+		end
+
+		print("Glazed Table Contents:")
+		print_table(glazed_table)
+	`
+
+	// Execute the Lua script
+	if err := L.DoString(script); err != nil {
+		return fmt.Errorf("error executing Lua script: %v", err)
+	}
+
+	return nil
+}
+
 func main() {
 	L := lua.NewState()
 	defer L.Close()
@@ -107,14 +145,9 @@ func main() {
 	err = gp.Close(ctx)
 	cobra.CheckErr(err)
 
-	tbl := gp.Table
-	for _, row := range tbl.Rows {
-		for _, column := range tbl.Columns {
-			v, _ := row.Get(column)
-			fmt.Println(column, ":", v)
-		}
+	if err := PrintGlazedTableInLua(gp.Table); err != nil {
+		fmt.Printf("Error: %v\n", err)
 	}
-
 	// Lua script to create a table
 	script := `
 		params = {
