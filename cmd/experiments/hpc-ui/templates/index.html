@@ -1,0 +1,54 @@
+{{ template "base" . }}
+
+{{ define "content" }}
+<div class="max-w-2xl mx-auto">
+    <h1 class="text-3xl font-bold mb-8">Cluster Job Application</h1>
+    
+    <div class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+        <form hx-post="/submit-job" hx-target="#job-result">
+            <div class="mb-6">
+                <label class="block text-gray-700 text-sm font-bold mb-2" for="description">
+                    Job Description
+                </label>
+                <textarea 
+                    id="description" 
+                    name="description"
+                    class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                    rows="4"
+                    placeholder="Enter job description..."></textarea>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-gray-700 text-sm font-bold mb-2">
+                    Upload File
+                </label>
+                <div 
+                    class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center"
+                    hx-target="#file-info"
+                    hx-encoding="multipart/form-data"
+                    hx-post="/upload">
+                    <input 
+                        type="file" 
+                        name="file" 
+                        class="hidden" 
+                        id="file-input"
+                        onchange="this.parentElement.dispatchEvent(new Event('htmx:trigger'))">
+                    <label for="file-input" class="cursor-pointer">
+                        <span class="text-blue-600 hover:text-blue-800">Choose File</span>
+                        <span class="text-gray-500 ml-2">or drag and drop</span>
+                    </label>
+                </div>
+                <div id="file-info" class="mt-2 text-sm text-gray-600"></div>
+            </div>
+
+            <button 
+                class="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                type="submit">
+                Generate Job Configuration
+            </button>
+        </form>
+
+        <div id="job-result" class="mt-6"></div>
+    </div>
+</div>
+{{ end }} 

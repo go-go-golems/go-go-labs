@@ -1,0 +1,13 @@
+{{ define "resource_diagram" }}
+graph TB
+    Job[{{ .JobName }}]
+    subgraph Resources
+        CPU[{{ .CPUs }} CPUs<br>{{ .CoresPerCPU }} cores each]
+        Memory[{{ .Memory }} Memory]
+        Queue[{{ .Queue }} Queue]
+    end
+    
+    Job --> CPU
+    Job --> Memory
+    Job --> Queue
+{{ end }} 

@@ -1,0 +1,32 @@
+{{ define "job_result" }}
+<div class="bg-white shadow-md rounded px-6 py-4">
+    <h2 class="text-xl font-semibold mb-4">Generated Job Configuration</h2>
+    
+    <div class="mb-4">
+        <pre class="bg-gray-100 p-4 rounded"><code>{{ .GeneratedJobConfig | printf "%+v" }}</code></pre>
+    </div>
+
+    {{ if .ShowDiagram }}
+    <div class="mb-4">
+        <h3 class="text-lg font-semibold mb-2">Resource Diagram</h3>
+        <div class="bg-gray-100 p-4 rounded">
+            <!-- Mermaid diagram will be rendered here -->
+            <div class="mermaid">
+                {{ template "resource_diagram" .GeneratedJobConfig }}
+            </div>
+        </div>
+    </div>
+    {{ end }}
+
+    <div class="mt-4">
+        <button 
+            hx-post="/chat"
+            hx-target="#chat-section"
+            class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded mr-2">
+            Refine with Assistant
+        </button>
+    </div>
+
+    <div id="chat-section" class="mt-4"></div>
+</div>
+{{ end }} 
