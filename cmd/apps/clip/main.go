@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -23,31 +24,36 @@ func main() {
 	flag.BoolVar(&cfg.preview, "p", false, "Preview the content in $PAGER")
 	flag.Parse()
 
+	var outputStr string
 	if len(flag.Args()) == 0 {
-		fmt.Fprintf(os.Stderr, "Usage: %s [-s] [-p] command [args...]\n", os.Args[0])
-		os.Exit(1)
+		// Read from stdin when no arguments provided
+		input, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error reading from stdin: %v\n", err)
+			os.Exit(1)
+		}
+		outputStr = string(input)
+	} else {
+		// Create command from arguments
+		cmd := exec.Command(flag.Args()[0], flag.Args()[1:]...)
+
+		// Capture both stdout and stderr
+		var output bytes.Buffer
+		cmd.Stdout = &output
+		cmd.Stderr = &output
+
+		// Run the command
+		err := cmd.Run()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error executing command: %v\n", err)
+			os.Exit(1)
+		}
+
+		outputStr = output.String()
 	}
-
-	// Create command from remaining arguments
-	cmd := exec.Command(flag.Args()[0], flag.Args()[1:]...)
-
-	// Capture both stdout and stderr
-	var output bytes.Buffer
-	cmd.Stdout = &output
-	cmd.Stderr = &output
-
-	// Run the command
-	err := cmd.Run()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error executing command: %v\n", err)
-		os.Exit(1)
-	}
-
-	// Get the output as string
-	outputStr := output.String()
 
 	// Copy to clipboard
-	err = clipboard.WriteAll(outputStr)
+	err := clipboard.WriteAll(outputStr)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error copying to clipboard: %v\n", err)
 		os.Exit(1)
