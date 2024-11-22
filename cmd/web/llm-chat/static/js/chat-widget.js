@@ -2,74 +2,70 @@ import { LitElement, html, css } from 'https://cdn.jsdelivr.net/gh/lit/dist@2/co
 import { SSEClient } from './sse-client.js';
 import { MessageHandler } from './message-handler.js';
 
-const DEBUG = true;
-
-function debugLog(...args) {
-    if (DEBUG) {
-        console.log('[DEBUG]', ...args);
-    }
-}
-
 export class ChatWidget extends LitElement {
     static properties = {
         messages: { type: Array },
-        isThinking: { type: Boolean },
         currentResponse: { type: String },
-        connected: { type: Boolean },
+        isThinking: { type: Boolean },
+        clientId: { type: String },
+        isSaving: { type: Boolean },
+        isLoading: { type: Boolean }
     };
 
     static styles = css`
-        #chat-container {
-            background-color: white;
-            border-radius: 10px;
+        :host {
+            display: block;
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
             padding: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .chat-container {
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 20px;
             height: 500px;
             display: flex;
             flex-direction: column;
         }
-        #chat-messages {
+
+        .messages {
             flex-grow: 1;
             overflow-y: auto;
             margin-bottom: 20px;
             padding: 10px;
         }
+
         .message {
             margin: 10px 0;
             padding: 10px;
             border-radius: 5px;
         }
-        .user-message {
+
+        .user {
             background-color: #e3f2fd;
             margin-left: 20%;
         }
-        .assistant-message {
+
+        .assistant {
             background-color: #f5f5f5;
             margin-right: 20%;
         }
-        .thinking {
-            color: #666;
-            font-style: italic;
-            margin: 10px 0;
-            padding: 10px;
-        }
-        .system-message {
-            color: #666;
-            font-style: italic;
-            margin: 10px 0;
-            padding: 10px;
-        }
-        #input-container {
+
+        .input-container {
             display: flex;
             gap: 10px;
+            margin-top: 10px;
         }
+
         input {
             flex-grow: 1;
             padding: 10px;
-            border: 1px solid #ddd;
+            border: 1px solid #ccc;
             border-radius: 5px;
-            font-size: 16px;
         }
+
         button {
             padding: 10px 20px;
             background-color: #2196f3;
@@ -77,136 +73,173 @@ export class ChatWidget extends LitElement {
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            font-size: 16px;
         }
-        button:hover {
-            background-color: #1976d2;
-        }
+
         button:disabled {
             background-color: #ccc;
             cursor: not-allowed;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .thinking {
+            font-style: italic;
+            color: #666;
+        }
+
+        .file-input {
+            display: none;
         }
     `;
 
     constructor() {
         super();
         this.messages = [];
-        this.isThinking = false;
         this.currentResponse = '';
-        this.connected = false;
-
-        // Initialize message handler
+        this.isThinking = false;
+        this.isSaving = false;
+        this.isLoading = false;
+        this.clientId = '';
         this.messageHandler = new MessageHandler();
-        this.messageHandler.setHandlers({
-            onStateChange: (state) => {
-                this.messages = state.messages;
-                this.currentResponse = state.currentResponse;
-                this.isThinking = state.isThinking;
-            },
-            onError: (error) => {
-                debugLog('Error in message handler:', error);
-            },
-        });
 
-        // Initialize SSE client
         this.sseClient = new SSEClient('/api/chat', {
-            onConnected: () => {
-                this.connected = true;
+            onConnected: (clientId) => {
+                this.clientId = clientId;
             },
             onThinking: () => {
-                this.messageHandler.handleThinking();
+                this.isThinking = true;
             },
             onToken: (token) => {
-                this.messageHandler.handleToken(token);
+                this.messageHandler.addToken(token);
             },
             onDone: () => {
-                this.messageHandler.handleDone();
+                this.messageHandler.finalizeResponse();
             },
             onDisconnected: () => {
-                this.connected = false;
-            },
+                console.warn('Disconnected from SSE server');
+            }
         });
 
-        debugLog('ChatWidget initialized');
+        this._setupEventHandlers();
         this.sseClient.connect();
     }
 
-    disconnectedCallback() {
-        super.disconnectedCallback();
-        this.sseClient.disconnect();
+    _setupEventHandlers() {
+        // Message handler events
+        this.messageHandler.on('messageAdded', ({ role, content }) => {
+            this.messages = [...this.messages, { role, content }];
+        });
+
+        this.messageHandler.on('tokenAdded', (token) => {
+            this.currentResponse = this.messageHandler.currentResponse;
+        });
+
+        this.messageHandler.on('responseDone', () => {
+            this.currentResponse = '';
+            this.isThinking = false;
+        });
+
+        this.messageHandler.on('conversationSaved', () => {
+            this.isSaving = false;
+        });
+
+        this.messageHandler.on('conversationLoaded', () => {
+            this.messages = this.messageHandler.getMessages();
+            this.isLoading = false;
+        });
     }
 
-    async _sendMessage() {
+    async handleSubmit(e) {
+        e.preventDefault();
         const input = this.shadowRoot.querySelector('input');
         const message = input.value.trim();
-        if (!message || !this.connected) return;
-
-        debugLog('Sending message:', message);
-        input.value = '';
-
-        try {
-            this.messageHandler.handleUserMessage(message);
-            await this.sseClient.sendMessage(this.messages);
-        } catch (error) {
-            debugLog('Error sending message:', error);
-            this.messageHandler.handleError(error);
-        }
-    }
-
-    updated(changedProperties) {
-        if (changedProperties.has('messages') || changedProperties.has('currentResponse')) {
-            debugLog('State updated:', {
-                messages: this.messages,
-                currentResponse: this.currentResponse,
-                isThinking: this.isThinking
-            });
-            // Scroll to bottom when messages update
-            const chatMessages = this.shadowRoot.querySelector('#chat-messages');
-            if (chatMessages) {
-                chatMessages.scrollTop = chatMessages.scrollHeight;
+        
+        if (message) {
+            input.value = '';
+            this.messageHandler.addMessage('user', message);
+            
+            try {
+                await this.sseClient.sendMessage({
+                    messages: this.messageHandler.getMessages()
+                });
+            } catch (error) {
+                console.error('Error sending message:', error);
             }
         }
     }
 
-    _handleKeyPress(e) {
-        if (e.key === 'Enter' && !this.isThinking && this.connected) {
-            debugLog('Enter key pressed, sending message');
-            this._sendMessage();
+    async handleSave() {
+        const filename = prompt('Enter filename to save conversation:', 'conversation.json');
+        if (filename) {
+            this.isSaving = true;
+            try {
+                await this.messageHandler.saveConversation(filename, this.clientId);
+            } catch (error) {
+                alert('Error saving conversation: ' + error.message);
+                this.isSaving = false;
+            }
+        }
+    }
+
+    async handleLoad() {
+        const filename = prompt('Enter filename to load conversation:', 'conversation.json');
+        if (filename) {
+            this.isLoading = true;
+            try {
+                await this.messageHandler.loadConversation(filename, this.clientId);
+            } catch (error) {
+                alert('Error loading conversation: ' + error.message);
+                this.isLoading = false;
+            }
+        }
+    }
+
+    handleClear() {
+        if (confirm('Are you sure you want to clear the conversation?')) {
+            this.messageHandler.clear();
+            this.messages = [];
+            this.currentResponse = '';
         }
     }
 
     render() {
         return html`
-            <div id="chat-container">
-                <div id="chat-messages">
-                    ${!this.connected ? html`
-                        <div class="message system-message">
-                            Connecting to server...
-                        </div>
-                    ` : ''}
+            <div class="chat-container">
+                <div class="messages">
                     ${this.messages.map(msg => html`
-                        <div class="message ${msg.role}-message">
+                        <div class="message ${msg.role}">
                             ${msg.content}
                         </div>
                     `)}
-                    ${this.currentResponse ? html`
-                        <div class="message assistant-message">
+                    ${this.currentResponse && html`
+                        <div class="message assistant">
                             ${this.currentResponse}
                         </div>
-                    ` : ''}
-                    ${this.isThinking ? html`
-                        <div class="thinking">Thinking...</div>
-                    ` : ''}
+                    `}
+                    ${this.isThinking && html`
+                        <div class="message thinking">
+                            Thinking...
+                        </div>
+                    ` || ''}
                 </div>
-                <div id="input-container">
-                    <input type="text" 
-                           @keypress=${this._handleKeyPress} 
-                           placeholder="${this.connected ? 'Type your message...' : 'Connecting...'}"
-                           ?disabled=${!this.connected || this.isThinking}>
-                    <button @click=${this._sendMessage} 
-                            ?disabled=${!this.connected || this.isThinking}>
-                        Send
+                <form @submit=${this.handleSubmit}>
+                    <div class="input-container">
+                        <input type="text" placeholder="Type your message..." ?disabled=${this.isThinking}>
+                        <button type="submit" ?disabled=${this.isThinking}>Send</button>
+                    </div>
+                </form>
+                <div class="controls">
+                    <button @click=${this.handleSave} ?disabled=${this.isSaving || this.isThinking}>
+                        ${this.isSaving ? 'Saving...' : 'Save'}
                     </button>
+                    <button @click=${this.handleLoad} ?disabled=${this.isLoading || this.isThinking}>
+                        ${this.isLoading ? 'Loading...' : 'Load'}
+                    </button>
+                    <button @click=${this.handleClear} ?disabled=${this.isThinking}>Clear</button>
                 </div>
             </div>
         `;

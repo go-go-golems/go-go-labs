@@ -93,7 +93,7 @@ export class SSEClient {
                 'Content-Type': 'application/json',
                 'X-Client-ID': this.clientId,
             },
-            body: JSON.stringify({ messages }),
+            body: JSON.stringify( messages ),
         });
 
         if (!response.ok) {

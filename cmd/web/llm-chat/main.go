@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/go-go-golems/go-go-labs/pkg/mockbot"
 	"github.com/go-go-golems/go-go-labs/pkg/sse"
@@ -13,7 +15,7 @@ import (
 var (
 	debug    = true
 	eventBus = sse.NewEventBus()
-	bot      = mockbot.NewMockBot(eventBus)
+	bot      = mockbot.NewBotV2(eventBus)
 )
 
 func debugLog(format string, v ...interface{}) {
@@ -82,17 +84,80 @@ func handleChat(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// handleConversation handles conversation management operations
+func handleConversation(w http.ResponseWriter, r *http.Request) {
+	clientID := r.Header.Get("X-Client-ID")
+	if clientID == "" {
+		http.Error(w, "Client ID required", http.StatusBadRequest)
+		return
+	}
+
+	switch r.Method {
+	case http.MethodGet:
+		// Get conversation
+		conv, exists := bot.GetConversation(clientID)
+		if !exists {
+			http.Error(w, "Conversation not found", http.StatusNotFound)
+			return
+		}
+
+		// Return conversation as JSON
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(conv)
+
+	case http.MethodPost:
+		// Handle save/load operations
+		operation := r.URL.Query().Get("op")
+		filename := r.URL.Query().Get("filename")
+		if filename == "" {
+			http.Error(w, "Filename required", http.StatusBadRequest)
+			return
+		}
+
+		// Ensure filename is within the conversations directory
+		filename = filepath.Join("conversations", filename)
+
+		var err error
+		switch operation {
+		case "save":
+			err = bot.SaveConversation(clientID, filename)
+		case "load":
+			err = bot.LoadConversation(clientID, filename)
+		default:
+			http.Error(w, "Invalid operation", http.StatusBadRequest)
+			return
+		}
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+}
+
 func main() {
 	// Enable line numbers in logging
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 	debugLog("Server initializing...")
 
+	// Create conversations directory if it doesn't exist
+	if err := os.MkdirAll("conversations", 0755); err != nil {
+		log.Fatal(err)
+	}
+
 	// Serve static files
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
 	http.Handle("/", http.FileServer(http.Dir("static")))
 	http.HandleFunc("/api/chat", handleChat)
+	http.HandleFunc("/api/conversation", handleConversation)
 
 	debugLog("Starting server on :8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
