@@ -1,0 +1,24 @@
+output "bucket_name" {
+  description = "Name of the created S3 bucket"
+  value       = aws_s3_bucket.document_bucket.id
+}
+
+output "input_queue_url" {
+  description = "URL of the input SQS queue"
+  value       = aws_sqs_queue.input_queue.url
+}
+
+output "output_queue_url" {
+  description = "URL of the output SQS queue"
+  value       = aws_sqs_queue.output_queue.url
+}
+
+output "sns_topic_arn" {
+  description = "ARN of the SNS topic"
+  value       = aws_sns_topic.textract_completion.arn
+}
+
+output "lambda_function_name" {
+  description = "Name of the Lambda function"
+  value       = aws_lambda_function.textract_processor.function_name
+} 

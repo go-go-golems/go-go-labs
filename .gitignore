@@ -26,3 +26,8 @@ sqlite-vss
 test.db
 dist/config.yaml
 __debug*
+
+.terraform
+*.tfstate
+*.zip
+
