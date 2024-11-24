@@ -1,14 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
-	"os/exec"
-	"context"
 	"os"
-	"time"
+	"os/exec"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -27,8 +27,8 @@ func addDebugCommands(rootCmd *cobra.Command) {
 		Long: `Debug Lambda functions. Specify which processor to debug:
   document    - Document processor Lambda (handles new uploads)
   completion  - Completion processor Lambda (handles Textract completion)`,
-		Args:  cobra.MaximumNArgs(1),
-		Run:   debugLambda,
+		Args: cobra.MaximumNArgs(1),
+		Run:  debugLambda,
 	})
 
 	// Queue debugging
@@ -98,8 +98,8 @@ func addDebugCommands(rootCmd *cobra.Command) {
 		Long: `Debug Dead Letter Queues. Specify which DLQ to debug:
   input       - Input queue DLQ
   completion  - Completion queue DLQ`,
-		Args:  cobra.ExactArgs(1),
-		Run:   debugDLQ,
+		Args: cobra.ExactArgs(1),
+		Run:  debugDLQ,
 	})
 
 	// Add Textract job status command
@@ -153,9 +153,9 @@ func debugLambda(cmd *cobra.Command, args []string) {
 	}
 
 	fmt.Printf("🔍 Debugging %s processor Lambda: %s\n", processor, functionName)
-	
+
 	// Get recent logs
-	err = runAWSCommand("logs", "tail", 
+	err = runAWSCommand("logs", "tail",
 		fmt.Sprintf("/aws/lambda/%s", functionName),
 		"--follow")
 	if err != nil {
@@ -200,20 +200,30 @@ func debugS3(cmd *cobra.Command, args []string) {
 		log.Fatalf("Failed to load Terraform state: %v", err)
 	}
 
-	fmt.Println("🔍 Debugging S3 bucket:", resources.S3Bucket)
+	fmt.Println("🔍 Debugging S3 bucket:", resources.DocumentS3Bucket)
 
 	// Get bucket notification configuration
 	err = runAWSCommand("s3api", "get-bucket-notification-configuration",
-		"--bucket", resources.S3Bucket)
+		"--bucket", resources.DocumentS3Bucket)
 	if err != nil {
 		log.Printf("Failed to get bucket notification configuration: %v", err)
 	}
 
-	// List recent CloudTrail events
-	err = runAWSCommand("cloudtrail", "lookup-events",
-		"--lookup-attributes", fmt.Sprintf("AttributeKey=ResourceName,AttributeValue=%s", resources.S3Bucket))
+	// Get bucket policy
+	err = runAWSCommand("s3api", "get-bucket-policy",
+		"--bucket", resources.DocumentS3Bucket)
 	if err != nil {
-		log.Printf("Failed to get CloudTrail events: %v", err)
+		log.Printf("Failed to get bucket policy: %v", err)
+	}
+
+	// List recent CloudTrail events for both input and output buckets
+	for _, bucket := range []string{resources.DocumentS3Bucket, resources.OutputS3Bucket} {
+		fmt.Printf("\nCloudTrail events for bucket %s:\n", bucket)
+		err = runAWSCommand("cloudtrail", "lookup-events",
+			"--lookup-attributes", fmt.Sprintf("AttributeKey=ResourceName,AttributeValue=%s", bucket))
+		if err != nil {
+			log.Printf("Failed to get CloudTrail events: %v", err)
+		}
 	}
 }
 
@@ -223,11 +233,11 @@ func debugS3List(cmd *cobra.Command, args []string) {
 		log.Fatalf("Failed to load Terraform state: %v", err)
 	}
 
-	fmt.Printf("📂 Listing files in bucket: %s\n", resources.S3Bucket)
+	fmt.Printf("📂 Listing files in bucket: %s\n", resources.DocumentS3Bucket)
 
-	lsArgs := []string{"s3", "ls", fmt.Sprintf("s3://%s", resources.S3Bucket)}
+	lsArgs := []string{"s3", "ls", fmt.Sprintf("s3://%s", resources.DocumentS3Bucket)}
 	if len(args) > 0 {
-		lsArgs = append(lsArgs, fmt.Sprintf("s3://%s/%s", resources.S3Bucket, args[0]))
+		lsArgs = append(lsArgs, fmt.Sprintf("s3://%s/%s", resources.DocumentS3Bucket, args[0]))
 	}
 	lsArgs = append(lsArgs, "--recursive")
 
@@ -274,7 +284,7 @@ func debugMetrics(cmd *cobra.Command, args []string) {
 		"--metric-name", "Duration",
 		"--statistics", "Average", "Maximum",
 		"--period", "300",
-		"--dimensions", 
+		"--dimensions",
 		fmt.Sprintf("Name=FunctionName,Value=%s", resources.DocumentProcessorName))
 	if err != nil {
 		log.Printf("Failed to get document processor metrics: %v", err)
@@ -316,7 +326,7 @@ func debugTest(cmd *cobra.Command, args []string) {
 	// Upload file
 	err = runAWSCommand("s3", "cp",
 		pdfFile,
-		fmt.Sprintf("s3://%s/input/", resources.S3Bucket))
+		fmt.Sprintf("s3://%s/input/", resources.DocumentS3Bucket))
 	if err != nil {
 		log.Printf("Failed to upload file: %v", err)
 		return
@@ -414,7 +424,7 @@ func debugSubmitFlow(cmd *cobra.Command, args []string) {
 
 	// Check S3 bucket permissions
 	err = runAWSCommand("s3api", "get-bucket-acl",
-		"--bucket", resources.S3Bucket)
+		"--bucket", resources.DocumentS3Bucket)
 	if err != nil {
 		log.Printf("Failed to check S3 bucket ACL: %v", err)
 	}
@@ -451,15 +461,21 @@ func debugNotifications(cmd *cobra.Command, args []string) {
 		log.Printf("Failed to get topic attributes: %v", err)
 	}
 
-	// Check SQS subscription
-	fmt.Println("\n📬 SQS Queue Messages:")
-	err = runAWSCommand("sqs", "receive-message",
+	// Check SNS subscriptions
+	fmt.Println("\n📬 SNS Topic Subscriptions:")
+	err = runAWSCommand("sns", "list-subscriptions-by-topic",
+		"--topic-arn", resources.NotificationTopic)
+	if err != nil {
+		log.Printf("Failed to list subscriptions: %v", err)
+	}
+
+	// Check notifications queue
+	fmt.Println("\n📬 Notifications Queue Configuration:")
+	err = runAWSCommand("sqs", "get-queue-attributes",
 		"--queue-url", resources.NotificationsQueue,
-		"--max-number-of-messages", "10",
-		"--wait-time-seconds", "20",
 		"--attribute-names", "All")
 	if err != nil {
-		log.Printf("Failed to receive messages: %v", err)
+		log.Printf("Failed to get queue attributes: %v", err)
 	}
 }
 
@@ -471,7 +487,7 @@ func debugDLQ(cmd *cobra.Command, args []string) {
 
 	queueType := args[0]
 	var queueURL string
-	
+
 	switch queueType {
 	case "input":
 		queueURL = resources.InputDLQURL
@@ -578,4 +594,4 @@ func debugOutputS3List(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Printf("Failed to list bucket contents: %v", err)
 	}
-} 
+}

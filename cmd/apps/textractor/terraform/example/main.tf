@@ -10,11 +10,6 @@ module "textractor" {
   bucket_name = "textractor-documents-dev-12345"  # Must be globally unique
 }
 
-# S3 outputs
-output "bucket_name" {
-  value = module.textractor.bucket_name
-}
-
 output "document_bucket" {
   description = "The name of the S3 bucket used for document storage"
   value       = module.textractor.document_bucket
@@ -23,6 +18,16 @@ output "document_bucket" {
 output "document_bucket_arn" {
   description = "The ARN of the S3 bucket used for document storage"
   value       = module.textractor.document_bucket_arn
+}
+
+output "output_bucket" {
+  description = "The name of the S3 bucket used for Textract outputs"
+  value       = module.textractor.output_bucket
+}
+
+output "output_bucket_arn" {
+  description = "The ARN of the S3 bucket used for Textract outputs"
+  value       = module.textractor.output_bucket_arn
 }
 
 # Queue outputs
@@ -96,15 +101,4 @@ output "completion_dlq_url" {
 output "notification_topic_arn" {
   description = "The ARN of the SNS topic for application notifications"
   value = module.textractor.notification_topic_arn
-}
-
-# Output bucket outputs
-output "output_bucket_name" {
-  description = "The name of the S3 bucket used for Textract outputs"
-  value       = module.textractor.output_bucket_name
-}
-
-output "output_bucket_arn" {
-  description = "The ARN of the S3 bucket used for Textract outputs"
-  value       = module.textractor.output_bucket_arn
 }

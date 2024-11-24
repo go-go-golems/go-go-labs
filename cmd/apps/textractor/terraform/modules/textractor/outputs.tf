@@ -1,6 +1,21 @@
-output "bucket_name" {
+output "document_bucket" {
   description = "Name of the S3 bucket"
   value       = aws_s3_bucket.document_bucket.id
+}
+
+output "document_bucket_arn" {
+  description = "ARN of the S3 bucket for documents"
+  value       = aws_s3_bucket.document_bucket.arn
+}
+
+output "output_bucket" {
+  description = "Name of the S3 bucket for Textract output"
+  value       = aws_s3_bucket.output_bucket.id
+}
+
+output "output_bucket_arn" {
+  description = "ARN of the S3 bucket for Textract output"
+  value       = aws_s3_bucket.output_bucket.arn
 }
 
 output "input_queue_url" {
@@ -68,16 +83,6 @@ output "cloudtrail_log_group" {
   value       = aws_cloudwatch_log_group.cloudtrail_logs.name
 }
 
-output "document_bucket" {
-  description = "The name of the S3 bucket used for document storage"
-  value       = aws_s3_bucket.document_bucket.id
-}
-
-output "document_bucket_arn" {
-  description = "The ARN of the S3 bucket used for document storage"
-  value       = aws_s3_bucket.document_bucket.arn
-}
-
 # DLQ outputs
 output "input_dlq_url" {
   description = "The URL of the input Dead Letter Queue"
@@ -109,12 +114,3 @@ output "notification_topic_arn" {
   value       = aws_sns_topic.notifications.arn
 }
 
-output "output_bucket_name" {
-  description = "The name of the S3 bucket used for Textract outputs"
-  value       = aws_s3_bucket.output_bucket.id
-}
-
-output "output_bucket_arn" {
-  description = "The ARN of the S3 bucket used for Textract outputs"
-  value       = aws_s3_bucket.output_bucket.arn
-}

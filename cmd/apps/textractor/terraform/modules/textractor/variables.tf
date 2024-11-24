@@ -1,21 +1,20 @@
 variable "prefix" {
-  description = "Prefix to use for resource names"
-  type        = string
-}
-
-variable "bucket_name" {
-  description = "Name of the S3 bucket to create"
+  description = "Prefix to be used for all resource names"
   type        = string
 }
 
 variable "environment" {
-  description = "Environment name for resource tagging"
+  description = "Environment name for tagging"
   type        = string
-  default     = "dev"
+}
+
+variable "bucket_name" {
+  description = "Name of the S3 bucket for documents"
+  type        = string
 }
 
 variable "tags" {
-  description = "A map of tags to add to all resources"
+  description = "Tags to be applied to all resources"
   type        = map(string)
   default     = {}
 } 

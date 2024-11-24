@@ -2,6 +2,12 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
@@ -9,11 +15,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
-	"log"
-	"os"
-	"path/filepath"
-	"strings"
-	"time"
 )
 
 const (
@@ -27,41 +28,41 @@ func newSubmitCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "submit [file/directory]",
-			Short: "Submit a PDF file or directory for processing",
-			Args:  cobra.ExactArgs(1),
-			RunE: func(cmd *cobra.Command, args []string) error {
-				path := args[0]
+		Short: "Submit a PDF file or directory for processing",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			path := args[0]
 
-				// Load resources
-				resources, err := loadTerraformState(tfDir)
-				if err != nil {
-					return fmt.Errorf("failed to load terraform state: %w", err)
+			// Load resources
+			resources, err := loadTerraformState(tfDir)
+			if err != nil {
+				return fmt.Errorf("failed to load terraform state: %w", err)
+			}
+
+			// Initialize AWS session
+			sess := session.Must(session.NewSession(&aws.Config{
+				Region: aws.String(resources.Region),
+			}))
+
+			// Create service clients
+			s3Client := s3.New(sess)
+			dbClient := dynamodb.New(sess)
+
+			// Handle directory vs file
+			fileInfo, err := os.Stat(path)
+			if err != nil {
+				return fmt.Errorf("failed to stat path %s: %w", path, err)
+			}
+
+			if fileInfo.IsDir() {
+				if !recursive {
+					return fmt.Errorf("path is a directory, use --recursive to process directories")
 				}
+				return submitDirectory(path, resources, s3Client, dbClient)
+			}
 
-				// Initialize AWS session
-				sess := session.Must(session.NewSession(&aws.Config{
-					Region: aws.String(resources.Region),
-				}))
-
-				// Create service clients
-				s3Client := s3.New(sess)
-				dbClient := dynamodb.New(sess)
-
-				// Handle directory vs file
-				fileInfo, err := os.Stat(path)
-				if err != nil {
-					return fmt.Errorf("failed to stat path %s: %w", path, err)
-				}
-
-				if fileInfo.IsDir() {
-					if !recursive {
-						return fmt.Errorf("path is a directory, use --recursive to process directories")
-					}
-					return submitDirectory(path, resources, s3Client, dbClient)
-				}
-
-				return submitFile(path, resources, s3Client, dbClient)
-			},
+			return submitFile(path, resources, s3Client, dbClient)
+		},
 	}
 
 	cmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Recursively process directories")
@@ -88,7 +89,7 @@ func createJob(jobID, documentKey string, dbClient *dynamodb.DynamoDB, tableName
 	job := TextractJob{
 		JobID:       jobID,
 		DocumentKey: documentKey,
-		Status:     state,
+		Status:      state,
 		SubmittedAt: time.Now(),
 	}
 
@@ -164,7 +165,7 @@ func submitFile(filePath string, resources *TextractorResources, s3Client *s3.S3
 
 	// Upload to S3
 	_, err = s3Client.PutObject(&s3.PutObjectInput{
-		Bucket:      aws.String(resources.S3Bucket),
+		Bucket:      aws.String(resources.DocumentS3Bucket),
 		Key:         aws.String(s3Key),
 		Body:        file,
 		ContentType: aws.String("application/pdf"),
@@ -185,4 +186,4 @@ func submitFile(filePath string, resources *TextractorResources, s3Client *s3.S3
 
 	fmt.Printf("Successfully submitted job %s for %s\n", jobID, filepath.Base(filePath))
 	return nil
-} 
+}

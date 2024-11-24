@@ -21,40 +21,42 @@ import (
 
 // TextractorResources represents all AWS resources needed for the Textractor application
 type TextractorResources struct {
-	S3Bucket                    string `json:"bucket_name"`
+	DocumentS3Bucket            string `json:"document_bucket"`
+	DocumentS3BucketARN         string `json:"document_bucket_arn"`
+	OutputS3Bucket              string `json:"output_bucket"`
+	OutputS3BucketARN           string `json:"output_bucket_arn"`
 	InputQueue                  string `json:"input_queue_url"`
 	CompletionQueue             string `json:"completion_queue_url"`
 	NotificationsQueue          string `json:"notifications_queue_url"`
 	SNSTopic                    string `json:"sns_topic_arn"`
+	DocumentProcessorARN        string `json:"document_processor_arn"`
+	DocumentProcessorName       string `json:"document_processor_name"`
+	DocumentProcessorLogGroup   string `json:"document_processor_log_group"`
+	CompletionProcessorARN      string `json:"completion_processor_arn"`
+	CompletionProcessorName     string `json:"completion_processor_name"`
+	CompletionProcessorLogGroup string `json:"completion_processor_log_group"`
 	Region                      string `json:"region"`
 	JobsTable                   string `json:"jobs_table_name"`
-	DocumentProcessorARN        string `json:"document_processor_arn"`
-	CompletionProcessorARN      string `json:"completion_processor_arn"`
-	DocumentProcessorName       string `json:"document_processor_name"`
-	CompletionProcessorName     string `json:"completion_processor_name"`
-	DocumentProcessorLogGroup   string `json:"document_processor_log_group"`
-	CompletionProcessorLogGroup string `json:"completion_processor_log_group"`
-	CloudTrailLogGroup         string `json:"cloudtrail_log_group"`
+	CloudTrailLogGroup          string `json:"cloudtrail_log_group"`
 	InputDLQURL                 string `json:"input_dlq_url"`
 	CompletionDLQURL            string `json:"completion_dlq_url"`
 	NotificationTopic           string `json:"notification_topic_arn"`
-	OutputS3Bucket              string `json:"output_bucket_name"`
 }
 
 // Add TextractJob struct as defined in PLAN.md
 type TextractJob struct {
-	JobID        string     `json:"job_id" dynamodbav:"JobID"`
-	DocumentKey  string     `json:"document_key" dynamodbav:"DocumentKey"`
-	Status       string     `json:"status" dynamodbav:"Status"`
-	SubmittedAt  time.Time  `json:"submitted_at" dynamodbav:"SubmittedAt"`
-	CompletedAt  *time.Time `json:"completed_at,omitempty" dynamodbav:"CompletedAt,omitempty"`
-	TextractID   string     `json:"textract_id" dynamodbav:"TextractID"`
-	ResultKey    string     `json:"result_key" dynamodbav:"ResultKey"`
-	Error        string     `json:"error,omitempty" dynamodbav:"Error,omitempty"`
+	JobID       string     `json:"job_id" dynamodbav:"JobID"`
+	DocumentKey string     `json:"document_key" dynamodbav:"DocumentKey"`
+	Status      string     `json:"status" dynamodbav:"Status"`
+	SubmittedAt time.Time  `json:"submitted_at" dynamodbav:"SubmittedAt"`
+	CompletedAt *time.Time `json:"completed_at,omitempty" dynamodbav:"CompletedAt,omitempty"`
+	TextractID  string     `json:"textract_id" dynamodbav:"TextractID"`
+	ResultKey   string     `json:"result_key" dynamodbav:"ResultKey"`
+	Error       string     `json:"error,omitempty" dynamodbav:"Error,omitempty"`
 }
 
 var (
-	tfDir string
+	tfDir      string
 	configFile string
 )
 
@@ -140,7 +142,7 @@ func printDebugVars(cmd *cobra.Command, args []string) {
 	}
 
 	// Print in a format suitable for shell script
-	fmt.Printf("export BUCKET_NAME=\"%s\"\n", resources.S3Bucket)
+	fmt.Printf("export BUCKET_NAME=\"%s\"\n", resources.DocumentS3Bucket)
 	fmt.Printf("export INPUT_QUEUE_URL=\"%s\"\n", resources.InputQueue)
 	fmt.Printf("export COMPLETION_QUEUE_URL=\"%s\"\n", resources.CompletionQueue)
 	fmt.Printf("export NOTIFICATIONS_QUEUE_URL=\"%s\"\n", resources.NotificationsQueue)
@@ -165,7 +167,7 @@ func run(cmd *cobra.Command, args []string) {
 
 	// Print the loaded resources
 	fmt.Printf("Textractor Resources:\n")
-	fmt.Printf("  S3 Bucket:                    %s\n", resources.S3Bucket)
+	fmt.Printf("  S3 Bucket:                    %s\n", resources.DocumentS3Bucket)
 	fmt.Printf("  Input Queue:                  %s\n", resources.InputQueue)
 	fmt.Printf("  Completion Queue:             %s\n", resources.CompletionQueue)
 	fmt.Printf("  Notifications Queue:          %s\n", resources.NotificationsQueue)
@@ -251,7 +253,7 @@ func loadTerraformState(tfDir string) (*TextractorResources, error) {
 	}
 
 	// Map all required outputs
-	setOutput(&resources.S3Bucket, "bucket_name")
+	setOutput(&resources.DocumentS3Bucket, "document_bucket")
 	setOutput(&resources.InputQueue, "input_queue_url")
 	setOutput(&resources.CompletionQueue, "completion_queue_url")
 	setOutput(&resources.NotificationsQueue, "notifications_queue_url")
@@ -268,7 +270,7 @@ func loadTerraformState(tfDir string) (*TextractorResources, error) {
 	setOutput(&resources.InputDLQURL, "input_dlq_url")
 	setOutput(&resources.CompletionDLQURL, "completion_dlq_url")
 	setOutput(&resources.NotificationTopic, "notification_topic_arn")
-	setOutput(&resources.OutputS3Bucket, "output_bucket_name")
+	setOutput(&resources.OutputS3Bucket, "output_bucket")
 
 	if len(missingOutputs) > 0 {
 		return nil, fmt.Errorf("missing required terraform outputs: %s", strings.Join(missingOutputs, ", "))
@@ -284,24 +286,24 @@ func newListCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			status, _ := cmd.Flags().GetString("status")
 			since, _ := cmd.Flags().GetString("since")
-			
+
 			// Load resources to get table name and region
 			resources, err := loadTerraformState(tfDir)
 			if err != nil {
 				return fmt.Errorf("failed to load terraform state: %w", err)
 			}
-			
+
 			// Initialize AWS session and DynamoDB client with proper region
 			sess := session.Must(session.NewSession(&aws.Config{
 				Region: aws.String(resources.Region),
 			}))
 			db := dynamodb.New(sess)
-			
+
 			// Build query based on flags
 			input := &dynamodb.QueryInput{
 				TableName: aws.String(resources.JobsTable),
 			}
-			
+
 			if status != "" {
 				// Query GSI1 for specific status
 				input.IndexName = aws.String("Status-SubmittedAt-Index")
@@ -311,7 +313,7 @@ func newListCommand() *cobra.Command {
 						S: aws.String(status),
 					},
 				}
-				
+
 				if since != "" {
 					input.KeyConditionExpression = aws.String("Status = :status AND SubmittedAt >= :since")
 					input.ExpressionAttributeValues[":since"] = &dynamodb.AttributeValue{
@@ -323,30 +325,30 @@ func newListCommand() *cobra.Command {
 				scanInput := &dynamodb.ScanInput{
 					TableName: aws.String(resources.JobsTable),
 				}
-				
+
 				result, err := db.Scan(scanInput)
 				if err != nil {
 					return fmt.Errorf("failed to scan jobs: %w", err)
 				}
-				
+
 				printJobs(result.Items)
 				return nil
 			}
-			
+
 			// Execute query
 			result, err := db.Query(input)
 			if err != nil {
 				return fmt.Errorf("failed to query jobs: %w", err)
 			}
-			
+
 			printJobs(result.Items)
 			return nil
 		},
 	}
-	
+
 	cmd.Flags().String("status", "", "Filter by job status (SUBMITTED, PROCESSING, COMPLETED, FAILED)")
 	cmd.Flags().String("since", "", "Show jobs since date (YYYY-MM-DD)")
-	
+
 	return cmd
 }
 
@@ -378,7 +380,7 @@ func printJobs(items []map[string]*dynamodb.AttributeValue) {
 		return jobs[i].SubmittedAt.After(jobs[j].SubmittedAt)
 	})
 
-	fmt.Printf("%-36s %-12s %-20s %-20s %-20s %s\n", 
+	fmt.Printf("%-36s %-12s %-20s %-20s %-20s %s\n",
 		"Job ID", "Status", "Submitted", "Completed", "Textract ID", "Document")
 	fmt.Println(strings.Repeat("-", 120))
 
@@ -407,7 +409,7 @@ func printJobs(items []map[string]*dynamodb.AttributeValue) {
 func validateResources(r *TextractorResources) error {
 	var missing []string
 
-	if r.S3Bucket == "" {
+	if r.DocumentS3Bucket == "" {
 		missing = append(missing, "s3_bucket")
 	}
 	if r.InputQueue == "" {
@@ -455,4 +457,4 @@ func validateResources(r *TextractorResources) error {
 	}
 
 	return nil
-} 
+}
