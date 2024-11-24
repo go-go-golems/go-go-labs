@@ -82,19 +82,15 @@ resource "aws_sns_topic_subscription" "textract_to_sqs" {
 data "archive_file" "document_processor_zip" {
   type        = "zip"
   output_path = "${path.module}/lambda/document-processor.zip"
-  source {
-    content  = file("${path.module}/lambda/document-processor.js")
-    filename = "index.js"
-  }
+  source_dir  = "${path.module}/lambda"
+  excludes    = ["completion-processor.js", "*.zip"]
 }
 
 data "archive_file" "completion_processor_zip" {
   type        = "zip"
   output_path = "${path.module}/lambda/completion-processor.zip"
-  source {
-    content  = file("${path.module}/lambda/completion-processor.js")
-    filename = "index.js"
-  }
+  source_dir  = "${path.module}/lambda"
+  excludes    = ["document-processor.js", "*.zip"]
 }
 
 # Document processor Lambda

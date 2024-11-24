@@ -1,30 +1,7 @@
 const AWS = require('aws-sdk');
-const dynamodb = new AWS.DynamoDB.DocumentClient();
+const { updateJobStatus, sendNotification } = require('./lib/db');
 const textract = new AWS.Textract();
 const s3 = new AWS.S3();
-const sns = new AWS.SNS();
-
-async function updateJobStatus(JobID, status, details = {}) {
-    const params = {
-        TableName: process.env.JOBS_TABLE,
-        Key: { JobID },
-        UpdateExpression: 'SET #status = :status, UpdatedAt = :now',
-        ExpressionAttributeNames: {
-            '#status': 'Status'
-        },
-        ExpressionAttributeValues: {
-            ':status': status,
-            ':now': new Date().toISOString()
-        }
-    };
-
-    if (Object.keys(details).length > 0) {
-        params.UpdateExpression += ', Details = :details';
-        params.ExpressionAttributeValues[':details'] = details;
-    }
-
-    await dynamodb.update(params).promise();
-}
 
 async function getTextractResults(textractJobId) {
     const results = [];
@@ -58,20 +35,6 @@ async function saveResults(bucket, jobId, results) {
     return resultKey;
 }
 
-async function sendNotification(jobId, status, details = {}) {
-    const message = {
-        jobId,
-        status,
-        ...details,
-        timestamp: new Date().toISOString()
-    };
-
-    await sns.publish({
-        TopicArn: process.env.NOTIFICATION_TOPIC_ARN,
-        Message: JSON.stringify(message)
-    }).promise();
-}
-
 exports.handler = async (event) => {
     console.log('Received event:', JSON.stringify(event, null, 2));
 
@@ -87,10 +50,7 @@ exports.handler = async (event) => {
             console.log(`Processing completion for job ${JobID} (Textract ID: ${textractJobId})`);
 
             if (status === 'SUCCEEDED') {
-                // Get results from Textract
                 const results = await getTextractResults(textractJobId);
-
-                // Save results to S3
                 const resultKey = await saveResults(
                     process.env.STORAGE_BUCKET,
                     JobID,
@@ -102,10 +62,7 @@ exports.handler = async (event) => {
                     CompletedAt: new Date().toISOString()
                 };
 
-                // Update job status
                 await updateJobStatus(JobID, 'COMPLETED', details);
-                
-                // Send completion notification
                 await sendNotification(JobID, 'COMPLETED', details);
             } else {
                 const details = {
@@ -113,10 +70,7 @@ exports.handler = async (event) => {
                     CompletedAt: new Date().toISOString()
                 };
 
-                // Handle failure
                 await updateJobStatus(JobID, 'FAILED', details);
-                
-                // Send failure notification
                 await sendNotification(JobID, 'FAILED', details);
             }
         } catch (err) {
