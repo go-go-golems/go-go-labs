@@ -18,7 +18,17 @@ output "sns_topic_arn" {
   value       = aws_sns_topic.textract_completion.arn
 }
 
-output "lambda_function_name" {
+output "lambda_arn" {
+  description = "ARN of the Lambda function"
+  value       = aws_lambda_function.textract_processor.arn
+}
+
+output "function_name" {
   description = "Name of the Lambda function"
   value       = aws_lambda_function.textract_processor.function_name
+}
+
+output "region" {
+  description = "Region of the Lambda function"
+  value       = data.aws_region.current.name
 } 

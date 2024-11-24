@@ -29,5 +29,6 @@ __debug*
 
 .terraform
 *.tfstate
+*.tfstate.*
 *.zip
 

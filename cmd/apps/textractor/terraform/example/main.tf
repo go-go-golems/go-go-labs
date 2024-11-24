@@ -20,4 +20,20 @@ output "input_queue_url" {
 
 output "output_queue_url" {
   value = module.textractor.output_queue_url
+}
+
+output "sns_topic_arn" {
+  value = module.textractor.sns_topic_arn
+}
+
+output "lambda_arn" {
+  value = module.textractor.lambda_arn
+}
+
+output "function_name" {
+  value = module.textractor.function_name
+}
+
+output "region" {
+  value = module.textractor.region
 } 
