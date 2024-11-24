@@ -15,10 +15,14 @@ func addDebugCommands(rootCmd *cobra.Command) {
 	}
 	rootCmd.AddCommand(debugCmd)
 
-	// Lambda debugging
+	// Lambda debugging with processor selection
 	debugCmd.AddCommand(&cobra.Command{
-		Use:   "lambda",
-		Short: "Debug Lambda function",
+		Use:   "lambda [document|completion]",
+		Short: "Debug Lambda functions",
+		Long: `Debug Lambda functions. Specify which processor to debug:
+  document    - Document processor Lambda (handles new uploads)
+  completion  - Completion processor Lambda (handles Textract completion)`,
+		Args:  cobra.MaximumNArgs(1),
 		Run:   debugLambda,
 	})
 
@@ -65,6 +69,13 @@ func addDebugCommands(rootCmd *cobra.Command) {
 		Short: "Debug submit command flow",
 		Run:   debugSubmitFlow,
 	})
+
+	// Add notifications queue debugging
+	debugCmd.AddCommand(&cobra.Command{
+		Use:   "notifications",
+		Short: "Debug notifications queue",
+		Run:   debugNotifications,
+	})
 }
 
 func runAWSCommand(args ...string) error {
@@ -80,10 +91,23 @@ func debugLambda(cmd *cobra.Command, args []string) {
 		log.Fatalf("Failed to load Terraform state: %v", err)
 	}
 
-	fmt.Println("🔍 Debugging Lambda function:", resources.FunctionName)
+	// Allow specifying which processor to debug
+	processor := "document"
+	if len(args) > 0 {
+		processor = args[0]
+	}
+
+	functionName := resources.DocumentProcessorName
+	if processor == "completion" {
+		functionName = resources.CompletionProcessorName
+	}
+
+	fmt.Printf("🔍 Debugging %s processor Lambda: %s\n", processor, functionName)
 	
 	// Get recent logs
-	err = runAWSCommand("logs", "tail", fmt.Sprintf("/aws/lambda/%s", resources.FunctionName), "--follow")
+	err = runAWSCommand("logs", "tail", 
+		fmt.Sprintf("/aws/lambda/%s", functionName),
+		"--follow")
 	if err != nil {
 		log.Printf("Failed to get logs: %v", err)
 	}
@@ -174,15 +198,28 @@ func debugMetrics(cmd *cobra.Command, args []string) {
 
 	fmt.Println("📊 Getting CloudWatch metrics")
 
-	// Lambda metrics
+	// Document processor metrics
 	err = runAWSCommand("cloudwatch", "get-metric-statistics",
 		"--namespace", "AWS/Lambda",
 		"--metric-name", "Duration",
 		"--statistics", "Average", "Maximum",
 		"--period", "300",
-		"--dimensions", fmt.Sprintf("Name=FunctionName,Value=%s", resources.FunctionName))
+		"--dimensions", 
+		fmt.Sprintf("Name=FunctionName,Value=%s", resources.DocumentProcessorName))
 	if err != nil {
-		log.Printf("Failed to get Lambda metrics: %v", err)
+		log.Printf("Failed to get document processor metrics: %v", err)
+	}
+
+	// Completion processor metrics
+	err = runAWSCommand("cloudwatch", "get-metric-statistics",
+		"--namespace", "AWS/Lambda",
+		"--metric-name", "Duration",
+		"--statistics", "Average", "Maximum",
+		"--period", "300",
+		"--dimensions",
+		fmt.Sprintf("Name=FunctionName,Value=%s", resources.CompletionProcessorName))
+	if err != nil {
+		log.Printf("Failed to get completion processor metrics: %v", err)
 	}
 
 	// SQS metrics
@@ -254,5 +291,32 @@ func debugSubmitFlow(cmd *cobra.Command, args []string) {
 		"--attribute-names", "Policy")
 	if err != nil {
 		log.Printf("Failed to check SQS policy: %v", err)
+	}
+}
+
+func debugNotifications(cmd *cobra.Command, args []string) {
+	resources, err := loadTerraformState(tfDir)
+	if err != nil {
+		log.Fatalf("Failed to load Terraform state: %v", err)
+	}
+
+	fmt.Println("🔔 Debugging notifications queue")
+
+	// Get queue attributes
+	err = runAWSCommand("sqs", "get-queue-attributes",
+		"--queue-url", resources.NotificationsQueue,
+		"--attribute-names", "All")
+	if err != nil {
+		log.Printf("Failed to get queue attributes: %v", err)
+	}
+
+	// Receive messages
+	err = runAWSCommand("sqs", "receive-message",
+		"--queue-url", resources.NotificationsQueue,
+		"--max-number-of-messages", "10",
+		"--wait-time-seconds", "20",
+		"--attribute-names", "All")
+	if err != nil {
+		log.Printf("Failed to receive messages: %v", err)
 	}
 } 

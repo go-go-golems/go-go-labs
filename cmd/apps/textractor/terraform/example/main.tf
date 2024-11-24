@@ -10,6 +10,7 @@ module "textractor" {
   bucket_name = "textractor-documents-dev-12345"  # Must be globally unique
 }
 
+# S3 and SQS outputs
 output "bucket_name" {
   value = module.textractor.bucket_name
 }
@@ -22,39 +23,50 @@ output "output_queue_url" {
   value = module.textractor.output_queue_url
 }
 
+output "notifications_queue_url" {
+  value = module.textractor.notifications_queue_url
+}
+
+# SNS outputs
 output "sns_topic_arn" {
   value = module.textractor.sns_topic_arn
 }
 
-output "lambda_arn" {
-  value = module.textractor.lambda_arn
+# Lambda outputs for document processor
+output "document_processor_arn" {
+  value = module.textractor.document_processor_arn
 }
 
-output "function_name" {
-  value = module.textractor.function_name
+output "document_processor_name" {
+  value = module.textractor.document_processor_name
 }
 
+output "document_processor_log_group" {
+  value = module.textractor.document_processor_log_group
+}
+
+# Lambda outputs for completion processor
+output "completion_processor_arn" {
+  value = module.textractor.completion_processor_arn
+}
+
+output "completion_processor_name" {
+  value = module.textractor.completion_processor_name
+}
+
+output "completion_processor_log_group" {
+  value = module.textractor.completion_processor_log_group
+}
+
+# Other outputs
 output "region" {
   value = module.textractor.region
 }
 
-output "lambda_log_group" {
-  description = "Name of the CloudWatch Log Group for the Lambda function"
-  value       = module.textractor.lambda_log_group
+output "jobs_table_name" {
+  value = module.textractor.jobs_table_name
 }
 
 output "cloudtrail_log_group" {
-  description = "Name of the CloudWatch Log Group for CloudTrail"
-  value       = module.textractor.cloudtrail_log_group
+  value = module.textractor.cloudtrail_log_group
 }
-
-# Add DynamoDB jobs table outputs
-output "jobs_table_name" {
-  description = "Name of the DynamoDB jobs table"
-  value       = module.textractor.jobs_table_name
-}
-
-output "jobs_table_arn" {
-  description = "ARN of the DynamoDB jobs table"
-  value       = module.textractor.jobs_table_arn
-} 

@@ -1,5 +1,5 @@
 output "bucket_name" {
-  description = "Name of the created S3 bucket"
+  description = "Name of the S3 bucket"
   value       = aws_s3_bucket.document_bucket.id
 }
 
@@ -18,38 +18,52 @@ output "sns_topic_arn" {
   value       = aws_sns_topic.textract_completion.arn
 }
 
-output "lambda_arn" {
-  description = "ARN of the Lambda function"
-  value       = aws_lambda_function.textract_processor.arn
+output "notifications_queue_url" {
+  description = "URL of the notifications SQS queue"
+  value       = aws_sqs_queue.notifications.url
 }
 
-output "function_name" {
-  description = "Name of the Lambda function"
-  value       = aws_lambda_function.textract_processor.function_name
+output "document_processor_arn" {
+  description = "ARN of the document processor Lambda function"
+  value       = aws_lambda_function.document_processor.arn
+}
+
+output "completion_processor_arn" {
+  description = "ARN of the completion processor Lambda function"
+  value       = aws_lambda_function.completion_processor.arn
+}
+
+output "document_processor_name" {
+  description = "Name of the document processor Lambda function"
+  value       = aws_lambda_function.document_processor.function_name
+}
+
+output "completion_processor_name" {
+  description = "Name of the completion processor Lambda function"
+  value       = aws_lambda_function.completion_processor.function_name
 }
 
 output "region" {
-  description = "Region of the Lambda function"
+  description = "AWS region"
   value       = data.aws_region.current.name
 }
 
-output "lambda_log_group" {
-  description = "Name of the CloudWatch Log Group for the Lambda function"
-  value       = aws_cloudwatch_log_group.lambda_logs.name
-}
-
-output "cloudtrail_log_group" {
-  description = "Name of the CloudWatch Log Group for CloudTrail"
-  value       = aws_cloudwatch_log_group.cloudtrail_logs.name
-}
-
-# Add DynamoDB table outputs
 output "jobs_table_name" {
   description = "Name of the DynamoDB jobs table"
   value       = aws_dynamodb_table.jobs.name
 }
 
-output "jobs_table_arn" {
-  description = "ARN of the DynamoDB jobs table"
-  value       = aws_dynamodb_table.jobs.arn
+output "document_processor_log_group" {
+  description = "Name of the document processor CloudWatch log group"
+  value       = aws_cloudwatch_log_group.document_processor_logs.name
+}
+
+output "completion_processor_log_group" {
+  description = "Name of the completion processor CloudWatch log group"
+  value       = aws_cloudwatch_log_group.completion_processor_logs.name
+}
+
+output "cloudtrail_log_group" {
+  description = "Name of the CloudTrail log group"
+  value       = aws_cloudwatch_log_group.cloudtrail_logs.name
 } 

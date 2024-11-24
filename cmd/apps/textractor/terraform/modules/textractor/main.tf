@@ -1,4 +1,3 @@
-
 # S3 Bucket
 resource "aws_s3_bucket" "document_bucket" {
   bucket = var.bucket_name
@@ -79,62 +78,99 @@ resource "aws_sns_topic_subscription" "textract_to_sqs" {
   endpoint  = aws_sqs_queue.output_queue.arn
 }
 
-# Create ZIP file for Lambda function
-data "archive_file" "lambda_zip" {
+# Create ZIP files for Lambda functions
+data "archive_file" "document_processor_zip" {
   type        = "zip"
-  output_path = "${path.module}/lambda/textract-processor.zip"
+  output_path = "${path.module}/lambda/document-processor.zip"
   source {
-    content  = file("${path.module}/lambda/index.js")
+    content  = file("${path.module}/lambda/document-processor.js")
     filename = "index.js"
   }
 }
 
-# Update Lambda Function resource
-resource "aws_lambda_function" "textract_processor" {
-  filename         = data.archive_file.lambda_zip.output_path
-  source_code_hash = data.archive_file.lambda_zip.output_base64sha256
-  function_name    = "${var.prefix}-textract-processor"
-  role            = aws_iam_role.lambda_role.arn
+data "archive_file" "completion_processor_zip" {
+  type        = "zip"
+  output_path = "${path.module}/lambda/completion-processor.zip"
+  source {
+    content  = file("${path.module}/lambda/completion-processor.js")
+    filename = "index.js"
+  }
+}
+
+# Document processor Lambda
+resource "aws_lambda_function" "document_processor" {
+  filename         = data.archive_file.document_processor_zip.output_path
+  source_code_hash = data.archive_file.document_processor_zip.output_base64sha256
+  function_name    = "${var.prefix}-document-processor"
+  role            = aws_iam_role.document_processor_role.arn
   handler         = "index.handler"
   runtime         = "nodejs16.x"
   timeout         = 30
 
   environment {
     variables = {
-      OUTPUT_QUEUE_URL = aws_sqs_queue.output_queue.url
       SNS_TOPIC_ARN   = aws_sns_topic.textract_completion.arn
-      AWS_LAMBDA_ROLE = aws_iam_role.lambda_role.arn
+      AWS_LAMBDA_ROLE = aws_iam_role.document_processor_role.arn
+      NOTIFICATIONS_QUEUE_URL = aws_sqs_queue.notifications.url
+      JOBS_TABLE     = aws_dynamodb_table.jobs.name
+      BUCKET_NAME    = aws_s3_bucket.document_bucket.id
     }
   }
 }
 
-# EventBridge Rule
-# resource "aws_cloudwatch_event_rule" "pdf_upload" {
-#   name        = "${var.prefix}-pdf-upload"
-#   description = "Capture PDF uploads to S3"
+# Completion processor Lambda
+resource "aws_lambda_function" "completion_processor" {
+  filename         = data.archive_file.completion_processor_zip.output_path
+  source_code_hash = data.archive_file.completion_processor_zip.output_base64sha256
+  function_name    = "${var.prefix}-completion-processor"
+  role            = aws_iam_role.completion_processor_role.arn
+  handler         = "index.handler"
+  runtime         = "nodejs16.x"
+  timeout         = 30
 
-#   event_pattern = jsonencode({
-#     source      = ["aws.s3"]
-#     detail-type = ["AWS API Call via CloudTrail"]
-#     detail = {
-#       eventSource = ["s3.amazonaws.com"]
-#       eventName   = ["PutObject"]
-#       requestParameters = {
-#         bucketName = [aws_s3_bucket.document_bucket.id]
-#       }
-#     }
-#   })
-# }
+  environment {
+    variables = {
+      NOTIFICATIONS_QUEUE_URL = aws_sqs_queue.notifications.url
+      JOBS_TABLE     = aws_dynamodb_table.jobs.name
+      BUCKET_NAME    = aws_s3_bucket.document_bucket.id
+    }
+  }
+}
 
-# resource "aws_cloudwatch_event_target" "lambda" {
-#   rule      = aws_cloudwatch_event_rule.pdf_upload.name
-#   target_id = "SendToLambda"
-#   arn       = aws_lambda_function.textract_processor.arn
-# }
+# Add SNS trigger for completion processor
+resource "aws_lambda_permission" "allow_sns" {
+  statement_id  = "AllowExecutionFromSNS"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.completion_processor.function_name
+  principal     = "sns.amazonaws.com"
+  source_arn    = aws_sns_topic.textract_completion.arn
+}
+
+resource "aws_sns_topic_subscription" "lambda" {
+  topic_arn = aws_sns_topic.textract_completion.arn
+  protocol  = "lambda"
+  endpoint  = aws_lambda_function.completion_processor.arn
+}
+
+# Update SQS trigger to point to document processor
+resource "aws_lambda_permission" "allow_sqs" {
+  statement_id  = "AllowExecutionFromSQS"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.document_processor.function_name
+  principal     = "sqs.amazonaws.com"
+  source_arn    = aws_sqs_queue.input_queue.arn
+}
+
+resource "aws_lambda_event_source_mapping" "sqs_trigger" {
+  event_source_arn = aws_sqs_queue.input_queue.arn
+  function_name    = aws_lambda_function.document_processor.arn
+  batch_size       = 1
+  enabled          = true
+}
 
 # IAM Roles and Policies
-resource "aws_iam_role" "lambda_role" {
-  name = "${var.prefix}-lambda-role"
+resource "aws_iam_role" "document_processor_role" {
+  name = "${var.prefix}-document-processor-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -150,9 +186,10 @@ resource "aws_iam_role" "lambda_role" {
   })
 }
 
-resource "aws_iam_role_policy" "lambda_policy" {
-  name = "${var.prefix}-lambda-policy"
-  role = aws_iam_role.lambda_role.id
+# Document Processor Policy
+resource "aws_iam_role_policy" "document_processor_policy" {
+  name = "${var.prefix}-document-processor-policy"
+  role = aws_iam_role.document_processor_role.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -160,39 +197,137 @@ resource "aws_iam_role_policy" "lambda_policy" {
       {
         Effect = "Allow"
         Action = [
-          "textract:AnalyzeDocument",
-          "textract:GetDocumentAnalysis",
-          "s3:GetObject",
-          "s3:PutObject",
-          "sns:Publish",
-          "sqs:SendMessage",
           "sqs:ReceiveMessage",
-          "sqs:DeleteMessage"
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes",
+          "sqs:ChangeMessageVisibility"
+        ]
+        Resource = [aws_sqs_queue.input_queue.arn]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:ListBucket"
         ]
         Resource = [
           aws_s3_bucket.document_bucket.arn,
-          "${aws_s3_bucket.document_bucket.arn}/*",
-          aws_sns_topic.textract_completion.arn,
-          aws_sqs_queue.input_queue.arn,
-          aws_sqs_queue.output_queue.arn
+          "${aws_s3_bucket.document_bucket.arn}/*"
         ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "textract:StartDocumentAnalysis"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "sns:Publish"
+        ]
+        Resource = [aws_sns_topic.textract_completion.arn]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:UpdateItem",
+          "dynamodb:GetItem"
+        ]
+        Resource = [aws_dynamodb_table.jobs.arn]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "sqs:SendMessage"
+        ]
+        Resource = [aws_sqs_queue.notifications.arn]
       }
     ]
   })
 }
 
-# Create CloudWatch Log Group for Lambda
-resource "aws_cloudwatch_log_group" "lambda_logs" {
-  name              = "/aws/lambda/${aws_lambda_function.textract_processor.function_name}"
-  retention_in_days = 14  # Adjust retention period as needed
+# Completion Processor IAM Role
+resource "aws_iam_role" "completion_processor_role" {
+  name = "${var.prefix}-completion-processor-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Service = "lambda.amazonaws.com"
+      }
+    }]
+  })
 }
 
-# Add necessary permissions to Lambda role
-resource "aws_iam_role_policy_attachment" "lambda_logs" {
-  role       = aws_iam_role.lambda_role.name
+# Completion Processor Policy
+resource "aws_iam_role_policy" "completion_processor_policy" {
+  name = "${var.prefix}-completion-processor-policy"
+  role = aws_iam_role.completion_processor_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "textract:GetDocumentAnalysis"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:PutObject"
+        ]
+        Resource = "${aws_s3_bucket.document_bucket.arn}/*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:UpdateItem",
+          "dynamodb:GetItem"
+        ]
+        Resource = [aws_dynamodb_table.jobs.arn]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "sqs:SendMessage"
+        ]
+        Resource = [aws_sqs_queue.notifications.arn]
+      }
+    ]
+  })
+}
+
+# CloudWatch Logs for Document Processor
+resource "aws_cloudwatch_log_group" "document_processor_logs" {
+  name              = "/aws/lambda/${aws_lambda_function.document_processor.function_name}"
+  retention_in_days = 14
+}
+
+resource "aws_iam_role_policy_attachment" "document_processor_logs" {
+  role       = aws_iam_role.document_processor_role.name
   policy_arn = aws_iam_policy.lambda_logging.arn
 }
 
+# CloudWatch Logs for Completion Processor
+resource "aws_cloudwatch_log_group" "completion_processor_logs" {
+  name              = "/aws/lambda/${aws_lambda_function.completion_processor.function_name}"
+  retention_in_days = 14
+}
+
+resource "aws_iam_role_policy_attachment" "completion_processor_logs" {
+  role       = aws_iam_role.completion_processor_role.name
+  policy_arn = aws_iam_policy.lambda_logging.arn
+}
+
+# Add necessary permissions to Lambda role
 resource "aws_iam_policy" "lambda_logging" {
   name        = "${var.prefix}-lambda-logging"
   description = "IAM policy for logging from a lambda"
@@ -296,7 +431,7 @@ resource "aws_dynamodb_table" "jobs" {
 # Add DynamoDB permissions to Lambda role
 resource "aws_iam_role_policy" "lambda_dynamodb" {
   name = "${var.prefix}-lambda-dynamodb"
-  role = aws_iam_role.lambda_role.id
+  role = aws_iam_role.document_processor_role.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -314,6 +449,37 @@ resource "aws_iam_role_policy" "lambda_dynamodb" {
           aws_dynamodb_table.jobs.arn,
           "${aws_dynamodb_table.jobs.arn}/index/*"
         ]
+      }
+    ]
+  })
+}
+
+# Add notifications queue
+resource "aws_sqs_queue" "notifications" {
+  name = "${var.prefix}-notifications"
+  visibility_timeout_seconds = 30
+  message_retention_seconds = 3600  // 1 hour retention
+  receive_wait_time_seconds = 20    // Enable long polling
+  
+  tags = {
+    Environment = var.environment
+  }
+}
+
+# Add notifications queue policy
+resource "aws_sqs_queue_policy" "notifications_policy" {
+  queue_url = aws_sqs_queue.notifications.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+        Action = "sqs:SendMessage"
+        Resource = aws_sqs_queue.notifications.arn
       }
     ]
   })

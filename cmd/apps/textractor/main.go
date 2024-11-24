@@ -21,14 +21,17 @@ import (
 
 // TextractorResources represents all AWS resources needed for the Textractor application
 type TextractorResources struct {
-	S3Bucket     string `json:"s3_bucket"`
-	InputQueue   string `json:"input_queue_url"`
-	OutputQueue  string `json:"output_queue_url"`
-	SNSTopic     string `json:"sns_topic_arn"`
-	LambdaARN    string `json:"lambda_arn"`
-	Region       string `json:"region"`
-	FunctionName string `json:"function_name"`
-	JobsTable    string `json:"jobs_table_name"`
+	S3Bucket            string `json:"s3_bucket"`
+	InputQueue          string `json:"input_queue_url"`
+	OutputQueue         string `json:"output_queue_url"`
+	NotificationsQueue  string `json:"notifications_queue_url"`
+	SNSTopic            string `json:"sns_topic_arn"`
+	Region              string `json:"region"`
+	JobsTable           string `json:"jobs_table_name"`
+	DocumentProcessorARN      string `json:"document_processor_arn"`
+	CompletionProcessorARN    string `json:"completion_processor_arn"`
+	DocumentProcessorName     string `json:"document_processor_name"`
+	CompletionProcessorName   string `json:"completion_processor_name"`
 }
 
 // Add TextractJob struct as defined in PLAN.md
@@ -263,6 +266,12 @@ func loadTerraformState(tfDir string) (*TextractorResources, error) {
 		missingOutputs = append(missingOutputs, "jobs_table_name")
 	}
 
+	if value, ok := outputMap["notifications_queue_url"]; ok {
+		resources.NotificationsQueue = value
+	} else {
+		missingOutputs = append(missingOutputs, "notifications_queue_url")
+	}
+
 	if len(missingOutputs) > 0 {
 		return nil, fmt.Errorf("missing required terraform outputs: %s", strings.Join(missingOutputs, ", "))
 	}
@@ -278,14 +287,16 @@ func newListCommand() *cobra.Command {
 			status, _ := cmd.Flags().GetString("status")
 			since, _ := cmd.Flags().GetString("since")
 			
-			// Load resources to get table name
+			// Load resources to get table name and region
 			resources, err := loadTerraformState(tfDir)
 			if err != nil {
 				return fmt.Errorf("failed to load terraform state: %w", err)
 			}
 			
-			// Initialize AWS session and DynamoDB client
-			sess := session.Must(session.NewSession())
+			// Initialize AWS session and DynamoDB client with proper region
+			sess := session.Must(session.NewSession(&aws.Config{
+				Region: aws.String(resources.Region),
+			}))
 			db := dynamodb.New(sess)
 			
 			// Build query based on flags
@@ -410,17 +421,26 @@ func validateResources(r *TextractorResources) error {
 	if r.SNSTopic == "" {
 		missing = append(missing, "sns_topic_arn")
 	}
-	if r.LambdaARN == "" {
-		missing = append(missing, "lambda_arn")
+	if r.DocumentProcessorARN == "" {
+		missing = append(missing, "document_processor_arn")
+	}
+	if r.CompletionProcessorARN == "" {
+		missing = append(missing, "completion_processor_arn")
 	}
 	if r.Region == "" {
 		missing = append(missing, "region")
 	}
-	if r.FunctionName == "" {
-		missing = append(missing, "function_name")
+	if r.DocumentProcessorName == "" {
+		missing = append(missing, "document_processor_name")
+	}
+	if r.CompletionProcessorName == "" {
+		missing = append(missing, "completion_processor_name")
 	}
 	if r.JobsTable == "" {
 		missing = append(missing, "jobs_table_name")
+	}
+	if r.NotificationsQueue == "" {
+		missing = append(missing, "notifications_queue_url")
 	}
 
 	if len(missing) > 0 {

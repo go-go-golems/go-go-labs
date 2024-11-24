@@ -117,9 +117,9 @@ func updateJobStatus(jobID string, state string, errorMsg string, dbClient *dyna
 			},
 		},
 		UpdateExpression: aws.String("SET #status = :status, #error = :error"),
-		ExpressionAttributeNames: map[string]string{
-			"#status": "Status",
-			"#error":  "Error",
+		ExpressionAttributeNames: map[string]*string{
+			"#status": aws.String("Status"),
+			"#error":  aws.String("Error"),
 		},
 		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
 			":status": {
