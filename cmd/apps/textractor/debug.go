@@ -58,6 +58,13 @@ func addDebugCommands(rootCmd *cobra.Command) {
 		Args:  cobra.ExactArgs(1),
 		Run:   debugTest,
 	})
+
+	// Submit debugging
+	debugCmd.AddCommand(&cobra.Command{
+		Use:   "submit-flow",
+		Short: "Debug submit command flow",
+		Run:   debugSubmitFlow,
+	})
 }
 
 func runAWSCommand(args ...string) error {
@@ -216,5 +223,36 @@ func debugTest(cmd *cobra.Command, args []string) {
 		"--follow")
 	if err != nil {
 		log.Printf("Failed to get Lambda logs: %v", err)
+	}
+}
+
+func debugSubmitFlow(cmd *cobra.Command, args []string) {
+	resources, err := loadTerraformState(tfDir)
+	if err != nil {
+		log.Fatalf("Failed to load Terraform state: %v", err)
+	}
+
+	fmt.Println("🔍 Debugging submit flow")
+
+	// Check S3 bucket permissions
+	err = runAWSCommand("s3api", "get-bucket-acl",
+		"--bucket", resources.S3Bucket)
+	if err != nil {
+		log.Printf("Failed to check S3 bucket ACL: %v", err)
+	}
+
+	// Check DynamoDB table
+	err = runAWSCommand("dynamodb", "describe-table",
+		"--table-name", resources.JobsTable)
+	if err != nil {
+		log.Printf("Failed to describe DynamoDB table: %v", err)
+	}
+
+	// Check SQS permissions
+	err = runAWSCommand("sqs", "get-queue-attributes",
+		"--queue-url", resources.InputQueue,
+		"--attribute-names", "Policy")
+	if err != nil {
+		log.Printf("Failed to check SQS policy: %v", err)
 	}
 } 

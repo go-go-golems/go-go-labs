@@ -46,11 +46,10 @@ The workflow is:
 Each document processing request is tracked as a job with the following metadata:
 
 ```go
-go
 type TextractJob struct {
   JobID string // Unique identifier
   DocumentKey string // S3 key of the original PDF
-  Status string // SUBMITTED, PROCESSING, COMPLETED, FAILED
+  Status string // UPLOADING, SUBMITTED, PROCESSING, COMPLETED, FAILED, ERROR
   SubmittedAt time.Time
   CompletedAt time.Time
   TextractID string // AWS Textract Job ID
@@ -59,6 +58,14 @@ type TextractJob struct {
 }
 ```
 
+### Job States
+
+1. UPLOADING: Initial state when job is created and file upload begins
+2. SUBMITTED: File successfully uploaded to S3, ready for processing
+3. PROCESSING: Document is being processed by Textract
+4. COMPLETED: Processing finished successfully
+5. FAILED: Textract processing failed
+6. ERROR: System error occurred (upload failed, etc.)
 
 ### Job Storage
 Jobs are tracked in DynamoDB with the following structure:
@@ -77,9 +84,10 @@ This design allows:
 
 1. Document Submission:
    - Generate unique JobID
-   - Create job record in DynamoDB (status: SUBMITTED)
+   - Create job record in DynamoDB (status: UPLOADING)
    - Upload PDF to S3
-   - Send message to input SQS queue
+   - On successful upload, update status to SUBMITTED
+   - On upload failure, update status to ERROR with error message
 
 2. Processing:
    - Lambda receives message from input queue
@@ -96,6 +104,7 @@ This design allows:
 
 4. Error Handling:
    - If processing fails, status updated to FAILED
+   - If system error occurs, status updated to ERROR
    - Error message stored in job record
    - Allows for retry mechanisms and debugging
 

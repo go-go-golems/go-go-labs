@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -44,6 +45,7 @@ type TextractJob struct {
 
 var (
 	tfDir string
+	configFile string
 )
 
 func main() {
@@ -53,6 +55,37 @@ func main() {
 	}
 
 	rootCmd.PersistentFlags().StringVar(&tfDir, "tf-dir", "terraform", "Directory containing Terraform state")
+	rootCmd.PersistentFlags().StringVar(&configFile, "config", "", "JSON config file containing resource configuration")
+
+	// Add save-config subcommand
+	saveConfigCmd := &cobra.Command{
+		Use:   "save-config",
+		Short: "Save resource configuration to JSON file",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			resources, err := loadTerraformState(tfDir)
+			if err != nil {
+				return fmt.Errorf("failed to load terraform state: %w", err)
+			}
+
+			output := configFile
+			if output == "" {
+				output = "textractor-config.json"
+			}
+
+			data, err := json.MarshalIndent(resources, "", "  ")
+			if err != nil {
+				return fmt.Errorf("failed to marshal config: %w", err)
+			}
+
+			if err := os.WriteFile(output, data, 0644); err != nil {
+				return fmt.Errorf("failed to write config file: %w", err)
+			}
+
+			fmt.Printf("Configuration saved to %s\n", output)
+			return nil
+		},
+	}
+	rootCmd.AddCommand(saveConfigCmd)
 
 	// Add debug-vars subcommand
 	debugVarsCmd := &cobra.Command{
@@ -76,6 +109,10 @@ func main() {
 	// Add list command
 	listCmd := newListCommand()
 	rootCmd.AddCommand(listCmd)
+
+	// Add submit command
+	submitCmd := newSubmitCommand()
+	rootCmd.AddCommand(submitCmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
@@ -120,6 +157,27 @@ func run(cmd *cobra.Command, args []string) {
 }
 
 func loadTerraformState(tfDir string) (*TextractorResources, error) {
+	// First try loading from config file if specified
+	if configFile != "" {
+		data, err := os.ReadFile(configFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read config file: %w", err)
+		}
+
+		var resources TextractorResources
+		if err := json.Unmarshal(data, &resources); err != nil {
+			return nil, fmt.Errorf("failed to parse config file: %w", err)
+		}
+
+		// Validate required fields
+		if err := validateResources(&resources); err != nil {
+			return nil, fmt.Errorf("invalid config file: %w", err)
+		}
+
+		return &resources, nil
+	}
+
+	// Fall back to loading from Terraform state
 	absPath, err := filepath.Abs(tfDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get absolute path: %w", err)
@@ -334,4 +392,40 @@ func printJobs(items []map[string]*dynamodb.AttributeValue) {
 			fmt.Printf("    Error: %s\n", job.Error)
 		}
 	}
+}
+
+// Add validation function
+func validateResources(r *TextractorResources) error {
+	var missing []string
+
+	if r.S3Bucket == "" {
+		missing = append(missing, "s3_bucket")
+	}
+	if r.InputQueue == "" {
+		missing = append(missing, "input_queue_url")
+	}
+	if r.OutputQueue == "" {
+		missing = append(missing, "output_queue_url")
+	}
+	if r.SNSTopic == "" {
+		missing = append(missing, "sns_topic_arn")
+	}
+	if r.LambdaARN == "" {
+		missing = append(missing, "lambda_arn")
+	}
+	if r.Region == "" {
+		missing = append(missing, "region")
+	}
+	if r.FunctionName == "" {
+		missing = append(missing, "function_name")
+	}
+	if r.JobsTable == "" {
+		missing = append(missing, "jobs_table_name")
+	}
+
+	if len(missing) > 0 {
+		return fmt.Errorf("missing required fields: %s", strings.Join(missing, ", "))
+	}
+
+	return nil
 } 

@@ -1,0 +1,10 @@
+{
+  "s3_bucket": "textractor-documents-dev-12345",
+  "input_queue_url": "https://sqs.us-east-1.amazonaws.com/016596391852/textractor-dev-input-queue",
+  "output_queue_url": "https://sqs.us-east-1.amazonaws.com/016596391852/textractor-dev-output-queue",
+  "sns_topic_arn": "arn:aws:sns:us-east-1:016596391852:textractor-dev-textract-completion",
+  "lambda_arn": "arn:aws:lambda:us-east-1:016596391852:function:textractor-dev-textract-processor",
+  "region": "us-east-1",
+  "function_name": "textractor-dev-textract-processor",
+  "jobs_table_name": "textractor-dev-jobs"
+}

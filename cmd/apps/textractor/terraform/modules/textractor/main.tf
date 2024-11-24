@@ -109,28 +109,28 @@ resource "aws_lambda_function" "textract_processor" {
 }
 
 # EventBridge Rule
-resource "aws_cloudwatch_event_rule" "pdf_upload" {
-  name        = "${var.prefix}-pdf-upload"
-  description = "Capture PDF uploads to S3"
+# resource "aws_cloudwatch_event_rule" "pdf_upload" {
+#   name        = "${var.prefix}-pdf-upload"
+#   description = "Capture PDF uploads to S3"
 
-  event_pattern = jsonencode({
-    source      = ["aws.s3"]
-    detail-type = ["AWS API Call via CloudTrail"]
-    detail = {
-      eventSource = ["s3.amazonaws.com"]
-      eventName   = ["PutObject"]
-      requestParameters = {
-        bucketName = [aws_s3_bucket.document_bucket.id]
-      }
-    }
-  })
-}
+#   event_pattern = jsonencode({
+#     source      = ["aws.s3"]
+#     detail-type = ["AWS API Call via CloudTrail"]
+#     detail = {
+#       eventSource = ["s3.amazonaws.com"]
+#       eventName   = ["PutObject"]
+#       requestParameters = {
+#         bucketName = [aws_s3_bucket.document_bucket.id]
+#       }
+#     }
+#   })
+# }
 
-resource "aws_cloudwatch_event_target" "lambda" {
-  rule      = aws_cloudwatch_event_rule.pdf_upload.name
-  target_id = "SendToLambda"
-  arn       = aws_lambda_function.textract_processor.arn
-}
+# resource "aws_cloudwatch_event_target" "lambda" {
+#   rule      = aws_cloudwatch_event_rule.pdf_upload.name
+#   target_id = "SendToLambda"
+#   arn       = aws_lambda_function.textract_processor.arn
+# }
 
 # IAM Roles and Policies
 resource "aws_iam_role" "lambda_role" {
