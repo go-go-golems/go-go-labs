@@ -97,3 +97,14 @@ output "notification_topic_arn" {
   description = "The ARN of the SNS topic for application notifications"
   value = module.textractor.notification_topic_arn
 }
+
+# Output bucket outputs
+output "output_bucket_name" {
+  description = "The name of the S3 bucket used for Textract outputs"
+  value       = module.textractor.output_bucket_name
+}
+
+output "output_bucket_arn" {
+  description = "The ARN of the S3 bucket used for Textract outputs"
+  value       = module.textractor.output_bucket_arn
+}

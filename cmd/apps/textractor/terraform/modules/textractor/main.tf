@@ -8,6 +8,16 @@ resource "aws_s3_bucket" "document_bucket" {
   }
 }
 
+# Output S3 Bucket
+resource "aws_s3_bucket" "output_bucket" {
+  bucket = "${var.bucket_name}-output"
+
+  tags = {
+    Name        = "Textractor Output Bucket"
+    Environment = var.environment
+  }
+}
+
 # SQS Queue Policy
 resource "aws_sqs_queue_policy" "input_queue_policy" {
   queue_url = aws_sqs_queue.input_queue.id
@@ -126,12 +136,14 @@ resource "aws_lambda_function" "document_processor" {
   environment {
     variables = {
       JOBS_TABLE = aws_dynamodb_table.jobs.name
-      TEXTRACT_ROLE_ARN = aws_iam_role.textract_role.arn
       SNS_TOPIC_ARN = aws_sns_topic.textract_completion.arn
+      TEXTRACT_ROLE_ARN = aws_iam_role.textract_role.arn
       NOTIFICATION_TOPIC_ARN = aws_sns_topic.notifications.arn
-      STORAGE_BUCKET = aws_s3_bucket.document_bucket.id
+      OUTPUT_BUCKET = aws_s3_bucket.output_bucket.id
     }
   }
+
+  tags = var.tags
 }
 
 # Completion processor Lambda
@@ -148,13 +160,15 @@ resource "aws_lambda_function" "completion_processor" {
     variables = {
       JOBS_TABLE = aws_dynamodb_table.jobs.name
       NOTIFICATION_TOPIC_ARN = aws_sns_topic.notifications.arn
-      STORAGE_BUCKET = aws_s3_bucket.document_bucket.id
+      OUTPUT_BUCKET = aws_s3_bucket.output_bucket.id
     }
   }
+
+  tags = var.tags
 }
 
 # Update SQS trigger to point to document processor
-resource "aws_lambda_permission" "allow_sqs" {
+resource "aws_lambda_permission" "allow_input_sqs" {
   statement_id  = "AllowExecutionFromSQS"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.document_processor.function_name
@@ -168,6 +182,15 @@ resource "aws_lambda_event_source_mapping" "sqs_trigger" {
   batch_size       = 1
   enabled          = true
 }
+
+resource "aws_lambda_permission" "allow_completion_sqs" {
+  statement_id  = "AllowExecutionFromSQS"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.completion_processor.function_name
+  principal     = "sqs.amazonaws.com"
+  source_arn    = aws_sqs_queue.completion_queue.arn
+}
+
 
 # Add SQS trigger for completion processor
 resource "aws_lambda_event_source_mapping" "completion_sqs_trigger" {
@@ -236,7 +259,10 @@ resource "aws_iam_role_policy" "document_processor_policy" {
         Action = [
           "sns:Publish"
         ]
-        Resource = [aws_sns_topic.textract_completion.arn]
+        Resource = [
+          aws_sns_topic.notifications.arn,
+          aws_sns_topic.textract_completion.arn
+        ]
       },
       {
         Effect = "Allow"
@@ -294,6 +320,16 @@ resource "aws_iam_role_policy" "completion_processor_policy" {
           "s3:PutObject"
         ]
         Resource = "${aws_s3_bucket.document_bucket.arn}/*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "sns:Publish"
+        ]
+        Resource = [
+          aws_sns_topic.notifications.arn,
+          aws_sns_topic.textract_completion.arn
+        ]
       },
       {
         Effect = "Allow"
@@ -670,6 +706,94 @@ resource "aws_iam_role_policy" "sns_logging_policy" {
         Resource = [
           "${aws_cloudwatch_log_group.textract_sns_logs.arn}:*"
         ]
+      }
+    ]
+  })
+}
+
+# Add output bucket permissions to completion processor role
+resource "aws_iam_role_policy" "completion_processor_s3" {
+  name = "${var.prefix}-completion-processor-s3"
+  role = aws_iam_role.completion_processor_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:PutObject",
+          "s3:GetObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          aws_s3_bucket.output_bucket.arn,
+          "${aws_s3_bucket.output_bucket.arn}/*"
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "textract_s3" {
+  name = "${var.prefix}-textract-s3"
+  role = aws_iam_role.textract_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:PutObject"
+        ]
+        Resource = [
+          "${aws_s3_bucket.output_bucket.arn}/*"
+        ]
+      }
+    ]
+  })
+}
+
+# Add S3 bucket policy to allow Textract access
+resource "aws_s3_bucket_policy" "document_bucket_policy" {
+  bucket = aws_s3_bucket.document_bucket.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid = "AllowTextractAccess"
+        Effect = "Allow"
+        Principal = {
+          Service = "textract.amazonaws.com"
+        }
+        Action = [
+          "s3:GetObject"
+        ]
+        Resource = "${aws_s3_bucket.document_bucket.arn}/*"
+      }
+    ]
+  })
+}
+
+# Add S3 bucket policy for output bucket
+resource "aws_s3_bucket_policy" "output_bucket_policy" {
+  bucket = aws_s3_bucket.output_bucket.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid = "AllowTextractAccess"
+        Effect = "Allow"
+        Principal = {
+          Service = "textract.amazonaws.com"
+        }
+        Action = [
+          "s3:PutObject"
+        ]
+        Resource = "${aws_s3_bucket.output_bucket.arn}/*"
       }
     ]
   })

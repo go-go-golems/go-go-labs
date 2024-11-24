@@ -26,19 +26,6 @@ async function getTextractResults(textractJobId) {
     return results;
 }
 
-async function saveResults(bucket, jobId, results) {
-    const resultKey = getResultKey(jobId);
-    
-    await s3.putObject({
-        Bucket: bucket,
-        Key: resultKey,
-        Body: JSON.stringify(results),
-        ContentType: 'application/json'
-    }).promise();
-
-    return resultKey;
-}
-
 exports.handler = async (event) => {
     console.log(`${logPrefix} Processing SNS event:`, JSON.stringify(event));
 
@@ -55,11 +42,6 @@ exports.handler = async (event) => {
 
             if (status === 'SUCCEEDED') {
                 const results = await getTextractResults(textractJobId);
-                const resultKey = await saveResults(
-                    process.env.STORAGE_BUCKET,
-                    JobID,
-                    results
-                );
 
                 const details = {
                     ResultKey: resultKey,

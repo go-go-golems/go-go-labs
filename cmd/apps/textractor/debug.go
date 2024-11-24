@@ -110,6 +110,22 @@ func addDebugCommands(rootCmd *cobra.Command) {
 		Args:  cobra.ExactArgs(1),
 		Run:   debugTextractJob,
 	})
+
+	// Add output S3 debugging
+	outputS3DebugCmd := &cobra.Command{
+		Use:   "output-s3",
+		Short: "Debug output S3 bucket configuration",
+		Run:   debugOutputS3,
+	}
+	debugCmd.AddCommand(outputS3DebugCmd)
+
+	outputS3DebugCmd.AddCommand(&cobra.Command{
+		Use:   "ls [prefix]",
+		Short: "List files in output S3 bucket",
+		Long:  "List files in output S3 bucket. Optionally specify a prefix to filter results",
+		Args:  cobra.MaximumNArgs(1),
+		Run:   debugOutputS3List,
+	})
 }
 
 func runAWSCommand(args ...string) error {
@@ -518,5 +534,48 @@ func debugTextractJob(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Printf("Failed to get Textract job status: %v", err)
 		return
+	}
+}
+
+func debugOutputS3(cmd *cobra.Command, args []string) {
+	resources, err := loadTerraformState(tfDir)
+	if err != nil {
+		log.Fatalf("Failed to load Terraform state: %v", err)
+	}
+
+	fmt.Println("🔍 Debugging output S3 bucket:", resources.OutputS3Bucket)
+
+	// Get bucket notification configuration
+	err = runAWSCommand("s3api", "get-bucket-notification-configuration",
+		"--bucket", resources.OutputS3Bucket)
+	if err != nil {
+		log.Printf("Failed to get bucket notification configuration: %v", err)
+	}
+
+	// List recent CloudTrail events
+	err = runAWSCommand("cloudtrail", "lookup-events",
+		"--lookup-attributes", fmt.Sprintf("AttributeKey=ResourceName,AttributeValue=%s", resources.OutputS3Bucket))
+	if err != nil {
+		log.Printf("Failed to get CloudTrail events: %v", err)
+	}
+}
+
+func debugOutputS3List(cmd *cobra.Command, args []string) {
+	resources, err := loadTerraformState(tfDir)
+	if err != nil {
+		log.Fatalf("Failed to load Terraform state: %v", err)
+	}
+
+	fmt.Printf("📂 Listing files in output bucket: %s\n", resources.OutputS3Bucket)
+
+	lsArgs := []string{"s3", "ls", fmt.Sprintf("s3://%s", resources.OutputS3Bucket)}
+	if len(args) > 0 {
+		lsArgs = append(lsArgs, fmt.Sprintf("s3://%s/%s", resources.OutputS3Bucket, args[0]))
+	}
+	lsArgs = append(lsArgs, "--recursive")
+
+	err = runAWSCommand(lsArgs...)
+	if err != nil {
+		log.Printf("Failed to list bucket contents: %v", err)
 	}
 } 

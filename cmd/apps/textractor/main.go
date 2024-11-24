@@ -38,6 +38,7 @@ type TextractorResources struct {
 	InputDLQURL                 string `json:"input_dlq_url"`
 	CompletionDLQURL            string `json:"completion_dlq_url"`
 	NotificationTopic           string `json:"notification_topic_arn"`
+	OutputS3Bucket              string `json:"output_bucket_name"`
 }
 
 // Add TextractJob struct as defined in PLAN.md
@@ -178,6 +179,7 @@ func run(cmd *cobra.Command, args []string) {
 	fmt.Printf("  CloudTrail Logs:             %s\n", resources.CloudTrailLogGroup)
 	fmt.Printf("  Input DLQ:                    %s\n", resources.InputDLQURL)
 	fmt.Printf("  Completion DLQ:               %s\n", resources.CompletionDLQURL)
+	fmt.Printf("  Output S3 Bucket:             %s\n", resources.OutputS3Bucket)
 }
 
 func loadTerraformState(tfDir string) (*TextractorResources, error) {
@@ -266,6 +268,7 @@ func loadTerraformState(tfDir string) (*TextractorResources, error) {
 	setOutput(&resources.InputDLQURL, "input_dlq_url")
 	setOutput(&resources.CompletionDLQURL, "completion_dlq_url")
 	setOutput(&resources.NotificationTopic, "notification_topic_arn")
+	setOutput(&resources.OutputS3Bucket, "output_bucket_name")
 
 	if len(missingOutputs) > 0 {
 		return nil, fmt.Errorf("missing required terraform outputs: %s", strings.Join(missingOutputs, ", "))
@@ -442,6 +445,9 @@ func validateResources(r *TextractorResources) error {
 	}
 	if r.CompletionDLQURL == "" {
 		missing = append(missing, "completion_dlq_url")
+	}
+	if r.OutputS3Bucket == "" {
+		missing = append(missing, "output_bucket_name")
 	}
 
 	if len(missing) > 0 {

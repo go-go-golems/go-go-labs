@@ -19,6 +19,10 @@ async function startTextractJob(bucket, key, jobId) {
             RoleArn: process.env.TEXTRACT_ROLE_ARN,
             SNSTopicArn: process.env.SNS_TOPIC_ARN
         },
+        OutputConfig: {
+            S3Bucket: process.env.OUTPUT_BUCKET,
+            // S3Prefix: `results/${jobId}/`
+        },
         FeatureTypes: ['TABLES', 'FORMS']
     };
 
