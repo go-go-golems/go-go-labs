@@ -30,7 +30,10 @@ resource "aws_sns_topic_policy" "textract_completion_policy" {
       {
         Effect = "Allow"
         Principal = {
-          Service = "textract.amazonaws.com"
+          Service = [
+            "textract.amazonaws.com",
+            "lambda.amazonaws.com"
+          ]
         }
         Action = "sns:Publish"
         Resource = aws_sns_topic.textract_completion.arn

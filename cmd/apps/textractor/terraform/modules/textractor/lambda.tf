@@ -27,7 +27,7 @@ resource "aws_lambda_function" "document_processor" {
     variables = {
       JOBS_TABLE = aws_dynamodb_table.jobs.name
       SNS_TOPIC_ARN = aws_sns_topic.textract_completion.arn
-      TEXTRACT_ROLE_ARN = aws_iam_role.textract_role.arn
+      TEXTRACT_ROLE_ARN = aws_iam_role.document_processor_role.arn
       NOTIFICATION_TOPIC_ARN = aws_sns_topic.notifications.arn
       OUTPUT_BUCKET = aws_s3_bucket.output_bucket.id
     }
@@ -110,7 +110,10 @@ resource "aws_iam_role" "document_processor_role" {
         Action = "sts:AssumeRole"
         Effect = "Allow"
         Principal = {
-          Service = "lambda.amazonaws.com"
+          Service = [
+            "lambda.amazonaws.com",
+            "textract.amazonaws.com"
+          ]
         }
       }
     ]
@@ -126,7 +129,10 @@ resource "aws_iam_role" "completion_processor_role" {
       Action = "sts:AssumeRole"
       Effect = "Allow"
       Principal = {
-        Service = "lambda.amazonaws.com"
+        Service = [
+          "lambda.amazonaws.com",
+          "textract.amazonaws.com"
+        ]
       }
     }]
   })
@@ -219,9 +225,31 @@ resource "aws_iam_role_policy" "completion_processor_policy" {
       {
         Effect = "Allow"
         Action = [
+          "sqs:ReceiveMessage",
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes",
+          "sqs:ChangeMessageVisibility"
+        ]
+        Resource = [aws_sqs_queue.completion_queue.arn]
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "textract:GetDocumentAnalysis"
         ]
         Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:ListBucket",
+          "s3:PutObject"
+        ]
+        Resource = [
+          aws_s3_bucket.output_bucket.arn,
+          "${aws_s3_bucket.output_bucket.arn}/*"
+        ]
       },
       {
         Effect = "Allow"

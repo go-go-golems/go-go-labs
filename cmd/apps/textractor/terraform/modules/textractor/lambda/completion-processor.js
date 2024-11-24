@@ -18,6 +18,7 @@ async function getTextractResults(textractJobId) {
             NextToken: nextToken
         };
 
+        console.log(`${logPrefix} Getting results for job ${textractJobId} with params:`, JSON.stringify(params));
         const response = await textract.getDocumentAnalysis(params).promise();
         results.push(...response.Blocks);
         nextToken = response.NextToken;
@@ -41,8 +42,9 @@ exports.handler = async (event) => {
             console.log(`${logPrefix} Processing completion for job ${JobID} (Textract ID: ${textractJobId})`);
 
             if (status === 'SUCCEEDED') {
+                console.log(`${logPrefix} Textract job ${textractJobId} succeeded`);
                 const results = await getTextractResults(textractJobId);
-
+                const resultKey = getResultKey(JobID);
                 const details = {
                     ResultKey: resultKey,
                     CompletedAt: new Date().toISOString()
