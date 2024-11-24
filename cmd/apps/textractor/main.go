@@ -8,6 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/hashicorp/terraform-exec/tfexec"
 	"github.com/spf13/cobra"
 )
@@ -31,15 +34,56 @@ func main() {
 	rootCmd := &cobra.Command{
 		Use:   "textractor",
 		Short: "Manage Textractor AWS resources and process PDFs",
-		Run:   run,
 	}
 
-	rootCmd.Flags().StringVar(&tfDir, "tf-dir", "terraform", "Directory containing Terraform state")
+	rootCmd.PersistentFlags().StringVar(&tfDir, "tf-dir", "terraform", "Directory containing Terraform state")
+
+	// Add debug-vars subcommand
+	debugVarsCmd := &cobra.Command{
+		Use:   "debug-vars",
+		Short: "Print environment variables for debugging",
+		Run:   printDebugVars,
+	}
+	rootCmd.AddCommand(debugVarsCmd)
+
+	// Add run command
+	runCmd := &cobra.Command{
+		Use:   "run",
+		Short: "Run the Textractor application",
+		Run:   run,
+	}
+	rootCmd.AddCommand(runCmd)
+
+	// Add debug commands
+	addDebugCommands(rootCmd)
+
+	// Add list command
+	listCmd := newListCommand()
+	rootCmd.AddCommand(listCmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+}
+
+func printDebugVars(cmd *cobra.Command, args []string) {
+	resources, err := loadTerraformState(tfDir)
+	if err != nil {
+		log.Fatalf("Failed to load Terraform state: %v", err)
+	}
+
+	// Print in a format suitable for shell script
+	fmt.Printf("export FUNCTION_NAME=\"%s\"\n", resources.FunctionName)
+	fmt.Printf("export BUCKET_NAME=\"%s\"\n", resources.S3Bucket)
+	fmt.Printf("export INPUT_QUEUE_URL=\"%s\"\n", resources.InputQueue)
+	fmt.Printf("export OUTPUT_QUEUE_URL=\"%s\"\n", resources.OutputQueue)
+	fmt.Printf("export TOPIC_ARN=\"%s\"\n", resources.SNSTopic)
+	fmt.Printf("export AWS_REGION=\"%s\"\n", resources.Region)
+
+	// Print helper message
+	fmt.Println("\n# To use these variables, run:")
+	fmt.Println("# eval $(textractor debug-vars)")
 }
 
 func run(cmd *cobra.Command, args []string) {
@@ -144,4 +188,40 @@ func loadTerraformState(tfDir string) (*TextractorResources, error) {
 	}
 
 	return resources, nil
+}
+
+func newListCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "list",
+		Short: "List Textract jobs",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			status, _ := cmd.Flags().GetString("status")
+			since, _ := cmd.Flags().GetString("since")
+			
+			// Initialize AWS session and DynamoDB client
+			sess := session.Must(session.NewSession())
+			db := dynamodb.New(sess)
+			
+			// Build query based on flags
+			input := &dynamodb.QueryInput{
+				TableName: aws.String("TextractorJobs"),
+			}
+			
+			if status != "" {
+				// Query GSI1 for specific status
+				input.IndexName = aws.String("Status-SubmittedAt-Index")
+				// ... set key conditions
+			}
+			
+			// Execute query and format results
+			// ...
+			
+			return nil
+		},
+	}
+	
+	cmd.Flags().String("status", "", "Filter by job status")
+	cmd.Flags().String("since", "", "Show jobs since date (YYYY-MM-DD)")
+	
+	return cmd
 } 

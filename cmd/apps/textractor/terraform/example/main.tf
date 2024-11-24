@@ -36,4 +36,14 @@ output "function_name" {
 
 output "region" {
   value = module.textractor.region
+}
+
+output "lambda_log_group" {
+  description = "Name of the CloudWatch Log Group for the Lambda function"
+  value       = module.textractor.lambda_log_group
+}
+
+output "cloudtrail_log_group" {
+  description = "Name of the CloudWatch Log Group for CloudTrail"
+  value       = module.textractor.cloudtrail_log_group
 } 

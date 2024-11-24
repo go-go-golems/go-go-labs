@@ -181,4 +181,140 @@ resource "aws_iam_role_policy" "lambda_policy" {
   })
 }
 
-data "aws_region" "current" {} 
+# Create CloudWatch Log Group for Lambda
+resource "aws_cloudwatch_log_group" "lambda_logs" {
+  name              = "/aws/lambda/${aws_lambda_function.textract_processor.function_name}"
+  retention_in_days = 14  # Adjust retention period as needed
+}
+
+# Add necessary permissions to Lambda role
+resource "aws_iam_role_policy_attachment" "lambda_logs" {
+  role       = aws_iam_role.lambda_role.name
+  policy_arn = aws_iam_policy.lambda_logging.arn
+}
+
+resource "aws_iam_policy" "lambda_logging" {
+  name        = "${var.prefix}-lambda-logging"
+  description = "IAM policy for logging from a lambda"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:GetLogEvents",
+          "logs:StartQuery",
+          "logs:GetQueryResults",
+          "logs:DescribeLogStreams",
+          "cloudtrail:LookupEvents"
+        ]
+        Resource = [
+          # Lambda function logs
+          "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${var.prefix}-textract-processor:*",
+          # Allow Logs Insights queries across all log groups
+          "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:*"
+        ]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "cloudtrail:LookupEvents"
+        ]
+        Resource = ["*"]
+      }
+    ]
+  })
+}
+
+# Create CloudWatch Log Group for CloudTrail
+resource "aws_cloudwatch_log_group" "cloudtrail_logs" {
+  name              = "/aws/cloudtrail/${var.prefix}-textractor"
+  retention_in_days = 14
+}
+
+# Add data sources if not already present
+data "aws_region" "current" {}
+data "aws_caller_identity" "current" {}
+
+# Add DynamoDB table for job tracking
+resource "aws_dynamodb_table" "jobs" {
+  name           = "${var.prefix}-jobs"
+  billing_mode   = "PAY_PER_REQUEST"
+  hash_key       = "JobID"
+  
+  attribute {
+    name = "JobID"
+    type = "S"
+  }
+  
+  attribute {
+    name = "Status"
+    type = "S"
+  }
+  
+  attribute {
+    name = "SubmittedAt"
+    type = "S"
+  }
+  
+  attribute {
+    name = "DocumentKey"
+    type = "S"
+  }
+
+  # GSI1: Status-SubmittedAt for listing by status
+  global_secondary_index {
+    name               = "Status-SubmittedAt-Index"
+    hash_key           = "Status"
+    range_key          = "SubmittedAt"
+    projection_type    = "ALL"
+  }
+
+  # GSI2: DocumentKey for looking up jobs by document
+  global_secondary_index {
+    name               = "DocumentKey-Index"
+    hash_key           = "DocumentKey"
+    projection_type    = "ALL"
+  }
+
+  tags = var.tags
+
+  point_in_time_recovery {
+    enabled = true
+  }
+
+  ttl {
+    enabled        = true
+    attribute_name = "TTL"
+  }
+}
+
+# Add DynamoDB permissions to Lambda role
+resource "aws_iam_role_policy" "lambda_dynamodb" {
+  name = "${var.prefix}-lambda-dynamodb"
+  role = aws_iam_role.lambda_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:PutItem",
+          "dynamodb:GetItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:Query",
+          "dynamodb:Scan"
+        ]
+        Resource = [
+          aws_dynamodb_table.jobs.arn,
+          "${aws_dynamodb_table.jobs.arn}/index/*"
+        ]
+      }
+    ]
+  })
+} 
