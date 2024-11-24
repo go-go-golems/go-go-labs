@@ -10,11 +10,22 @@ module "textractor" {
   bucket_name = "textractor-documents-dev-12345"  # Must be globally unique
 }
 
-# S3 and SQS outputs
+# S3 outputs
 output "bucket_name" {
   value = module.textractor.bucket_name
 }
 
+output "document_bucket" {
+  description = "The name of the S3 bucket used for document storage"
+  value       = module.textractor.document_bucket
+}
+
+output "document_bucket_arn" {
+  description = "The ARN of the S3 bucket used for document storage"
+  value       = module.textractor.document_bucket_arn
+}
+
+# Queue outputs
 output "input_queue_url" {
   value = module.textractor.input_queue_url
 }

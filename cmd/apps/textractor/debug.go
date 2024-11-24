@@ -4,6 +4,11 @@ import (
 	"fmt"
 	"log"
 	"os/exec"
+	"context"
+	"os"
+	"time"
+	"os/signal"
+	"syscall"
 
 	"github.com/spf13/cobra"
 )
@@ -254,12 +259,83 @@ func debugTest(cmd *cobra.Command, args []string) {
 
 	fmt.Println("✅ File uploaded, monitoring processing...")
 
-	// Monitor Lambda logs
-	err = runAWSCommand("logs", "tail",
-		fmt.Sprintf("/aws/lambda/%s", resources.FunctionName),
-		"--follow")
-	if err != nil {
-		log.Printf("Failed to get Lambda logs: %v", err)
+	// Start monitoring both processors and notifications in parallel
+	errChan := make(chan error, 3)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Monitor document processor logs
+	go func() {
+		cmd := exec.CommandContext(ctx, "aws", "logs", "tail",
+			fmt.Sprintf("/aws/lambda/%s", resources.DocumentProcessorName),
+			"--follow")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		errChan <- cmd.Run()
+	}()
+
+	// Monitor completion processor logs
+	go func() {
+		cmd := exec.CommandContext(ctx, "aws", "logs", "tail",
+			fmt.Sprintf("/aws/lambda/%s", resources.CompletionProcessorName),
+			"--follow")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		errChan <- cmd.Run()
+	}()
+
+	// Monitor notifications queue
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				errChan <- nil
+				return
+			case <-ticker.C:
+				cmd := exec.Command("aws", "sqs", "receive-message",
+					"--queue-url", resources.NotificationsQueue,
+					"--max-number-of-messages", "10",
+					"--wait-time-seconds", "5",
+					"--attribute-names", "All")
+				cmd.Stdout = os.Stdout
+				cmd.Stderr = os.Stderr
+				if err := cmd.Run(); err != nil {
+					errChan <- fmt.Errorf("failed to receive notifications: %v", err)
+					return
+				}
+			}
+		}
+	}()
+
+	// Wait for user interrupt
+	fmt.Println("\n📋 Monitoring processing (Ctrl+C to stop)...")
+	fmt.Println("- Document processor logs")
+	fmt.Println("- Completion processor logs")
+	fmt.Println("- Notifications queue")
+
+	// Handle interrupt
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	select {
+	case <-sigChan:
+		fmt.Println("\n🛑 Stopping monitoring...")
+		cancel()
+	case err := <-errChan:
+		if err != nil {
+			log.Printf("Error during monitoring: %v", err)
+		}
+		cancel()
+	}
+
+	// Wait for all goroutines to finish
+	for i := 0; i < 3; i++ {
+		if err := <-errChan; err != nil {
+			log.Printf("Error during shutdown: %v", err)
+		}
 	}
 }
 

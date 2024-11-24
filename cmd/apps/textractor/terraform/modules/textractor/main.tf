@@ -109,11 +109,11 @@ resource "aws_lambda_function" "document_processor" {
 
   environment {
     variables = {
-      SNS_TOPIC_ARN   = aws_sns_topic.textract_completion.arn
-      AWS_LAMBDA_ROLE = aws_iam_role.document_processor_role.arn
+      JOBS_TABLE         = aws_dynamodb_table.jobs.name
+      SNS_TOPIC_ARN     = aws_sns_topic.textract_completion.arn
+      TEXTRACT_ROLE_ARN = aws_iam_role.textract_service_role.arn
+      STORAGE_BUCKET    = aws_s3_bucket.document_bucket.id
       NOTIFICATIONS_QUEUE_URL = aws_sqs_queue.notifications.url
-      JOBS_TABLE     = aws_dynamodb_table.jobs.name
-      BUCKET_NAME    = aws_s3_bucket.document_bucket.id
     }
   }
 }
@@ -480,6 +480,43 @@ resource "aws_sqs_queue_policy" "notifications_policy" {
         }
         Action = "sqs:SendMessage"
         Resource = aws_sqs_queue.notifications.arn
+      }
+    ]
+  })
+}
+
+# Add IAM role for Textract if not already present
+resource "aws_iam_role" "textract_service_role" {
+  name = "${var.prefix}-textract-service-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "textract.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+# Add policy to allow Textract to publish to SNS
+resource "aws_iam_role_policy" "textract_sns" {
+  name = "${var.prefix}-textract-sns"
+  role = aws_iam_role.textract_service_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "sns:Publish"
+        ]
+        Resource = [aws_sns_topic.textract_completion.arn]
       }
     ]
   })

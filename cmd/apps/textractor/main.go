@@ -21,17 +21,20 @@ import (
 
 // TextractorResources represents all AWS resources needed for the Textractor application
 type TextractorResources struct {
-	S3Bucket            string `json:"s3_bucket"`
-	InputQueue          string `json:"input_queue_url"`
-	OutputQueue         string `json:"output_queue_url"`
-	NotificationsQueue  string `json:"notifications_queue_url"`
-	SNSTopic            string `json:"sns_topic_arn"`
-	Region              string `json:"region"`
-	JobsTable           string `json:"jobs_table_name"`
-	DocumentProcessorARN      string `json:"document_processor_arn"`
-	CompletionProcessorARN    string `json:"completion_processor_arn"`
-	DocumentProcessorName     string `json:"document_processor_name"`
-	CompletionProcessorName   string `json:"completion_processor_name"`
+	S3Bucket                    string `json:"bucket_name"`
+	InputQueue                  string `json:"input_queue_url"`
+	OutputQueue                 string `json:"output_queue_url"`
+	NotificationsQueue          string `json:"notifications_queue_url"`
+	SNSTopic                    string `json:"sns_topic_arn"`
+	Region                      string `json:"region"`
+	JobsTable                   string `json:"jobs_table_name"`
+	DocumentProcessorARN        string `json:"document_processor_arn"`
+	CompletionProcessorARN      string `json:"completion_processor_arn"`
+	DocumentProcessorName       string `json:"document_processor_name"`
+	CompletionProcessorName     string `json:"completion_processor_name"`
+	DocumentProcessorLogGroup   string `json:"document_processor_log_group"`
+	CompletionProcessorLogGroup string `json:"completion_processor_log_group"`
+	CloudTrailLogGroup         string `json:"cloudtrail_log_group"`
 }
 
 // Add TextractJob struct as defined in PLAN.md
@@ -117,6 +120,9 @@ func main() {
 	submitCmd := newSubmitCommand()
 	rootCmd.AddCommand(submitCmd)
 
+	// Add debug command
+	rootCmd.AddCommand(createDebugCommand())
+
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -130,12 +136,15 @@ func printDebugVars(cmd *cobra.Command, args []string) {
 	}
 
 	// Print in a format suitable for shell script
-	fmt.Printf("export FUNCTION_NAME=\"%s\"\n", resources.FunctionName)
 	fmt.Printf("export BUCKET_NAME=\"%s\"\n", resources.S3Bucket)
 	fmt.Printf("export INPUT_QUEUE_URL=\"%s\"\n", resources.InputQueue)
 	fmt.Printf("export OUTPUT_QUEUE_URL=\"%s\"\n", resources.OutputQueue)
-	fmt.Printf("export TOPIC_ARN=\"%s\"\n", resources.SNSTopic)
+	fmt.Printf("export NOTIFICATIONS_QUEUE_URL=\"%s\"\n", resources.NotificationsQueue)
+	fmt.Printf("export SNS_TOPIC_ARN=\"%s\"\n", resources.SNSTopic)
 	fmt.Printf("export AWS_REGION=\"%s\"\n", resources.Region)
+	fmt.Printf("export JOBS_TABLE=\"%s\"\n", resources.JobsTable)
+	fmt.Printf("export DOCUMENT_PROCESSOR_ARN=\"%s\"\n", resources.DocumentProcessorARN)
+	fmt.Printf("export COMPLETION_PROCESSOR_ARN=\"%s\"\n", resources.CompletionProcessorARN)
 
 	// Print helper message
 	fmt.Println("\n# To use these variables, run:")
@@ -150,13 +159,18 @@ func run(cmd *cobra.Command, args []string) {
 
 	// Print the loaded resources
 	fmt.Printf("Textractor Resources:\n")
-	fmt.Printf("  S3 Bucket:      %s\n", resources.S3Bucket)
-	fmt.Printf("  Input Queue:    %s\n", resources.InputQueue)
-	fmt.Printf("  Output Queue:   %s\n", resources.OutputQueue)
-	fmt.Printf("  SNS Topic:      %s\n", resources.SNSTopic)
-	fmt.Printf("  Lambda ARN:     %s\n", resources.LambdaARN)
-	fmt.Printf("  Region:         %s\n", resources.Region)
-	fmt.Printf("  Function Name:  %s\n", resources.FunctionName)
+	fmt.Printf("  S3 Bucket:                    %s\n", resources.S3Bucket)
+	fmt.Printf("  Input Queue:                  %s\n", resources.InputQueue)
+	fmt.Printf("  Output Queue:                 %s\n", resources.OutputQueue)
+	fmt.Printf("  Notifications Queue:          %s\n", resources.NotificationsQueue)
+	fmt.Printf("  SNS Topic:                    %s\n", resources.SNSTopic)
+	fmt.Printf("  Region:                       %s\n", resources.Region)
+	fmt.Printf("  Jobs Table:                   %s\n", resources.JobsTable)
+	fmt.Printf("  Document Processor:           %s\n", resources.DocumentProcessorName)
+	fmt.Printf("  Completion Processor:         %s\n", resources.CompletionProcessorName)
+	fmt.Printf("  Document Processor Logs:      %s\n", resources.DocumentProcessorLogGroup)
+	fmt.Printf("  Completion Processor Logs:    %s\n", resources.CompletionProcessorLogGroup)
+	fmt.Printf("  CloudTrail Logs:             %s\n", resources.CloudTrailLogGroup)
 }
 
 func loadTerraformState(tfDir string) (*TextractorResources, error) {
@@ -218,59 +232,30 @@ func loadTerraformState(tfDir string) (*TextractorResources, error) {
 	// Map outputs to struct fields
 	var missingOutputs []string
 
-	if value, ok := outputMap["bucket_name"]; ok {
-		resources.S3Bucket = value
-	} else {
-		missingOutputs = append(missingOutputs, "bucket_name")
+	// Helper function to check and set output
+	setOutput := func(field *string, key string) {
+		if value, ok := outputMap[key]; ok {
+			*field = value
+		} else {
+			missingOutputs = append(missingOutputs, key)
+		}
 	}
 
-	if value, ok := outputMap["input_queue_url"]; ok {
-		resources.InputQueue = value
-	} else {
-		missingOutputs = append(missingOutputs, "input_queue_url")
-	}
-
-	if value, ok := outputMap["output_queue_url"]; ok {
-		resources.OutputQueue = value
-	} else {
-		missingOutputs = append(missingOutputs, "output_queue_url")
-	}
-
-	if value, ok := outputMap["sns_topic_arn"]; ok {
-		resources.SNSTopic = value
-	} else {
-		missingOutputs = append(missingOutputs, "sns_topic_arn")
-	}
-
-	if value, ok := outputMap["lambda_arn"]; ok {
-		resources.LambdaARN = value
-	} else {
-		missingOutputs = append(missingOutputs, "lambda_arn")
-	}
-
-	if value, ok := outputMap["function_name"]; ok {
-		resources.FunctionName = value
-	} else {
-		missingOutputs = append(missingOutputs, "function_name")
-	}
-
-	if value, ok := outputMap["region"]; ok {
-		resources.Region = value
-	} else {
-		missingOutputs = append(missingOutputs, "region")
-	}
-
-	if value, ok := outputMap["jobs_table_name"]; ok {
-		resources.JobsTable = value
-	} else {
-		missingOutputs = append(missingOutputs, "jobs_table_name")
-	}
-
-	if value, ok := outputMap["notifications_queue_url"]; ok {
-		resources.NotificationsQueue = value
-	} else {
-		missingOutputs = append(missingOutputs, "notifications_queue_url")
-	}
+	// Map all required outputs
+	setOutput(&resources.S3Bucket, "bucket_name")
+	setOutput(&resources.InputQueue, "input_queue_url")
+	setOutput(&resources.OutputQueue, "output_queue_url")
+	setOutput(&resources.NotificationsQueue, "notifications_queue_url")
+	setOutput(&resources.SNSTopic, "sns_topic_arn")
+	setOutput(&resources.Region, "region")
+	setOutput(&resources.JobsTable, "jobs_table_name")
+	setOutput(&resources.DocumentProcessorARN, "document_processor_arn")
+	setOutput(&resources.CompletionProcessorARN, "completion_processor_arn")
+	setOutput(&resources.DocumentProcessorName, "document_processor_name")
+	setOutput(&resources.CompletionProcessorName, "completion_processor_name")
+	setOutput(&resources.DocumentProcessorLogGroup, "document_processor_log_group")
+	setOutput(&resources.CompletionProcessorLogGroup, "completion_processor_log_group")
+	setOutput(&resources.CloudTrailLogGroup, "cloudtrail_log_group")
 
 	if len(missingOutputs) > 0 {
 		return nil, fmt.Errorf("missing required terraform outputs: %s", strings.Join(missingOutputs, ", "))

@@ -66,4 +66,14 @@ output "completion_processor_log_group" {
 output "cloudtrail_log_group" {
   description = "Name of the CloudTrail log group"
   value       = aws_cloudwatch_log_group.cloudtrail_logs.name
+}
+
+output "document_bucket" {
+  description = "The name of the S3 bucket used for document storage"
+  value       = aws_s3_bucket.document_bucket.id
+}
+
+output "document_bucket_arn" {
+  description = "The ARN of the S3 bucket used for document storage"
+  value       = aws_s3_bucket.document_bucket.arn
 } 
