@@ -51,16 +51,26 @@ resource "aws_sqs_queue" "input_queue" {
   visibility_timeout_seconds = 30
   message_retention_seconds = 86400
   
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = aws_sqs_queue.input_dlq.arn
+    maxReceiveCount     = 3
+  })
+  
   tags = {
     Environment = var.environment
   }
 }
 
-resource "aws_sqs_queue" "output_queue" {
-  name = "${var.prefix}-output-queue"
+resource "aws_sqs_queue" "completion_queue" {
+  name = "${var.prefix}-completion-queue"
 
   visibility_timeout_seconds = 30
   message_retention_seconds = 86400
+  
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = aws_sqs_queue.completion_dlq.arn
+    maxReceiveCount     = 3
+  })
   
   tags = {
     Environment = var.environment
@@ -75,7 +85,7 @@ resource "aws_sns_topic" "textract_completion" {
 resource "aws_sns_topic_subscription" "textract_to_sqs" {
   topic_arn = aws_sns_topic.textract_completion.arn
   protocol  = "sqs"
-  endpoint  = aws_sqs_queue.output_queue.arn
+  endpoint  = aws_sqs_queue.completion_queue.arn
 }
 
 # Create ZIP files for Lambda functions
@@ -99,17 +109,17 @@ resource "aws_lambda_function" "document_processor" {
   source_code_hash = data.archive_file.document_processor_zip.output_base64sha256
   function_name    = "${var.prefix}-document-processor"
   role            = aws_iam_role.document_processor_role.arn
-  handler         = "index.handler"
+  handler         = "document-processor.handler"
   runtime         = "nodejs16.x"
   timeout         = 30
 
   environment {
     variables = {
-      JOBS_TABLE         = aws_dynamodb_table.jobs.name
-      SNS_TOPIC_ARN     = aws_sns_topic.textract_completion.arn
-      TEXTRACT_ROLE_ARN = aws_iam_role.textract_service_role.arn
-      STORAGE_BUCKET    = aws_s3_bucket.document_bucket.id
-      NOTIFICATIONS_QUEUE_URL = aws_sqs_queue.notifications.url
+      JOBS_TABLE = aws_dynamodb_table.jobs.name
+      TEXTRACT_ROLE_ARN = aws_iam_role.textract_role.arn
+      SNS_TOPIC_ARN = aws_sns_topic.textract_completion.arn
+      NOTIFICATION_TOPIC_ARN = aws_sns_topic.notifications.arn
+      STORAGE_BUCKET = aws_s3_bucket.document_bucket.id
     }
   }
 }
@@ -120,32 +130,17 @@ resource "aws_lambda_function" "completion_processor" {
   source_code_hash = data.archive_file.completion_processor_zip.output_base64sha256
   function_name    = "${var.prefix}-completion-processor"
   role            = aws_iam_role.completion_processor_role.arn
-  handler         = "index.handler"
+  handler         = "completion-processor.handler"
   runtime         = "nodejs16.x"
   timeout         = 30
 
   environment {
     variables = {
-      NOTIFICATIONS_QUEUE_URL = aws_sqs_queue.notifications.url
-      JOBS_TABLE     = aws_dynamodb_table.jobs.name
-      BUCKET_NAME    = aws_s3_bucket.document_bucket.id
+      JOBS_TABLE = aws_dynamodb_table.jobs.name
+      NOTIFICATION_TOPIC_ARN = aws_sns_topic.notifications.arn
+      STORAGE_BUCKET = aws_s3_bucket.document_bucket.id
     }
   }
-}
-
-# Add SNS trigger for completion processor
-resource "aws_lambda_permission" "allow_sns" {
-  statement_id  = "AllowExecutionFromSNS"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.completion_processor.function_name
-  principal     = "sns.amazonaws.com"
-  source_arn    = aws_sns_topic.textract_completion.arn
-}
-
-resource "aws_sns_topic_subscription" "lambda" {
-  topic_arn = aws_sns_topic.textract_completion.arn
-  protocol  = "lambda"
-  endpoint  = aws_lambda_function.completion_processor.arn
 }
 
 # Update SQS trigger to point to document processor
@@ -160,6 +155,14 @@ resource "aws_lambda_permission" "allow_sqs" {
 resource "aws_lambda_event_source_mapping" "sqs_trigger" {
   event_source_arn = aws_sqs_queue.input_queue.arn
   function_name    = aws_lambda_function.document_processor.arn
+  batch_size       = 1
+  enabled          = true
+}
+
+# Add SQS trigger for completion processor
+resource "aws_lambda_event_source_mapping" "completion_sqs_trigger" {
+  event_source_arn = aws_sqs_queue.completion_queue.arn
+  function_name    = aws_lambda_function.completion_processor.arn
   batch_size       = 1
   enabled          = true
 }
@@ -472,18 +475,43 @@ resource "aws_sqs_queue_policy" "notifications_policy" {
       {
         Effect = "Allow"
         Principal = {
-          Service = "lambda.amazonaws.com"
+          Service = "sns.amazonaws.com"
         }
         Action = "sqs:SendMessage"
         Resource = aws_sqs_queue.notifications.arn
+        Condition = {
+          ArnEquals = {
+            "aws:SourceArn": aws_sns_topic.notifications.arn
+          }
+        }
       }
     ]
   })
 }
 
-# Add IAM role for Textract if not already present
-resource "aws_iam_role" "textract_service_role" {
-  name = "${var.prefix}-textract-service-role"
+# Dead Letter Queue for input queue
+resource "aws_sqs_queue" "input_dlq" {
+  name = "${var.prefix}-input-dlq"
+  message_retention_seconds = 1209600  # 14 days
+  
+  tags = {
+    Environment = var.environment
+  }
+}
+
+# Dead Letter Queue for completion queue
+resource "aws_sqs_queue" "completion_dlq" {
+  name = "${var.prefix}-completion-dlq"
+  message_retention_seconds = 1209600  # 14 days
+  
+  tags = {
+    Environment = var.environment
+  }
+}
+
+# Create IAM role for Textract to publish notifications
+resource "aws_iam_role" "textract_role" {
+  name = "${var.prefix}-textract-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -497,12 +525,14 @@ resource "aws_iam_role" "textract_service_role" {
       }
     ]
   })
+
+  tags = var.tags
 }
 
 # Add policy to allow Textract to publish to SNS
 resource "aws_iam_role_policy" "textract_sns" {
   name = "${var.prefix}-textract-sns"
-  role = aws_iam_role.textract_service_role.id
+  role = aws_iam_role.textract_role.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -516,4 +546,45 @@ resource "aws_iam_role_policy" "textract_sns" {
       }
     ]
   })
-} 
+}
+
+# Add SQS permissions to completion processor role
+resource "aws_iam_role_policy" "completion_processor_sqs" {
+  name = "${var.prefix}-completion-processor-sqs"
+  role = aws_iam_role.completion_processor_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "sqs:ReceiveMessage",
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes",
+          "sqs:ChangeMessageVisibility"
+        ]
+        Resource = [
+          aws_sqs_queue.completion_queue.arn,
+          aws_sqs_queue.notifications.arn
+        ]
+      }
+    ]
+  })
+}
+
+# Add new SNS topic for application notifications
+resource "aws_sns_topic" "notifications" {
+  name = "${var.prefix}-notifications"
+  
+  tags = {
+    Environment = var.environment
+  }
+}
+
+# Add SQS queue subscription to notifications topic
+resource "aws_sns_topic_subscription" "notifications_sqs" {
+  topic_arn = aws_sns_topic.notifications.arn
+  protocol  = "sqs"
+  endpoint  = aws_sqs_queue.notifications.arn
+}

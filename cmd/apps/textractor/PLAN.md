@@ -9,15 +9,24 @@ The application uses a serverless architecture with the following AWS resources:
 ### Storage Components
 - **S3 Bucket**: Stores input PDFs and processed results
 - **Input SQS Queue**: Buffers new document processing requests
+  - Has associated Dead Letter Queue for failed messages
 - **Output SQS Queue**: Receives Textract completion notifications
+  - Has associated Dead Letter Queue for failed messages
 - **SNS Topic**: Handles Textract completion notifications
 - **Notifications SQS Queue**: Provides real-time status updates and progress information
+  - 1-hour message retention
+  - Long polling enabled (20s wait time)
 
 ### Processing Components
 - **Document Processor Lambda**: Handles new document submissions
+  - 30s timeout
+  - Processes one message at a time
 - **Completion Processor Lambda**: Processes Textract completion notifications
+  - 30s timeout
 - **Amazon Textract**: Performs document analysis
 - **DynamoDB**: Tracks job status and metadata
+  - Point-in-time recovery enabled
+  - TTL enabled for automatic cleanup
 
 ## Processing Workflow
 
@@ -29,20 +38,21 @@ The application uses a serverless architecture with the following AWS resources:
 6. Completion Processor retrieves results and updates job status
 7. Status updates sent to notifications queue
 8. Go program polls notifications queue for progress
+9. Failed messages are moved to DLQ after 3 retries
 
 ## Job Management
 
 ### Job Structure
 ```go
 type TextractJob struct {
-  JobID string       // Unique identifier
-  DocumentKey string // S3 key of the original PDF
-  Status string      // Current processing status
-  SubmittedAt time.Time
-  CompletedAt time.Time
-  TextractID string  // AWS Textract Job ID
-  ResultKey string   // S3 key where results are stored
-  Error string      // Error message if failed
+    JobID        string     // Unique identifier
+    DocumentKey  string     // S3 key of the original PDF
+    Status       string     // Current processing status
+    SubmittedAt  time.Time  // When the job was created
+    CompletedAt  *time.Time // When processing finished (if completed)
+    TextractID   string     // AWS Textract Job ID
+    ResultKey    string     // S3 key where results are stored
+    Error        string     // Error message if failed
 }
 ```
 
@@ -57,15 +67,21 @@ type TextractJob struct {
 ### Job Storage
 Jobs are tracked in DynamoDB with the following structure:
 - Table: TextractorJobs
-- Partition Key: JobID
-- GSI1: Status-SubmittedAt (for efficient listing by status)
-- GSI2: DocumentKey (for looking up jobs by original document)
+- Partition Key: JobID (String)
+- GSI1: Status-SubmittedAt-Index
+  - Hash Key: Status (String)
+  - Range Key: SubmittedAt (String)
+- GSI2: DocumentKey-Index
+  - Hash Key: DocumentKey (String)
+- TTL: Enabled (attribute: TTL)
+- Point-in-time Recovery: Enabled
 
 Benefits:
-- Efficient queries by status
+- Efficient queries by status and time range
 - Easy updates as job status changes
 - Serverless and scalable operation
 - Built-in TTL for old job cleanup
+- Backup and recovery capabilities
 
 ### Job Management Commands
 The CLI provides several commands:
@@ -73,6 +89,7 @@ The CLI provides several commands:
 - `status`: Check individual job status
 - `purge`: Clean up old jobs and associated data
 - `monitor`: Watch job processing in real-time
+- `debug dlq`: Inspect and manage Dead Letter Queues
 
 ## Progress Notifications
 
@@ -94,6 +111,7 @@ The CLI provides several commands:
    - SYSTEM_ERROR: Infrastructure/system errors
    - VALIDATION_ERROR: Document validation issues
    - PROCESSING_ERROR: Textract processing errors
+   - DLQ_ERROR: Message processing failures
 
 ### Notification Message Format
 ```json
@@ -108,10 +126,13 @@ The CLI provides several commands:
     "pagesProcessed": 5,
     "totalPages": 10,
     "currentOperation": "table_detection",
-    "error": "Error message if applicable"
+    "error": "Error message if applicable",
+    "dlqSource": "input|output",  // If message moved to DLQ
+    "retryCount": 3              // Number of retry attempts
   }
 }
 ```
+
 
 ## Architecture Diagrams
 

@@ -33,17 +33,26 @@ func addDebugCommands(rootCmd *cobra.Command) {
 
 	// Queue debugging
 	debugCmd.AddCommand(&cobra.Command{
-		Use:   "queue [input|output]",
+		Use:   "queue [input|completion]",
 		Short: "Debug SQS queues",
 		Args:  cobra.ExactArgs(1),
 		Run:   debugQueue,
 	})
 
 	// S3 debugging
-	debugCmd.AddCommand(&cobra.Command{
+	s3DebugCmd := &cobra.Command{
 		Use:   "s3",
 		Short: "Debug S3 bucket configuration",
 		Run:   debugS3,
+	}
+	debugCmd.AddCommand(s3DebugCmd)
+
+	s3DebugCmd.AddCommand(&cobra.Command{
+		Use:   "ls [prefix]",
+		Short: "List files in S3 bucket",
+		Long:  "List files in S3 bucket. Optionally specify a prefix to filter results",
+		Args:  cobra.MaximumNArgs(1),
+		Run:   debugS3List,
 	})
 
 	// SNS debugging
@@ -80,6 +89,17 @@ func addDebugCommands(rootCmd *cobra.Command) {
 		Use:   "notifications",
 		Short: "Debug notifications queue",
 		Run:   debugNotifications,
+	})
+
+	// Add DLQ debugging
+	debugCmd.AddCommand(&cobra.Command{
+		Use:   "dlq [input|completion]",
+		Short: "Debug Dead Letter Queues",
+		Long: `Debug Dead Letter Queues. Specify which DLQ to debug:
+  input       - Input queue DLQ
+  completion  - Completion queue DLQ`,
+		Args:  cobra.ExactArgs(1),
+		Run:   debugDLQ,
 	})
 }
 
@@ -125,8 +145,8 @@ func debugQueue(cmd *cobra.Command, args []string) {
 	}
 
 	queueURL := resources.InputQueue
-	if args[0] == "output" {
-		queueURL = resources.OutputQueue
+	if args[0] == "completion" {
+		queueURL = resources.CompletionQueue
 	}
 
 	fmt.Printf("🔍 Debugging %s queue\n", args[0])
@@ -169,6 +189,26 @@ func debugS3(cmd *cobra.Command, args []string) {
 		"--lookup-attributes", fmt.Sprintf("AttributeKey=ResourceName,AttributeValue=%s", resources.S3Bucket))
 	if err != nil {
 		log.Printf("Failed to get CloudTrail events: %v", err)
+	}
+}
+
+func debugS3List(cmd *cobra.Command, args []string) {
+	resources, err := loadTerraformState(tfDir)
+	if err != nil {
+		log.Fatalf("Failed to load Terraform state: %v", err)
+	}
+
+	fmt.Printf("📂 Listing files in bucket: %s\n", resources.S3Bucket)
+
+	lsArgs := []string{"s3", "ls", fmt.Sprintf("s3://%s", resources.S3Bucket)}
+	if len(args) > 0 {
+		lsArgs = append(lsArgs, fmt.Sprintf("s3://%s/%s", resources.S3Bucket, args[0]))
+	}
+	lsArgs = append(lsArgs, "--recursive")
+
+	err = runAWSCommand(lsArgs...)
+	if err != nil {
+		log.Printf("Failed to list bucket contents: %v", err)
 	}
 }
 
@@ -376,17 +416,18 @@ func debugNotifications(cmd *cobra.Command, args []string) {
 		log.Fatalf("Failed to load Terraform state: %v", err)
 	}
 
-	fmt.Println("🔔 Debugging notifications queue")
+	fmt.Println("🔔 Debugging notifications system")
 
-	// Get queue attributes
-	err = runAWSCommand("sqs", "get-queue-attributes",
-		"--queue-url", resources.NotificationsQueue,
-		"--attribute-names", "All")
+	// Check SNS topic
+	fmt.Println("\n📢 SNS Topic Configuration:")
+	err = runAWSCommand("sns", "get-topic-attributes",
+		"--topic-arn", resources.NotificationTopic)
 	if err != nil {
-		log.Printf("Failed to get queue attributes: %v", err)
+		log.Printf("Failed to get topic attributes: %v", err)
 	}
 
-	// Receive messages
+	// Check SQS subscription
+	fmt.Println("\n📬 SQS Queue Messages:")
 	err = runAWSCommand("sqs", "receive-message",
 		"--queue-url", resources.NotificationsQueue,
 		"--max-number-of-messages", "10",
@@ -395,4 +436,65 @@ func debugNotifications(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Printf("Failed to receive messages: %v", err)
 	}
+}
+
+func debugDLQ(cmd *cobra.Command, args []string) {
+	resources, err := loadTerraformState(tfDir)
+	if err != nil {
+		log.Fatalf("Failed to load Terraform state: %v", err)
+	}
+
+	queueType := args[0]
+	var queueURL string
+	
+	switch queueType {
+	case "input":
+		queueURL = resources.InputDLQURL
+	case "completion":
+		queueURL = resources.CompletionDLQURL
+	default:
+		log.Fatalf("Invalid queue type: %s. Must be 'input' or 'completion'", queueType)
+	}
+
+	fmt.Printf("🔍 Debugging %s Dead Letter Queue\n", queueType)
+
+	// Get queue attributes
+	fmt.Println("\n📊 Queue Attributes:")
+	err = runAWSCommand("sqs", "get-queue-attributes",
+		"--queue-url", queueURL,
+		"--attribute-names", "All")
+	if err != nil {
+		log.Printf("Failed to get queue attributes: %v", err)
+	}
+
+	// Show messages in DLQ
+	fmt.Println("\n📬 Messages in DLQ:")
+	err = runAWSCommand("sqs", "receive-message",
+		"--queue-url", queueURL,
+		"--max-number-of-messages", "10",
+		"--wait-time-seconds", "5",
+		"--attribute-names", "All",
+		"--message-attribute-names", "All")
+	if err != nil {
+		log.Printf("Failed to receive messages: %v", err)
+	}
+
+	// Show CloudWatch metrics for the DLQ
+	fmt.Println("\n📈 CloudWatch Metrics (last hour):")
+	err = runAWSCommand("cloudwatch", "get-metric-statistics",
+		"--namespace", "AWS/SQS",
+		"--metric-name", "ApproximateNumberOfMessagesVisible",
+		"--statistics", "Sum",
+		"--period", "300",
+		"--start-time", time.Now().Add(-1*time.Hour).Format(time.RFC3339),
+		"--end-time", time.Now().Format(time.RFC3339),
+		"--dimensions", fmt.Sprintf("Name=QueueName,Value=%s", queueURL))
+	if err != nil {
+		log.Printf("Failed to get CloudWatch metrics: %v", err)
+	}
+
+	fmt.Println("\n💡 Tips:")
+	fmt.Println("- Use 'aws sqs purge-queue --queue-url <url>' to clear the DLQ")
+	fmt.Println("- Use 'aws sqs delete-message' to remove individual messages")
+	fmt.Println("- Check CloudWatch logs for more details about failures")
 } 

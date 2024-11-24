@@ -30,8 +30,8 @@ output "input_queue_url" {
   value = module.textractor.input_queue_url
 }
 
-output "output_queue_url" {
-  value = module.textractor.output_queue_url
+output "completion_queue_url" {
+  value = module.textractor.completion_queue_url
 }
 
 output "notifications_queue_url" {
@@ -80,4 +80,15 @@ output "jobs_table_name" {
 
 output "cloudtrail_log_group" {
   value = module.textractor.cloudtrail_log_group
+}
+
+# DLQ outputs
+output "input_dlq_url" {
+  description = "The URL of the input Dead Letter Queue"
+  value       = module.textractor.input_dlq_url
+}
+
+output "completion_dlq_url" {
+  description = "The URL of the completion Dead Letter Queue"
+  value       = module.textractor.completion_dlq_url
 }

@@ -8,9 +8,9 @@ output "input_queue_url" {
   value       = aws_sqs_queue.input_queue.url
 }
 
-output "output_queue_url" {
-  description = "URL of the output SQS queue"
-  value       = aws_sqs_queue.output_queue.url
+output "completion_queue_url" {
+  description = "URL of the completion SQS queue"
+  value       = aws_sqs_queue.completion_queue.url
 }
 
 output "sns_topic_arn" {
@@ -76,4 +76,35 @@ output "document_bucket" {
 output "document_bucket_arn" {
   description = "The ARN of the S3 bucket used for document storage"
   value       = aws_s3_bucket.document_bucket.arn
+}
+
+# DLQ outputs
+output "input_dlq_url" {
+  description = "The URL of the input Dead Letter Queue"
+  value       = aws_sqs_queue.input_dlq.url
+}
+
+output "input_dlq_arn" {
+  description = "The ARN of the input Dead Letter Queue"
+  value       = aws_sqs_queue.input_dlq.arn
+}
+
+output "textract_role_arn" {
+  description = "ARN of IAM role for Textract notifications"
+  value       = aws_iam_role.textract_role.arn
+}
+
+output "completion_dlq_url" {
+  description = "The URL of the completion Dead Letter Queue"
+  value       = aws_sqs_queue.completion_dlq.url
 } 
+
+output "completion_dlq_arn" {
+  description = "The ARN of the completion Dead Letter Queue"
+  value       = aws_sqs_queue.completion_dlq.arn
+}
+
+output "notification_topic_arn" {
+  description = "The ARN of the SNS topic for application notifications"
+  value       = aws_sns_topic.notifications.arn
+}

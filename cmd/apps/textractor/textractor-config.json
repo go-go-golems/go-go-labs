@@ -1,7 +1,7 @@
 {
   "bucket_name": "textractor-documents-dev-12345",
   "input_queue_url": "https://sqs.us-east-1.amazonaws.com/016596391852/textractor-dev-input-queue",
-  "output_queue_url": "https://sqs.us-east-1.amazonaws.com/016596391852/textractor-dev-output-queue",
+  "completion_queue_url": "https://sqs.us-east-1.amazonaws.com/016596391852/textractor-dev-completion-queue",
   "notifications_queue_url": "https://sqs.us-east-1.amazonaws.com/016596391852/textractor-dev-notifications",
   "sns_topic_arn": "arn:aws:sns:us-east-1:016596391852:textractor-dev-textract-completion",
   "region": "us-east-1",
@@ -12,5 +12,7 @@
   "completion_processor_name": "textractor-dev-completion-processor",
   "document_processor_log_group": "/aws/lambda/textractor-dev-document-processor",
   "completion_processor_log_group": "/aws/lambda/textractor-dev-completion-processor",
-  "cloudtrail_log_group": "/aws/cloudtrail/textractor-dev-textractor"
+  "cloudtrail_log_group": "/aws/cloudtrail/textractor-dev-textractor",
+  "input_dlq_url": "https://sqs.us-east-1.amazonaws.com/016596391852/textractor-dev-input-dlq",
+  "completion_dlq_url": "https://sqs.us-east-1.amazonaws.com/016596391852/textractor-dev-completion-dlq"
 }

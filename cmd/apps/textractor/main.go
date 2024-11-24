@@ -23,7 +23,7 @@ import (
 type TextractorResources struct {
 	S3Bucket                    string `json:"bucket_name"`
 	InputQueue                  string `json:"input_queue_url"`
-	OutputQueue                 string `json:"output_queue_url"`
+	CompletionQueue             string `json:"completion_queue_url"`
 	NotificationsQueue          string `json:"notifications_queue_url"`
 	SNSTopic                    string `json:"sns_topic_arn"`
 	Region                      string `json:"region"`
@@ -35,6 +35,9 @@ type TextractorResources struct {
 	DocumentProcessorLogGroup   string `json:"document_processor_log_group"`
 	CompletionProcessorLogGroup string `json:"completion_processor_log_group"`
 	CloudTrailLogGroup         string `json:"cloudtrail_log_group"`
+	InputDLQURL                 string `json:"input_dlq_url"`
+	CompletionDLQURL            string `json:"completion_dlq_url"`
+	NotificationTopic           string `json:"notification_topic_arn"`
 }
 
 // Add TextractJob struct as defined in PLAN.md
@@ -121,7 +124,7 @@ func main() {
 	rootCmd.AddCommand(submitCmd)
 
 	// Add debug command
-	rootCmd.AddCommand(createDebugCommand())
+	addDebugCommands(rootCmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
@@ -138,13 +141,15 @@ func printDebugVars(cmd *cobra.Command, args []string) {
 	// Print in a format suitable for shell script
 	fmt.Printf("export BUCKET_NAME=\"%s\"\n", resources.S3Bucket)
 	fmt.Printf("export INPUT_QUEUE_URL=\"%s\"\n", resources.InputQueue)
-	fmt.Printf("export OUTPUT_QUEUE_URL=\"%s\"\n", resources.OutputQueue)
+	fmt.Printf("export COMPLETION_QUEUE_URL=\"%s\"\n", resources.CompletionQueue)
 	fmt.Printf("export NOTIFICATIONS_QUEUE_URL=\"%s\"\n", resources.NotificationsQueue)
 	fmt.Printf("export SNS_TOPIC_ARN=\"%s\"\n", resources.SNSTopic)
 	fmt.Printf("export AWS_REGION=\"%s\"\n", resources.Region)
 	fmt.Printf("export JOBS_TABLE=\"%s\"\n", resources.JobsTable)
 	fmt.Printf("export DOCUMENT_PROCESSOR_ARN=\"%s\"\n", resources.DocumentProcessorARN)
 	fmt.Printf("export COMPLETION_PROCESSOR_ARN=\"%s\"\n", resources.CompletionProcessorARN)
+	fmt.Printf("export INPUT_DLQ_URL=\"%s\"\n", resources.InputDLQURL)
+	fmt.Printf("export COMPLETION_DLQ_URL=\"%s\"\n", resources.CompletionDLQURL)
 
 	// Print helper message
 	fmt.Println("\n# To use these variables, run:")
@@ -161,7 +166,7 @@ func run(cmd *cobra.Command, args []string) {
 	fmt.Printf("Textractor Resources:\n")
 	fmt.Printf("  S3 Bucket:                    %s\n", resources.S3Bucket)
 	fmt.Printf("  Input Queue:                  %s\n", resources.InputQueue)
-	fmt.Printf("  Output Queue:                 %s\n", resources.OutputQueue)
+	fmt.Printf("  Completion Queue:             %s\n", resources.CompletionQueue)
 	fmt.Printf("  Notifications Queue:          %s\n", resources.NotificationsQueue)
 	fmt.Printf("  SNS Topic:                    %s\n", resources.SNSTopic)
 	fmt.Printf("  Region:                       %s\n", resources.Region)
@@ -171,6 +176,8 @@ func run(cmd *cobra.Command, args []string) {
 	fmt.Printf("  Document Processor Logs:      %s\n", resources.DocumentProcessorLogGroup)
 	fmt.Printf("  Completion Processor Logs:    %s\n", resources.CompletionProcessorLogGroup)
 	fmt.Printf("  CloudTrail Logs:             %s\n", resources.CloudTrailLogGroup)
+	fmt.Printf("  Input DLQ:                    %s\n", resources.InputDLQURL)
+	fmt.Printf("  Completion DLQ:               %s\n", resources.CompletionDLQURL)
 }
 
 func loadTerraformState(tfDir string) (*TextractorResources, error) {
@@ -244,7 +251,7 @@ func loadTerraformState(tfDir string) (*TextractorResources, error) {
 	// Map all required outputs
 	setOutput(&resources.S3Bucket, "bucket_name")
 	setOutput(&resources.InputQueue, "input_queue_url")
-	setOutput(&resources.OutputQueue, "output_queue_url")
+	setOutput(&resources.CompletionQueue, "completion_queue_url")
 	setOutput(&resources.NotificationsQueue, "notifications_queue_url")
 	setOutput(&resources.SNSTopic, "sns_topic_arn")
 	setOutput(&resources.Region, "region")
@@ -256,6 +263,9 @@ func loadTerraformState(tfDir string) (*TextractorResources, error) {
 	setOutput(&resources.DocumentProcessorLogGroup, "document_processor_log_group")
 	setOutput(&resources.CompletionProcessorLogGroup, "completion_processor_log_group")
 	setOutput(&resources.CloudTrailLogGroup, "cloudtrail_log_group")
+	setOutput(&resources.InputDLQURL, "input_dlq_url")
+	setOutput(&resources.CompletionDLQURL, "completion_dlq_url")
+	setOutput(&resources.NotificationTopic, "notification_topic_arn")
 
 	if len(missingOutputs) > 0 {
 		return nil, fmt.Errorf("missing required terraform outputs: %s", strings.Join(missingOutputs, ", "))
@@ -400,8 +410,11 @@ func validateResources(r *TextractorResources) error {
 	if r.InputQueue == "" {
 		missing = append(missing, "input_queue_url")
 	}
-	if r.OutputQueue == "" {
-		missing = append(missing, "output_queue_url")
+	if r.CompletionQueue == "" {
+		missing = append(missing, "completion_queue_url")
+	}
+	if r.NotificationsQueue == "" {
+		missing = append(missing, "notifications_queue_url")
 	}
 	if r.SNSTopic == "" {
 		missing = append(missing, "sns_topic_arn")
@@ -424,8 +437,11 @@ func validateResources(r *TextractorResources) error {
 	if r.JobsTable == "" {
 		missing = append(missing, "jobs_table_name")
 	}
-	if r.NotificationsQueue == "" {
-		missing = append(missing, "notifications_queue_url")
+	if r.InputDLQURL == "" {
+		missing = append(missing, "input_dlq_url")
+	}
+	if r.CompletionDLQURL == "" {
+		missing = append(missing, "completion_dlq_url")
 	}
 
 	if len(missing) > 0 {
