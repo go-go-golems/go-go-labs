@@ -46,4 +46,15 @@ output "lambda_log_group" {
 output "cloudtrail_log_group" {
   description = "Name of the CloudWatch Log Group for CloudTrail"
   value       = module.textractor.cloudtrail_log_group
+}
+
+# Add DynamoDB jobs table outputs
+output "jobs_table_name" {
+  description = "Name of the DynamoDB jobs table"
+  value       = module.textractor.jobs_table_name
+}
+
+output "jobs_table_arn" {
+  description = "ARN of the DynamoDB jobs table"
+  value       = module.textractor.jobs_table_arn
 } 

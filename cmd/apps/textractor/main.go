@@ -6,11 +6,14 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/hashicorp/terraform-exec/tfexec"
 	"github.com/spf13/cobra"
 )
@@ -24,6 +27,19 @@ type TextractorResources struct {
 	LambdaARN    string `json:"lambda_arn"`
 	Region       string `json:"region"`
 	FunctionName string `json:"function_name"`
+	JobsTable    string `json:"jobs_table_name"`
+}
+
+// Add TextractJob struct as defined in PLAN.md
+type TextractJob struct {
+	JobID        string     `json:"job_id" dynamodbav:"JobID"`
+	DocumentKey  string     `json:"document_key" dynamodbav:"DocumentKey"`
+	Status       string     `json:"status" dynamodbav:"Status"`
+	SubmittedAt  time.Time  `json:"submitted_at" dynamodbav:"SubmittedAt"`
+	CompletedAt  *time.Time `json:"completed_at,omitempty" dynamodbav:"CompletedAt,omitempty"`
+	TextractID   string     `json:"textract_id" dynamodbav:"TextractID"`
+	ResultKey    string     `json:"result_key" dynamodbav:"ResultKey"`
+	Error        string     `json:"error,omitempty" dynamodbav:"Error,omitempty"`
 }
 
 var (
@@ -183,6 +199,12 @@ func loadTerraformState(tfDir string) (*TextractorResources, error) {
 		missingOutputs = append(missingOutputs, "region")
 	}
 
+	if value, ok := outputMap["jobs_table_name"]; ok {
+		resources.JobsTable = value
+	} else {
+		missingOutputs = append(missingOutputs, "jobs_table_name")
+	}
+
 	if len(missingOutputs) > 0 {
 		return nil, fmt.Errorf("missing required terraform outputs: %s", strings.Join(missingOutputs, ", "))
 	}
@@ -198,30 +220,118 @@ func newListCommand() *cobra.Command {
 			status, _ := cmd.Flags().GetString("status")
 			since, _ := cmd.Flags().GetString("since")
 			
+			// Load resources to get table name
+			resources, err := loadTerraformState(tfDir)
+			if err != nil {
+				return fmt.Errorf("failed to load terraform state: %w", err)
+			}
+			
 			// Initialize AWS session and DynamoDB client
 			sess := session.Must(session.NewSession())
 			db := dynamodb.New(sess)
 			
 			// Build query based on flags
 			input := &dynamodb.QueryInput{
-				TableName: aws.String("TextractorJobs"),
+				TableName: aws.String(resources.JobsTable),
 			}
 			
 			if status != "" {
 				// Query GSI1 for specific status
 				input.IndexName = aws.String("Status-SubmittedAt-Index")
-				// ... set key conditions
+				input.KeyConditionExpression = aws.String("Status = :status")
+				input.ExpressionAttributeValues = map[string]*dynamodb.AttributeValue{
+					":status": {
+						S: aws.String(status),
+					},
+				}
+				
+				if since != "" {
+					input.KeyConditionExpression = aws.String("Status = :status AND SubmittedAt >= :since")
+					input.ExpressionAttributeValues[":since"] = &dynamodb.AttributeValue{
+						S: aws.String(since),
+					}
+				}
+			} else {
+				// If no status provided, scan the table
+				scanInput := &dynamodb.ScanInput{
+					TableName: aws.String(resources.JobsTable),
+				}
+				
+				result, err := db.Scan(scanInput)
+				if err != nil {
+					return fmt.Errorf("failed to scan jobs: %w", err)
+				}
+				
+				printJobs(result.Items)
+				return nil
 			}
 			
-			// Execute query and format results
-			// ...
+			// Execute query
+			result, err := db.Query(input)
+			if err != nil {
+				return fmt.Errorf("failed to query jobs: %w", err)
+			}
 			
+			printJobs(result.Items)
 			return nil
 		},
 	}
 	
-	cmd.Flags().String("status", "", "Filter by job status")
+	cmd.Flags().String("status", "", "Filter by job status (SUBMITTED, PROCESSING, COMPLETED, FAILED)")
 	cmd.Flags().String("since", "", "Show jobs since date (YYYY-MM-DD)")
 	
 	return cmd
+}
+
+// Update printJobs to use TextractJob struct
+func printJobs(items []map[string]*dynamodb.AttributeValue) {
+	if len(items) == 0 {
+		fmt.Println("No jobs found")
+		return
+	}
+
+	jobs := make([]TextractJob, 0, len(items))
+	for _, item := range items {
+		var job TextractJob
+		err := dynamodbattribute.UnmarshalMap(item, &job)
+		if err != nil {
+			log.Printf("Error unmarshaling job: %v", err)
+			continue
+		}
+		jobs = append(jobs, job)
+	}
+
+	if len(jobs) == 0 {
+		fmt.Println("No valid jobs found")
+		return
+	}
+
+	// Sort jobs by submission time, newest first
+	sort.Slice(jobs, func(i, j int) bool {
+		return jobs[i].SubmittedAt.After(jobs[j].SubmittedAt)
+	})
+
+	fmt.Printf("%-36s %-12s %-20s %-20s %-20s %s\n", 
+		"Job ID", "Status", "Submitted", "Completed", "Textract ID", "Document")
+	fmt.Println(strings.Repeat("-", 120))
+
+	for _, job := range jobs {
+		completedAt := "-"
+		if job.CompletedAt != nil {
+			completedAt = job.CompletedAt.Format("2006-01-02 15:04:05")
+		}
+
+		fmt.Printf("%-36s %-12s %-20s %-20s %-20s %s\n",
+			job.JobID,
+			job.Status,
+			job.SubmittedAt.Format("2006-01-02 15:04:05"),
+			completedAt,
+			job.TextractID,
+			job.DocumentKey)
+
+		// If there's an error, print it indented on the next line
+		if job.Error != "" {
+			fmt.Printf("    Error: %s\n", job.Error)
+		}
+	}
 } 
