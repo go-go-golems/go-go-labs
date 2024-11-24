@@ -92,3 +92,8 @@ output "completion_dlq_url" {
   description = "The URL of the completion Dead Letter Queue"
   value       = module.textractor.completion_dlq_url
 }
+
+output "notification_topic_arn" {
+  description = "The ARN of the SNS topic for application notifications"
+  value = module.textractor.notification_topic_arn
+}

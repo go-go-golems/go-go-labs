@@ -101,6 +101,15 @@ func addDebugCommands(rootCmd *cobra.Command) {
 		Args:  cobra.ExactArgs(1),
 		Run:   debugDLQ,
 	})
+
+	// Add Textract job status command
+	debugCmd.AddCommand(&cobra.Command{
+		Use:   "textract-job [jobId]",
+		Short: "Check status of a Textract job",
+		Long:  "Shows the current status and details of a Textract document analysis job",
+		Args:  cobra.ExactArgs(1),
+		Run:   debugTextractJob,
+	})
 }
 
 func runAWSCommand(args ...string) error {
@@ -497,4 +506,17 @@ func debugDLQ(cmd *cobra.Command, args []string) {
 	fmt.Println("- Use 'aws sqs purge-queue --queue-url <url>' to clear the DLQ")
 	fmt.Println("- Use 'aws sqs delete-message' to remove individual messages")
 	fmt.Println("- Check CloudWatch logs for more details about failures")
+}
+
+func debugTextractJob(cmd *cobra.Command, args []string) {
+	jobId := args[0]
+	fmt.Printf("🔍 Checking Textract job status for: %s\n", jobId)
+
+	err := runAWSCommand("textract", "get-document-analysis",
+		"--job-id", jobId,
+		"--max-results", "1")
+	if err != nil {
+		log.Printf("Failed to get Textract job status: %v", err)
+		return
+	}
 } 
