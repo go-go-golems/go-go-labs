@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/utils"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 )
@@ -34,7 +35,8 @@ func newSubmitCommand() *cobra.Command {
 			path := args[0]
 
 			// Load resources
-			resources, err := loadTerraformState(tfDir)
+			stateLoader := utils.NewStateLoader()
+			resources, err := stateLoader.LoadStateFromCommand(cmd)
 			if err != nil {
 				return fmt.Errorf("failed to load terraform state: %w", err)
 			}
@@ -69,7 +71,7 @@ func newSubmitCommand() *cobra.Command {
 	return cmd
 }
 
-func submitDirectory(dirPath string, resources *TextractorResources, s3Client *s3.S3, dbClient *dynamodb.DynamoDB) error {
+func submitDirectory(dirPath string, resources *utils.TextractorResources, s3Client *s3.S3, dbClient *dynamodb.DynamoDB) error {
 	return filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -86,7 +88,7 @@ func submitDirectory(dirPath string, resources *TextractorResources, s3Client *s
 }
 
 func createJob(jobID, documentKey string, dbClient *dynamodb.DynamoDB, tableName string, state string, errorMsg string) error {
-	job := TextractJob{
+	job := utils.TextractJob{
 		JobID:       jobID,
 		DocumentKey: documentKey,
 		Status:      state,
@@ -136,7 +138,7 @@ func updateJobStatus(jobID string, state string, errorMsg string, dbClient *dyna
 	return err
 }
 
-func submitFile(filePath string, resources *TextractorResources, s3Client *s3.S3, dbClient *dynamodb.DynamoDB) error {
+func submitFile(filePath string, resources *utils.TextractorResources, s3Client *s3.S3, dbClient *dynamodb.DynamoDB) error {
 	// Validate file is PDF
 	if strings.ToLower(filepath.Ext(filePath)) != ".pdf" {
 		return fmt.Errorf("file must be a PDF: %s", filePath)

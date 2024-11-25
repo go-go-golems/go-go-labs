@@ -7,38 +7,67 @@ Textractor is an application to submit PDFs to AWS Textract and get back structu
 The application uses a serverless architecture with the following AWS resources:
 
 ### Storage Components
-- **S3 Bucket**: Stores input PDFs and processed results
+- **S3 Buckets**: 
+  - Document bucket: Stores input PDFs
+  - Output bucket: Stores Textract results
+  - Both buckets configured with proper Textract service permissions
 - **Input SQS Queue**: Buffers new document processing requests
-  - Has associated Dead Letter Queue for failed messages
-- **Output SQS Queue**: Receives Textract completion notifications
-  - Has associated Dead Letter Queue for failed messages
-- **SNS Topic**: Handles Textract completion notifications
-- **Notifications SQS Queue**: Provides real-time status updates and progress information
+  - 30s visibility timeout
+  - 24h message retention
+  - Dead Letter Queue with 14-day retention and 3 retries
+- **Completion SQS Queue**: Receives Textract completion notifications
+  - 30s visibility timeout
+  - 24h message retention
+  - Dead Letter Queue with 14-day retention and 3 retries
+- **SNS Topics**: 
+  - Textract completion notifications
+  - Application notifications for status updates
+  - CloudWatch logging enabled with 14-day retention
+- **Notifications SQS Queue**: Provides real-time status updates
   - 1-hour message retention
   - Long polling enabled (20s wait time)
+  - Used for monitoring job progress
 
 ### Processing Components
-- **Document Processor Lambda**: Handles new document submissions
+- **Document Processor Lambda**: 
+  - Handles new document submissions
+  - Node.js implementation
   - 30s timeout
-  - Processes one message at a time
-- **Completion Processor Lambda**: Processes Textract completion notifications
+  - CloudWatch logging enabled
+  - IAM role with S3, Textract, and SNS permissions
+- **Completion Processor Lambda**: 
+  - Processes Textract completion notifications
+  - Node.js implementation
   - 30s timeout
+  - CloudWatch logging enabled
 - **Amazon Textract**: Performs document analysis
+  - Configured with SNS notifications
+  - IAM role for S3 access and SNS publishing
 - **DynamoDB**: Tracks job status and metadata
+  - Table: TextractorJobs
+  - Partition Key: JobID (String)
+  - GSI1: Status-SubmittedAt-Index for status queries
+  - GSI2: DocumentKey-Index for file lookups
   - Point-in-time recovery enabled
   - TTL enabled for automatic cleanup
 
 ## Processing Workflow
 
-1. Go program uploads PDF to S3
+1. Go CLI uploads PDF to S3 document bucket
 2. S3 event triggers Document Processor Lambda via input queue
-3. Document Processor submits document to Textract
-4. Textract processes document and sends completion notification to SNS
-5. SNS triggers Completion Processor Lambda
-6. Completion Processor retrieves results and updates job status
-7. Status updates sent to notifications queue
-8. Go program polls notifications queue for progress
-9. Failed messages are moved to DLQ after 3 retries
+3. Document Processor:
+   - Updates job status to PROCESSING
+   - Submits document to Textract
+   - Configures SNS notification
+4. Textract processes document asynchronously
+5. On completion, Textract sends notification to SNS topic
+6. Completion Processor Lambda:
+   - Retrieves Textract results
+   - Stores results in output bucket
+   - Updates job status to COMPLETED
+   - Sends notification to status queue
+7. CLI polls notifications queue for updates
+8. Failed messages are moved to DLQ after 3 retries
 
 ## Job Management
 
@@ -83,13 +112,59 @@ Benefits:
 - Built-in TTL for old job cleanup
 - Backup and recovery capabilities
 
-### Job Management Commands
-The CLI provides several commands:
-- `list`: Query and display jobs with filtering options
-- `status`: Check individual job status
-- `purge`: Clean up old jobs and associated data
-- `monitor`: Watch job processing in real-time
-- `debug dlq`: Inspect and manage Dead Letter Queues
+### CLI Commands
+The application provides the following commands:
+- `submit [file/directory]`: Submit PDFs for processing
+  - Supports single file or recursive directory processing
+  - Generates unique job IDs
+  - Creates initial job records
+- `list`: List and filter jobs
+  - Filter by status
+  - Filter by date range
+  - Sort by submission time
+- `debug`: Debugging tools
+  - Lambda function logs
+  - Queue monitoring
+  - S3 operations
+  - SNS topic inspection
+  - CloudWatch metrics
+  - End-to-end testing
+- `save-config`: Save Terraform state to config file
+- `run`: Display current resource configuration
+
+## Infrastructure Management
+
+### Terraform Module Structure
+- `main.tf`: Provider configuration
+- `variables.tf`: Input variables
+- `outputs.tf`: Resource outputs
+- `s3.tf`: S3 bucket configuration
+- `sqs.tf`: Queue definitions
+- `sns.tf`: Topic configuration
+- `lambda.tf`: Function deployment
+- `dynamodb.tf`: Table schema
+- `textract.tf`: Textract IAM roles
+- `cloudwatch.tf`: Logging setup
+
+### Resource Naming
+All resources use a consistent naming scheme:
+- Prefix: {prefix}-{resource}
+- Environment tag
+- Standard tags for all resources
+
+### Monitoring & Logging
+- CloudWatch Log Groups:
+  - Lambda function logs
+  - SNS delivery logs
+  - CloudTrail audit logs
+- CloudWatch Metrics:
+  - Lambda execution metrics
+  - Queue depth monitoring
+  - SNS delivery statistics
+- Dead Letter Queues:
+  - Separate DLQs for input and completion
+  - 14-day message retention
+  - Monitoring via debug commands
 
 ## Progress Notifications
 
@@ -133,42 +208,92 @@ The CLI provides several commands:
 }
 ```
 
-
 ## Architecture Diagrams
 
 ### Infrastructure Flow
 ```mermaid
 graph TD
-    CLI[CLI Tool] -->|Upload PDF| S3[S3 Bucket]
-    S3 -->|Trigger| DocLambda[Document Processor]
-    DocLambda -->|Submit| Textract[Amazon Textract]
-    Textract -->|Completion| SNS[SNS Topic]
-    SNS -->|Trigger| CompLambda[Completion Processor]
-    CompLambda -->|Store Results| S3
-    CompLambda -->|Update Status| DDB[(DynamoDB)]
-    CompLambda -->|Send Update| NotifQ[Notifications Queue]
-    CLI -->|Poll| NotifQ
+    %% Client Components
+    CLI[CLI Tool]
+    
+    %% S3 Buckets
+    DocBucket[Document S3 Bucket]
+    OutBucket[Output S3 Bucket]
+    
+    %% SQS Queues
+    InputQ[Input Queue]
+    InputDLQ[Input DLQ]
+    CompQ[Completion Queue]
+    CompDLQ[Completion DLQ]
+    NotifQ[Notifications Queue]
+    
+    %% SNS Topics
+    TextractSNS[Textract SNS Topic]
+    NotifSNS[Notifications SNS Topic]
+    
+    %% Lambda Functions
+    DocLambda[Document Processor]
+    CompLambda[Completion Processor]
+    
+    %% Core Services
+    Textract[Amazon Textract]
+    DDB[(DynamoDB)]
+    CW[CloudWatch Logs]
+    
+    %% CLI Operations
+    CLI -->|Upload PDF| DocBucket
+    CLI -->|List Jobs| DDB
+    CLI -->|Poll Status| NotifQ
+    
+    %% Document Processing Flow
+    DocBucket -->|Trigger| InputQ
+    InputQ -->|Process| DocLambda
+    InputQ -->|Failed Messages| InputDLQ
+    
+    DocLambda -->|Submit| Textract
+    DocLambda -->|Update Status| DDB
+    DocLambda -->|Log| CW
+    
+    %% Textract Flow
+    Textract -->|Store Results| OutBucket
+    Textract -->|Completion| TextractSNS
+    TextractSNS -->|Notify| CompQ
+    CompQ -->|Failed Messages| CompDLQ
+    
+    %% Completion Processing
+    CompQ -->|Process| CompLambda
+    CompLambda -->|Update Status| DDB
+    CompLambda -->|Log| CW
+    CompLambda -->|Status Update| NotifSNS
+    
+    %% Notifications Flow
+    NotifSNS -->|Deliver| NotifQ
+    
+    %% Styling
+    classDef s3 fill:#ff9900,stroke:#232f3e,color:#232f3e
+    classDef sqs fill:#ff4f8b,stroke:#232f3e,color:#232f3e
+    classDef sns fill:#ff4f8b,stroke:#232f3e,color:#232f3e
+    classDef lambda fill:#fa7e14,stroke:#232f3e,color:#232f3e
+    classDef dynamo fill:#4053d6,stroke:#232f3e,color:white
+    classDef textract fill:#1ec9e7,stroke:#232f3e,color:#232f3e
+    classDef cloudwatch fill:#518ddb,stroke:#232f3e,color:white
+    classDef cli fill:#7aa116,stroke:#232f3e,color:white
+    
+    class DocBucket,OutBucket s3
+    class InputQ,CompQ,InputDLQ,CompDLQ,NotifQ sqs
+    class TextractSNS,NotifSNS sns
+    class DocLambda,CompLambda lambda
+    class DDB dynamo
+    class Textract textract
+    class CW cloudwatch
+    class CLI cli
 ```
 
-### Job Management Flow
-```mermaid
-graph TD
-    Submit[Submit Command] -->|Create Job| DDB[(DynamoDB)]
-    Submit -->|Upload| S3[S3 Bucket]
-    
-    DocLambda[Document Processor] -->|Update Status| DDB
-    DocLambda -->|Process| Textract[Amazon Textract]
-    
-    CompLambda[Completion Processor] -->|Update Status| DDB
-    CompLambda -->|Store Results| S3
-    CompLambda -->|Send Update| NotifQ[Notifications Queue]
-    
-    List[List Command] -->|Query| DDB
-    Status[Status Command] -->|Get Job| DDB
-    Monitor[Monitor Command] -->|Watch| NotifQ
-    
-    style Submit fill:#f9f,stroke:#333
-    style List fill:#f9f,stroke:#333
-    style Status fill:#f9f,stroke:#333
-    style Monitor fill:#f9f,stroke:#333
-```
+The diagram shows:
+- Complete data flow from CLI to final output
+- All SQS queues including Dead Letter Queues
+- Both S3 buckets (document and output)
+- Both SNS topics (Textract completion and notifications)
+- CloudWatch logging integration
+- All major service interactions
+- Color coding for different AWS services

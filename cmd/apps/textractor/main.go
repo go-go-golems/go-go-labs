@@ -1,63 +1,19 @@
 package main
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
-	"github.com/hashicorp/terraform-exec/tfexec"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/debug"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/utils"
 	"github.com/spf13/cobra"
-)
-
-// TextractorResources represents all AWS resources needed for the Textractor application
-type TextractorResources struct {
-	DocumentS3Bucket            string `json:"document_bucket"`
-	DocumentS3BucketARN         string `json:"document_bucket_arn"`
-	OutputS3Bucket              string `json:"output_bucket"`
-	OutputS3BucketARN           string `json:"output_bucket_arn"`
-	InputQueue                  string `json:"input_queue_url"`
-	CompletionQueue             string `json:"completion_queue_url"`
-	NotificationsQueue          string `json:"notifications_queue_url"`
-	SNSTopic                    string `json:"sns_topic_arn"`
-	DocumentProcessorARN        string `json:"document_processor_arn"`
-	DocumentProcessorName       string `json:"document_processor_name"`
-	DocumentProcessorLogGroup   string `json:"document_processor_log_group"`
-	CompletionProcessorARN      string `json:"completion_processor_arn"`
-	CompletionProcessorName     string `json:"completion_processor_name"`
-	CompletionProcessorLogGroup string `json:"completion_processor_log_group"`
-	Region                      string `json:"region"`
-	JobsTable                   string `json:"jobs_table_name"`
-	CloudTrailLogGroup          string `json:"cloudtrail_log_group"`
-	InputDLQURL                 string `json:"input_dlq_url"`
-	CompletionDLQURL            string `json:"completion_dlq_url"`
-	NotificationTopic           string `json:"notification_topic_arn"`
-}
-
-// Add TextractJob struct as defined in PLAN.md
-type TextractJob struct {
-	JobID       string     `json:"job_id" dynamodbav:"JobID"`
-	DocumentKey string     `json:"document_key" dynamodbav:"DocumentKey"`
-	Status      string     `json:"status" dynamodbav:"Status"`
-	SubmittedAt time.Time  `json:"submitted_at" dynamodbav:"SubmittedAt"`
-	CompletedAt *time.Time `json:"completed_at,omitempty" dynamodbav:"CompletedAt,omitempty"`
-	TextractID  string     `json:"textract_id" dynamodbav:"TextractID"`
-	ResultKey   string     `json:"result_key" dynamodbav:"ResultKey"`
-	Error       string     `json:"error,omitempty" dynamodbav:"Error,omitempty"`
-}
-
-var (
-	tfDir      string
-	configFile string
 )
 
 func main() {
@@ -66,217 +22,20 @@ func main() {
 		Short: "Manage Textractor AWS resources and process PDFs",
 	}
 
-	rootCmd.PersistentFlags().StringVar(&tfDir, "tf-dir", "terraform", "Directory containing Terraform state")
-	rootCmd.PersistentFlags().StringVar(&configFile, "config", "", "JSON config file containing resource configuration")
+	// Add persistent flags to root command
+	rootCmd.PersistentFlags().String("tf-dir", "terraform", "Directory containing Terraform state")
+	rootCmd.PersistentFlags().String("config", "", "JSON config file containing resource configuration")
 
-	// Add save-config subcommand
-	saveConfigCmd := &cobra.Command{
-		Use:   "save-config",
-		Short: "Save resource configuration to JSON file",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			resources, err := loadTerraformState(tfDir)
-			if err != nil {
-				return fmt.Errorf("failed to load terraform state: %w", err)
-			}
+	// Add commands
+	rootCmd.AddCommand(newListCommand())
+	rootCmd.AddCommand(debug.NewDebugCommand())
 
-			output := configFile
-			if output == "" {
-				output = "textractor-config.json"
-			}
-
-			data, err := json.MarshalIndent(resources, "", "  ")
-			if err != nil {
-				return fmt.Errorf("failed to marshal config: %w", err)
-			}
-
-			if err := os.WriteFile(output, data, 0644); err != nil {
-				return fmt.Errorf("failed to write config file: %w", err)
-			}
-
-			fmt.Printf("Configuration saved to %s\n", output)
-			return nil
-		},
-	}
-	rootCmd.AddCommand(saveConfigCmd)
-
-	// Add debug-vars subcommand
-	debugVarsCmd := &cobra.Command{
-		Use:   "debug-vars",
-		Short: "Print environment variables for debugging",
-		Run:   printDebugVars,
-	}
-	rootCmd.AddCommand(debugVarsCmd)
-
-	// Add run command
-	runCmd := &cobra.Command{
-		Use:   "run",
-		Short: "Run the Textractor application",
-		Run:   run,
-	}
-	rootCmd.AddCommand(runCmd)
-
-	// Add debug commands
-	addDebugCommands(rootCmd)
-
-	// Add list command
-	listCmd := newListCommand()
-	rootCmd.AddCommand(listCmd)
-
-	// Add submit command
-	submitCmd := newSubmitCommand()
-	rootCmd.AddCommand(submitCmd)
-
-	// Add debug command
-	addDebugCommands(rootCmd)
+	addDebugVarCommands(rootCmd, "terraform")
 
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-}
-
-func printDebugVars(cmd *cobra.Command, args []string) {
-	resources, err := loadTerraformState(tfDir)
-	if err != nil {
-		log.Fatalf("Failed to load Terraform state: %v", err)
-	}
-
-	// Print in a format suitable for shell script
-	fmt.Printf("export BUCKET_NAME=\"%s\"\n", resources.DocumentS3Bucket)
-	fmt.Printf("export INPUT_QUEUE_URL=\"%s\"\n", resources.InputQueue)
-	fmt.Printf("export COMPLETION_QUEUE_URL=\"%s\"\n", resources.CompletionQueue)
-	fmt.Printf("export NOTIFICATIONS_QUEUE_URL=\"%s\"\n", resources.NotificationsQueue)
-	fmt.Printf("export SNS_TOPIC_ARN=\"%s\"\n", resources.SNSTopic)
-	fmt.Printf("export AWS_REGION=\"%s\"\n", resources.Region)
-	fmt.Printf("export JOBS_TABLE=\"%s\"\n", resources.JobsTable)
-	fmt.Printf("export DOCUMENT_PROCESSOR_ARN=\"%s\"\n", resources.DocumentProcessorARN)
-	fmt.Printf("export COMPLETION_PROCESSOR_ARN=\"%s\"\n", resources.CompletionProcessorARN)
-	fmt.Printf("export INPUT_DLQ_URL=\"%s\"\n", resources.InputDLQURL)
-	fmt.Printf("export COMPLETION_DLQ_URL=\"%s\"\n", resources.CompletionDLQURL)
-
-	// Print helper message
-	fmt.Println("\n# To use these variables, run:")
-	fmt.Println("# eval $(textractor debug-vars)")
-}
-
-func run(cmd *cobra.Command, args []string) {
-	resources, err := loadTerraformState(tfDir)
-	if err != nil {
-		log.Fatalf("Failed to load Terraform state: %v", err)
-	}
-
-	// Print the loaded resources
-	fmt.Printf("Textractor Resources:\n")
-	fmt.Printf("  S3 Bucket:                    %s\n", resources.DocumentS3Bucket)
-	fmt.Printf("  Input Queue:                  %s\n", resources.InputQueue)
-	fmt.Printf("  Completion Queue:             %s\n", resources.CompletionQueue)
-	fmt.Printf("  Notifications Queue:          %s\n", resources.NotificationsQueue)
-	fmt.Printf("  SNS Topic:                    %s\n", resources.SNSTopic)
-	fmt.Printf("  Region:                       %s\n", resources.Region)
-	fmt.Printf("  Jobs Table:                   %s\n", resources.JobsTable)
-	fmt.Printf("  Document Processor:           %s\n", resources.DocumentProcessorName)
-	fmt.Printf("  Completion Processor:         %s\n", resources.CompletionProcessorName)
-	fmt.Printf("  Document Processor Logs:      %s\n", resources.DocumentProcessorLogGroup)
-	fmt.Printf("  Completion Processor Logs:    %s\n", resources.CompletionProcessorLogGroup)
-	fmt.Printf("  CloudTrail Logs:             %s\n", resources.CloudTrailLogGroup)
-	fmt.Printf("  Input DLQ:                    %s\n", resources.InputDLQURL)
-	fmt.Printf("  Completion DLQ:               %s\n", resources.CompletionDLQURL)
-	fmt.Printf("  Output S3 Bucket:             %s\n", resources.OutputS3Bucket)
-}
-
-func loadTerraformState(tfDir string) (*TextractorResources, error) {
-	// First try loading from config file if specified
-	if configFile != "" {
-		data, err := os.ReadFile(configFile)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read config file: %w", err)
-		}
-
-		var resources TextractorResources
-		if err := json.Unmarshal(data, &resources); err != nil {
-			return nil, fmt.Errorf("failed to parse config file: %w", err)
-		}
-
-		// Validate required fields
-		if err := validateResources(&resources); err != nil {
-			return nil, fmt.Errorf("invalid config file: %w", err)
-		}
-
-		return &resources, nil
-	}
-
-	// Fall back to loading from Terraform state
-	absPath, err := filepath.Abs(tfDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get absolute path: %w", err)
-	}
-
-	tf, err := tfexec.NewTerraform(absPath, "terraform")
-	if err != nil {
-		return nil, fmt.Errorf("error running NewTerraform: %w", err)
-	}
-
-	err = tf.Init(context.Background(), tfexec.Upgrade(true))
-	if err != nil {
-		return nil, fmt.Errorf("error running Init: %w", err)
-	}
-
-	state, err := tf.Show(context.Background())
-	if err != nil {
-		return nil, fmt.Errorf("error running Show: %w", err)
-	}
-
-	if state.Values == nil || len(state.Values.Outputs) == 0 {
-		return nil, fmt.Errorf("no terraform state or outputs found")
-	}
-
-	resources := &TextractorResources{}
-	outputMap := make(map[string]string)
-
-	// Map all outputs to strings
-	for name, output := range state.Values.Outputs {
-		if value, ok := output.Value.(string); ok {
-			outputMap[name] = value
-		}
-	}
-
-	// Map outputs to struct fields
-	var missingOutputs []string
-
-	// Helper function to check and set output
-	setOutput := func(field *string, key string) {
-		if value, ok := outputMap[key]; ok {
-			*field = value
-		} else {
-			missingOutputs = append(missingOutputs, key)
-		}
-	}
-
-	// Map all required outputs
-	setOutput(&resources.DocumentS3Bucket, "document_bucket")
-	setOutput(&resources.InputQueue, "input_queue_url")
-	setOutput(&resources.CompletionQueue, "completion_queue_url")
-	setOutput(&resources.NotificationsQueue, "notifications_queue_url")
-	setOutput(&resources.SNSTopic, "sns_topic_arn")
-	setOutput(&resources.Region, "region")
-	setOutput(&resources.JobsTable, "jobs_table_name")
-	setOutput(&resources.DocumentProcessorARN, "document_processor_arn")
-	setOutput(&resources.CompletionProcessorARN, "completion_processor_arn")
-	setOutput(&resources.DocumentProcessorName, "document_processor_name")
-	setOutput(&resources.CompletionProcessorName, "completion_processor_name")
-	setOutput(&resources.DocumentProcessorLogGroup, "document_processor_log_group")
-	setOutput(&resources.CompletionProcessorLogGroup, "completion_processor_log_group")
-	setOutput(&resources.CloudTrailLogGroup, "cloudtrail_log_group")
-	setOutput(&resources.InputDLQURL, "input_dlq_url")
-	setOutput(&resources.CompletionDLQURL, "completion_dlq_url")
-	setOutput(&resources.NotificationTopic, "notification_topic_arn")
-	setOutput(&resources.OutputS3Bucket, "output_bucket")
-
-	if len(missingOutputs) > 0 {
-		return nil, fmt.Errorf("missing required terraform outputs: %s", strings.Join(missingOutputs, ", "))
-	}
-
-	return resources, nil
 }
 
 func newListCommand() *cobra.Command {
@@ -284,177 +43,102 @@ func newListCommand() *cobra.Command {
 		Use:   "list",
 		Short: "List Textract jobs",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			status, _ := cmd.Flags().GetString("status")
+			// Parse flags
 			since, _ := cmd.Flags().GetString("since")
 
-			// Load resources to get table name and region
-			resources, err := loadTerraformState(tfDir)
+			stateLoader := utils.NewStateLoader()
+			resources, err := stateLoader.LoadStateFromCommand(cmd)
 			if err != nil {
-				return fmt.Errorf("failed to load terraform state: %w", err)
+				return fmt.Errorf("failed to load state: %w", err)
 			}
 
-			// Initialize AWS session and DynamoDB client with proper region
+			// Initialize AWS session and DynamoDB client
 			sess := session.Must(session.NewSession(&aws.Config{
 				Region: aws.String(resources.Region),
 			}))
 			db := dynamodb.New(sess)
 
-			// Build query based on flags
-			input := &dynamodb.QueryInput{
+			// Query jobs from DynamoDB
+			input := &dynamodb.ScanInput{
 				TableName: aws.String(resources.JobsTable),
 			}
 
-			if status != "" {
-				// Query GSI1 for specific status
-				input.IndexName = aws.String("Status-SubmittedAt-Index")
-				input.KeyConditionExpression = aws.String("Status = :status")
-				input.ExpressionAttributeValues = map[string]*dynamodb.AttributeValue{
-					":status": {
-						S: aws.String(status),
-					},
-				}
-
-				if since != "" {
-					input.KeyConditionExpression = aws.String("Status = :status AND SubmittedAt >= :since")
-					input.ExpressionAttributeValues[":since"] = &dynamodb.AttributeValue{
-						S: aws.String(since),
-					}
-				}
-			} else {
-				// If no status provided, scan the table
-				scanInput := &dynamodb.ScanInput{
-					TableName: aws.String(resources.JobsTable),
-				}
-
-				result, err := db.Scan(scanInput)
+			if since != "" {
+				t, err := time.Parse(time.RFC3339, since)
 				if err != nil {
-					return fmt.Errorf("failed to scan jobs: %w", err)
+					return fmt.Errorf("invalid time format for --since flag: %w", err)
 				}
-
-				printJobs(result.Items)
-				return nil
+				input.FilterExpression = aws.String("SubmittedAt >= :t")
+				input.ExpressionAttributeValues = map[string]*dynamodb.AttributeValue{
+					":t": {S: aws.String(t.Format(time.RFC3339))},
+				}
 			}
 
-			// Execute query
-			result, err := db.Query(input)
+			result, err := db.Scan(input)
 			if err != nil {
 				return fmt.Errorf("failed to query jobs: %w", err)
 			}
 
-			printJobs(result.Items)
+			var jobs []utils.TextractJob
+			if err := dynamodbattribute.UnmarshalListOfMaps(result.Items, &jobs); err != nil {
+				return fmt.Errorf("failed to unmarshal jobs: %w", err)
+			}
+
+			// Sort jobs by submission time
+			sort.Slice(jobs, func(i, j int) bool {
+				return jobs[i].SubmittedAt.After(jobs[j].SubmittedAt)
+			})
+
+			// Print jobs
+			for _, job := range jobs {
+				fmt.Printf("Job ID: %s\n", job.JobID)
+				fmt.Printf("  Document: %s\n", job.DocumentKey)
+				fmt.Printf("  Status: %s\n", job.Status)
+				fmt.Printf("  Submitted: %s\n", job.SubmittedAt.Format(time.RFC3339))
+				if job.CompletedAt != nil {
+					fmt.Printf("  Completed: %s\n", job.CompletedAt.Format(time.RFC3339))
+				}
+				if job.Error != "" {
+					fmt.Printf("  Error: %s\n", job.Error)
+				}
+				fmt.Println()
+			}
+
 			return nil
 		},
 	}
 
-	cmd.Flags().String("status", "", "Filter by job status (SUBMITTED, PROCESSING, COMPLETED, FAILED)")
-	cmd.Flags().String("since", "", "Show jobs since date (YYYY-MM-DD)")
-
+	cmd.Flags().String("since", "", "Only show jobs submitted after this time (RFC3339 format)")
 	return cmd
 }
+func addDebugVarCommands(rootCmd *cobra.Command, tfDir string) {
+	debugVarsCmd := &cobra.Command{
+		Use:   "debug-vars",
+		Short: "Print environment variables for debugging",
+		Run: func(cmd *cobra.Command, args []string) {
+			stateLoader := utils.NewStateLoader()
+			resources, err := stateLoader.LoadStateFromCommand(cmd)
+			if err != nil {
+				log.Fatalf("Failed to load Terraform state: %v", err)
+			}
 
-// Update printJobs to use TextractJob struct
-func printJobs(items []map[string]*dynamodb.AttributeValue) {
-	if len(items) == 0 {
-		fmt.Println("No jobs found")
-		return
-	}
+			// Print in a format suitable for shell script
+			fmt.Printf("export BUCKET_NAME=\"%s\"\n", resources.DocumentS3Bucket)
+			fmt.Printf("export INPUT_QUEUE_URL=\"%s\"\n", resources.InputQueue)
+			fmt.Printf("export COMPLETION_QUEUE_URL=\"%s\"\n", resources.CompletionQueue)
+			fmt.Printf("export NOTIFICATIONS_QUEUE_URL=\"%s\"\n", resources.NotificationsQueue)
+			fmt.Printf("export SNS_TOPIC_ARN=\"%s\"\n", resources.SNSTopic)
+			fmt.Printf("export AWS_REGION=\"%s\"\n", resources.Region)
+			fmt.Printf("export JOBS_TABLE=\"%s\"\n", resources.JobsTable)
+			fmt.Printf("export DOCUMENT_PROCESSOR_ARN=\"%s\"\n", resources.DocumentProcessorARN)
+			fmt.Printf("export COMPLETION_PROCESSOR_ARN=\"%s\"\n", resources.CompletionProcessorARN)
+			fmt.Printf("export INPUT_DLQ_URL=\"%s\"\n", resources.InputDLQURL)
+			fmt.Printf("export COMPLETION_DLQ_URL=\"%s\"\n", resources.CompletionDLQURL)
 
-	jobs := make([]TextractJob, 0, len(items))
-	for _, item := range items {
-		var job TextractJob
-		err := dynamodbattribute.UnmarshalMap(item, &job)
-		if err != nil {
-			log.Printf("Error unmarshaling job: %v", err)
-			continue
-		}
-		jobs = append(jobs, job)
+			// Print helper message
+			fmt.Println("\n# To use these variables, run:")
+			fmt.Println("# eval $(textractor debug-vars)")
+		},
 	}
-
-	if len(jobs) == 0 {
-		fmt.Println("No valid jobs found")
-		return
-	}
-
-	// Sort jobs by submission time, newest first
-	sort.Slice(jobs, func(i, j int) bool {
-		return jobs[i].SubmittedAt.After(jobs[j].SubmittedAt)
-	})
-
-	fmt.Printf("%-36s %-12s %-20s %-20s %-20s %s\n",
-		"Job ID", "Status", "Submitted", "Completed", "Textract ID", "Document")
-	fmt.Println(strings.Repeat("-", 120))
-
-	for _, job := range jobs {
-		completedAt := "-"
-		if job.CompletedAt != nil {
-			completedAt = job.CompletedAt.Format("2006-01-02 15:04:05")
-		}
-
-		fmt.Printf("%-36s %-12s %-20s %-20s %-20s %s\n",
-			job.JobID,
-			job.Status,
-			job.SubmittedAt.Format("2006-01-02 15:04:05"),
-			completedAt,
-			job.TextractID,
-			job.DocumentKey)
-
-		// If there's an error, print it indented on the next line
-		if job.Error != "" {
-			fmt.Printf("    Error: %s\n", job.Error)
-		}
-	}
-}
-
-// Add validation function
-func validateResources(r *TextractorResources) error {
-	var missing []string
-
-	if r.DocumentS3Bucket == "" {
-		missing = append(missing, "s3_bucket")
-	}
-	if r.InputQueue == "" {
-		missing = append(missing, "input_queue_url")
-	}
-	if r.CompletionQueue == "" {
-		missing = append(missing, "completion_queue_url")
-	}
-	if r.NotificationsQueue == "" {
-		missing = append(missing, "notifications_queue_url")
-	}
-	if r.SNSTopic == "" {
-		missing = append(missing, "sns_topic_arn")
-	}
-	if r.DocumentProcessorARN == "" {
-		missing = append(missing, "document_processor_arn")
-	}
-	if r.CompletionProcessorARN == "" {
-		missing = append(missing, "completion_processor_arn")
-	}
-	if r.Region == "" {
-		missing = append(missing, "region")
-	}
-	if r.DocumentProcessorName == "" {
-		missing = append(missing, "document_processor_name")
-	}
-	if r.CompletionProcessorName == "" {
-		missing = append(missing, "completion_processor_name")
-	}
-	if r.JobsTable == "" {
-		missing = append(missing, "jobs_table_name")
-	}
-	if r.InputDLQURL == "" {
-		missing = append(missing, "input_dlq_url")
-	}
-	if r.CompletionDLQURL == "" {
-		missing = append(missing, "completion_dlq_url")
-	}
-	if r.OutputS3Bucket == "" {
-		missing = append(missing, "output_bucket_name")
-	}
-
-	if len(missing) > 0 {
-		return fmt.Errorf("missing required fields: %s", strings.Join(missing, ", "))
-	}
-
-	return nil
+	rootCmd.AddCommand(debugVarsCmd)
 }
