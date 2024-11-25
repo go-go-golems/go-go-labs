@@ -21,6 +21,7 @@ func NewDebugCommand() *cobra.Command {
 		newMetricsCommand(),
 		newTestCommand(),
 		newCloudTrailCommand(),
+		newNotificationsCommand(),
 	)
 
 	return debugCmd

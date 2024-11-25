@@ -28,6 +28,7 @@ func main() {
 
 	// Add commands
 	rootCmd.AddCommand(newListCommand())
+	rootCmd.AddCommand(newSubmitCommand())
 	rootCmd.AddCommand(debug.NewDebugCommand())
 
 	addDebugVarCommands(rootCmd, "terraform")

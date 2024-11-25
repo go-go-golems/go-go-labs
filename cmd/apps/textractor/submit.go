@@ -22,6 +22,8 @@ const (
 	StateUploading = "UPLOADING"
 	StateSubmitted = "SUBMITTED"
 	StateError     = "ERROR"
+
+	supportedExtensions = ".pdf,.png,.jpg,.jpeg"
 )
 
 func newSubmitCommand() *cobra.Command {
@@ -77,7 +79,7 @@ func submitDirectory(dirPath string, resources *utils.TextractorResources, s3Cli
 			return err
 		}
 
-		if !info.IsDir() && strings.ToLower(filepath.Ext(path)) == ".pdf" {
+		if !info.IsDir() && isValidFileType(strings.ToLower(filepath.Ext(path))) {
 			if err := submitFile(path, resources, s3Client, dbClient); err != nil {
 				log.Printf("Error processing %s: %v", path, err)
 				return nil // Continue with next file
@@ -139,9 +141,10 @@ func updateJobStatus(jobID string, state string, errorMsg string, dbClient *dyna
 }
 
 func submitFile(filePath string, resources *utils.TextractorResources, s3Client *s3.S3, dbClient *dynamodb.DynamoDB) error {
-	// Validate file is PDF
-	if strings.ToLower(filepath.Ext(filePath)) != ".pdf" {
-		return fmt.Errorf("file must be a PDF: %s", filePath)
+	// Validate file extension
+	ext := strings.ToLower(filepath.Ext(filePath))
+	if !isValidFileType(ext) {
+		return fmt.Errorf("unsupported file type %s. Supported types: %s", ext, supportedExtensions)
 	}
 
 	// Generate unique job ID and S3 key
@@ -188,4 +191,14 @@ func submitFile(filePath string, resources *utils.TextractorResources, s3Client 
 
 	fmt.Printf("Successfully submitted job %s for %s\n", jobID, filepath.Base(filePath))
 	return nil
+}
+
+func isValidFileType(ext string) bool {
+	validExtensions := strings.Split(supportedExtensions, ",")
+	for _, valid := range validExtensions {
+		if ext == valid {
+			return true
+		}
+	}
+	return false
 }
