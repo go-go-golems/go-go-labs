@@ -1,0 +1,67 @@
+[
+  {
+    "contentType": "chat-message",
+    "parentID": "00000000-0000-0000-0000-000000000000",
+    "id": "ad9e5b37-a28d-4bb1-99c0-4a2e0cdf665b",
+    "time": "2024-11-22T15:09:03.363292098-05:00",
+    "lastUpdate": "2024-11-22T15:09:03.363292292-05:00",
+    "content": {
+      "role": "system",
+      "text": "I am a mock chat bot that reverses messages for testing purposes.",
+      "images": null
+    },
+    "metadata": null
+  },
+  {
+    "contentType": "chat-message",
+    "parentID": "ad9e5b37-a28d-4bb1-99c0-4a2e0cdf665b",
+    "id": "3721a073-fe95-4704-9562-4e3d8fa87e70",
+    "time": "2024-11-22T15:09:03.363298976-05:00",
+    "lastUpdate": "2024-11-22T15:09:03.363299118-05:00",
+    "content": {
+      "role": "user",
+      "text": "testfoo",
+      "images": null
+    },
+    "metadata": null
+  },
+  {
+    "contentType": "chat-message",
+    "parentID": "3721a073-fe95-4704-9562-4e3d8fa87e70",
+    "id": "59050611-3005-42b9-8392-b1d9d9686531",
+    "time": "2024-11-22T15:09:04.363491226-05:00",
+    "lastUpdate": "2024-11-22T15:09:04.363491284-05:00",
+    "content": {
+      "role": "assistant",
+      "text": "ooftset",
+      "images": null
+    },
+    "metadata": null
+  },
+  {
+    "contentType": "chat-message",
+    "parentID": "59050611-3005-42b9-8392-b1d9d9686531",
+    "id": "39b31336-e069-4189-b3d3-bd156b2673da",
+    "time": "2024-11-22T15:09:08.017699825-05:00",
+    "lastUpdate": "2024-11-22T15:09:08.017699882-05:00",
+    "content": {
+      "role": "user",
+      "text": "additionally",
+      "images": null
+    },
+    "metadata": null
+  },
+  {
+    "contentType": "chat-message",
+    "parentID": "39b31336-e069-4189-b3d3-bd156b2673da",
+    "id": "61b4fbb1-532e-4cf1-b8f5-d45bdd228a76",
+    "time": "2024-11-22T15:09:09.018744879-05:00",
+    "lastUpdate": "2024-11-22T15:09:09.018744928-05:00",
+    "content": {
+      "role": "assistant",
+      "text": "yllanoitidda",
+      "images": null
+    },
+    "metadata": null
+  }
+]
