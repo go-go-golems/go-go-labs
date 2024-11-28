@@ -1,0 +1,22 @@
+{
+  "document_bucket": "textractor-documents-dev-12345",
+  "document_bucket_arn": "",
+  "output_bucket": "textractor-documents-dev-12345-output",
+  "output_bucket_arn": "",
+  "input_queue_url": "https://sqs.us-east-1.amazonaws.com/016596391852/textractor-dev-input-queue",
+  "completion_queue_url": "https://sqs.us-east-1.amazonaws.com/016596391852/textractor-dev-completion-queue",
+  "notifications_queue_url": "https://sqs.us-east-1.amazonaws.com/016596391852/textractor-dev-notifications",
+  "sns_topic_arn": "arn:aws:sns:us-east-1:016596391852:textractor-dev-textract-completion",
+  "document_processor_arn": "arn:aws:lambda:us-east-1:016596391852:function:textractor-dev-document-processor",
+  "document_processor_name": "textractor-dev-document-processor",
+  "document_processor_log_group": "/aws/lambda/textractor-dev-document-processor",
+  "completion_processor_arn": "arn:aws:lambda:us-east-1:016596391852:function:textractor-dev-completion-processor",
+  "completion_processor_name": "textractor-dev-completion-processor",
+  "completion_processor_log_group": "/aws/lambda/textractor-dev-completion-processor",
+  "region": "us-east-1",
+  "jobs_table_name": "textractor-dev-jobs",
+  "cloudtrail_log_group": "/aws/cloudtrail/textractor-dev-textractor",
+  "input_dlq_url": "https://sqs.us-east-1.amazonaws.com/016596391852/textractor-dev-input-dlq",
+  "completion_dlq_url": "https://sqs.us-east-1.amazonaws.com/016596391852/textractor-dev-completion-dlq",
+  "notification_topic_arn": "arn:aws:sns:us-east-1:016596391852:textractor-dev-notifications"
+}
