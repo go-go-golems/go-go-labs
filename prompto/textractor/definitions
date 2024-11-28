@@ -1,0 +1,7 @@
+#!/usr/bin/bash
+
+echo "Some stuff:"
+echo ""
+oak go definitions --recurse cmd/apps/textractor | head -20
+
+cat .cursorrules
