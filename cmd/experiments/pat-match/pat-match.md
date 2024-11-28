@@ -18,8 +18,10 @@ Chat: https://chatgpt.com/c/6748d336-31a4-8012-9333-0b5b9606b876
   - [Sequences](#sequences)
 - [Advanced Patterns](#advanced-patterns)
   - [Segment Patterns](#segment-patterns)
-  - [Single Patterns](#single-patterns)
-  - [Custom Predicates](#custom-predicates)
+  - [Complex Pattern Examples](#complex-pattern-examples)
+  - [Implementation Details](#implementation-details)
+  - [Best Practices](#best-practices)
+  - [Limitations](#limitations)
 - [Pattern Construction DSL](#pattern-construction-dsl)
 - [Examples](#examples)
   - [Example 1: Variable Matching](#example-1-variable-matching)
@@ -83,38 +85,89 @@ Segment patterns allow you to match segments of the input list:
 - **`??` (Zero or one element)**:
   You can simulate `??` by setting the minimum to 0 and handling the maximum match in your logic.
 
-### Single Patterns
-
-Special patterns that match a single input element:
-
-- **`?is`**: Matches an input if it satisfies a predicate.
-  ```go
-  Single("?is", Var("?n"), Const("numberp"))
-  ```
-- **`?and`**: Matches if all sub-patterns match.
-  ```go
-  Single("?and", pattern1, pattern2, ...)
-  ```
-- **`?or`**: Matches if any sub-pattern matches.
-  ```go
-  Single("?or", pattern1, pattern2, ...)
-  ```
-- **`?not`**: Matches if none of the sub-patterns match.
-  ```go
-  Single("?not", pattern)
-  ```
-
-### Custom Predicates
-
-Use `?if` patterns with custom Go functions to perform conditional matching based on variable bindings.
+Segment patterns can be nested and combined with other patterns. For example:
 
 ```go
-SingleWithPredicate("?if", func(input interface{}, bindings Bindings) bool {
-    x, ok1 := bindings["?x"].(int)
-    y, ok2 := bindings["?y"].(int)
-    return ok1 && ok2 && x > y
-})
+// Match a list starting with "a", followed by some elements bound to ?x,
+// then "b", some elements bound to ?y, and finally "c"
+pattern := Seq(
+    Const("a"),
+    Seg("?x", Seq(
+        Const("b"),
+        Seg("?y", Seq(Const("c")), 0),
+    ), 0),
+)
 ```
+
+### Complex Pattern Examples
+
+The pattern matcher supports sophisticated nested patterns for matching structured data:
+
+```go
+// Match let-binding expressions
+pattern := Seq(
+    Const("let"),
+    Seq(
+        Var("?var"),
+        Const("="),
+        Var("?val"),
+    ),
+    Const("in"),
+    Var("?body"),
+)
+
+// Matches: ["let", ["x", "=", 42], "in", ["+", "x", 1]]
+// Bindings: {"?var": "x", "?val": 42, "?body": ["+", "x", 1]}
+```
+
+```go
+// Match function definitions with parameters and let bindings
+pattern := Seq(
+    Const("define"),
+    Var("?name"),
+    Seg("?params", nil, 0),
+    Seq(
+        Const("let"),
+        Seg("?bindings",
+            Seq(
+                Const("in"),
+                Seg("?body", nil, 0),
+            ),
+            0,
+        ),
+    ),
+)
+
+// Matches: ["define", "factorial", "n", ["let", ["x", "=", 1], "in", "*", "n", "x"]]
+```
+
+### Implementation Details
+
+The pattern matcher handles nested structures by:
+
+1. Converting various slice types to `[]interface{}` for uniform handling
+2. Special handling of segment patterns within list patterns
+3. Proper backtracking when segment patterns need to try different splits
+4. Support for predicates that can examine the entire binding environment
+
+### Best Practices
+
+When using the pattern matcher:
+
+1. Start with simple patterns and build up complexity gradually
+2. Use segment patterns carefully as they can lead to ambiguous matches
+3. Consider using `?if` patterns with custom predicates for complex conditions
+4. Test patterns with edge cases (empty lists, nested structures)
+5. Use logging to debug pattern matching issues
+
+### Limitations
+
+Current limitations include:
+
+1. No built-in support for maximum segment length
+2. Greedy matching strategy may not always find the optimal solution
+3. Performance may degrade with deeply nested patterns
+4. No direct support for circular references or recursive patterns
 
 ---
 
