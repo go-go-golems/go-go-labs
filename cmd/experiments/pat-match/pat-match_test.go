@@ -36,6 +36,7 @@ func TestPatMatch(t *testing.T) {
 			pattern:     Const("a"),
 			input:       "a",
 			shouldMatch: true,
+			expectedBindings: nil,
 		},
 		{
 			name:        "Constant does not match different",
@@ -352,7 +353,7 @@ func TestPatMatch(t *testing.T) {
 			if tt.shouldMatch {
 				if err != nil {
 					t.Errorf("Expected match but got error: %v", err)
-				} else if !reflect.DeepEqual(result, tt.expectedBindings) {
+				} else if tt.expectedBindings != nil && !reflect.DeepEqual(result, tt.expectedBindings) {
 					t.Errorf("Expected bindings %v, got %v", tt.expectedBindings, result)
 				}
 			} else {

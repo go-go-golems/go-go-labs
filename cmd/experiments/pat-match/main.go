@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"reflect"
+	"log"
+	"strings"
 )
 
 // Pattern is the interface that all pattern types implement.
@@ -57,24 +59,61 @@ type ListPattern struct {
 }
 
 func (p *ListPattern) Match(input interface{}, bindings Bindings) (Bindings, error) {
-	inputList, ok := input.([]interface{})
-	if !ok {
-		return nil, fmt.Errorf("input is not a list: %v", input)
+	log.Printf("ListPattern.Match input type: %T, value: %v", input, input)
+	
+	var inputList []interface{}
+	switch v := input.(type) {
+	case []interface{}:
+		inputList = v
+	case []string:
+		inputList = make([]interface{}, len(v))
+		for i, s := range v {
+			inputList[i] = s
+		}
+	default:
+		if reflect.TypeOf(input).Kind() == reflect.Slice {
+			val := reflect.ValueOf(input)
+			inputList = make([]interface{}, val.Len())
+			for i := 0; i < val.Len(); i++ {
+				inputList[i] = val.Index(i).Interface()
+			}
+		} else {
+			return nil, fmt.Errorf("input is not a list: %T %v", input, input)
+		}
 	}
+	
+	log.Printf("ListPattern.Match converted input: %v", inputList)
 	return matchList(p.Patterns, inputList, bindings)
 }
 
 func matchList(patterns []Pattern, inputs []interface{}, bindings Bindings) (Bindings, error) {
+	patternStrs := make([]string, len(patterns))
+	for i, p := range patterns {
+		patternStrs[i] = patternToString(p)
+	}
+	log.Printf("matchList patterns: [%s], inputs: %v", 
+		strings.Join(patternStrs, ", "), 
+		inputs)
+	
 	if len(patterns) == 0 && len(inputs) == 0 {
 		return bindings, nil
 	}
 	if len(patterns) == 0 || len(inputs) == 0 {
 		return nil, fmt.Errorf("pattern and input list length mismatch")
 	}
+
 	firstPattern := patterns[0]
 	restPatterns := patterns[1:]
+
+	// Special handling for segment patterns
+	if segPattern, ok := firstPattern.(*SegmentPattern); ok {
+		log.Printf("Found segment pattern: %v", segPattern)
+		return segPattern.Match(inputs, bindings)
+	}
+
 	firstInput := inputs[0]
 	restInputs := inputs[1:]
+	
 	b1, err1 := firstPattern.Match(firstInput, bindings)
 	if err1 != nil {
 		return nil, err1
@@ -90,10 +129,31 @@ type SegmentPattern struct {
 }
 
 func (p *SegmentPattern) Match(input interface{}, bindings Bindings) (Bindings, error) {
-	inputList, ok := input.([]interface{})
-	if !ok {
-		return nil, fmt.Errorf("input is not a list")
+	log.Printf("SegmentPattern.Match input type: %T, value: %v", input, input)
+	
+	var inputList []interface{}
+	switch v := input.(type) {
+	case []interface{}:
+		inputList = v
+	case []string:
+		inputList = make([]interface{}, len(v))
+		for i, s := range v {
+			inputList[i] = s
+		}
+	default:
+		if reflect.TypeOf(input).Kind() == reflect.Slice {
+			val := reflect.ValueOf(input)
+			inputList = make([]interface{}, val.Len())
+			for i := 0; i < val.Len(); i++ {
+				inputList[i] = val.Index(i).Interface()
+			}
+		} else {
+			return nil, fmt.Errorf("input is not a list: %T %v", input, input)
+		}
 	}
+	
+	log.Printf("SegmentPattern.Match converted input: %v", inputList)
+	
 	if p.Rest == nil {
 		if len(inputList) < p.Min {
 			return nil, fmt.Errorf("input list too short")
@@ -103,14 +163,29 @@ func (p *SegmentPattern) Match(input interface{}, bindings Bindings) (Bindings, 
 		newBindings[p.VarName] = segment
 		return newBindings, nil
 	}
+
+	// Try different splits of the input
 	for i := p.Min; i <= len(inputList); i++ {
 		segment := inputList[:i]
 		restInput := inputList[i:]
+		log.Printf("SegmentPattern trying split at %d: segment=%v, rest=%v", i, segment, restInput)
+		
 		newBindings := copyBindings(bindings)
 		newBindings[p.VarName] = segment
-		b2, err := p.Rest.Match(restInput, newBindings)
-		if err == nil {
-			return b2, nil
+
+		// Handle the rest pattern as a list pattern
+		if listPattern, ok := p.Rest.(*ListPattern); ok {
+			b2, err := listPattern.Match(restInput, newBindings)
+			if err == nil {
+				return b2, nil
+			}
+			log.Printf("ListPattern match failed: %v", err)
+		} else {
+			b2, err := p.Rest.Match(restInput, newBindings)
+			if err == nil {
+				return b2, nil
+			}
+			log.Printf("Rest pattern match failed: %v", err)
 		}
 	}
 	return nil, fmt.Errorf("segment pattern did not match")
@@ -277,5 +352,34 @@ func main() {
 		fmt.Println("No match:", err)
 	} else {
 		fmt.Println("Match 3:", result3)
+	}
+}
+
+// Add this helper function near the top of the file
+func patternToString(p Pattern) string {
+	switch v := p.(type) {
+	case *VariablePattern:
+		return fmt.Sprintf("Var(%s)", v.Name)
+	case *ConstantPattern:
+		return fmt.Sprintf("Const(%v)", v.Value)
+	case *ListPattern:
+		patterns := make([]string, len(v.Patterns))
+		for i, p := range v.Patterns {
+			patterns[i] = patternToString(p)
+		}
+		return fmt.Sprintf("List(%v)", patterns)
+	case *SegmentPattern:
+		if v.Rest == nil {
+			return fmt.Sprintf("Seg(%s, nil, %d)", v.VarName, v.Min)
+		}
+		return fmt.Sprintf("Seg(%s, %s, %d)", v.VarName, patternToString(v.Rest), v.Min)
+	case *SinglePattern:
+		args := make([]string, len(v.Args))
+		for i, p := range v.Args {
+			args[i] = patternToString(p)
+		}
+		return fmt.Sprintf("Single(%s, %v)", v.Operator, args)
+	default:
+		return fmt.Sprintf("%T", p)
 	}
 }
