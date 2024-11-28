@@ -98,7 +98,7 @@ func matchList(patterns []Pattern, inputs []interface{}, bindings Bindings) (Bin
 	if len(patterns) == 0 && len(inputs) == 0 {
 		return bindings, nil
 	}
-	if len(patterns) == 0 || len(inputs) == 0 {
+	if len(patterns) == 0 || (len(inputs) == 0 && !isSpecialPattern(patterns[0])) {
 		return nil, fmt.Errorf("pattern and input list length mismatch")
 	}
 
@@ -111,6 +111,15 @@ func matchList(patterns []Pattern, inputs []interface{}, bindings Bindings) (Bin
 		return segPattern.Match(inputs, bindings)
 	}
 
+	// Special handling for ?if patterns - they don't consume input
+	if singlePattern, ok := firstPattern.(*SinglePattern); ok && singlePattern.Operator == "?if" {
+		log.Printf("Found ?if pattern, checking predicate")
+		if singlePattern.Predicate(nil, bindings) {
+			return matchList(restPatterns, inputs, bindings)
+		}
+		return nil, fmt.Errorf("?if predicate failed")
+	}
+
 	firstInput := inputs[0]
 	restInputs := inputs[1:]
 	
@@ -119,6 +128,14 @@ func matchList(patterns []Pattern, inputs []interface{}, bindings Bindings) (Bin
 		return nil, err1
 	}
 	return matchList(restPatterns, restInputs, b1)
+}
+
+// Helper function to identify patterns that don't consume input
+func isSpecialPattern(p Pattern) bool {
+	if sp, ok := p.(*SinglePattern); ok {
+		return sp.Operator == "?if"
+	}
+	return false
 }
 
 // SegmentPattern matches a segment of the input list.
