@@ -8,7 +8,7 @@ import (
 // getRowIndex extracts row index from a cell block
 func getRowIndex(block Block) int {
 	if raw, ok := block.(*blockImpl); ok && raw.rawBlock != nil {
-		return int(aws.Int64Value(raw.rawBlock.RowIndex))
+		return int(aws.Int64Value(raw.rawBlock.RowIndex)) - 1
 	}
 	return -1
 }
@@ -16,7 +16,7 @@ func getRowIndex(block Block) int {
 // getColumnIndex extracts column index from a cell block
 func getColumnIndex(block Block) int {
 	if raw, ok := block.(*blockImpl); ok && raw.rawBlock != nil {
-		return int(aws.Int64Value(raw.rawBlock.ColumnIndex))
+		return int(aws.Int64Value(raw.rawBlock.ColumnIndex)) - 1
 	}
 	return -1
 }

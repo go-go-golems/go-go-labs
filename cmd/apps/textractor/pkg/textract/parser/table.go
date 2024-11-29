@@ -2,6 +2,8 @@ package parser
 
 import (
 	"fmt"
+
+	"github.com/rs/zerolog/log"
 )
 
 // TableRow represents a row in a table
@@ -134,6 +136,7 @@ func (t *tableImpl) processTableStructure() error {
 
 			rowIdx := getRowIndex(child)
 			colIdx := getColumnIndex(child)
+			log.Info().Int("rowIdx", rowIdx).Int("colIdx", colIdx).Msg("setting cell")
 			t.cells[rowIdx][colIdx] = cell
 		}
 	}
@@ -172,9 +175,27 @@ func (t *tableImpl) processMergedCells() error {
 func (t *tableImpl) createRows() error {
 	t.rows = make([]TableRow, t.rowCount)
 	for i := 0; i < t.rowCount; i++ {
-		row, err := newTableRow(t, i)
-		if err != nil {
-			return fmt.Errorf("creating row %d: %w", i, err)
+		// Get cells for this row from the cells array
+		rowCells := make([]Cell, t.columnCount)
+		for j := 0; j < t.columnCount; j++ {
+			if t.cells[i][j] != nil {
+				rowCells[j] = t.cells[i][j]
+			}
+		}
+
+		log.Info().Int("rowIdx", i).Interface("rowCells", rowCells).Msg("row cells")
+
+		// check that no cell is nil
+		for _, cell := range rowCells {
+			if cell == nil {
+				return fmt.Errorf("nil cell found in row %d", i)
+			}
+		}
+
+		row := &tableRowImpl{
+			table:    t,
+			rowIndex: i,
+			cells:    rowCells,
 		}
 		t.rows[i] = row
 	}

@@ -19,14 +19,14 @@ func newTableRow(table Table, rowIndex int) (TableRow, error) {
 		rowIndex: rowIndex,
 	}
 
-	// Get cells for this row
-	row.cells = table.Cells()[rowIndex]
-
 	return row, nil
 }
 
 // Cells returns the cells in this row
 func (r *tableRowImpl) Cells() []Cell {
+	if r.cells == nil {
+		r.cells = make([]Cell, r.table.ColumnCount())
+	}
 	return r.cells
 }
 

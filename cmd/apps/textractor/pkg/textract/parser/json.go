@@ -64,8 +64,8 @@ type JSONDocumentMetadata struct {
 	Pages int `json:"Pages"`
 }
 
-// LoadFromJSON creates a Document from a JSON file
-func LoadFromJSON(filename string) (Document, error) {
+// LoadFromJSON creates Documents from a JSON file
+func LoadFromJSON(filename string) ([]Document, error) {
 	file, err := os.Open(filename)
 	if err != nil {
 		return nil, fmt.Errorf("opening JSON file: %w", err)
@@ -77,32 +77,62 @@ func LoadFromJSON(filename string) (Document, error) {
 	return LoadFromJSONReader(file)
 }
 
-// LoadFromJSONReader creates a Document from a JSON reader
-func LoadFromJSONReader(r io.Reader) (Document, error) {
-	var jsonResp JSONResponse
-	if err := json.NewDecoder(r).Decode(&jsonResp); err != nil {
-		return nil, fmt.Errorf("decoding JSON: %w", err)
-	}
+// LoadFromJSONReader creates Documents from a JSON reader
+func LoadFromJSONReader(r io.Reader) ([]Document, error) {
+	// First try to decode as array
+	var jsonResps []JSONResponse
+	decoder := json.NewDecoder(r)
+	if err := decoder.Decode(&jsonResps); err != nil {
+		// If it fails, try as single document
+		if _, ok := err.(*json.UnmarshalTypeError); ok {
+			// Reset reader to start
+			if seeker, ok := r.(io.Seeker); ok {
+				_, err = seeker.Seek(0, 0)
+				if err != nil {
+					return nil, fmt.Errorf("seeking reader: %w", err)
+				}
+			} else {
+				return nil, fmt.Errorf("reader is not seekable and JSON is not an array")
+			}
 
-	// Convert JSON response to TextractResponse
-	resp := &TextractResponse{
-		Blocks: make([]*textract.Block, len(jsonResp.Blocks)),
-		Metadata: &textract.DocumentMetadata{
-			Pages: aws.Int64(int64(jsonResp.DocumentMetadata.Pages)),
-		},
-	}
-
-	// Convert blocks
-	for i, jsonBlock := range jsonResp.Blocks {
-		block, err := convertJSONBlock(jsonBlock)
-		if err != nil {
-			return nil, fmt.Errorf("converting block %s: %w", jsonBlock.ID, err)
+			var singleResp JSONResponse
+			if err := json.NewDecoder(r).Decode(&singleResp); err != nil {
+				return nil, fmt.Errorf("decoding JSON: %w", err)
+			}
+			jsonResps = []JSONResponse{singleResp}
+		} else {
+			return nil, fmt.Errorf("decoding JSON: %w", err)
 		}
-		resp.Blocks[i] = block
 	}
 
-	// Create document using existing parser
-	return NewDocument(resp)
+	docs := make([]Document, len(jsonResps))
+	for i, jsonResp := range jsonResps {
+		// Convert JSON response to TextractResponse
+		resp := &TextractResponse{
+			Blocks: make([]*textract.Block, len(jsonResp.Blocks)),
+			Metadata: &textract.DocumentMetadata{
+				Pages: aws.Int64(int64(jsonResp.DocumentMetadata.Pages)),
+			},
+		}
+
+		// Convert blocks
+		for j, jsonBlock := range jsonResp.Blocks {
+			block, err := convertJSONBlock(jsonBlock)
+			if err != nil {
+				return nil, fmt.Errorf("converting block %s in document %d: %w", jsonBlock.ID, i, err)
+			}
+			resp.Blocks[j] = block
+		}
+
+		// Create document using existing parser
+		doc, err := NewDocument(resp)
+		if err != nil {
+			return nil, fmt.Errorf("creating document %d: %w", i, err)
+		}
+		docs[i] = doc
+	}
+
+	return docs, nil
 }
 
 // Helper functions to convert JSON types to Textract types

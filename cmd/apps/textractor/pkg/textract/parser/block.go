@@ -2,6 +2,8 @@ package parser
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/aws/aws-sdk-go/service/textract"
 )
 
@@ -94,7 +96,57 @@ func (b *blockImpl) EntityTypes() []EntityType {
 
 // Text returns the block's text content
 func (b *blockImpl) Text() string {
-	return b.text
+	switch b.blockType {
+	case BlockTypeWord, BlockTypeLine, BlockTypeSelectionElement:
+		// These block types have direct text content
+		return b.text
+
+	case BlockTypeCell:
+		// For lines and cells, concatenate child word texts
+		var texts []string
+		for _, child := range b.children {
+			if text := child.Text(); text != "" {
+				texts = append(texts, text)
+			}
+		}
+		return strings.Join(texts, " ")
+
+	case BlockTypeTable:
+		// For tables, build a text representation row by row
+		var rows []string
+		for _, child := range b.children {
+			if child.BlockType() == BlockTypeCell && child.RowIndex() == len(rows) {
+				rows = append(rows, child.Text())
+			}
+		}
+		return strings.Join(rows, "\n")
+
+	case BlockTypeKeyValueSet:
+		// For key-value sets, combine key and value texts
+		var parts []string
+		for _, child := range b.children {
+			if text := child.Text(); text != "" {
+				parts = append(parts, text)
+			}
+		}
+		return strings.Join(parts, ": ")
+
+	case BlockTypePage:
+		// For pages, combine all line texts
+		var lines []string
+		for _, child := range b.children {
+			if child.BlockType() == BlockTypeLine {
+				if text := child.Text(); text != "" {
+					lines = append(lines, text)
+				}
+			}
+		}
+		return strings.Join(lines, "\n")
+
+	default:
+		// For other block types, return raw text if any
+		return b.text
+	}
 }
 
 // TextType returns the text type (if any)
