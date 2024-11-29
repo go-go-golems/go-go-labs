@@ -1,15 +1,11 @@
 package debug
 
 import (
-	"context"
 	"fmt"
 	"log"
-	"sort"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/pkg/s3utils"
 	"github.com/spf13/cobra"
 )
 
@@ -88,18 +84,9 @@ func newS3Command() *cobra.Command {
 				prefix = args[0]
 			}
 
-			// Initialize AWS SDK
-			cfg, err := config.LoadDefaultConfig(context.Background())
+			s3Client, err := s3utils.NewS3Client(cmd.Context())
 			if err != nil {
-				log.Fatalf("Failed to load AWS config: %v", err)
-			}
-			client := s3.NewFromConfig(cfg)
-
-			// List objects
-			var allObjects []types.Object
-			input := &s3.ListObjectsV2Input{
-				Bucket: &resources.DocumentS3Bucket,
-				Prefix: &prefix,
+				log.Fatalf("Failed to create S3 client: %v", err)
 			}
 
 			fmt.Printf("📦 Listing objects in bucket: %s\n", resources.DocumentS3Bucket)
@@ -107,38 +94,18 @@ func newS3Command() *cobra.Command {
 				fmt.Printf("Using prefix: %s\n", prefix)
 			}
 
-			paginator := s3.NewListObjectsV2Paginator(client, input)
-			for paginator.HasMorePages() {
-				output, err := paginator.NextPage(context.Background())
-				if err != nil {
-					log.Fatalf("Failed to list objects: %v", err)
-				}
-
-				for _, obj := range output.Contents {
-					// Apply date filters
-					if fromTime != nil && obj.LastModified.Before(*fromTime) {
-						continue
-					}
-					if toTime != nil && obj.LastModified.After(*toTime) {
-						continue
-					}
-
-					// Skip non-recursive listing for objects in subdirectories
-					if !recursive && containsSlash(*obj.Key, prefix) {
-						continue
-					}
-
-					allObjects = append(allObjects, obj)
-				}
+			objects, err := s3Client.ListObjects(cmd.Context(), resources.DocumentS3Bucket, s3utils.ListObjectsOptions{
+				Recursive: recursive,
+				FromDate:  fromTime,
+				ToDate:    toTime,
+				Prefix:    prefix,
+			})
+			if err != nil {
+				log.Fatalf("Failed to list objects: %v", err)
 			}
 
-			// Sort objects by date (newest first)
-			sort.Slice(allObjects, func(i, j int) bool {
-				return allObjects[i].LastModified.After(*allObjects[j].LastModified)
-			})
-
 			// Display sorted objects
-			for _, obj := range allObjects {
+			for _, obj := range objects {
 				fmt.Printf("%s\t%d\t%s\n", obj.LastModified.Format("2006-01-02 15:04:05"),
 					obj.Size, *obj.Key)
 			}
@@ -151,15 +118,4 @@ func newS3Command() *cobra.Command {
 
 	s3DebugCmd.AddCommand(lsCmd)
 	return s3DebugCmd
-}
-
-// containsSlash returns true if the key contains additional path components after the prefix
-func containsSlash(key, prefix string) bool {
-	remainder := key[len(prefix):]
-	for _, c := range remainder {
-		if c == '/' {
-			return true
-		}
-	}
-	return false
 }

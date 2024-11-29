@@ -3,16 +3,17 @@ package cmds
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"os"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/pkg/utils"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
-	"io"
-	"os"
-	"path/filepath"
 )
 
 func NewFetchCommand() *cobra.Command {
@@ -72,11 +73,12 @@ func NewFetchCommand() *cobra.Command {
 			}
 
 			// Construct the output S3 key
-			outputKey := fmt.Sprintf("output/%s/result.json", jobID)
+			outputKey := fmt.Sprintf("textract_output/%s/1", jobID)
 
+			log.Info().Msgf("Fetching results from S3: %s/%s", resources.OutputS3Bucket, outputKey)
 			// Get the results from S3
 			output, err := s3Client.GetObject(&s3.GetObjectInput{
-				Bucket: aws.String(resources.ResultsS3Bucket),
+				Bucket: aws.String(resources.OutputS3Bucket),
 				Key:    aws.String(outputKey),
 			})
 			if err != nil {

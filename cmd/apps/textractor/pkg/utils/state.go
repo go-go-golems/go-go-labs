@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/hashicorp/terraform-exec/tfexec"
 	"github.com/spf13/cobra"
@@ -35,18 +34,6 @@ type TextractorResources struct {
 	InputDLQURL                 string `json:"input_dlq_url"`
 	CompletionDLQURL            string `json:"completion_dlq_url"`
 	NotificationTopic           string `json:"notification_topic_arn"`
-}
-
-// TextractJob represents a Textract processing job
-type TextractJob struct {
-	JobID       string     `json:"job_id" dynamodbav:"JobID"`
-	DocumentKey string     `json:"document_key" dynamodbav:"DocumentKey"`
-	Status      string     `json:"status" dynamodbav:"Status"`
-	SubmittedAt time.Time  `json:"submitted_at" dynamodbav:"SubmittedAt"`
-	CompletedAt *time.Time `json:"completed_at,omitempty" dynamodbav:"CompletedAt,omitempty"`
-	TextractID  string     `json:"textract_id" dynamodbav:"TextractID"`
-	ResultKey   string     `json:"result_key" dynamodbav:"ResultKey"`
-	Error       string     `json:"error,omitempty" dynamodbav:"Error,omitempty"`
 }
 
 // StateLoader handles loading Textractor state from various sources

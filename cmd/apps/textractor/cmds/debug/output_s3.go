@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/pkg/s3utils"
 	"github.com/spf13/cobra"
 )
 
@@ -46,14 +47,27 @@ func newOutputS3Command() *cobra.Command {
 				log.Fatalf("Failed to load resources: %v", err)
 			}
 
-			s3Uri := fmt.Sprintf("s3://%s", resources.OutputS3Bucket)
+			prefix := ""
 			if len(args) > 0 {
-				s3Uri = fmt.Sprintf("%s/%s", s3Uri, args[0])
+				prefix = args[0]
 			}
 
-			err = runAWSCommand("s3", "ls", s3Uri)
+			s3Client, err := s3utils.NewS3Client(cmd.Context())
 			if err != nil {
-				log.Printf("Failed to list bucket contents: %v", err)
+				log.Fatalf("Failed to create S3 client: %v", err)
+			}
+
+			objects, err := s3Client.ListObjects(cmd.Context(), resources.OutputS3Bucket, s3utils.ListObjectsOptions{
+				Recursive: true,
+				Prefix:    prefix,
+			})
+			if err != nil {
+				log.Fatalf("Failed to list objects: %v", err)
+			}
+
+			for _, obj := range objects {
+				fmt.Printf("%s\t%d\t%s\n", obj.LastModified.Format("2006-01-02 15:04:05"),
+					obj.Size, *obj.Key)
 			}
 		},
 	})
