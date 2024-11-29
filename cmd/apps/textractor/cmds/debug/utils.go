@@ -1,7 +1,7 @@
 package debug
 
 import (
-	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/pkg/utils"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/pkg"
 	"log"
 	"os/exec"
 
@@ -17,7 +17,7 @@ func runAWSCommand(args ...string) error {
 }
 
 // LoadResources loads the Textractor resources using the state loader
-func LoadResources(cmd *cobra.Command) (*utils.TextractorResources, error) {
-	stateLoader := utils.NewStateLoader()
+func LoadResources(cmd *cobra.Command) (*pkg.TextractorResources, error) {
+	stateLoader := pkg.NewStateLoader()
 	return stateLoader.LoadStateFromCommand(cmd)
 }

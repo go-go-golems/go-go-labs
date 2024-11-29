@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/pkg/s3utils"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/pkg"
 	"github.com/spf13/cobra"
 )
 
@@ -84,7 +84,7 @@ func newS3Command() *cobra.Command {
 				prefix = args[0]
 			}
 
-			s3Client, err := s3utils.NewS3Client(cmd.Context())
+			s3Client, err := pkg.NewS3Client(cmd.Context())
 			if err != nil {
 				log.Fatalf("Failed to create S3 client: %v", err)
 			}
@@ -94,7 +94,7 @@ func newS3Command() *cobra.Command {
 				fmt.Printf("Using prefix: %s\n", prefix)
 			}
 
-			objects, err := s3Client.ListObjects(cmd.Context(), resources.DocumentS3Bucket, s3utils.ListObjectsOptions{
+			objects, err := s3Client.ListObjects(cmd.Context(), resources.DocumentS3Bucket, pkg.ListObjectsOptions{
 				Recursive: recursive,
 				FromDate:  fromTime,
 				ToDate:    toTime,

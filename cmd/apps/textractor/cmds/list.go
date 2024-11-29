@@ -2,15 +2,12 @@ package cmds
 
 import (
 	"fmt"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/pkg"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
-	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -23,57 +20,37 @@ func NewListCommand() *cobra.Command {
 			since, _ := cmd.Flags().GetString("since")
 			status, _ := cmd.Flags().GetString("status")
 
-			stateLoader := utils.NewStateLoader()
+			stateLoader := pkg.NewStateLoader()
 			resources, err := stateLoader.LoadStateFromCommand(cmd)
 			if err != nil {
 				return fmt.Errorf("failed to load state: %w", err)
 			}
 
-			// Initialize AWS session and DynamoDB client
+			// Initialize AWS session
 			sess := session.Must(session.NewSession(&aws.Config{
 				Region: aws.String(resources.Region),
 			}))
-			db := dynamodb.New(sess)
 
-			// Query jobs from DynamoDB
-			input := &dynamodb.ScanInput{
-				TableName: aws.String(resources.JobsTable),
-			}
+			jobClient := pkg.NewJobClient(sess, resources.JobsTable)
 
-			// Build filter expression
-			var filterExpressions []string
-			expressionValues := map[string]*dynamodb.AttributeValue{}
-
+			var opts pkg.ListJobsOptions
 			if since != "" {
+				// Try RFC3339 format first
 				t, err := time.Parse(time.RFC3339, since)
 				if err != nil {
-					return fmt.Errorf("invalid time format for --since flag: %w", err)
+					// If that fails, try simple date format
+					t, err = time.Parse("2006-01-02", since)
+					if err != nil {
+						return fmt.Errorf("invalid time format for --since flag, use YYYY-MM-DD or RFC3339 format: %w", err)
+					}
 				}
-				filterExpressions = append(filterExpressions, "SubmittedAt >= :t")
-				expressionValues[":t"] = &dynamodb.AttributeValue{S: aws.String(t.Format(time.RFC3339))}
+				opts.Since = &t
 			}
+			opts.Status = status
 
-			if status != "" {
-				filterExpressions = append(filterExpressions, "#statusAlias = :s")
-				expressionValues[":s"] = &dynamodb.AttributeValue{S: aws.String(status)}
-				input.ExpressionAttributeNames = map[string]*string{
-					"#statusAlias": aws.String("Status"),
-				}
-			}
-
-			if len(filterExpressions) > 0 {
-				input.FilterExpression = aws.String(strings.Join(filterExpressions, " AND "))
-				input.ExpressionAttributeValues = expressionValues
-			}
-
-			result, err := db.Scan(input)
+			jobs, err := jobClient.ListJobs(opts)
 			if err != nil {
-				return fmt.Errorf("failed to query jobs: %w", err)
-			}
-
-			var jobs []utils.TextractJob
-			if err := dynamodbattribute.UnmarshalListOfMaps(result.Items, &jobs); err != nil {
-				return fmt.Errorf("failed to unmarshal jobs: %w", err)
+				return fmt.Errorf("failed to list jobs: %w", err)
 			}
 
 			// Sort jobs by submission time

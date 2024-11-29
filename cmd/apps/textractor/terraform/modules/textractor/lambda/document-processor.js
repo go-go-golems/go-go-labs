@@ -64,7 +64,7 @@ exports.handler = async (event) => {
 
                 console.log(`${logPrefix} Starting Textract job for ${bucket}/${key}`);
                 const textractJobId = await startTextractJob(bucket, key, jobId);
-                await updateJobStatus(jobId, 'PROCESSING', { textractJobId });
+                await updateJobStatus(jobId, 'PROCESSING', { TextractID:textractJobId });
             }
         } catch (err) {
             console.error(`${logPrefix} Error processing record:`, err);

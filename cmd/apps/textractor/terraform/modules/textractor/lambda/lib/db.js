@@ -5,28 +5,42 @@ const sns = new AWS.SNS();
 // Add prefix to all console.log calls
 const logPrefix = '[db-lib]';
 
-exports.updateJobStatus = async (JobID, status, details = {}) => {
+async function updateJobStatus(JobID, status, additionalData = {}) {
     const params = {
         TableName: process.env.JOBS_TABLE,
-        Key: { JobID },
-        UpdateExpression: 'SET #status = :status, UpdatedAt = :now',
+        Key: {
+            JobID
+        },
+        UpdateExpression: 'SET #status = :status, UpdatedAt = :updatedAt',
         ExpressionAttributeNames: {
             '#status': 'Status'
         },
         ExpressionAttributeValues: {
             ':status': status,
-            ':now': new Date().toISOString()
+            ':updatedAt': new Date().toISOString()
         }
     };
 
-    if (Object.keys(details).length > 0) {
-        params.UpdateExpression += ', Details = :details';
-        params.ExpressionAttributeValues[':details'] = details;
+    // Add additional data to update expression if provided
+    if (Object.keys(additionalData).length > 0) {
+        Object.entries(additionalData).forEach(([key, value]) => {
+            params.UpdateExpression += `, ${key} = :${key}`;
+            params.ExpressionAttributeValues[`:${key}`] = value;
+        });
     }
 
-    console.log(`${logPrefix} Updating job status for ${JobID} to ${status}`);
-    await dynamodb.update(params).promise();
-};
+    console.log(`[db-lib] Updating job status with params:`, JSON.stringify(params, null, 2));
+    
+    try {
+        await dynamodb.update(params).promise();
+        console.log(`[db-lib] Successfully updated job status for ${JobID} to ${status}`);
+    } catch (error) {
+        console.error(`[db-lib] Error updating job status:`, error);
+        throw error;
+    }
+}
+
+exports.updateJobStatus = updateJobStatus;
 
 exports.sendNotification = async (jobId, status, details = {}) => {
     const message = {

@@ -7,7 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
-	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/pkg/utils"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/pkg"
 	"github.com/spf13/cobra"
 )
 
@@ -22,7 +22,7 @@ func NewStatusCommand() *cobra.Command {
 			jobID := args[0]
 
 			// Load resources
-			stateLoader := utils.NewStateLoader()
+			stateLoader := pkg.NewStateLoader()
 			resources, err := stateLoader.LoadStateFromCommand(cmd)
 			if err != nil {
 				return fmt.Errorf("failed to load terraform state: %w", err)
@@ -53,7 +53,7 @@ func NewStatusCommand() *cobra.Command {
 				return fmt.Errorf("job %s not found", jobID)
 			}
 
-			var job utils.TextractJob
+			var job pkg.TextractJob
 			err = dynamodbattribute.UnmarshalMap(result.Item, &job)
 			if err != nil {
 				return fmt.Errorf("failed to unmarshal job data: %w", err)

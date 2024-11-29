@@ -5,13 +5,15 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
+
+	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/pkg"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/pkg/utils"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
@@ -30,7 +32,7 @@ func NewFetchCommand() *cobra.Command {
 			jobID := args[0]
 
 			// Load resources
-			stateLoader := utils.NewStateLoader()
+			stateLoader := pkg.NewStateLoader()
 			resources, err := stateLoader.LoadStateFromCommand(cmd)
 			if err != nil {
 				return fmt.Errorf("failed to load terraform state: %w", err)
@@ -62,7 +64,7 @@ func NewFetchCommand() *cobra.Command {
 				return fmt.Errorf("job %s not found", jobID)
 			}
 
-			var job utils.TextractJob
+			var job pkg.TextractJob
 			err = dynamodbattribute.UnmarshalMap(result.Item, &job)
 			if err != nil {
 				return fmt.Errorf("failed to unmarshal job data: %w", err)
@@ -72,44 +74,79 @@ func NewFetchCommand() *cobra.Command {
 				return fmt.Errorf("job is not completed (current status: %s)", job.Status)
 			}
 
-			// Construct the output S3 key
-			outputKey := fmt.Sprintf("textract_output/%s/1", jobID)
+			// List all objects under the result prefix
+			outputPrefix := job.ResultKey
+			log.Info().Msgf("Listing results from S3: %s/%s", resources.OutputS3Bucket, outputPrefix)
 
-			log.Info().Msgf("Fetching results from S3: %s/%s", resources.OutputS3Bucket, outputKey)
-			// Get the results from S3
-			output, err := s3Client.GetObject(&s3.GetObjectInput{
+			var allData [][]byte
+			err = s3Client.ListObjectsV2Pages(&s3.ListObjectsV2Input{
 				Bucket: aws.String(resources.OutputS3Bucket),
-				Key:    aws.String(outputKey),
+				Prefix: aws.String(outputPrefix),
+			}, func(page *s3.ListObjectsV2Output, lastPage bool) bool {
+				for _, obj := range page.Contents {
+					// Trim the outputPrefix from the key before checking
+					relativeKey := strings.TrimPrefix(*obj.Key, outputPrefix+"/")
+
+					// skip if starting with .
+					if strings.HasPrefix(relativeKey, ".") {
+						continue
+					}
+					log.Debug().Msgf("Fetching object: %s", *obj.Key)
+					output, err := s3Client.GetObject(&s3.GetObjectInput{
+						Bucket: aws.String(resources.OutputS3Bucket),
+						Key:    obj.Key,
+					})
+					if err != nil {
+						log.Error().Err(err).Msgf("failed to get object %s", *obj.Key)
+						continue
+					}
+					defer output.Body.Close()
+
+					data, err := io.ReadAll(output.Body)
+					if err != nil {
+						log.Error().Err(err).Msgf("failed to read object %s", *obj.Key)
+						continue
+					}
+					allData = append(allData, data)
+				}
+				return true
 			})
 			if err != nil {
-				return fmt.Errorf("failed to get results from S3: %w", err)
+				return fmt.Errorf("failed to list results from S3: %w", err)
 			}
-			defer output.Body.Close()
 
-			// Read the results
-			data, err := io.ReadAll(output.Body)
-			if err != nil {
-				return fmt.Errorf("failed to read results: %w", err)
+			if len(allData) == 0 {
+				return fmt.Errorf("no results found for job %s", jobID)
 			}
 
 			// Process and output the results based on format
 			switch outputFormat {
 			case "json":
-				// Parse JSON to ensure it's valid
-				var parsed interface{}
-				if err := json.Unmarshal(data, &parsed); err != nil {
-					return fmt.Errorf("failed to parse JSON results: %w", err)
+				// Parse all JSON results
+				var parsedResults []interface{}
+				for _, data := range allData {
+					var parsed interface{}
+					if err := json.Unmarshal(data, &parsed); err != nil {
+						log.Error().Str("data", string(data)).Msgf("failed to parse JSON results: %w", err)
+						return fmt.Errorf("failed to parse JSON results: %w", err)
+					}
+					parsedResults = append(parsedResults, parsed)
 				}
 
 				// Pretty print if no output file specified
 				if outputFile == "" {
-					formatted, err := json.MarshalIndent(parsed, "", "  ")
+					formatted, err := json.MarshalIndent(parsedResults, "", "  ")
 					if err != nil {
 						return fmt.Errorf("failed to format JSON: %w", err)
 					}
 					fmt.Println(string(formatted))
 				} else {
-					if err := os.WriteFile(outputFile, data, 0644); err != nil {
+					// Write combined results to file
+					combined, err := json.Marshal(parsedResults)
+					if err != nil {
+						return fmt.Errorf("failed to combine JSON results: %w", err)
+					}
+					if err := os.WriteFile(outputFile, combined, 0644); err != nil {
 						return fmt.Errorf("failed to write output file: %w", err)
 					}
 				}

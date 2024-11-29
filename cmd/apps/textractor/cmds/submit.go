@@ -2,7 +2,7 @@ package cmds
 
 import (
 	"fmt"
-	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/pkg/utils"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/pkg"
 	"log"
 	"os"
 	"path/filepath"
@@ -12,7 +12,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
@@ -37,7 +36,7 @@ func NewSubmitCommand() *cobra.Command {
 			path := args[0]
 
 			// Load resources
-			stateLoader := utils.NewStateLoader()
+			stateLoader := pkg.NewStateLoader()
 			resources, err := stateLoader.LoadStateFromCommand(cmd)
 			if err != nil {
 				return fmt.Errorf("failed to load terraform state: %w", err)
@@ -73,7 +72,7 @@ func NewSubmitCommand() *cobra.Command {
 	return cmd
 }
 
-func submitDirectory(dirPath string, resources *utils.TextractorResources, s3Client *s3.S3, dbClient *dynamodb.DynamoDB) error {
+func submitDirectory(dirPath string, resources *pkg.TextractorResources, s3Client *s3.S3, dbClient *dynamodb.DynamoDB) error {
 	return filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -89,58 +88,7 @@ func submitDirectory(dirPath string, resources *utils.TextractorResources, s3Cli
 	})
 }
 
-func createJob(jobID, documentKey string, dbClient *dynamodb.DynamoDB, tableName string, state string, errorMsg string) error {
-	job := utils.TextractJob{
-		JobID:       jobID,
-		DocumentKey: documentKey,
-		Status:      state,
-		SubmittedAt: time.Now(),
-	}
-
-	if errorMsg != "" {
-		job.Error = errorMsg
-	}
-
-	av, err := dynamodbattribute.MarshalMap(job)
-	if err != nil {
-		return fmt.Errorf("failed to marshal job record: %w", err)
-	}
-
-	_, err = dbClient.PutItem(&dynamodb.PutItemInput{
-		TableName: aws.String(tableName),
-		Item:      av,
-	})
-	return err
-}
-
-func updateJobStatus(jobID string, state string, errorMsg string, dbClient *dynamodb.DynamoDB, tableName string) error {
-	input := &dynamodb.UpdateItemInput{
-		TableName: aws.String(tableName),
-		Key: map[string]*dynamodb.AttributeValue{
-			"JobID": {
-				S: aws.String(jobID),
-			},
-		},
-		UpdateExpression: aws.String("SET #status = :status, #error = :error"),
-		ExpressionAttributeNames: map[string]*string{
-			"#status": aws.String("Status"),
-			"#error":  aws.String("Error"),
-		},
-		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
-			":status": {
-				S: aws.String(state),
-			},
-			":error": {
-				S: aws.String(errorMsg),
-			},
-		},
-	}
-
-	_, err := dbClient.UpdateItem(input)
-	return err
-}
-
-func submitFile(filePath string, resources *utils.TextractorResources, s3Client *s3.S3, dbClient *dynamodb.DynamoDB) error {
+func submitFile(filePath string, resources *pkg.TextractorResources, s3Client *s3.S3, dbClient *dynamodb.DynamoDB) error {
 	// Validate file extension
 	ext := strings.ToLower(filepath.Ext(filePath))
 	if !isValidFileType(ext) {
@@ -151,8 +99,21 @@ func submitFile(filePath string, resources *utils.TextractorResources, s3Client 
 	jobID := uuid.New().String()
 	s3Key := fmt.Sprintf("input/%s/%s", jobID, filepath.Base(filePath))
 
-	// Create initial job record with UPLOADING status
-	err := createJob(jobID, s3Key, dbClient, resources.JobsTable, StateUploading, "")
+	sess := session.Must(session.NewSession(&aws.Config{
+		Region: aws.String(resources.Region),
+	}))
+
+	jobClient := pkg.NewJobClient(sess, resources.JobsTable)
+
+	// Create initial job record
+	err := jobClient.CreateJob(pkg.TextractJob{
+		JobID:       jobID,
+		DocumentKey: s3Key,
+		Status:      StateUploading,
+		SubmittedAt: time.Now(),
+		TextractID:  "PENDING",
+		ResultKey:   "PENDING",
+	})
 	if err != nil {
 		return fmt.Errorf("failed to create initial job record: %w", err)
 	}
@@ -160,9 +121,8 @@ func submitFile(filePath string, resources *utils.TextractorResources, s3Client 
 	// Open file
 	file, err := os.Open(filePath)
 	if err != nil {
-		updateErr := updateJobStatus(jobID, StateError, fmt.Sprintf("Failed to open file: %v", err), dbClient, resources.JobsTable)
-		if updateErr != nil {
-			log.Printf("Failed to update job status: %v", updateErr)
+		if err := jobClient.UpdateJobStatus(jobID, StateError, fmt.Sprintf("Failed to open file: %v", err)); err != nil {
+			log.Printf("Failed to update job status: %v", err)
 		}
 		return fmt.Errorf("failed to open file: %w", err)
 	}
@@ -178,16 +138,14 @@ func submitFile(filePath string, resources *utils.TextractorResources, s3Client 
 		ContentType: aws.String("application/pdf"),
 	})
 	if err != nil {
-		updateErr := updateJobStatus(jobID, StateError, fmt.Sprintf("Failed to upload to S3: %v", err), dbClient, resources.JobsTable)
-		if updateErr != nil {
-			log.Printf("Failed to update job status: %v", updateErr)
+		if err := jobClient.UpdateJobStatus(jobID, StateError, fmt.Sprintf("Failed to upload to S3: %v", err)); err != nil {
+			log.Printf("Failed to update job status: %v", err)
 		}
 		return fmt.Errorf("failed to upload to S3: %w", err)
 	}
 
-	// Update job status to SUBMITTED
-	err = updateJobStatus(jobID, StateSubmitted, "", dbClient, resources.JobsTable)
-	if err != nil {
+	// Update job status
+	if err := jobClient.UpdateJobStatus(jobID, StateSubmitted, ""); err != nil {
 		log.Printf("Warning: Failed to update job status to SUBMITTED: %v", err)
 	}
 

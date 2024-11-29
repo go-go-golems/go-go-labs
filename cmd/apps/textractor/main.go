@@ -3,13 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/pkg"
 	"log"
 	"os"
 
 	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/cmds"
 	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/cmds/debug"
-	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/pkg/utils"
-
 	"github.com/spf13/cobra"
 )
 
@@ -44,7 +43,7 @@ func addDebugVarCommands(rootCmd *cobra.Command, tfDir string) {
 		Use:   "debug-vars",
 		Short: "Print environment variables for debugging",
 		Run: func(cmd *cobra.Command, args []string) {
-			stateLoader := utils.NewStateLoader()
+			stateLoader := pkg.NewStateLoader()
 			resources, err := stateLoader.LoadStateFromCommand(cmd)
 			if err != nil {
 				log.Fatalf("Failed to load Terraform state: %v", err)
@@ -77,7 +76,7 @@ func newSaveConfigCommand() *cobra.Command {
 		Use:   "save-config",
 		Short: "Save resource configuration to JSON file",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			stateLoader := utils.NewStateLoader()
+			stateLoader := pkg.NewStateLoader()
 			resources, err := stateLoader.LoadStateFromCommand(cmd)
 			if err != nil {
 				return fmt.Errorf("failed to load terraform state: %w", err)
