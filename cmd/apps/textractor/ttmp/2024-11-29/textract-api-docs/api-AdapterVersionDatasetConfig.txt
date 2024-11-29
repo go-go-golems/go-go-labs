@@ -1,0 +1,52 @@
+   AWSDocumentationAmazon TextractDeveloper Guide
+   ContentsSee Also
+
+AdapterVersionDatasetConfig
+
+   The dataset configuration options for a given version of an adapter.
+   Can include an Amazon S3 bucket if specified.
+
+Contents
+
+   ManifestS3Object
+          The S3 bucket name and file name that identifies the document.
+
+          The AWS Region for the S3 bucket that contains the document must
+          match the Region that you use for Amazon Textract operations.
+
+          For Amazon Textract to process a file in an S3 bucket, the user
+          must have permission to access the S3 bucket and file.
+
+          Type: S3Object object
+
+          Required: No
+
+See Also
+
+   For more information about using this API in one of the
+   language-specific AWS SDKs, see the following:
+     * AWS SDK for C++
+     * AWS SDK for Java V2
+     * AWS SDK for Ruby V3
+
+   Warning Javascript is disabled or is unavailable in your browser.
+
+   To use the Amazon Web Services Documentation, Javascript must be
+   enabled. Please refer to your browser's Help pages for instructions.
+   Document Conventions
+   AdaptersConfig
+   AdapterVersionEvaluationMetric
+   Did this page help you? - Yes
+
+   Thanks for letting us know we're doing a good job!
+
+   If you've got a moment, please tell us what we did right so we can do
+   more of it.
+
+   Did this page help you? - No
+
+   Thanks for letting us know this page needs work. We're sorry we let you
+   down.
+
+   If you've got a moment, please tell us how we can make the
+   documentation better.

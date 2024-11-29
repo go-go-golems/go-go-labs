@@ -1,0 +1,68 @@
+   AWSDocumentationAmazon TextractDeveloper Guide
+   ContentsSee Also
+
+HumanLoopConfig
+
+   Sets up the human review workflow the document will be sent to if one
+   of the conditions is met. You can also set certain attributes of the
+   image before review.
+
+Contents
+
+   FlowDefinitionArn
+          The Amazon Resource Name (ARN) of the flow definition.
+
+          Type: String
+
+          Length Constraints: Maximum length of 256.
+
+          Required: Yes
+
+   HumanLoopName
+          The name of the human workflow used for this image. This should
+          be kept unique within a region.
+
+          Type: String
+
+          Length Constraints: Minimum length of 1. Maximum length of 63.
+
+          Pattern: ^[a-z0-9](-*[a-z0-9])*
+
+          Required: Yes
+
+   DataAttributes
+          Sets attributes of the input data.
+
+          Type: HumanLoopDataAttributes object
+
+          Required: No
+
+See Also
+
+   For more information about using this API in one of the
+   language-specific AWS SDKs, see the following:
+     * AWS SDK for C++
+     * AWS SDK for Java V2
+     * AWS SDK for Ruby V3
+
+   Warning Javascript is disabled or is unavailable in your browser.
+
+   To use the Amazon Web Services Documentation, Javascript must be
+   enabled. Please refer to your browser's Help pages for instructions.
+   Document Conventions
+   HumanLoopActivationOutput
+   HumanLoopDataAttributes
+   Did this page help you? - Yes
+
+   Thanks for letting us know we're doing a good job!
+
+   If you've got a moment, please tell us what we did right so we can do
+   more of it.
+
+   Did this page help you? - No
+
+   Thanks for letting us know this page needs work. We're sorry we let you
+   down.
+
+   If you've got a moment, please tell us how we can make the
+   documentation better.

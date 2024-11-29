@@ -1,0 +1,76 @@
+   AWSDocumentationAmazon TextractDeveloper Guide
+   ContentsSee Also
+
+AdapterOverview
+
+   Contains information on the adapter, including the adapter ID, Name,
+   Creation time, and feature types.
+
+Contents
+
+   AdapterId
+          A unique identifier for the adapter resource.
+
+          Type: String
+
+          Length Constraints: Minimum length of 12. Maximum length of
+          1011.
+
+          Required: No
+
+   AdapterName
+          A string naming the adapter resource.
+
+          Type: String
+
+          Length Constraints: Minimum length of 1. Maximum length of 128.
+
+          Pattern: [a-zA-Z0-9-_]+
+
+          Required: No
+
+   CreationTime
+          The date and time that the adapter was created.
+
+          Type: Timestamp
+
+          Required: No
+
+   FeatureTypes
+          The feature types that the adapter is operating on.
+
+          Type: Array of strings
+
+          Valid Values: TABLES | FORMS | QUERIES | SIGNATURES | LAYOUT
+
+          Required: No
+
+See Also
+
+   For more information about using this API in one of the
+   language-specific AWS SDKs, see the following:
+     * AWS SDK for C++
+     * AWS SDK for Java V2
+     * AWS SDK for Ruby V3
+
+   Warning Javascript is disabled or is unavailable in your browser.
+
+   To use the Amazon Web Services Documentation, Javascript must be
+   enabled. Please refer to your browser's Help pages for instructions.
+   Document Conventions
+   Adapter
+   AdaptersConfig
+   Did this page help you? - Yes
+
+   Thanks for letting us know we're doing a good job!
+
+   If you've got a moment, please tell us what we did right so we can do
+   more of it.
+
+   Did this page help you? - No
+
+   Thanks for letting us know this page needs work. We're sorry we let you
+   down.
+
+   If you've got a moment, please tell us how we can make the
+   documentation better.

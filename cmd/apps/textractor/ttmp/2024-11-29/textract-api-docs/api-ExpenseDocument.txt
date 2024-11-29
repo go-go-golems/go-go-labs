@@ -1,0 +1,73 @@
+   AWSDocumentationAmazon TextractDeveloper Guide
+   ContentsSee Also
+
+ExpenseDocument
+
+   The structure holding all the information returned by AnalyzeExpense
+
+Contents
+
+   Blocks
+          This is a block object, the same as reported when
+          DetectDocumentText is run on a document. It provides word level
+          recognition of text.
+
+          Type: Array of Block objects
+
+          Required: No
+
+   ExpenseIndex
+          Denotes which invoice or receipt in the document the information
+          is coming from. First document will be 1, the second 2, and so
+          on.
+
+          Type: Integer
+
+          Valid Range: Minimum value of 0.
+
+          Required: No
+
+   LineItemGroups
+          Information detected on each table of a document, seperated into
+          LineItems.
+
+          Type: Array of LineItemGroup objects
+
+          Required: No
+
+   SummaryFields
+          Any information found outside of a table by Amazon Textract.
+
+          Type: Array of ExpenseField objects
+
+          Required: No
+
+See Also
+
+   For more information about using this API in one of the
+   language-specific AWS SDKs, see the following:
+     * AWS SDK for C++
+     * AWS SDK for Java V2
+     * AWS SDK for Ruby V3
+
+   Warning Javascript is disabled or is unavailable in your browser.
+
+   To use the Amazon Web Services Documentation, Javascript must be
+   enabled. Please refer to your browser's Help pages for instructions.
+   Document Conventions
+   ExpenseDetection
+   ExpenseField
+   Did this page help you? - Yes
+
+   Thanks for letting us know we're doing a good job!
+
+   If you've got a moment, please tell us what we did right so we can do
+   more of it.
+
+   Did this page help you? - No
+
+   Thanks for letting us know this page needs work. We're sorry we let you
+   down.
+
+   If you've got a moment, please tell us how we can make the
+   documentation better.

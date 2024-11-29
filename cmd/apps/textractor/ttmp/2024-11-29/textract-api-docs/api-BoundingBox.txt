@@ -1,0 +1,84 @@
+   AWSDocumentationAmazon TextractDeveloper Guide
+   ContentsSee Also
+
+BoundingBox
+
+   The bounding box around the detected page, text, key-value pair, table,
+   table cell, or selection element on a document page. The left
+   (x-coordinate) and top (y-coordinate) are coordinates that represent
+   the top and left sides of the bounding box. Note that the upper-left
+   corner of the image is the origin (0,0).
+
+   The top and left values returned are ratios of the overall document
+   page size. For example, if the input image is 700 x 200 pixels, and the
+   top-left coordinate of the bounding box is 350 x 50 pixels, the API
+   returns a left value of 0.5 (350/700) and a top value of 0.25 (50/200).
+
+   The width and height values represent the dimensions of the bounding
+   box as a ratio of the overall document page dimension. For example, if
+   the document page size is 700 x 200 pixels, and the bounding box width
+   is 70 pixels, the width returned is 0.1.
+
+Contents
+
+   Height
+          The height of the bounding box as a ratio of the overall
+          document page height.
+
+          Type: Float
+
+          Required: No
+
+   Left
+          The left coordinate of the bounding box as a ratio of overall
+          document page width.
+
+          Type: Float
+
+          Required: No
+
+   Top
+          The top coordinate of the bounding box as a ratio of overall
+          document page height.
+
+          Type: Float
+
+          Required: No
+
+   Width
+          The width of the bounding box as a ratio of the overall document
+          page width.
+
+          Type: Float
+
+          Required: No
+
+See Also
+
+   For more information about using this API in one of the
+   language-specific AWS SDKs, see the following:
+     * AWS SDK for C++
+     * AWS SDK for Java V2
+     * AWS SDK for Ruby V3
+
+   Warning Javascript is disabled or is unavailable in your browser.
+
+   To use the Amazon Web Services Documentation, Javascript must be
+   enabled. Please refer to your browser's Help pages for instructions.
+   Document Conventions
+   Block
+   DetectedSignature
+   Did this page help you? - Yes
+
+   Thanks for letting us know we're doing a good job!
+
+   If you've got a moment, please tell us what we did right so we can do
+   more of it.
+
+   Did this page help you? - No
+
+   Thanks for letting us know this page needs work. We're sorry we let you
+   down.
+
+   If you've got a moment, please tell us how we can make the
+   documentation better.

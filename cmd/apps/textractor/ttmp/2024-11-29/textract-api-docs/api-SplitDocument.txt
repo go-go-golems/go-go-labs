@@ -1,0 +1,59 @@
+   AWSDocumentationAmazon TextractDeveloper Guide
+   ContentsSee Also
+
+SplitDocument
+
+   Contains information about the pages of a document, defined by logical
+   boundary.
+
+Contents
+
+   Index
+          The index for a given document in a DocumentGroup of a specific
+          Type.
+
+          Type: Integer
+
+          Valid Range: Minimum value of 0.
+
+          Required: No
+
+   Pages
+          An array of page numbers for a for a given document, ordered by
+          logical boundary.
+
+          Type: Array of integers
+
+          Valid Range: Minimum value of 0.
+
+          Required: No
+
+See Also
+
+   For more information about using this API in one of the
+   language-specific AWS SDKs, see the following:
+     * AWS SDK for C++
+     * AWS SDK for Java V2
+     * AWS SDK for Ruby V3
+
+   Warning Javascript is disabled or is unavailable in your browser.
+
+   To use the Amazon Web Services Documentation, Javascript must be
+   enabled. Please refer to your browser's Help pages for instructions.
+   Document Conventions
+   SignatureDetection
+   UndetectedSignature
+   Did this page help you? - Yes
+
+   Thanks for letting us know we're doing a good job!
+
+   If you've got a moment, please tell us what we did right so we can do
+   more of it.
+
+   Did this page help you? - No
+
+   Thanks for letting us know this page needs work. We're sorry we let you
+   down.
+
+   If you've got a moment, please tell us how we can make the
+   documentation better.

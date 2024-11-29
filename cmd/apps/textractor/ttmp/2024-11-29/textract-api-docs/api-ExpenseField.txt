@@ -1,0 +1,88 @@
+   AWSDocumentationAmazon TextractDeveloper Guide
+   ContentsSee Also
+
+ExpenseField
+
+   Breakdown of detected information, seperated into the catagories Type,
+   LabelDetection, and ValueDetection
+
+Contents
+
+   Currency
+          Shows the kind of currency, both the code and confidence
+          associated with any monatary value detected.
+
+          Type: ExpenseCurrency object
+
+          Required: No
+
+   GroupProperties
+          Shows which group a response object belongs to, such as whether
+          an address line belongs to the vendor's address or the
+          recipent's address.
+
+          Type: Array of ExpenseGroupProperty objects
+
+          Required: No
+
+   LabelDetection
+          The explicitly stated label of a detected element.
+
+          Type: ExpenseDetection object
+
+          Required: No
+
+   PageNumber
+          The page number the value was detected on.
+
+          Type: Integer
+
+          Valid Range: Minimum value of 0.
+
+          Required: No
+
+   Type
+          The implied label of a detected element. Present alongside
+          LabelDetection for explicit elements.
+
+          Type: ExpenseType object
+
+          Required: No
+
+   ValueDetection
+          The value of a detected element. Present in explicit and
+          implicit elements.
+
+          Type: ExpenseDetection object
+
+          Required: No
+
+See Also
+
+   For more information about using this API in one of the
+   language-specific AWS SDKs, see the following:
+     * AWS SDK for C++
+     * AWS SDK for Java V2
+     * AWS SDK for Ruby V3
+
+   Warning Javascript is disabled or is unavailable in your browser.
+
+   To use the Amazon Web Services Documentation, Javascript must be
+   enabled. Please refer to your browser's Help pages for instructions.
+   Document Conventions
+   ExpenseDocument
+   ExpenseGroupProperty
+   Did this page help you? - Yes
+
+   Thanks for letting us know we're doing a good job!
+
+   If you've got a moment, please tell us what we did right so we can do
+   more of it.
+
+   Did this page help you? - No
+
+   Thanks for letting us know this page needs work. We're sorry we let you
+   down.
+
+   If you've got a moment, please tell us how we can make the
+   documentation better.

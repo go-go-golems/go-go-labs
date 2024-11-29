@@ -1,0 +1,49 @@
+   AWSDocumentationAmazon TextractDeveloper Guide
+   ContentsSee Also
+
+DocumentLocation
+
+   The Amazon S3 bucket that contains the document to be processed. It's
+   used by asynchronous operations.
+
+   The input document can be an image file in JPEG or PNG format. It can
+   also be a file in PDF format.
+
+Contents
+
+   S3Object
+          The Amazon S3 bucket that contains the input document.
+
+          Type: S3Object object
+
+          Required: No
+
+See Also
+
+   For more information about using this API in one of the
+   language-specific AWS SDKs, see the following:
+     * AWS SDK for C++
+     * AWS SDK for Java V2
+     * AWS SDK for Ruby V3
+
+   Warning Javascript is disabled or is unavailable in your browser.
+
+   To use the Amazon Web Services Documentation, Javascript must be
+   enabled. Please refer to your browser's Help pages for instructions.
+   Document Conventions
+   DocumentGroup
+   DocumentMetadata
+   Did this page help you? - Yes
+
+   Thanks for letting us know we're doing a good job!
+
+   If you've got a moment, please tell us what we did right so we can do
+   more of it.
+
+   Did this page help you? - No
+
+   Thanks for letting us know this page needs work. We're sorry we let you
+   down.
+
+   If you've got a moment, please tell us how we can make the
+   documentation better.
