@@ -3,6 +3,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/cmds"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/cmds/debug"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/pkg/utils"
 	"log"
 	"os"
 	"sort"
@@ -12,8 +15,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
-	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/debug"
-	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -29,7 +30,7 @@ func main() {
 
 	// Add commands
 	rootCmd.AddCommand(newListCommand())
-	rootCmd.AddCommand(newSubmitCommand())
+	rootCmd.AddCommand(cmds.NewSubmitCommand())
 	rootCmd.AddCommand(debug.NewDebugCommand())
 	rootCmd.AddCommand(newSaveConfigCommand())
 

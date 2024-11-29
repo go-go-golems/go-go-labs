@@ -130,7 +130,6 @@ The application provides the following commands:
   - CloudWatch metrics
   - End-to-end testing
 - `save-config`: Save Terraform state to config file
-- `run`: Display current resource configuration
 
 ## Infrastructure Management
 

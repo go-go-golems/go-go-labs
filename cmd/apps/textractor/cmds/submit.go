@@ -1,7 +1,8 @@
-package main
+package cmds
 
 import (
 	"fmt"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/pkg/utils"
 	"log"
 	"os"
 	"path/filepath"
@@ -13,7 +14,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/utils"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 )
@@ -26,7 +26,7 @@ const (
 	supportedExtensions = ".pdf,.png,.jpg,.jpeg"
 )
 
-func newSubmitCommand() *cobra.Command {
+func NewSubmitCommand() *cobra.Command {
 	var recursive bool
 
 	cmd := &cobra.Command{
@@ -166,7 +166,9 @@ func submitFile(filePath string, resources *utils.TextractorResources, s3Client 
 		}
 		return fmt.Errorf("failed to open file: %w", err)
 	}
-	defer file.Close()
+	defer func(file *os.File) {
+		_ = file.Close()
+	}(file)
 
 	// Upload to S3
 	_, err = s3Client.PutObject(&s3.PutObjectInput{
