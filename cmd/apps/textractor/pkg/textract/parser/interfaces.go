@@ -40,15 +40,27 @@ type Block interface {
 	// Identification
 	ID() string
 	BlockType() BlockType
-	EntityType() EntityType
+	EntityTypes() []EntityType
+	Page() int
 
 	// Content
 	Text() string
+	TextType() string
 	Confidence() float64
+
+	// Table specific
+	RowIndex() int
+	ColumnIndex() int
+	RowSpan() int
+	ColumnSpan() int
+
+	// Selection elements
+	SelectionStatus() string
 
 	// Relationships
 	Children() []Block
 	Parents() []Block
+	Relationships() []Relationship
 
 	// Geometry
 	BoundingBox() BoundingBox
@@ -84,6 +96,10 @@ type Table interface {
 	// Navigation
 	Page() Page
 	GetCellByPosition(row, col int) (Cell, error)
+
+	// Geometry
+	BoundingBox() BoundingBox
+	Polygon() []Point
 }
 
 // Form represents a form structure
@@ -143,4 +159,16 @@ type QueryResult interface {
 
 	// Block returns the underlying block
 	Block() Block
+}
+
+// TextType represents the type of text in a block
+type TextType string
+
+// SelectionStatus represents the selection status of a block
+type SelectionStatus string
+
+// Relationship represents a relationship between blocks
+type Relationship struct {
+	Type string
+	IDs  []string
 }

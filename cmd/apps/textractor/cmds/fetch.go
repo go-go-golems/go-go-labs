@@ -14,14 +14,16 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/textract"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
 
 func NewFetchCommand() *cobra.Command {
 	var (
-		outputFormat string
-		outputFile   string
+		outputFormat     string
+		outputFile       string
+		documentAnalysis bool
 	)
 
 	cmd := &cobra.Command{
@@ -72,6 +74,61 @@ func NewFetchCommand() *cobra.Command {
 
 			if job.Status != "COMPLETED" {
 				return fmt.Errorf("job is not completed (current status: %s)", job.Status)
+			}
+
+			if documentAnalysis {
+				// Create Textract client
+				textractClient := textract.New(sess)
+
+				var pages []interface{}
+				var nextToken *string
+
+				for {
+					input := &textract.GetDocumentAnalysisInput{
+						JobId: aws.String(job.TextractID),
+					}
+					if nextToken != nil {
+						input.NextToken = nextToken
+					}
+
+					result, err := textractClient.GetDocumentAnalysis(input)
+					if err != nil {
+						return fmt.Errorf("failed to get document analysis: %w", err)
+					}
+
+					pages = append(pages, result)
+					nextToken = result.NextToken
+
+					if nextToken == nil {
+						break
+					}
+				}
+
+				// Output results based on format
+				switch outputFormat {
+				case "json":
+					if outputFile == "" {
+						formatted, err := json.MarshalIndent(pages, "", "  ")
+						if err != nil {
+							return fmt.Errorf("failed to format JSON: %w", err)
+						}
+						fmt.Println(string(formatted))
+					} else {
+						combined, err := json.Marshal(pages)
+						if err != nil {
+							return fmt.Errorf("failed to combine JSON results: %w", err)
+						}
+						if err := os.WriteFile(outputFile, combined, 0644); err != nil {
+							return fmt.Errorf("failed to write output file: %w", err)
+						}
+					}
+				case "text":
+					return fmt.Errorf("text format not yet implemented")
+				default:
+					return fmt.Errorf("unsupported output format: %s", outputFormat)
+				}
+
+				return nil
 			}
 
 			// List all objects under the result prefix
@@ -165,5 +222,6 @@ func NewFetchCommand() *cobra.Command {
 
 	cmd.Flags().StringVarP(&outputFormat, "format", "f", "json", "Output format (json/text)")
 	cmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output file path")
+	cmd.Flags().BoolVar(&documentAnalysis, "document-analysis", false, "Fetch results directly from Textract instead of S3")
 	return cmd
 }

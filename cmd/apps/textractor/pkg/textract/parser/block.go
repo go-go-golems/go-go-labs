@@ -7,16 +7,24 @@ import (
 
 // blockImpl implements the Block interface
 type blockImpl struct {
-	id         string
-	blockType  BlockType
-	entityType EntityType
-	text       string
-	confidence float64
-	geometry   Geometry
-	children   []Block
-	parents    []Block
-	document   Document
-	rawBlock   *textract.Block
+	id              string
+	blockType       BlockType
+	entityTypes     []EntityType
+	text            string
+	textType        string
+	confidence      float64
+	geometry        Geometry
+	children        []Block
+	parents         []Block
+	relationships   []Relationship
+	document        Document
+	rawBlock        *textract.Block
+	page            int
+	rowIndex        int
+	columnIndex     int
+	rowSpan         int
+	columnSpan      int
+	selectionStatus string
 }
 
 func newBlock(raw *textract.Block, doc Document) (Block, error) {
@@ -25,20 +33,45 @@ func newBlock(raw *textract.Block, doc Document) (Block, error) {
 	}
 
 	block := &blockImpl{
-		id:         *raw.Id,
-		blockType:  BlockType(*raw.BlockType),
+		id:         stringValue(raw.Id),
+		blockType:  BlockType(stringValue(raw.BlockType)),
 		text:       stringValue(raw.Text),
+		textType:   stringValue(raw.TextType),
 		confidence: floatValue(raw.Confidence),
 		document:   doc,
 		rawBlock:   raw,
+		page:       int(intValue(raw.Page)),
 	}
 
-	if len(raw.EntityTypes) > 0 {
-		block.entityType = EntityType(*raw.EntityTypes[0])
+	// Handle entity types
+	if raw.EntityTypes != nil {
+		block.entityTypes = make([]EntityType, len(raw.EntityTypes))
+		for i, et := range raw.EntityTypes {
+			block.entityTypes[i] = EntityType(stringValue(et))
+		}
 	}
+
+	// Handle table specific fields
+	block.rowIndex = int(intValue(raw.RowIndex))
+	block.columnIndex = int(intValue(raw.ColumnIndex))
+	block.rowSpan = int(intValue(raw.RowSpan))
+	block.columnSpan = int(intValue(raw.ColumnSpan))
+
+	block.selectionStatus = stringValue(raw.SelectionStatus)
 
 	if raw.Geometry != nil {
 		block.geometry = convertGeometry(raw.Geometry)
+	}
+
+	// Handle relationships
+	if raw.Relationships != nil {
+		block.relationships = make([]Relationship, len(raw.Relationships))
+		for i, rel := range raw.Relationships {
+			block.relationships[i] = Relationship{
+				Type: stringValue(rel.Type),
+				IDs:  stringSliceValue(rel.Ids),
+			}
+		}
 	}
 
 	return block, nil
@@ -54,14 +87,19 @@ func (b *blockImpl) BlockType() BlockType {
 	return b.blockType
 }
 
-// EntityType returns the entity type (if any)
-func (b *blockImpl) EntityType() EntityType {
-	return b.entityType
+// EntityTypes returns the entity types (if any)
+func (b *blockImpl) EntityTypes() []EntityType {
+	return b.entityTypes
 }
 
 // Text returns the block's text content
 func (b *blockImpl) Text() string {
 	return b.text
+}
+
+// TextType returns the text type (if any)
+func (b *blockImpl) TextType() string {
+	return b.textType
 }
 
 // Confidence returns the confidence score
@@ -79,6 +117,11 @@ func (b *blockImpl) Parents() []Block {
 	return b.parents
 }
 
+// Relationships returns relationships
+func (b *blockImpl) Relationships() []Relationship {
+	return b.relationships
+}
+
 // BoundingBox returns the block's bounding box
 func (b *blockImpl) BoundingBox() BoundingBox {
 	return b.geometry.BoundingBox
@@ -87,6 +130,36 @@ func (b *blockImpl) BoundingBox() BoundingBox {
 // Polygon returns the block's polygon points
 func (b *blockImpl) Polygon() []Point {
 	return b.geometry.Polygon
+}
+
+// Page returns the block's page number
+func (b *blockImpl) Page() int {
+	return b.page
+}
+
+// RowIndex returns the block's row index
+func (b *blockImpl) RowIndex() int {
+	return b.rowIndex
+}
+
+// ColumnIndex returns the block's column index
+func (b *blockImpl) ColumnIndex() int {
+	return b.columnIndex
+}
+
+// RowSpan returns the block's row span
+func (b *blockImpl) RowSpan() int {
+	return b.rowSpan
+}
+
+// ColumnSpan returns the block's column span
+func (b *blockImpl) ColumnSpan() int {
+	return b.columnSpan
+}
+
+// SelectionStatus returns the block's selection status
+func (b *blockImpl) SelectionStatus() string {
+	return b.selectionStatus
 }
 
 // Helper functions
@@ -132,4 +205,22 @@ func convertGeometry(g *textract.Geometry) Geometry {
 	}
 
 	return geo
+}
+
+func intValue(i *int64) int64 {
+	if i == nil {
+		return 0
+	}
+	return *i
+}
+
+func stringSliceValue(ss []*string) []string {
+	if ss == nil {
+		return nil
+	}
+	result := make([]string, len(ss))
+	for i, s := range ss {
+		result[i] = stringValue(s)
+	}
+	return result
 }

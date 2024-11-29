@@ -189,3 +189,13 @@ func max(a, b int) int {
 	}
 	return b
 }
+
+// Add BoundingBox method
+func (t *tableImpl) BoundingBox() BoundingBox {
+	return t.block.BoundingBox()
+}
+
+// Add Polygon method
+func (t *tableImpl) Polygon() []Point {
+	return t.block.Polygon()
+}

@@ -29,7 +29,14 @@ func TestLoadFromJSONReader(t *testing.T) {
 						{"X": 0.0, "Y": 1.0}
 					]
 				},
-				"Page": 1
+				"Page": 1,
+		
+				"Relationships": [
+					{
+						"Type": "CHILD",
+						"Ids": ["line1"]
+					}
+				]
 			},
 			{
 				"Id": "line1",

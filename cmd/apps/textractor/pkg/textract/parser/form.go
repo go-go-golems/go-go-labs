@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -106,12 +107,12 @@ type keyValueImpl struct {
 }
 
 func newKeyValue(keyBlock, valueBlock Block, form Form) (KeyValue, error) {
-	if keyBlock.BlockType() != BlockTypeKeyValueSet || keyBlock.EntityType() != EntityTypeKey {
-		return nil, fmt.Errorf("invalid key block type: %s/%s", keyBlock.BlockType(), keyBlock.EntityType())
+	if keyBlock.BlockType() != BlockTypeKeyValueSet || !slices.Contains(keyBlock.EntityTypes(), EntityTypeKey) {
+		return nil, fmt.Errorf("invalid key block type: %s/%s", keyBlock.BlockType(), keyBlock.EntityTypes())
 	}
 
-	if valueBlock.BlockType() != BlockTypeKeyValueSet || valueBlock.EntityType() != EntityTypeValue {
-		return nil, fmt.Errorf("invalid value block type: %s/%s", valueBlock.BlockType(), valueBlock.EntityType())
+	if valueBlock.BlockType() != BlockTypeKeyValueSet || !slices.Contains(valueBlock.EntityTypes(), EntityTypeValue) {
+		return nil, fmt.Errorf("invalid value block type: %s/%s", valueBlock.BlockType(), valueBlock.EntityTypes())
 	}
 
 	return &keyValueImpl{

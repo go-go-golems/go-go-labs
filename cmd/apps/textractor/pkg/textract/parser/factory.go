@@ -7,7 +7,8 @@ import (
 
 // TextractResponse represents the raw response from AWS Textract
 type TextractResponse struct {
-	Blocks []*textract.Block
+	Blocks   []*textract.Block
+	Metadata *textract.DocumentMetadata
 	// Add other fields as needed
 }
 

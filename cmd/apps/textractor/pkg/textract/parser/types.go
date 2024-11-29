@@ -6,9 +6,6 @@ type BlockType string
 // EntityType represents the type of entity in a Textract block
 type EntityType string
 
-// SelectionStatus represents the status of a selection element
-type SelectionStatus string
-
 const (
 	BlockTypePage             BlockType = "PAGE"
 	BlockTypeLine             BlockType = "LINE"

@@ -87,6 +87,9 @@ func LoadFromJSONReader(r io.Reader) (Document, error) {
 	// Convert JSON response to TextractResponse
 	resp := &TextractResponse{
 		Blocks: make([]*textract.Block, len(jsonResp.Blocks)),
+		Metadata: &textract.DocumentMetadata{
+			Pages: aws.Int64(int64(jsonResp.DocumentMetadata.Pages)),
+		},
 	}
 
 	// Convert blocks
