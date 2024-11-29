@@ -4,34 +4,34 @@
 chmod +x *.sh
 
 echo "=== Document Interface ==="
-./document.sh
+prompto get textract/api/document.sh
 
 echo "=== Page Interface ==="
-./page.sh
+prompto get textract/api/page.sh
 
 echo "=== Block Interface ==="
-./block.sh
+prompto get textract/api/block.sh
 
 echo "=== Line Interface ==="
-./line.sh
+prompto get textract/api/line.sh
 
 echo "=== Table Interface ==="
-./table.sh
+prompto get textract/api/table.sh
 
 echo "=== Form Interface ==="
-./form.sh
+prompto get textract/api/form.sh
 
 echo "=== KeyValue Interface ==="
-./keyvalue.sh
+prompto get textract/api/keyvalue.sh
 
 echo "=== SelectionElement Interface ==="
-./selection.sh
+prompto get textract/api/selection.sh
 
 echo "=== Query Interface ==="
-./query.sh
+prompto get textract/api/query.sh
 
 echo "=== Geometry Types ==="
-./geometry.sh
+prompto get textract/api/geometry.sh
 
 echo "=== Support Types ==="
-./support.sh 
+prompto get textract/api/support.sh
