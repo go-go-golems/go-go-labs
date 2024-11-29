@@ -1,0 +1,581 @@
+Table Interface Key Concepts:
+- Contains cells, merged cells
+- Has table titles and footers
+- Can be structured or semi-structured
+- Contains row/column information
+- Has specific relationship types
+
+Relevant Documentation Files:
+=== BEGIN: cmd/apps/textractor/ttmp/2024-11-29/textract-docs/06-tables.txt ===
+   AWSDocumentationAmazon TextractDeveloper Guide
+
+Tables
+
+   Use Amazon Textract to extract tables in a document and extract cells,
+   merged cells, column headers, titles, section titles, footers, table
+   type (structured or semistructured), and summary cells within a table.
+
+   Detected tables are returned as Block objects in the responses from
+   AnalyzeDocument and GetDocumentAnalysis. You can use the FeatureTypes
+   input parameter to retrieve information about key-value pairs, tables,
+   or both. For tables only, use the value TABLES. For an example, see
+   Exporting Tables into a CSV File. For general information about how a
+   document is represented by Block objects, see Text Detection and
+   Document Analysis Response Objects.
+
+   The following is an example of a table that could be detected by Amazon
+   Textract.
+   Balance sheet table showing transactions from 2022-12-24 to 2023-01-15,
+   with starting balance of $11,000, credits of $1,040, debits of $1,040,
+   and ending balance of $11,000 as of 2023-01-20.
+
+   The following diagram shows how a single cell in a table is represented
+   by Block objects.
+   Diagram depicting the structure of a table with cells, including a
+   merged cell spanning 5 columns for the table title. The table comprises
+   nested components like pages, cells, words, and a merged title cell.
+
+   A cell contains WORD blocks for detected words, and where applicable,
+   TABLE_TITLE blocks for table titles, TABLE_FOOTER blocks for table
+   footers, and SELECTION_ELEMENT blocks for selection elements such as
+   check boxes.
+
+   The following is part of the JSON for the preceding table. The PAGE
+   block object has a list of CHILD block IDs for the TABLE block and each
+   LINE of text that's detected.
+
+   { "BlockType": "PAGE", "Geometry": { "BoundingBox": { "Width": 1.0,
+   "Height": 1.0, "Left": 0.0, "Top": 0.0 }, }, "Id":
+   "8a5d3f57-97bc-4a05-b028-f72617877626", "Relationships": [ { "Type":
+   "CHILD", "Ids": [ "7499ac64-3fa9-46fd-8e3f-581ec9c316eb",
+   "87ed4709-66f2-4b3d-abda-52c92a111474",
+   "27a87eb3-bd21-475e-80fe-3f8e16958dcf",
+   "d89894ea-2f37-4667-94b6-d90def01c5c1",
+   "9f9d6383-ed6d-4bd0-ba8c-71fc3eec704e",
+   "cdc74e1a-c568-439b-9eef-7bd54e060f18",
+   "1b64f24c-5e84-4c7e-851a-cb1f5258a53c",
+   "84a84878-04b4-4608-81b6-38117ead1629", ...
+   "8cef603b-932e-452b-adc4-15f8e02ad1fe",
+   "a3f97508-0d6b-4ae0-aa04-76078f9fe11a",
+   "dd1f23c6-dfad-447b-8105-29ba136bd3a4",
+   "46138f38-5b77-41a9-b068-f8394587122f",
+   "a5e5247c-2637-4fa8-a271-ab46399cd77c",
+   "63d7b889-71e3-422a-8cb7-2103ba0aa276",
+   "033e5c86-371a-46fb-bbea-eb7f6b0cd092",
+   "559b1354-ef94-4cb9-8e03-9eca83c6dba4",
+   "55edc4fa-052f-40f9-9edd-739b100e6f75" ] } ] },
+
+   To learn more about the table, access the TABLE block object. The table
+   block includes four types of relationships: “Child,” “Merged Cells,”
+   "Title," and "Footer." For relationship type CHILD, each child ID
+   represents a single cell within the table. A merged cell is broken down
+   into all the individual cells that are combined to make one merged
+   cell. TABLE_TITLE and TABLE_FOOTER relationship types contain the block
+   ID for the corresponding TABLE_TITLE and TABLE_FOOTER blocks, where
+   information about the title and footer is stored. The table block type
+   has an EntityType of either STRUCTURED_TABLE or SEMI_STRUCTURED_TABLE
+   that identifies the type of table.
+
+   The following JSON shows that the preceding table has 65 cells for 13
+   rows and 5 columns, which are listed in the CHILD relationship Ids
+   array. For relationship type MERGED_CELL, each merged cell ID
+   represents a single merged cell within the table. The following JSON
+   shows that the table has 9 merged cells, which are listed in the
+   MERGED_CELL relationship Ids array. The two additional relationship
+   types, TABLE_TITLE and TABLE_FOOTER, list the IDs of the respective
+   title and footer blocks. The following JSON also shows that the table
+   is structured in the EntityTypes block.
+
+   { "BlockType": "TABLE", "Confidence": 99.8046875, "Geometry": {...},
+   "Id": "55edc4fa-052f-40f9-9edd-739b100e6f75", "Relationships": [ {
+   "Type": "CHILD", "Ids": [ "c1c03d64-d365-4906-af7a-a852f1acc040",
+   "8b415996-6b05-4183-a959-d27d12ccef79",
+   "48b0e972-7dba-4db7-896e-ca7066e8c761",
+   "69948207-47d8-4825-8929-1d7abb650a88",
+   "b9ac9f14-8899-43b3-8572-0e997180e0a4",
+   "6f06c024-0b36-4acd-b61f-4467203234dd",
+   "c8a88487-dbc7-4662-a69b-21103049b61d", ...
+   "2b41c8e1-f754-4b37-91b6-a97cdc413f91",
+   "365a1bab-0c18-4cd8-a465-6f7bc7e25e60",
+   "f08af959-cfac-4ad6-a63f-2771c7a8ff62",
+   "e4f6fbfd-c7d8-4f64-9102-733d4806850f",
+   "68c0b8ff-fd35-41ce-ba76-de08c26084d7",
+   "44e80372-aa70-4a36-9aac-3a93aaa91bb1" ] }, { "Type": "MERGED_CELL",
+   "Ids": [ "a27a3ecc-afd0-4f7c-9db2-6f8e6d31c605",
+   "6c02cf21-40de-4480-b755-e94462ac4884",
+   "6faad856-8d37-4751-b741-c4ad8d5dcbe3",
+   "d777d6e2-7430-4c6e-a261-03ec5a612c8c",
+   "f0f5a9fb-5bfa-4c80-8f41-1d4fad674b09",
+   "83c7af02-8128-4479-89c9-962544ad4048",
+   "b2b5126c-409f-4b67-9adf-e3e12f60bf86",
+   "87d7f688-3d38-4198-b491-433af0da4d8b",
+   "1c2436e2-a1fc-4b2a-9e73-cc8a1ca67568" ] }, { "Type": "TABLE_TITLE",
+   "Ids": [ "cde34920-0131-4e68-a3ec-82922269afd4" ] }, { "Type":
+   "TABLE_FOOTER", "Ids": [ "11dfd98c-6140-49e8-a544-e220d76bdd2f",
+   "ad1b9c81-3b53-4fc7-a533-dabb3d29b0b1" ] } ], "EntityTypes": [
+   "STRUCTURED_TABLE" ] },
+
+   The block type for each table cell is CELL. The cell block type will
+   always have row span of 1 and column span of 1. The block object for
+   each cell includes information about the cell location compared to
+   other cells in the table. It also includes geometry information for the
+   location of the cell on the document. In addition, cell blocks can have
+   different EntityTypes that identify them as a particular type of cell,
+   including TABLE_TITLE, TABLE_FOOTER, TABLE_SECTION_TITLE,
+   COLUMN_HEADER, and TABLE_SUMMARY. For example, in the preceding table,
+   the cell that contains the word “Date” is a column header, as shown in
+   the following example.
+
+   { "BlockType": "CELL", "Confidence": 81.8359375, "RowIndex": 2,
+   "ColumnIndex": 1, "RowSpan": 1, "ColumnSpan": 1, "Geometry": {...},
+   "Id": "6f06c024-0b36-4acd-b61f-4467203234dd", "Relationships": [ {
+   "Type": "CHILD", "Ids": [ "c49f55d5-a7e4-41d5-9c29-d8244f56181c" ] } ],
+   "EntityTypes": [ "COLUMN_HEADER" ] },
+
+   The cell that contains the word "Deposit" is not a title, footer,
+   column header, section title, or summary cell. This is shown by the
+   lack of the field "EntityTypes".
+
+   { "BlockType": "CELL", "Confidence": 86.181640625, "RowIndex": 7,
+   "ColumnIndex": 2, "RowSpan": 1, "ColumnSpan": 1, "Geometry": {...},
+   "Id": "7af5160b-bd60-45f5-a12c-bf376e9d742c", "Relationships": [ {
+   "Type": "CHILD", "Ids": [ "bb9bcaed-5998-44a6-9076-aa1ecc82fbc6" ] } ]
+   },
+
+   All the merged cells are listed under "Type": "MERGED_CELL" in the
+   TABLE block. In the preceding example table, there are nine merged
+   cells.
+
+   { "Type": "MERGED_CELL", "Ids": [
+   "a27a3ecc-afd0-4f7c-9db2-6f8e6d31c605",
+   "6c02cf21-40de-4480-b755-e94462ac4884",
+   "6faad856-8d37-4751-b741-c4ad8d5dcbe3",
+   "d777d6e2-7430-4c6e-a261-03ec5a612c8c",
+   "f0f5a9fb-5bfa-4c80-8f41-1d4fad674b09",
+   "83c7af02-8128-4479-89c9-962544ad4048",
+   "b2b5126c-409f-4b67-9adf-e3e12f60bf86",
+   "87d7f688-3d38-4198-b491-433af0da4d8b",
+   "1c2436e2-a1fc-4b2a-9e73-cc8a1ca67568" ] },
+
+   To find specific details associated with each merged cell, go to
+   "BlockType": "MERGED_CELL". For the merged cell “Balance Sheet”, which
+   is also a title cell, the ID associated with it is
+   "a27a3ecc-afd0-4f7c-9db2-6f8e6d31c605".
+
+   There are 5 cells that constitute this merged cell, as shown by the
+   "ColumnSpan" of 5. To find the text within the merged cell, go further
+   down to the Ids array for details on "BlockType": "CELL" followed by
+   "BlockType": "WORD".
+
+   { "BlockType": "MERGED_CELL", "Confidence": 77.44140625, "RowIndex": 1,
+   "ColumnIndex": 1, "RowSpan": 1, "ColumnSpan": 5, "Geometry": {...},
+   "Id": "a27a3ecc-afd0-4f7c-9db2-6f8e6d31c605", "Relationships": [ {
+   "Type": "CHILD", "Ids": [ "c1c03d64-d365-4906-af7a-a852f1acc040",
+   "8b415996-6b05-4183-a959-d27d12ccef79",
+   "48b0e972-7dba-4db7-896e-ca7066e8c761",
+   "69948207-47d8-4825-8929-1d7abb650a88",
+   "b9ac9f14-8899-43b3-8572-0e997180e0a4" ] } ], "EntityTypes": [
+   "TABLE_TITLE" ] },
+
+   On the cell level, there are 5 cells for the merged cell “Balance
+   Sheet”. Each cell has an EntityType of TABLE_TITLE because the title
+   was identified in the merged cell. The cell with an Id of
+   48b0e972-7dba-4db7-896e-ca7066e8c761 contains two CHILD relationship
+   IDs that correspond to the WORD blocks that make up this merged title
+   cell.
+
+   { "BlockType": "CELL", "Confidence": 77.44140625, "RowIndex": 1,
+   "ColumnIndex": 1, "RowSpan": 1, "ColumnSpan": 1, "Geometry": {...},
+   "Id": "c1c03d64-d365-4906-af7a-a852f1acc040", "EntityTypes": [
+   "TABLE_TITLE" ] }, { "BlockType": "CELL", "Confidence": 77.44140625,
+   "RowIndex": 1, "ColumnIndex": 2, "RowSpan": 1, "ColumnSpan": 1,
+   "Geometry": {...}, "Id": "8b415996-6b05-4183-a959-d27d12ccef79",
+   "EntityTypes": [ "TABLE_TITLE" ] }, { "BlockType": "CELL",
+   "Confidence": 77.44140625, "RowIndex": 1, "ColumnIndex": 3, "RowSpan":
+   1, "ColumnSpan": 1, "Geometry": {...}, "Id":
+   "48b0e972-7dba-4db7-896e-ca7066e8c761", "Relationships": [ { "Type":
+   "CHILD", "Ids": [ "998394ef-c6cf-491b-9bac-ec470c638ecd",
+   "1c875a06-f8e5-4df7-8f6a-583c47cbd9fe" ] } ], "EntityTypes": [
+   "TABLE_TITLE" ] }, { "BlockType": "CELL", "Confidence": 77.44140625,
+   "RowIndex": 1, "ColumnIndex": 4, "RowSpan": 1, "ColumnSpan": 1,
+   "Geometry": {...}, "Id": "69948207-47d8-4825-8929-1d7abb650a88",
+   "EntityTypes": [ "TABLE_TITLE" ] }, { "BlockType": "CELL",
+   "Confidence": 77.44140625, "RowIndex": 1, "ColumnIndex": 5, "RowSpan":
+   1, "ColumnSpan": 1, "Geometry": {...}, "Id":
+   "b9ac9f14-8899-43b3-8572-0e997180e0a4", "EntityTypes": [ "TABLE_TITLE"
+   ] },
+
+   On the word level, there are two words, “Balance” and "Sheet." Since
+   the first two and last two cells on columns 1, 2, 4, and 5 are blank,
+   there are no words associated with them. This is also shown in the
+   previous JSON output, where only the third cell contains child IDs.
+
+   { "BlockType": "WORD", "Confidence": 99.95711517333984, "Text":
+   "Balance", "TextType": "PRINTED", "Geometry": {...}, "Id":
+   "998394ef-c6cf-491b-9bac-ec470c638ecd" }, { "BlockType": "WORD",
+   "Confidence": 99.87372589111328, "Text": "Sheet", "TextType":
+   "PRINTED", "Geometry": {...}, "Id":
+   "1c875a06-f8e5-4df7-8f6a-583c47cbd9fe" },
+
+   The TABLE_TITLE and TABLE_FOOTER block types contain information about
+   title and footer cells, including CHILD relationships that point to the
+   WORD blocks that make up the title or footer. This is shown in the
+   following JSON response.
+
+   In this example, the title is an in-table title, meaning it is found
+   within the structure of the table itself, as opposed to outside of the
+   table as a floating title. This means that the title also has a CELL
+   block type that contains the child IDs of the word blocks that make up
+   the title. See the previous JSON output for the five cell blocks that
+   comprise the merged title cell, which includes the title cell block
+   with the child IDs of the word blocks. The footer cells for this table
+   would also be represented by cell blocks for each footer.
+
+   { "BlockType": "TABLE_TITLE", "Confidence": 97.802734375, "Geometry":
+   {...}, "Id": "cde34920-0131-4e68-a3ec-82922269afd4", "Relationships": [
+   { "Type": "CHILD", "Ids": [ "998394ef-c6cf-491b-9bac-ec470c638ecd",
+   "1c875a06-f8e5-4df7-8f6a-583c47cbd9fe" ] } ] }, { "BlockType":
+   "TABLE_FOOTER", "Confidence": 88.0859375, "Geometry": {...}, "Id":
+   "11dfd98c-6140-49e8-a544-e220d76bdd2f", "Relationships": [ { "Type":
+   "CHILD", "Ids": [ "77a70b2d-c137-4161-8d9c-65170266e5ff",
+   "d413ef1f-fa1b-44cb-87ed-809494fc87d8",
+   "19616f50-1a34-431f-94bf-7e575106cd85",
+   "35063ea4-a3c7-4e19-9d32-10eca92807b8",
+   "48de1523-7776-49ef-96d9-fc19bcde89c5" ] } ] },
+
+   Warning Javascript is disabled or is unavailable in your browser.
+
+   To use the Amazon Web Services Documentation, Javascript must be
+   enabled. Please refer to your browser's Help pages for instructions.
+
+   Document Conventions
+   Form Data (Key-Value Pairs)
+   Selection Elements
+
+   Did this page help you? - Yes
+
+   Thanks for letting us know we're doing a good job!
+
+   If you've got a moment, please tell us what we did right so we can do
+   more of it.
+
+   Did this page help you? - No
+
+   Thanks for letting us know this page needs work. We're sorry we let you
+   down.
+
+   If you've got a moment, please tell us how we can make the
+   documentation better.
+
+=== END: cmd/apps/textractor/ttmp/2024-11-29/textract-docs/06-tables.txt ===
+
+=== BEGIN: cmd/apps/textractor/ttmp/2024-11-29/textract-api-docs/api-Block.txt ===
+   AWSDocumentationAmazon TextractDeveloper Guide
+   ContentsSee Also
+
+Block
+
+   A Block represents items that are recognized in a document within a
+   group of pixels close to each other. The information returned in a
+   Block object depends on the type of operation. In text detection for
+   documents (for example DetectDocumentText), you get information about
+   the detected words and lines of text. In text analysis (for example
+   AnalyzeDocument), you can also get information about the fields,
+   tables, and selection elements that are detected in the document.
+
+   An array of Block objects is returned by both synchronous and
+   asynchronous operations. In synchronous operations, such as
+   DetectDocumentText, the array of Block objects is the entire set of
+   results. In asynchronous operations, such as GetDocumentAnalysis, the
+   array is returned over one or more responses.
+
+   For more information, see How Amazon Textract Works.
+
+Contents
+
+   BlockType
+          The type of text item that's recognized. In operations for text
+          detection, the following types are returned:
+
+          + PAGE - Contains a list of the LINE Block objects that are
+            detected on a document page.
+          + WORD - A word detected on a document page. A word is one or
+            more ISO basic Latin script characters that aren't separated
+            by spaces.
+          + LINE - A string of tab-delimited, contiguous words that are
+            detected on a document page.
+
+          In text analysis operations, the following types are returned:
+
+          + PAGE - Contains a list of child Block objects that are
+            detected on a document page.
+          + KEY_VALUE_SET - Stores the KEY and VALUE Block objects for
+            linked text that's detected on a document page. Use the
+            EntityType field to determine if a KEY_VALUE_SET object is a
+            KEY Block object or a VALUE Block object.
+          + WORD - A word that's detected on a document page. A word is
+            one or more ISO basic Latin script characters that aren't
+            separated by spaces.
+          + LINE - A string of tab-delimited, contiguous words that are
+            detected on a document page.
+          + TABLE - A table that's detected on a document page. A table is
+            grid-based information with two or more rows or columns, with
+            a cell span of one row and one column each.
+          + TABLE_TITLE - The title of a table. A title is typically a
+            line of text above or below a table, or embedded as the first
+            row of a table.
+          + TABLE_FOOTER - The footer associated with a table. A footer is
+            typically a line or lines of text below a table or embedded as
+            the last row of a table.
+          + CELL - A cell within a detected table. The cell is the parent
+            of the block that contains the text in the cell.
+          + MERGED_CELL - A cell in a table whose content spans more than
+            one row or column. The Relationships array for this cell
+            contain data from individual cells.
+          + SELECTION_ELEMENT - A selection element such as an option
+            button (radio button) or a check box that's detected on a
+            document page. Use the value of SelectionStatus to determine
+            the status of the selection element.
+          + SIGNATURE - The location and confidence score of a signature
+            detected on a document page. Can be returned as part of a
+            Key-Value pair or a detected cell.
+          + QUERY - A question asked during the call of AnalyzeDocument.
+            Contains an alias and an ID that attaches it to its answer.
+          + QUERY_RESULT - A response to a question asked during the call
+            of analyze document. Comes with an alias and ID for ease of
+            locating in a response. Also contains location and confidence
+            score.
+
+          The following BlockTypes are only returned for Amazon Textract
+          Layout.
+
+          + LAYOUT_TITLE - The main title of the document.
+          + LAYOUT_HEADER - Text located in the top margin of the
+            document.
+          + LAYOUT_FOOTER - Text located in the bottom margin of the
+            document.
+          + LAYOUT_SECTION_HEADER - The titles of sections within a
+            document.
+          + LAYOUT_PAGE_NUMBER - The page number of the documents.
+          + LAYOUT_LIST - Any information grouped together in list form.
+          + LAYOUT_FIGURE - Indicates the location of an image in a
+            document.
+          + LAYOUT_TABLE - Indicates the location of a table in the
+            document.
+          + LAYOUT_KEY_VALUE - Indicates the location of form key-values
+            in a document.
+          + LAYOUT_TEXT - Text that is present typically as a part of
+            paragraphs in documents.
+
+          Type: String
+
+          Valid Values: KEY_VALUE_SET | PAGE | LINE | WORD | TABLE | CELL
+          | SELECTION_ELEMENT | MERGED_CELL | TITLE | QUERY | QUERY_RESULT
+          | SIGNATURE | TABLE_TITLE | TABLE_FOOTER | LAYOUT_TEXT |
+          LAYOUT_TITLE | LAYOUT_HEADER | LAYOUT_FOOTER |
+          LAYOUT_SECTION_HEADER | LAYOUT_PAGE_NUMBER | LAYOUT_LIST |
+          LAYOUT_FIGURE | LAYOUT_TABLE | LAYOUT_KEY_VALUE
+
+          Required: No
+
+   ColumnIndex
+          The column in which a table cell appears. The first column
+          position is 1. ColumnIndex isn't returned by DetectDocumentText
+          and GetDocumentTextDetection.
+
+          Type: Integer
+
+          Valid Range: Minimum value of 0.
+
+          Required: No
+
+   ColumnSpan
+          The number of columns that a table cell spans. ColumnSpan isn't
+          returned by DetectDocumentText and GetDocumentTextDetection.
+
+          Type: Integer
+
+          Valid Range: Minimum value of 0.
+
+          Required: No
+
+   Confidence
+          The confidence score that Amazon Textract has in the accuracy of
+          the recognized text and the accuracy of the geometry points
+          around the recognized text.
+
+          Type: Float
+
+          Valid Range: Minimum value of 0. Maximum value of 100.
+
+          Required: No
+
+   EntityTypes
+          The type of entity.
+
+          The following entity types can be returned by FORMS analysis:
+
+          + KEY - An identifier for a field on the document.
+          + VALUE - The field text.
+
+          The following entity types can be returned by TABLES analysis:
+
+          + COLUMN_HEADER - Identifies a cell that is a header of a
+            column.
+          + TABLE_TITLE - Identifies a cell that is a title within the
+            table.
+          + TABLE_SECTION_TITLE - Identifies a cell that is a title of a
+            section within a table. A section title is a cell that
+            typically spans an entire row above a section.
+          + TABLE_FOOTER - Identifies a cell that is a footer of a table.
+          + TABLE_SUMMARY - Identifies a summary cell of a table. A
+            summary cell can be a row of a table or an additional, smaller
+            table that contains summary information for another table.
+          + STRUCTURED_TABLE - Identifies a table with column headers
+            where the content of each row corresponds to the headers.
+          + SEMI_STRUCTURED_TABLE - Identifies a non-structured table.
+
+          EntityTypes isn't returned by DetectDocumentText and
+          GetDocumentTextDetection.
+
+          Type: Array of strings
+
+          Valid Values: KEY | VALUE | COLUMN_HEADER | TABLE_TITLE |
+          TABLE_FOOTER | TABLE_SECTION_TITLE | TABLE_SUMMARY |
+          STRUCTURED_TABLE | SEMI_STRUCTURED_TABLE
+
+          Required: No
+
+   Geometry
+          The location of the recognized text on the image. It includes an
+          axis-aligned, coarse bounding box that surrounds the text, and a
+          finer-grain polygon for more accurate spatial information.
+
+          Type: Geometry object
+
+          Required: No
+
+   Id
+          The identifier for the recognized text. The identifier is only
+          unique for a single operation.
+
+          Type: String
+
+          Pattern: .*\S.*
+
+          Required: No
+
+   Page
+          The page on which a block was detected. Page is returned by
+          synchronous and asynchronous operations. Page values greater
+          than 1 are only returned for multipage documents that are in PDF
+          or TIFF format. A scanned image (JPEG/PNG) provided to an
+          asynchronous operation, even if it contains multiple document
+          pages, is considered a single-page document. This means that for
+          scanned images the value of Page is always 1.
+
+          Type: Integer
+
+          Valid Range: Minimum value of 0.
+
+          Required: No
+
+   Query
+          Type: Query object
+
+          Required: No
+
+   Relationships
+          A list of relationship objects that describe how blocks are
+          related to each other. For example, a LINE block object contains
+          a CHILD relationship type with the WORD blocks that make up the
+          line of text. There aren't Relationship objects in the list for
+          relationships that don't exist, such as when the current block
+          has no child blocks.
+
+          Type: Array of Relationship objects
+
+          Required: No
+
+   RowIndex
+          The row in which a table cell is located. The first row position
+          is 1. RowIndex isn't returned by DetectDocumentText and
+          GetDocumentTextDetection.
+
+          Type: Integer
+
+          Valid Range: Minimum value of 0.
+
+          Required: No
+
+   RowSpan
+          The number of rows that a table cell spans. RowSpan isn't
+          returned by DetectDocumentText and GetDocumentTextDetection.
+
+          Type: Integer
+
+          Valid Range: Minimum value of 0.
+
+          Required: No
+
+   SelectionStatus
+          The selection status of a selection element, such as an option
+          button or check box.
+
+          Type: String
+
+          Valid Values: SELECTED | NOT_SELECTED
+
+          Required: No
+
+   Text
+          The word or line of text that's recognized by Amazon Textract.
+
+          Type: String
+
+          Required: No
+
+   TextType
+          The kind of text that Amazon Textract has detected. Can check
+          for handwritten text and printed text.
+
+          Type: String
+
+          Valid Values: HANDWRITING | PRINTED
+
+          Required: No
+
+See Also
+
+   For more information about using this API in one of the
+   language-specific AWS SDKs, see the following:
+     * AWS SDK for C++
+     * AWS SDK for Java V2
+     * AWS SDK for Ruby V3
+
+   Warning Javascript is disabled or is unavailable in your browser.
+
+   To use the Amazon Web Services Documentation, Javascript must be
+   enabled. Please refer to your browser's Help pages for instructions.
+   Document Conventions
+   AnalyzeIDDetections
+   BoundingBox
+   Did this page help you? - Yes
+
+   Thanks for letting us know we're doing a good job!
+
+   If you've got a moment, please tell us what we did right so we can do
+   more of it.
+
+   Did this page help you? - No
+
+   Thanks for letting us know this page needs work. We're sorry we let you
+   down.
+
+   If you've got a moment, please tell us how we can make the
+   documentation better.
+
+=== END: cmd/apps/textractor/ttmp/2024-11-29/textract-api-docs/api-Block.txt ===
+
+
+
