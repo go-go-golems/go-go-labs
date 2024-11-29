@@ -1,0 +1,65 @@
+   AWSDocumentationAmazon TextractDeveloper Guide
+   ContentsSee Also
+
+IdentityDocument
+
+   The structure that lists each document processed in an AnalyzeID
+   operation.
+
+Contents
+
+   Blocks
+          Individual word recognition, as returned by document detection.
+
+          Type: Array of Block objects
+
+          Required: No
+
+   DocumentIndex
+          Denotes the placement of a document in the IdentityDocument
+          list. The first document is marked 1, the second 2 and so on.
+
+          Type: Integer
+
+          Valid Range: Minimum value of 0.
+
+          Required: No
+
+   IdentityDocumentFields
+          The structure used to record information extracted from identity
+          documents. Contains both normalized field and value of the
+          extracted text.
+
+          Type: Array of IdentityDocumentField objects
+
+          Required: No
+
+See Also
+
+   For more information about using this API in one of the
+   language-specific AWS SDKs, see the following:
+     * AWS SDK for C++
+     * AWS SDK for Java V2
+     * AWS SDK for Ruby V3
+
+   Warning Javascript is disabled or is unavailable in your browser.
+
+   To use the Amazon Web Services Documentation, Javascript must be
+   enabled. Please refer to your browser's Help pages for instructions.
+   Document Conventions
+   HumanLoopDataAttributes
+   IdentityDocumentField
+   Did this page help you? - Yes
+
+   Thanks for letting us know we're doing a good job!
+
+   If you've got a moment, please tell us what we did right so we can do
+   more of it.
+
+   Did this page help you? - No
+
+   Thanks for letting us know this page needs work. We're sorry we let you
+   down.
+
+   If you've got a moment, please tell us how we can make the
+   documentation better.

@@ -16,8 +16,8 @@ function getInputKey(jobId, fileName) {
     return `input/${jobId}/${fileName}`;
 }
 
-function getResultKey(jobId) {
-    return `results/${jobId}/analysis.json`;
+function getResultKey(textractJobId) {
+    return `textract_output/${textractJobId}`;
 }
 
 function extractJobIdFromKey(key) {

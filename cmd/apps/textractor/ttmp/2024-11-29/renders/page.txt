@@ -1,0 +1,469 @@
+Page Interface Key Concepts:
+- Each page contains child blocks for detected items
+- Can contain: lines, tables, forms, key-value pairs, queries
+- Has geometry information (bounding box)
+- Returns items in implied reading order
+
+Relevant Documentation Files:
+=== BEGIN: cmd/apps/textractor/ttmp/2024-11-29/textract-docs/03-pages.txt ===
+   AWSDocumentationAmazon TextractDeveloper Guide
+
+Pages
+
+   A document consists of one or more pages. A Block object of type PAGE
+   exists for each page of the document. A PAGE block object contains a
+   list of the child IDs for the lines of text, key-value pairs, tables,
+   Queries, and Query Results that are detected on the document page.
+   Document structure diagram showing Page containing Line, Table,
+   Key-Value Set, Query, and Queries Result components.
+
+   The JSON for a PAGE block looks similar to the following.
+
+   { "Geometry": .... "Relationships": [ { "Type": "CHILD", "Ids": [
+   "2602b0a6-20e3-4e6e-9e46-3be57fd0844b", // Line - Hello, world.
+   "82aedd57-187f-43dd-9eb1-4f312ca30042", // Line - How are you?
+   "52be1777-53f7-42f6-a7cf-6d09bdc15a30",
+   "7ca7caa6-00ef-4cda-b1aa-5571dfed1a7c" ] } ], "BlockType": "PAGE",
+   "Id": "8136b2dc-37c1-4300-a9da-6ed8b276ea97" // Page identifier },
+
+   If you're using asynchronous operations with a multipage document
+   that's in PDF format, you can determine the page that a block is
+   located on by inspecting the Page field of the Block object. A scanned
+   image (an image in JPEG, PNG, PDF, or TIFF format) is considered to be
+   a single-page document, even if there's more than one document page on
+   the image. Asynchronous operations always return a Page value of 1 for
+   scanned images.
+
+   The total number of pages is returned in the Pages field of
+   DocumentMetadata. DocumentMetadata is returned with each list of Block
+   objects returned by an Amazon Textract operation.
+
+   Warning Javascript is disabled or is unavailable in your browser.
+
+   To use the Amazon Web Services Documentation, Javascript must be
+   enabled. Please refer to your browser's Help pages for instructions.
+   Document Conventions
+   Text Detection and Document Analysis Response Objects
+   Lines and Words of Text
+   Did this page help you? - Yes
+
+   Thanks for letting us know we're doing a good job!
+
+   If you've got a moment, please tell us what we did right so we can do
+   more of it.
+
+   Did this page help you? - No
+
+   Thanks for letting us know this page needs work. We're sorry we let you
+   down.
+
+   If you've got a moment, please tell us how we can make the
+   documentation better.
+
+=== END: cmd/apps/textractor/ttmp/2024-11-29/textract-docs/03-pages.txt ===
+
+=== BEGIN: cmd/apps/textractor/ttmp/2024-11-29/textract-api-docs/api-Block.txt ===
+   AWSDocumentationAmazon TextractDeveloper Guide
+   ContentsSee Also
+
+Block
+
+   A Block represents items that are recognized in a document within a
+   group of pixels close to each other. The information returned in a
+   Block object depends on the type of operation. In text detection for
+   documents (for example DetectDocumentText), you get information about
+   the detected words and lines of text. In text analysis (for example
+   AnalyzeDocument), you can also get information about the fields,
+   tables, and selection elements that are detected in the document.
+
+   An array of Block objects is returned by both synchronous and
+   asynchronous operations. In synchronous operations, such as
+   DetectDocumentText, the array of Block objects is the entire set of
+   results. In asynchronous operations, such as GetDocumentAnalysis, the
+   array is returned over one or more responses.
+
+   For more information, see How Amazon Textract Works.
+
+Contents
+
+   BlockType
+          The type of text item that's recognized. In operations for text
+          detection, the following types are returned:
+
+          + PAGE - Contains a list of the LINE Block objects that are
+            detected on a document page.
+          + WORD - A word detected on a document page. A word is one or
+            more ISO basic Latin script characters that aren't separated
+            by spaces.
+          + LINE - A string of tab-delimited, contiguous words that are
+            detected on a document page.
+
+          In text analysis operations, the following types are returned:
+
+          + PAGE - Contains a list of child Block objects that are
+            detected on a document page.
+          + KEY_VALUE_SET - Stores the KEY and VALUE Block objects for
+            linked text that's detected on a document page. Use the
+            EntityType field to determine if a KEY_VALUE_SET object is a
+            KEY Block object or a VALUE Block object.
+          + WORD - A word that's detected on a document page. A word is
+            one or more ISO basic Latin script characters that aren't
+            separated by spaces.
+          + LINE - A string of tab-delimited, contiguous words that are
+            detected on a document page.
+          + TABLE - A table that's detected on a document page. A table is
+            grid-based information with two or more rows or columns, with
+            a cell span of one row and one column each.
+          + TABLE_TITLE - The title of a table. A title is typically a
+            line of text above or below a table, or embedded as the first
+            row of a table.
+          + TABLE_FOOTER - The footer associated with a table. A footer is
+            typically a line or lines of text below a table or embedded as
+            the last row of a table.
+          + CELL - A cell within a detected table. The cell is the parent
+            of the block that contains the text in the cell.
+          + MERGED_CELL - A cell in a table whose content spans more than
+            one row or column. The Relationships array for this cell
+            contain data from individual cells.
+          + SELECTION_ELEMENT - A selection element such as an option
+            button (radio button) or a check box that's detected on a
+            document page. Use the value of SelectionStatus to determine
+            the status of the selection element.
+          + SIGNATURE - The location and confidence score of a signature
+            detected on a document page. Can be returned as part of a
+            Key-Value pair or a detected cell.
+          + QUERY - A question asked during the call of AnalyzeDocument.
+            Contains an alias and an ID that attaches it to its answer.
+          + QUERY_RESULT - A response to a question asked during the call
+            of analyze document. Comes with an alias and ID for ease of
+            locating in a response. Also contains location and confidence
+            score.
+
+          The following BlockTypes are only returned for Amazon Textract
+          Layout.
+
+          + LAYOUT_TITLE - The main title of the document.
+          + LAYOUT_HEADER - Text located in the top margin of the
+            document.
+          + LAYOUT_FOOTER - Text located in the bottom margin of the
+            document.
+          + LAYOUT_SECTION_HEADER - The titles of sections within a
+            document.
+          + LAYOUT_PAGE_NUMBER - The page number of the documents.
+          + LAYOUT_LIST - Any information grouped together in list form.
+          + LAYOUT_FIGURE - Indicates the location of an image in a
+            document.
+          + LAYOUT_TABLE - Indicates the location of a table in the
+            document.
+          + LAYOUT_KEY_VALUE - Indicates the location of form key-values
+            in a document.
+          + LAYOUT_TEXT - Text that is present typically as a part of
+            paragraphs in documents.
+
+          Type: String
+
+          Valid Values: KEY_VALUE_SET | PAGE | LINE | WORD | TABLE | CELL
+          | SELECTION_ELEMENT | MERGED_CELL | TITLE | QUERY | QUERY_RESULT
+          | SIGNATURE | TABLE_TITLE | TABLE_FOOTER | LAYOUT_TEXT |
+          LAYOUT_TITLE | LAYOUT_HEADER | LAYOUT_FOOTER |
+          LAYOUT_SECTION_HEADER | LAYOUT_PAGE_NUMBER | LAYOUT_LIST |
+          LAYOUT_FIGURE | LAYOUT_TABLE | LAYOUT_KEY_VALUE
+
+          Required: No
+
+   ColumnIndex
+          The column in which a table cell appears. The first column
+          position is 1. ColumnIndex isn't returned by DetectDocumentText
+          and GetDocumentTextDetection.
+
+          Type: Integer
+
+          Valid Range: Minimum value of 0.
+
+          Required: No
+
+   ColumnSpan
+          The number of columns that a table cell spans. ColumnSpan isn't
+          returned by DetectDocumentText and GetDocumentTextDetection.
+
+          Type: Integer
+
+          Valid Range: Minimum value of 0.
+
+          Required: No
+
+   Confidence
+          The confidence score that Amazon Textract has in the accuracy of
+          the recognized text and the accuracy of the geometry points
+          around the recognized text.
+
+          Type: Float
+
+          Valid Range: Minimum value of 0. Maximum value of 100.
+
+          Required: No
+
+   EntityTypes
+          The type of entity.
+
+          The following entity types can be returned by FORMS analysis:
+
+          + KEY - An identifier for a field on the document.
+          + VALUE - The field text.
+
+          The following entity types can be returned by TABLES analysis:
+
+          + COLUMN_HEADER - Identifies a cell that is a header of a
+            column.
+          + TABLE_TITLE - Identifies a cell that is a title within the
+            table.
+          + TABLE_SECTION_TITLE - Identifies a cell that is a title of a
+            section within a table. A section title is a cell that
+            typically spans an entire row above a section.
+          + TABLE_FOOTER - Identifies a cell that is a footer of a table.
+          + TABLE_SUMMARY - Identifies a summary cell of a table. A
+            summary cell can be a row of a table or an additional, smaller
+            table that contains summary information for another table.
+          + STRUCTURED_TABLE - Identifies a table with column headers
+            where the content of each row corresponds to the headers.
+          + SEMI_STRUCTURED_TABLE - Identifies a non-structured table.
+
+          EntityTypes isn't returned by DetectDocumentText and
+          GetDocumentTextDetection.
+
+          Type: Array of strings
+
+          Valid Values: KEY | VALUE | COLUMN_HEADER | TABLE_TITLE |
+          TABLE_FOOTER | TABLE_SECTION_TITLE | TABLE_SUMMARY |
+          STRUCTURED_TABLE | SEMI_STRUCTURED_TABLE
+
+          Required: No
+
+   Geometry
+          The location of the recognized text on the image. It includes an
+          axis-aligned, coarse bounding box that surrounds the text, and a
+          finer-grain polygon for more accurate spatial information.
+
+          Type: Geometry object
+
+          Required: No
+
+   Id
+          The identifier for the recognized text. The identifier is only
+          unique for a single operation.
+
+          Type: String
+
+          Pattern: .*\S.*
+
+          Required: No
+
+   Page
+          The page on which a block was detected. Page is returned by
+          synchronous and asynchronous operations. Page values greater
+          than 1 are only returned for multipage documents that are in PDF
+          or TIFF format. A scanned image (JPEG/PNG) provided to an
+          asynchronous operation, even if it contains multiple document
+          pages, is considered a single-page document. This means that for
+          scanned images the value of Page is always 1.
+
+          Type: Integer
+
+          Valid Range: Minimum value of 0.
+
+          Required: No
+
+   Query
+          Type: Query object
+
+          Required: No
+
+   Relationships
+          A list of relationship objects that describe how blocks are
+          related to each other. For example, a LINE block object contains
+          a CHILD relationship type with the WORD blocks that make up the
+          line of text. There aren't Relationship objects in the list for
+          relationships that don't exist, such as when the current block
+          has no child blocks.
+
+          Type: Array of Relationship objects
+
+          Required: No
+
+   RowIndex
+          The row in which a table cell is located. The first row position
+          is 1. RowIndex isn't returned by DetectDocumentText and
+          GetDocumentTextDetection.
+
+          Type: Integer
+
+          Valid Range: Minimum value of 0.
+
+          Required: No
+
+   RowSpan
+          The number of rows that a table cell spans. RowSpan isn't
+          returned by DetectDocumentText and GetDocumentTextDetection.
+
+          Type: Integer
+
+          Valid Range: Minimum value of 0.
+
+          Required: No
+
+   SelectionStatus
+          The selection status of a selection element, such as an option
+          button or check box.
+
+          Type: String
+
+          Valid Values: SELECTED | NOT_SELECTED
+
+          Required: No
+
+   Text
+          The word or line of text that's recognized by Amazon Textract.
+
+          Type: String
+
+          Required: No
+
+   TextType
+          The kind of text that Amazon Textract has detected. Can check
+          for handwritten text and printed text.
+
+          Type: String
+
+          Valid Values: HANDWRITING | PRINTED
+
+          Required: No
+
+See Also
+
+   For more information about using this API in one of the
+   language-specific AWS SDKs, see the following:
+     * AWS SDK for C++
+     * AWS SDK for Java V2
+     * AWS SDK for Ruby V3
+
+   Warning Javascript is disabled or is unavailable in your browser.
+
+   To use the Amazon Web Services Documentation, Javascript must be
+   enabled. Please refer to your browser's Help pages for instructions.
+   Document Conventions
+   AnalyzeIDDetections
+   BoundingBox
+   Did this page help you? - Yes
+
+   Thanks for letting us know we're doing a good job!
+
+   If you've got a moment, please tell us what we did right so we can do
+   more of it.
+
+   Did this page help you? - No
+
+   Thanks for letting us know this page needs work. We're sorry we let you
+   down.
+
+   If you've got a moment, please tell us how we can make the
+   documentation better.
+
+=== END: cmd/apps/textractor/ttmp/2024-11-29/textract-api-docs/api-Block.txt ===
+
+=== BEGIN: cmd/apps/textractor/ttmp/2024-11-29/textract-docs/09-layout-response.txt ===
+   AWSDocumentationAmazon TextractDeveloper Guide
+
+Layout Response Objects
+
+   When using Layout on a document with Amazon Textract, the different
+   layout elements are returned as a BlockType in the Block object. These
+   elements correspond to the different portions of the layout, and are:
+     * Title — The main title of the document. Returned as LAYOUT_TITLE.
+     * Header — Text located in the top margin of the document. Returned
+       as LAYOUT_HEADER.
+     * Footer — Text located in the bottom margin of the document.
+       Returned as LAYOUT_FOOTER.
+     * Section Title — The titles for individual document sections.
+       Returned as LAYOUT_SECTION_HEADER.
+     * Page Number — The page number of the documents. Returned as
+       LAYOUT_PAGE_NUMBER.
+     * List — Any information grouped together in list form. Returned as
+       LAYOUT_LIST.
+     * Figure — Indicates the location of an image in a document. Returned
+       as LAYOUT_FIGURE.
+     * Table — Indicates the location of a table in the document. Returned
+       as LAYOUT_TABLE.
+     * Key Value — Indicates the location of form key-values in a
+       document. Returned as LAYOUT_KEY_VALUE.
+     * Text — Text that is present typically as a part of paragraphs in
+       documents. Returned as LAYOUT_TEXT
+
+   Each element returns two key pieces of information. First is the
+   bounding box of the layout element, which shows its location. Second,
+   the element contains a list of IDs. These IDs point to the components
+   of the layout element, often lines of text represented by LINE objects.
+   Layout elements can also point to different objects, such as TABLE
+   objects, Key-Value pairs, or LAYOUT_TEXT elements in the case of
+   LAYOUT_LIST.
+
+   Elements are returned in implied reading order. This means layout
+   elements will be returned by document analysis left to right, top to
+   bottom. For multicolumn pages, elements are returned from the top of
+   the leftmost column, moving left to right until the bottom of the
+   column is reached. Then, the elements from the next leftmost column are
+   returned in the same way.
+
+   Below is an example of a LAYOUT_TITLE response element, with the
+   bounding box geometry section removed. The three IDs point towards the
+   three LINE objects representing the three lines of text in the title.
+
+   { "BlockType": "LAYOUT_TITLE", "Confidence": 57.177734375, "Geometry":
+   { ... }, "Id": "e02654d0-dce1-4205-bf1c-6fac1cc0a35a", "Relationships":
+   [ { "Type": "CHILD", "Ids": [ "8afeedb5-44f2-48ec-ae97-07edc204f8d8",
+   "fa505358-51ff-405c-b227-e51faffb28fe",
+   "95ef9c97-5a98-4060-9100-d09222b166f6" ] } ] },
+
+   When Amazon Textract detects a list in a document's layout, instead of
+   the IDs pointing directly to the LINE objects, it instead points to the
+   LAYOUT_TEXT objects located within the list. Below is a shortened
+   example response displaying this relationship. Within the LAYOUT_TEXT
+   objects you can see the IDs corresponding to the IDs in the LAYOUT_LIST
+   response object. These LAYOUT_TEXT objects then contain their own list
+   of IDs, which correspond to the LINE objects for each line of text in
+   the layout element.
+
+   { "BlockType": "LAYOUT_LIST", "Relationships": [ { "Ids": [
+   "98d2f88c-9116-4025-bf4f-70e4345ac347", // LAYOUT_TEXT
+   "d132fcd3-2be0-4f23-8c98-61295f5c6ac2" ], // LAYOUT_TEXT "Type":
+   "CHILD" } ], "ID": "c685fb89-692b-4e80-8083-7b783735e287", ... }, {
+   "BlockType": "LAYOUT_TEXT", "ID":
+   "98d2f88c-9116-4025-bf4f-70e4345ac347", ... }, { "BlockType":
+   "LAYOUT_TEXT", "ID": "d132fcd3-2be0-4f23-8c98-61295f5c6ac2", ... }
+
+   Warning Javascript is disabled or is unavailable in your browser.
+
+   To use the Amazon Web Services Documentation, Javascript must be
+   enabled. Please refer to your browser's Help pages for instructions.
+   Document Conventions
+   Queries
+   Invoice and Receipt Response Objects
+
+   Did this page help you? - Yes
+
+   Thanks for letting us know we're doing a good job!
+
+   If you've got a moment, please tell us what we did right so we can do
+   more of it.
+
+   Did this page help you? - No
+
+   Thanks for letting us know this page needs work. We're sorry we let you
+   down.
+
+   If you've got a moment, please tell us how we can make the
+   documentation better.
+
+=== END: cmd/apps/textractor/ttmp/2024-11-29/textract-docs/09-layout-response.txt ===
+
+
+

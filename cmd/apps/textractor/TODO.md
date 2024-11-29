@@ -1,5 +1,10 @@
 # Textractor Command Implementation Plan
 
+## Bugs
+- [ ] Textract ID or Result Key do not seem to be populated
+- [ ] Print out s3 path in list
+- [ ] Fetch can use job-id
+
 ## Core Infrastructure (Required First)
 - [x] DynamoDB table setup
 - [x] Basic CLI structure

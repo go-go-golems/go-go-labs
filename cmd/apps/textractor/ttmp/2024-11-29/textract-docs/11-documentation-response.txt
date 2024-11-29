@@ -1,0 +1,81 @@
+   AWSDocumentationAmazon TextractDeveloper Guide
+
+Identity Documentation Response Objects
+
+   When you submit an identity document to the AnalyzeID API, it returns a
+   series of IdentityDocumentField objects. Each of these objects contains
+   Type, and Value. Type records the normalized field that Amazon Textract
+   detects, and Value records the text associated with the normalized
+   field.
+
+   Following is an example of an IdentityDocumentField, shortened for
+   brevity.
+
+   { "DocumentMetadata": { "Pages": 1 }, "IdentityDocumentFields": [ {
+   "Type": { "Text": "first name" }, "ValueDetection": { "Text":
+   "jennifer", "Confidence": 99.99908447265625 } }, { "Type": { "Text":
+   "last name" }, "ValueDetection": { "Text": "sample", "Confidence":
+   99.99758911132812 } },
+
+   These are two examples of IdentityDocumentFields cut from a longer
+   response. There is a separation between the type detected and the value
+   for that type. Here, it is the first and last name respectively. This
+   structure repeats with all contained information. If a type is not
+   recognized as a normalized field, it will be listed as "other."
+   Additionally, AnalyzeID returns a Blocks object, the same as document
+   text detection so you can have access to the full text of the document.
+
+   Following is a list of normalized fields for Driver's Licenses:
+     * First Name — FIRST_NAME
+     * Last Name — LAST_NAME
+     * Middle Name — MIDDLE_NAME
+     * Suffix — SUFFIX
+     * City in Address — CITY_IN_ADDRESS
+     * Zip Code In Address — ZIP_CODE_IN_ADDRESS
+     * State In Address — STATE_IN_ADDRESS
+     * County — COUNTY
+     * Document Number — DOCUMENT_NUMBER
+     * Expiration Date — EXPIRATION_DATE
+     * Date of Birth — DATE_OF_BIRTH
+     * State Name — STATE_NAME
+     * Date of Issue — DATE_OF_ISSUE
+     * Class — CLASS
+     * Restrictions — RESTRICTIONS
+     * Endorsements — ENDORSEMENTS
+     * Id Type — ID_TYPE
+     * Veteran — VETERAN
+     * Address — ADDRESS
+
+   Following is a list of normalized fields for U.S Passports:
+     * First Name — FIRST_NAME
+     * Last Name — LAST_NAME
+     * Middle Name — MIDDLE_NAME
+     * Document Number — DOCUMENT_NUMBER
+     * Expiration Date — EXPIRATON_DATE
+     * Date of Birth — DATE_OF_BIRTH
+     * Place of Birth — PLACE_OF_BIRTH
+     * Date of Issue — DATE_OF_ISSUE
+     * Id Type — ID_TYPE
+     * MRZ Code — MRZ_CODE
+
+   Warning Javascript is disabled or is unavailable in your browser.
+
+   To use the Amazon Web Services Documentation, Javascript must be
+   enabled. Please refer to your browser's Help pages for instructions.
+   Document Conventions
+   Invoice and Receipt Response Objects
+   Analyze Lending Response Objects
+   Did this page help you? - Yes
+
+   Thanks for letting us know we're doing a good job!
+
+   If you've got a moment, please tell us what we did right so we can do
+   more of it.
+
+   Did this page help you? - No
+
+   Thanks for letting us know this page needs work. We're sorry we let you
+   down.
+
+   If you've got a moment, please tell us how we can make the
+   documentation better.

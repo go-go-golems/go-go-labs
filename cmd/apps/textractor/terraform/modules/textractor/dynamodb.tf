@@ -24,6 +24,16 @@ resource "aws_dynamodb_table" "jobs" {
     type = "S"
   }
 
+  attribute {
+    name = "TextractID"
+    type = "S"
+  }
+
+  attribute {
+    name = "ResultKey"
+    type = "S"
+  }
+
   # GSI1: Status-SubmittedAt for listing by status
   global_secondary_index {
     name               = "Status-SubmittedAt-Index"
@@ -36,6 +46,20 @@ resource "aws_dynamodb_table" "jobs" {
   global_secondary_index {
     name               = "DocumentKey-Index"
     hash_key           = "DocumentKey"
+    projection_type    = "ALL"
+  }
+
+  # GSI3: ResultKey for looking up jobs by result key
+  global_secondary_index {
+    name               = "ResultKey-Index"
+    hash_key           = "ResultKey"
+    projection_type    = "ALL"
+  }
+
+  # GSI4: TextractID for looking up jobs by Textract ID
+  global_secondary_index {
+    name               = "TextractID-Index"
+    hash_key           = "TextractID"
     projection_type    = "ALL"
   }
 

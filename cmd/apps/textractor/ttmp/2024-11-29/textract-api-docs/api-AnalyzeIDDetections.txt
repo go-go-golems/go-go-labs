@@ -1,0 +1,62 @@
+   AWSDocumentationAmazon TextractDeveloper Guide
+   ContentsSee Also
+
+AnalyzeIDDetections
+
+   Used to contain the information detected by an AnalyzeID operation.
+
+Contents
+
+   Text
+          Text of either the normalized field or value associated with it.
+
+          Type: String
+
+          Required: Yes
+
+   Confidence
+          The confidence score of the detected text.
+
+          Type: Float
+
+          Valid Range: Minimum value of 0. Maximum value of 100.
+
+          Required: No
+
+   NormalizedValue
+          Only returned for dates, returns the type of value detected and
+          the date written in a more machine readable way.
+
+          Type: NormalizedValue object
+
+          Required: No
+
+See Also
+
+   For more information about using this API in one of the
+   language-specific AWS SDKs, see the following:
+     * AWS SDK for C++
+     * AWS SDK for Java V2
+     * AWS SDK for Ruby V3
+
+   Warning Javascript is disabled or is unavailable in your browser.
+
+   To use the Amazon Web Services Documentation, Javascript must be
+   enabled. Please refer to your browser's Help pages for instructions.
+   Document Conventions
+   AdapterVersionOverview
+   Block
+   Did this page help you? - Yes
+
+   Thanks for letting us know we're doing a good job!
+
+   If you've got a moment, please tell us what we did right so we can do
+   more of it.
+
+   Did this page help you? - No
+
+   Thanks for letting us know this page needs work. We're sorry we let you
+   down.
+
+   If you've got a moment, please tell us how we can make the
+   documentation better.

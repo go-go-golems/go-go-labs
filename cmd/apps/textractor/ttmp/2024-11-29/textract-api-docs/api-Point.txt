@@ -1,0 +1,61 @@
+   AWSDocumentationAmazon TextractDeveloper Guide
+   ContentsSee Also
+
+Point
+
+   The X and Y coordinates of a point on a document page. The X and Y
+   values that are returned are ratios of the overall document page size.
+   For example, if the input document is 700 x 200 and the operation
+   returns X=0.5 and Y=0.25, then the point is at the (350,50) pixel
+   coordinate on the document page.
+
+   An array of Point objects, Polygon, is returned as part of the Geometry
+   object that's returned in a Block object. A Polygon object represents a
+   fine-grained polygon around detected text, a key-value pair, a table, a
+   table cell, or a selection element.
+
+Contents
+
+   X
+          The value of the X coordinate for a point on a Polygon.
+
+          Type: Float
+
+          Required: No
+
+   Y
+          The value of the Y coordinate for a point on a Polygon.
+
+          Type: Float
+
+          Required: No
+
+See Also
+
+   For more information about using this API in one of the
+   language-specific AWS SDKs, see the following:
+     * AWS SDK for C++
+     * AWS SDK for Java V2
+     * AWS SDK for Ruby V3
+
+   Warning Javascript is disabled or is unavailable in your browser.
+
+   To use the Amazon Web Services Documentation, Javascript must be
+   enabled. Please refer to your browser's Help pages for instructions.
+   Document Conventions
+   PageClassification
+   Prediction
+   Did this page help you? - Yes
+
+   Thanks for letting us know we're doing a good job!
+
+   If you've got a moment, please tell us what we did right so we can do
+   more of it.
+
+   Did this page help you? - No
+
+   Thanks for letting us know this page needs work. We're sorry we let you
+   down.
+
+   If you've got a moment, please tell us how we can make the
+   documentation better.

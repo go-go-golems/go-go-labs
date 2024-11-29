@@ -44,7 +44,7 @@ exports.handler = async (event) => {
             if (status === 'SUCCEEDED') {
                 console.log(`${logPrefix} Textract job ${textractJobId} succeeded`);
                 const results = await getTextractResults(textractJobId);
-                const resultKey = getResultKey(JobID);
+                const resultKey = getResultKey(textractJobId);
                 const details = {
                     ResultKey: resultKey,
                     CompletedAt: new Date().toISOString()

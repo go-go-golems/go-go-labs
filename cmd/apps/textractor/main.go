@@ -1,18 +1,14 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/pkg"
 	"log"
 	"os"
-	"sort"
-	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
-	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/debug"
-	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/utils"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/cmds"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/cmds/debug"
 	"github.com/spf13/cobra"
 )
 
@@ -27,97 +23,27 @@ func main() {
 	rootCmd.PersistentFlags().String("config", "", "JSON config file containing resource configuration")
 
 	// Add commands
-	rootCmd.AddCommand(newListCommand())
-	rootCmd.AddCommand(newSubmitCommand())
+	rootCmd.AddCommand(cmds.NewListCommand())
 	rootCmd.AddCommand(debug.NewDebugCommand())
+	rootCmd.AddCommand(newSaveConfigCommand())
+	rootCmd.AddCommand(cmds.NewSubmitCommand())
+	rootCmd.AddCommand(cmds.NewStatusCommand())
+	rootCmd.AddCommand(cmds.NewFetchCommand())
 
 	addDebugVarCommands(rootCmd, "terraform")
 
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		_, _ = fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
-func newListCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List Textract jobs",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// Parse flags
-			since, _ := cmd.Flags().GetString("since")
-
-			stateLoader := utils.NewStateLoader()
-			resources, err := stateLoader.LoadStateFromCommand(cmd)
-			if err != nil {
-				return fmt.Errorf("failed to load state: %w", err)
-			}
-
-			// Initialize AWS session and DynamoDB client
-			sess := session.Must(session.NewSession(&aws.Config{
-				Region: aws.String(resources.Region),
-			}))
-			db := dynamodb.New(sess)
-
-			// Query jobs from DynamoDB
-			input := &dynamodb.ScanInput{
-				TableName: aws.String(resources.JobsTable),
-			}
-
-			if since != "" {
-				t, err := time.Parse(time.RFC3339, since)
-				if err != nil {
-					return fmt.Errorf("invalid time format for --since flag: %w", err)
-				}
-				input.FilterExpression = aws.String("SubmittedAt >= :t")
-				input.ExpressionAttributeValues = map[string]*dynamodb.AttributeValue{
-					":t": {S: aws.String(t.Format(time.RFC3339))},
-				}
-			}
-
-			result, err := db.Scan(input)
-			if err != nil {
-				return fmt.Errorf("failed to query jobs: %w", err)
-			}
-
-			var jobs []utils.TextractJob
-			if err := dynamodbattribute.UnmarshalListOfMaps(result.Items, &jobs); err != nil {
-				return fmt.Errorf("failed to unmarshal jobs: %w", err)
-			}
-
-			// Sort jobs by submission time
-			sort.Slice(jobs, func(i, j int) bool {
-				return jobs[i].SubmittedAt.After(jobs[j].SubmittedAt)
-			})
-
-			// Print jobs
-			for _, job := range jobs {
-				fmt.Printf("Job ID: %s\n", job.JobID)
-				fmt.Printf("  Document: %s\n", job.DocumentKey)
-				fmt.Printf("  Status: %s\n", job.Status)
-				fmt.Printf("  Submitted: %s\n", job.SubmittedAt.Format(time.RFC3339))
-				if job.CompletedAt != nil {
-					fmt.Printf("  Completed: %s\n", job.CompletedAt.Format(time.RFC3339))
-				}
-				if job.Error != "" {
-					fmt.Printf("  Error: %s\n", job.Error)
-				}
-				fmt.Println()
-			}
-
-			return nil
-		},
-	}
-
-	cmd.Flags().String("since", "", "Only show jobs submitted after this time (RFC3339 format)")
-	return cmd
-}
 func addDebugVarCommands(rootCmd *cobra.Command, tfDir string) {
 	debugVarsCmd := &cobra.Command{
 		Use:   "debug-vars",
 		Short: "Print environment variables for debugging",
 		Run: func(cmd *cobra.Command, args []string) {
-			stateLoader := utils.NewStateLoader()
+			stateLoader := pkg.NewStateLoader()
 			resources, err := stateLoader.LoadStateFromCommand(cmd)
 			if err != nil {
 				log.Fatalf("Failed to load Terraform state: %v", err)
@@ -142,4 +68,40 @@ func addDebugVarCommands(rootCmd *cobra.Command, tfDir string) {
 		},
 	}
 	rootCmd.AddCommand(debugVarsCmd)
+}
+
+// Add this new function
+func newSaveConfigCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "save-config",
+		Short: "Save resource configuration to JSON file",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			stateLoader := pkg.NewStateLoader()
+			resources, err := stateLoader.LoadStateFromCommand(cmd)
+			if err != nil {
+				return fmt.Errorf("failed to load terraform state: %w", err)
+			}
+
+			output, _ := cmd.Flags().GetString("output")
+			if output == "" {
+				output = "textractor-config.json"
+			}
+
+			data, err := json.MarshalIndent(resources, "", "  ")
+			if err != nil {
+				return fmt.Errorf("failed to marshal config: %w", err)
+			}
+
+			if err := os.WriteFile(output, data, 0644); err != nil {
+				return fmt.Errorf("failed to write config file: %w", err)
+			}
+
+			fmt.Printf("Configuration saved to %s\n", output)
+			return nil
+		},
+	}
+
+	cmd.Flags().StringP("output", "o", "", "Output file for the configuration")
+
+	return cmd
 }
