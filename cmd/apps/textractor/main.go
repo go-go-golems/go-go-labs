@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -30,11 +31,12 @@ func main() {
 	rootCmd.AddCommand(newListCommand())
 	rootCmd.AddCommand(newSubmitCommand())
 	rootCmd.AddCommand(debug.NewDebugCommand())
+	rootCmd.AddCommand(newSaveConfigCommand())
 
 	addDebugVarCommands(rootCmd, "terraform")
 
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		_, _ = fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
@@ -142,4 +144,40 @@ func addDebugVarCommands(rootCmd *cobra.Command, tfDir string) {
 		},
 	}
 	rootCmd.AddCommand(debugVarsCmd)
+}
+
+// Add this new function
+func newSaveConfigCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "save-config",
+		Short: "Save resource configuration to JSON file",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			stateLoader := utils.NewStateLoader()
+			resources, err := stateLoader.LoadStateFromCommand(cmd)
+			if err != nil {
+				return fmt.Errorf("failed to load terraform state: %w", err)
+			}
+
+			output, _ := cmd.Flags().GetString("output")
+			if output == "" {
+				output = "textractor-config.json"
+			}
+
+			data, err := json.MarshalIndent(resources, "", "  ")
+			if err != nil {
+				return fmt.Errorf("failed to marshal config: %w", err)
+			}
+
+			if err := os.WriteFile(output, data, 0644); err != nil {
+				return fmt.Errorf("failed to write config file: %w", err)
+			}
+
+			fmt.Printf("Configuration saved to %s\n", output)
+			return nil
+		},
+	}
+
+	cmd.Flags().StringP("output", "o", "", "Output file for the configuration")
+
+	return cmd
 }

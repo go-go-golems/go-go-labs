@@ -118,7 +118,7 @@ func fetchRecentLogs(ctx context.Context, client *cloudwatchlogs.Client, logGrou
 	// Fetch logs from each stream
 	for _, stream := range streamsOutput.LogStreams {
 		fmt.Printf("\n=== Stream: %s ===\n", *stream.LogStreamName)
-		
+
 		input := &cloudwatchlogs.GetLogEventsInput{
 			LogGroupName:  &logGroup,
 			LogStreamName: stream.LogStreamName,
@@ -217,7 +217,7 @@ func streamLogs(ctx context.Context, client *cloudwatchlogs.Client, logGroup str
 					if !strings.HasSuffix(message, "\n") {
 						message += "\n"
 					}
-					fmt.Printf("[%s] [%s] %s", 
+					fmt.Printf("[%s] [%s] %s",
 						timestamp.Format("2006-01-02 15:04:05"),
 						streamName,
 						message)
