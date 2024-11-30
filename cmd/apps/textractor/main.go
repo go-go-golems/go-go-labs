@@ -3,9 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/pkg"
 	"log"
 	"os"
+
+	"github.com/go-go-golems/glazed/pkg/cli"
+	"github.com/go-go-golems/glazed/pkg/help"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/pkg"
 
 	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/cmds"
 	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/cmds/debug"
@@ -18,12 +21,25 @@ func main() {
 		Short: "Manage Textractor AWS resources and process PDFs",
 	}
 
+	helpSystem := help.NewHelpSystem()
+	helpSystem.SetupCobraRootCommand(rootCmd)
+
 	// Add persistent flags to root command
 	rootCmd.PersistentFlags().String("tf-dir", "terraform", "Directory containing Terraform state")
 	rootCmd.PersistentFlags().String("config", "", "JSON config file containing resource configuration")
 
-	// Add commands
-	rootCmd.AddCommand(cmds.NewListCommand())
+	// Initialize list command with glazed support
+	listCmd, err := cmds.NewListCommand()
+	if err != nil {
+		log.Fatalf("Failed to create list command: %v", err)
+	}
+	cobraListCmd, err := cli.BuildCobraCommandFromGlazeCommand(listCmd)
+	if err != nil {
+		log.Fatalf("Failed to build cobra list command: %v", err)
+	}
+	rootCmd.AddCommand(cobraListCmd)
+
+	// Add other commands
 	rootCmd.AddCommand(debug.NewDebugCommand())
 	rootCmd.AddCommand(newSaveConfigCommand())
 	rootCmd.AddCommand(cmds.NewSubmitCommand())

@@ -1,85 +1,130 @@
 package cmds
 
 import (
+	"context"
 	"fmt"
-	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/pkg"
 	"sort"
 	"time"
 
+	"github.com/go-go-golems/glazed/pkg/cmds"
+	"github.com/go-go-golems/glazed/pkg/cmds/layers"
+	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
+	"github.com/go-go-golems/glazed/pkg/middlewares"
+	"github.com/go-go-golems/glazed/pkg/settings"
+	"github.com/go-go-golems/glazed/pkg/types"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/pkg"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/spf13/cobra"
 )
 
-func NewListCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List Textract jobs",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			// Parse flags
-			since, _ := cmd.Flags().GetString("since")
-			status, _ := cmd.Flags().GetString("status")
+type ListCommand struct {
+	*cmds.CommandDescription
+}
 
-			stateLoader := pkg.NewStateLoader()
-			resources, err := stateLoader.LoadStateFromCommand(cmd)
-			if err != nil {
-				return fmt.Errorf("failed to load state: %w", err)
-			}
+type ListSettings struct {
+	Since time.Time `glazed.parameter:"since"`
 
-			// Initialize AWS session
-			sess := session.Must(session.NewSession(&aws.Config{
-				Region: aws.String(resources.Region),
-			}))
+	Status string `glazed.parameter:"status"`
+	TfDir  string `glazed.parameter:"tf-dir"`
+	Config string `glazed.parameter:"config"`
+}
 
-			jobClient := pkg.NewJobClient(sess, resources.JobsTable)
-
-			var opts pkg.ListJobsOptions
-			if since != "" {
-				// Try RFC3339 format first
-				t, err := time.Parse(time.RFC3339, since)
-				if err != nil {
-					// If that fails, try simple date format
-					t, err = time.Parse("2006-01-02", since)
-					if err != nil {
-						return fmt.Errorf("invalid time format for --since flag, use YYYY-MM-DD or RFC3339 format: %w", err)
-					}
-				}
-				opts.Since = &t
-			}
-			opts.Status = status
-
-			jobs, err := jobClient.ListJobs(opts)
-			if err != nil {
-				return fmt.Errorf("failed to list jobs: %w", err)
-			}
-
-			// Sort jobs by submission time
-			sort.Slice(jobs, func(i, j int) bool {
-				return jobs[i].SubmittedAt.After(jobs[j].SubmittedAt)
-			})
-
-			// Print jobs
-			for _, job := range jobs {
-				fmt.Printf("Job ID: %s\n", job.JobID)
-				fmt.Printf("  Document: %s\n", job.DocumentKey)
-				fmt.Printf("  Status: %s\n", job.Status)
-				fmt.Printf("  Submitted: %s\n", job.SubmittedAt.Format(time.RFC3339))
-				fmt.Printf("  Textract ID: %s\n", job.TextractID)
-				fmt.Printf("  Result Key: %s\n", job.ResultKey)
-				if job.CompletedAt != nil {
-					fmt.Printf("  Completed: %s\n", job.CompletedAt.Format(time.RFC3339))
-				}
-				if job.Error != "" {
-					fmt.Printf("  Error: %s\n", job.Error)
-				}
-				fmt.Println()
-			}
-
-			return nil
-		},
+func NewListCommand() (*ListCommand, error) {
+	glazedParameterLayer, err := settings.NewGlazedParameterLayers()
+	if err != nil {
+		return nil, fmt.Errorf("could not create Glazed parameter layer: %w", err)
 	}
 
-	cmd.Flags().String("since", "", "Only show jobs submitted after this time (RFC3339 format)")
-	cmd.Flags().String("status", "", "Filter by job status (UPLOADING, SUBMITTED, PROCESSING, COMPLETED, FAILED, ERROR)")
-	return cmd
+	return &ListCommand{
+		CommandDescription: cmds.NewCommandDescription(
+			"list",
+			cmds.WithShort("List Textract jobs"),
+			cmds.WithFlags(
+				parameters.NewParameterDefinition(
+					"since",
+					parameters.ParameterTypeDate,
+					parameters.WithHelp("Only show jobs submitted after this time (RFC3339 format)"),
+				),
+				parameters.NewParameterDefinition(
+					"status",
+					parameters.ParameterTypeString,
+					parameters.WithHelp("Filter by job status (UPLOADING, SUBMITTED, PROCESSING, COMPLETED, FAILED, ERROR)"),
+				),
+				parameters.NewParameterDefinition(
+					"tf-dir",
+					parameters.ParameterTypeString,
+					parameters.WithHelp("Terraform directory"),
+				),
+				parameters.NewParameterDefinition(
+					"config",
+					parameters.ParameterTypeString,
+					parameters.WithHelp("Config file"),
+				),
+			),
+			cmds.WithLayersList(glazedParameterLayer),
+		),
+	}, nil
+}
+
+func (c *ListCommand) RunIntoGlazeProcessor(
+	ctx context.Context,
+	parsedLayers *layers.ParsedLayers,
+	gp middlewares.Processor,
+) error {
+	s := &ListSettings{}
+	if err := parsedLayers.InitializeStruct(layers.DefaultSlug, s); err != nil {
+		return err
+	}
+
+	stateLoader := pkg.NewStateLoader()
+	resources, err := stateLoader.LoadState(s.TfDir, s.Config)
+	if err != nil {
+		return fmt.Errorf("failed to load terraform state: %w", err)
+	}
+
+	sess := session.Must(session.NewSession(&aws.Config{
+		Region: aws.String(resources.Region),
+	}))
+
+	jobClient := pkg.NewJobClient(sess, resources.JobsTable)
+
+	var opts pkg.ListJobsOptions
+	if !s.Since.IsZero() {
+		opts.Since = &s.Since
+	}
+	opts.Status = s.Status
+
+	jobs, err := jobClient.ListJobs(opts)
+	if err != nil {
+		return fmt.Errorf("failed to list jobs: %w", err)
+	}
+
+	sort.Slice(jobs, func(i, j int) bool {
+		return jobs[i].SubmittedAt.After(jobs[j].SubmittedAt)
+	})
+
+	for _, job := range jobs {
+		row := types.NewRow(
+			types.MRP("job_id", job.JobID),
+			types.MRP("document", job.DocumentKey),
+			types.MRP("status", job.Status),
+			types.MRP("submitted_at", job.SubmittedAt),
+			types.MRP("textract_id", job.TextractID),
+			types.MRP("result_key", job.ResultKey),
+		)
+
+		if job.CompletedAt != nil {
+			row.Set("completed_at", job.CompletedAt)
+		}
+		if job.Error != "" {
+			row.Set("error", job.Error)
+		}
+
+		if err := gp.AddRow(ctx, row); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
