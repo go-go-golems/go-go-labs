@@ -20,8 +20,15 @@ const (
 )
 
 const (
-	EntityTypeKey   EntityType = "KEY"
-	EntityTypeValue EntityType = "VALUE"
+	EntityTypeKey                 EntityType = "KEY"
+	EntityTypeValue               EntityType = "VALUE"
+	EntityTypeColumnHeader        EntityType = "COLUMN_HEADER"
+	EntityTypeTableTitle          EntityType = "TABLE_TITLE"
+	EntityTypeTableSectionTitle   EntityType = "TABLE_SECTION_TITLE"
+	EntityTypeTableFooter         EntityType = "TABLE_FOOTER"
+	EntityTypeTableSummary        EntityType = "TABLE_SUMMARY"
+	EntityTypeStructuredTable     EntityType = "STRUCTURED_TABLE"
+	EntityTypeSemiStructuredTable EntityType = "SEMI_STRUCTURED_TABLE"
 )
 
 const (

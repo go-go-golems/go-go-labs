@@ -72,6 +72,21 @@ func (c *cellImpl) Polygon() []Point {
 	return c.block.Polygon()
 }
 
+// EntityTypes returns the cell's entity types
+func (c *cellImpl) EntityTypes() []EntityType {
+	return c.block.EntityTypes()
+}
+
+// Add IsColumnHeader method to cellImpl
+func (c *cellImpl) IsColumnHeader() bool {
+	for _, et := range c.EntityTypes() {
+		if et == EntityTypeColumnHeader {
+			return true
+		}
+	}
+	return false
+}
+
 // mergedCellImpl implements the MergedCell interface
 type mergedCellImpl struct {
 	cellImpl
@@ -112,4 +127,14 @@ func (m *mergedCellImpl) ContainedCells() []Cell {
 func (m *mergedCellImpl) findContainedCells() error {
 	// Implementation will find all cells contained within this merged cell
 	return nil
+}
+
+// Add EntityTypes method to mergedCellImpl
+func (m *mergedCellImpl) EntityTypes() []EntityType {
+	return m.block.EntityTypes()
+}
+
+// Add IsColumnHeader method to mergedCellImpl (though it inherits from cellImpl, being explicit)
+func (m *mergedCellImpl) IsColumnHeader() bool {
+	return m.cellImpl.IsColumnHeader()
 }

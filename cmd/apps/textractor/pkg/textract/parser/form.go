@@ -6,22 +6,6 @@ import (
 	"strings"
 )
 
-// SelectionElement represents a checkbox or radio button in a form
-type SelectionElement interface {
-	// Status
-	IsSelected() bool
-	SelectionStatus() SelectionStatus
-	Confidence() float64
-
-	// Navigation
-	Block() Block
-	Form() Form
-
-	// Geometry
-	BoundingBox() BoundingBox
-	Polygon() []Point
-}
-
 // SelectionElementType represents the type of selection element
 type SelectionElementType string
 

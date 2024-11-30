@@ -33,6 +33,7 @@ type Page interface {
 	// Geometry
 	BoundingBox() BoundingBox
 	Polygon() []Point
+	EntityTypes() []EntityType
 }
 
 // Block is the basic unit of Textract data
@@ -73,6 +74,7 @@ type Line interface {
 	Text() string
 	Words() []string
 	Confidence() float64
+	EntityTypes() []EntityType
 
 	// Navigation
 	Page() Page
@@ -88,6 +90,7 @@ type Table interface {
 	Rows() []TableRow
 	Cells() [][]Cell
 	MergedCells() []MergedCell
+	GetHeaders() []Cell
 
 	// Metadata
 	RowCount() int
@@ -100,6 +103,7 @@ type Table interface {
 	// Geometry
 	BoundingBox() BoundingBox
 	Polygon() []Point
+	EntityTypes() []EntityType
 }
 
 // Form represents a form structure
@@ -135,6 +139,7 @@ type KeyValue interface {
 type Query interface {
 	// Text returns the query text
 	Text() string
+	EntityTypes() []EntityType
 
 	// Alias returns the query alias if one was specified
 	Alias() string
@@ -150,6 +155,7 @@ type Query interface {
 type QueryResult interface {
 	// Text returns the result text
 	Text() string
+	EntityTypes() []EntityType
 
 	// Confidence returns the confidence score for this result
 	Confidence() float64
@@ -171,4 +177,43 @@ type SelectionStatus string
 type Relationship struct {
 	Type string
 	IDs  []string
+}
+
+// Cell represents a table cell
+type Cell interface {
+	// Content
+	Text() string
+	Confidence() float64
+	EntityTypes() []EntityType
+	IsColumnHeader() bool
+
+	// Position
+	RowIndex() int
+	ColumnIndex() int
+	RowSpan() int
+	ColumnSpan() int
+
+	// Navigation
+	Table() Table
+
+	// Geometry
+	BoundingBox() BoundingBox
+	Polygon() []Point
+}
+
+// SelectionElement represents a checkbox or radio button in a form
+type SelectionElement interface {
+	// Status
+	IsSelected() bool
+	SelectionStatus() SelectionStatus
+	Confidence() float64
+	EntityTypes() []EntityType
+
+	// Navigation
+	Block() Block
+	Form() Form
+
+	// Geometry
+	BoundingBox() BoundingBox
+	Polygon() []Point
 }

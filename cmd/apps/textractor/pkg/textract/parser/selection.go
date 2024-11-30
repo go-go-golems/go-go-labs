@@ -58,3 +58,8 @@ func (s *selectionElementImpl) BoundingBox() BoundingBox {
 func (s *selectionElementImpl) Polygon() []Point {
 	return s.block.Polygon()
 }
+
+// EntityTypes returns the entity types of the element
+func (s *selectionElementImpl) EntityTypes() []EntityType {
+	return s.block.EntityTypes()
+}

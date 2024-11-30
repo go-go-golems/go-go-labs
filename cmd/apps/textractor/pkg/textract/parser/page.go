@@ -77,6 +77,11 @@ func (p *pageImpl) Polygon() []Point {
 	return p.block.Polygon()
 }
 
+// EntityTypes returns the page's entity types
+func (p *pageImpl) EntityTypes() []EntityType {
+	return p.block.EntityTypes()
+}
+
 // Internal methods
 
 func (p *pageImpl) addBlock(block Block) error {

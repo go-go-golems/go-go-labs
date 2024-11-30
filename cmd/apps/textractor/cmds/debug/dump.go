@@ -31,7 +31,7 @@ func newDumpCommand() *cobra.Command {
 
 					// Process each page
 					for _, page := range doc.Pages() {
-						fmt.Printf("\nPage %d:\n", page.Number())
+						fmt.Printf("\nPage %d %v:\n", page.Number(), page.EntityTypes())
 						fmt.Printf("  Lines: %d\n", len(page.Lines()))
 						fmt.Printf("  Tables: %d\n", len(page.Tables()))
 						fmt.Printf("  Forms: %d\n", len(page.Forms()))
@@ -45,7 +45,7 @@ func newDumpCommand() *cobra.Command {
 
 						// Print tables
 						for i, table := range page.Tables() {
-							fmt.Printf("\n  Table %d:\n", i+1)
+							fmt.Printf("\n  Table %d %v:\n", i+1, table.EntityTypes())
 							fmt.Printf("    Rows: %d\n", table.RowCount())
 							fmt.Printf("    Columns: %d\n", table.ColumnCount())
 
@@ -53,20 +53,22 @@ func newDumpCommand() *cobra.Command {
 							for r, row := range table.Rows() {
 								fmt.Printf("    Row %d:\n", r+1)
 								for c, cell := range row.Cells() {
-									fmt.Printf("      [%d,%d]: %q\n", r+1, c+1, cell.Text())
+									fmt.Printf("      [%d,%d] %v: %q\n", r+1, c+1, cell.EntityTypes(), cell.Text())
 								}
 							}
 						}
 
 						// Print forms
 						for i, form := range page.Forms() {
-							fmt.Printf("\n  Form %d:\n", i+1)
+							fmt.Printf("\n  Form %d\n", i+1)
 							fmt.Printf("    Fields: %d\n", len(form.Fields()))
 							fmt.Printf("    Selection Elements: %d\n", len(form.SelectionElements()))
 
 							// Print form fields
 							for _, field := range form.Fields() {
-								fmt.Printf("    Field: %q -> %q (confidence: %.2f%%)\n",
+								fmt.Printf("    Field %v -> %v: %q -> %q (confidence: %.2f%%)\n",
+									field.Key().EntityTypes(),
+									field.Value().EntityTypes(),
 									field.KeyText(),
 									field.ValueText(),
 									field.Confidence())

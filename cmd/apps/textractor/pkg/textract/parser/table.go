@@ -13,32 +13,13 @@ type TableRow interface {
 	Table() Table
 }
 
-// Cell represents a table cell
-type Cell interface {
-	// Content
-	Text() string
-	Confidence() float64
-
-	// Position
-	RowIndex() int
-	ColumnIndex() int
-	RowSpan() int
-	ColumnSpan() int
-
-	// Navigation
-	Table() Table
-
-	// Geometry
-	BoundingBox() BoundingBox
-	Polygon() []Point
-}
-
 // MergedCell represents a cell that spans multiple rows or columns
 type MergedCell interface {
 	Cell
 	MergedRowSpan() int
 	MergedColumnSpan() int
 	ContainedCells() []Cell
+	EntityTypes() []EntityType
 }
 
 // tableImpl implements the Table interface
@@ -219,4 +200,31 @@ func (t *tableImpl) BoundingBox() BoundingBox {
 // Add Polygon method
 func (t *tableImpl) Polygon() []Point {
 	return t.block.Polygon()
+}
+
+// Add EntityTypes method to tableImpl
+func (t *tableImpl) EntityTypes() []EntityType {
+	return t.block.EntityTypes()
+}
+
+// GetHeaders returns the header cells from the table
+func (t *tableImpl) GetHeaders() []Cell {
+	if t.RowCount() == 0 {
+		return nil
+	}
+
+	firstRow := t.Rows()[0]
+	hasHeaders := false
+	for _, cell := range firstRow.Cells() {
+		if cell.IsColumnHeader() {
+			hasHeaders = true
+			break
+		}
+	}
+
+	if !hasHeaders {
+		return nil
+	}
+
+	return firstRow.Cells()
 }

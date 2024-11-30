@@ -23,6 +23,7 @@ func NewDebugCommand() *cobra.Command {
 		newCloudTrailCommand(),
 		newNotificationsCommand(),
 		newDumpCommand(),
+		newCSVCommand(),
 	)
 
 	return debugCmd

@@ -52,6 +52,11 @@ func (q *queryImpl) Page() Page {
 	return q.page
 }
 
+// EntityTypes returns the entity types of the query block
+func (q *queryImpl) EntityTypes() []EntityType {
+	return q.block.EntityTypes()
+}
+
 // Internal methods
 
 func (q *queryImpl) processQueryData() error {
@@ -113,4 +118,9 @@ func (qr *queryResultImpl) Query() Query {
 // Block returns the underlying block
 func (qr *queryResultImpl) Block() Block {
 	return qr.block
+}
+
+// EntityTypes returns the entity types of the query result block
+func (qr *queryResultImpl) EntityTypes() []EntityType {
+	return qr.block.EntityTypes()
 }

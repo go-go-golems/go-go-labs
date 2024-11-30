@@ -58,3 +58,8 @@ func (l *lineImpl) BoundingBox() BoundingBox {
 func (l *lineImpl) Polygon() []Point {
 	return l.block.Polygon()
 }
+
+// EntityTypes returns the line's entity types
+func (l *lineImpl) EntityTypes() []EntityType {
+	return l.block.EntityTypes()
+}
