@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"slices"
 	"sort"
+
+	"github.com/rs/zerolog/log"
 )
 
 // documentImpl implements the Document interface
@@ -108,6 +110,11 @@ func (d *documentImpl) processBlocks(options *DocumentOptions) error {
 		if err != nil {
 			return fmt.Errorf("creating block: %w", err)
 		}
+		if block.BlockType() == BlockTypeTable {
+			log.Info().Str("block.blockID", block.ID()).
+				Str("block.type", string(block.BlockType())).
+				Msg("created table block")
+		}
 		d.blockIndex[block.ID()] = block
 	}
 
@@ -123,12 +130,23 @@ func (d *documentImpl) processBlocks(options *DocumentOptions) error {
 				switch relType {
 				case "CHILD":
 					// Add children to current block
+					log.Info().Str("block.blockID", block.ID()).
+						Str("block.type", string(block.BlockType())).
+						Int("block.page", block.Page()).
+						Interface("rel.Ids", rel.Ids).
+						Msg("processing children")
 					for _, childID := range rel.Ids {
 						if childBlock, ok := d.blockIndex[*childID]; ok {
+							if block.BlockType() == BlockTypeTable {
+								log.Info().Str("child.blockID", childBlock.ID()).Str("parent.blockID", block.ID()).Msg("adding child")
+							}
+
 							block_.children = append(block_.children, childBlock)
 							// Add parent reference to child
 							childImpl := childBlock.(*blockImpl)
 							childImpl.parents = append(childImpl.parents, block)
+						} else {
+							log.Fatal().Str("child.blockID", *childID).Msg("child block not found")
 						}
 					}
 				case "MERGED_CELL":

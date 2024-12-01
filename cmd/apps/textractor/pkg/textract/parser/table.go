@@ -109,6 +109,7 @@ func (t *tableImpl) processTableStructure() error {
 
 	// Create cells
 	for _, child := range t.block.Children() {
+		log.Info().Str("child.blockID", child.ID()).Msg("processing child")
 		if child.BlockType() == BlockTypeCell {
 			cell, err := newCell(child, t)
 			if err != nil {
@@ -121,6 +122,8 @@ func (t *tableImpl) processTableStructure() error {
 			t.cells[rowIdx][colIdx] = cell
 		}
 	}
+
+	log.Info().Int("cells", len(	t.cells)).Msg("cells")
 
 	// Process merged cells
 	if err := t.processMergedCells(); err != nil {
@@ -167,9 +170,9 @@ func (t *tableImpl) createRows() error {
 		log.Info().Int("rowIdx", i).Interface("rowCells", rowCells).Msg("row cells")
 
 		// check that no cell is nil
-		for _, cell := range rowCells {
+		for j, cell := range rowCells {
 			if cell == nil {
-				return fmt.Errorf("nil cell found in row %d", i)
+				return fmt.Errorf("nil cell found in column %d of row %d on table %s on page %d", j, i, t.block.ID(), t.page.Number())
 			}
 		}
 

@@ -3,12 +3,14 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
+	"time"
 
 	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/help"
 	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/pkg"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 
 	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/cmds"
 	"github.com/go-go-golems/go-go-labs/cmd/apps/textractor/cmds/debug"
@@ -21,6 +23,14 @@ func main() {
 		Short: "Manage Textractor AWS resources and process PDFs",
 	}
 
+	// Configure zerolog for console output
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	log.Logger = log.Output(zerolog.ConsoleWriter{
+		Out:        os.Stderr,
+		TimeFormat: time.RFC3339,
+	})
+
 	helpSystem := help.NewHelpSystem()
 	helpSystem.SetupCobraRootCommand(rootCmd)
 
@@ -31,11 +41,11 @@ func main() {
 	// Initialize list command with glazed support
 	listCmd, err := cmds.NewListCommand()
 	if err != nil {
-		log.Fatalf("Failed to create list command: %v", err)
+		log.Fatal().Err(err).Msg("Failed to create list command")
 	}
 	cobraListCmd, err := cli.BuildCobraCommandFromGlazeCommand(listCmd)
 	if err != nil {
-		log.Fatalf("Failed to build cobra list command: %v", err)
+		log.Fatal().Err(err).Msg("Failed to build cobra list command")
 	}
 	rootCmd.AddCommand(cobraListCmd)
 
@@ -62,7 +72,7 @@ func addDebugVarCommands(rootCmd *cobra.Command, tfDir string) {
 			stateLoader := pkg.NewStateLoader()
 			resources, err := stateLoader.LoadStateFromCommand(cmd)
 			if err != nil {
-				log.Fatalf("Failed to load Terraform state: %v", err)
+				log.Fatal().Err(err).Msg("Failed to load Terraform state")
 			}
 
 			// Print in a format suitable for shell script

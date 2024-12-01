@@ -80,8 +80,9 @@ func NewFetchCommand() *cobra.Command {
 				// Create Textract client
 				textractClient := textract.New(sess)
 
-				var pages []interface{}
+				var allBlocks []*textract.Block
 				var nextToken *string
+				var documentMetadata *textract.DocumentMetadata
 
 				for {
 					input := &textract.GetDocumentAnalysisInput{
@@ -96,7 +97,12 @@ func NewFetchCommand() *cobra.Command {
 						return fmt.Errorf("failed to get document analysis: %w", err)
 					}
 
-					pages = append(pages, result)
+					// Capture first DocumentMetadata we see
+					if documentMetadata == nil && result.DocumentMetadata != nil {
+						documentMetadata = result.DocumentMetadata
+					}
+
+					allBlocks = append(allBlocks, result.Blocks...)
 					nextToken = result.NextToken
 
 					if nextToken == nil {
@@ -107,14 +113,19 @@ func NewFetchCommand() *cobra.Command {
 				// Output results based on format
 				switch outputFormat {
 				case "json":
+					output := map[string]interface{}{
+						"DocumentMetadata": documentMetadata,
+						"Blocks":          allBlocks,
+					}
+
 					if outputFile == "" {
-						formatted, err := json.MarshalIndent(pages, "", "  ")
+						formatted, err := json.MarshalIndent(output, "", "  ")
 						if err != nil {
 							return fmt.Errorf("failed to format JSON: %w", err)
 						}
 						fmt.Println(string(formatted))
 					} else {
-						combined, err := json.Marshal(pages)
+						combined, err := json.Marshal(output)
 						if err != nil {
 							return fmt.Errorf("failed to combine JSON results: %w", err)
 						}
@@ -180,26 +191,40 @@ func NewFetchCommand() *cobra.Command {
 			switch outputFormat {
 			case "json":
 				// Parse all JSON results
-				var parsedResults []interface{}
+				var allBlocks []interface{}
+				var documentMetadata interface{}
+
 				for _, data := range allData {
-					var parsed interface{}
-					if err := json.Unmarshal(data, &parsed); err != nil {
-						log.Error().Str("data", string(data)).Msgf("failed to parse JSON results: %w", err)
-						return fmt.Errorf("failed to parse JSON results: %w", err)
+					var parsed struct {
+						DocumentMetadata interface{}   `json:"DocumentMetadata"`
+						Blocks          []interface{} `json:"Blocks"`
 					}
-					parsedResults = append(parsedResults, parsed)
+					if err := json.Unmarshal(data, &parsed); err != nil {
+						return fmt.Errorf("failed to parse JSON results: %w", err)
+					} else {
+						// Capture first DocumentMetadata we see
+						if documentMetadata == nil && parsed.DocumentMetadata != nil {
+							documentMetadata = parsed.DocumentMetadata
+						}
+						allBlocks = append(allBlocks, parsed.Blocks...)
+					}
+				}
+
+				output := map[string]interface{}{
+					"DocumentMetadata": documentMetadata,
+					"Blocks":          allBlocks,
 				}
 
 				// Pretty print if no output file specified
 				if outputFile == "" {
-					formatted, err := json.MarshalIndent(parsedResults, "", "  ")
+					formatted, err := json.MarshalIndent(output, "", "  ")
 					if err != nil {
 						return fmt.Errorf("failed to format JSON: %w", err)
 					}
 					fmt.Println(string(formatted))
 				} else {
 					// Write combined results to file
-					combined, err := json.Marshal(parsedResults)
+					combined, err := json.Marshal(output)
 					if err != nil {
 						return fmt.Errorf("failed to combine JSON results: %w", err)
 					}
