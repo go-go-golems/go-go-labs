@@ -1,30 +1,35 @@
-# Makefile for Chrome Extension
-
-# Name of the output zip file
-ZIP_NAME = claude_conversation_downloader.zip
-
-# List of files to include in the zip
-FILES = manifest.json \
-        background.js \
-        popup.html \
-        popup.js \
-        README.md \
-        jszip.min.js
+# Makefile for Cross-Browser Extension
 
 # Default target
-all: zip
+all: chrome firefox
 
-# Create the zip file
-zip:
-	@echo "Creating $(ZIP_NAME)..."
-	@zip -r $(ZIP_NAME) $(FILES)
-	@echo "$(ZIP_NAME) created successfully."
+# Create Chrome extension
+chrome:
+	mkdir -p dist/chrome
+	cp manifest.json dist/chrome/
+	cp *.js dist/chrome/
+	cp *.html dist/chrome/
+	cd dist && zip -r chrome.zip chrome/
 
-# Clean up (remove the zip file)
-clean:
-	@echo "Removing $(ZIP_NAME)..."
-	@rm -f $(ZIP_NAME)
-	@echo "$(ZIP_NAME) removed."
+# Create Firefox extension
+firefox: clean-firefox
+	mkdir -p dist/firefox
+	cp manifest.json dist/firefox/
+	cp *.js dist/firefox/
+	cp *.html dist/firefox/
+	cd dist/firefox && zip -r ../firefox.xpi .
+
+# Clean targets
+clean: clean-chrome clean-firefox
+	rm -rf dist
+
+clean-chrome:
+	rm -rf dist/chrome
+	rm -f dist/chrome.zip
+
+clean-firefox:
+	rm -rf dist/firefox
+	rm -f dist/firefox.xpi
 
 # Phony targets
-.PHONY: all zip clean
+.PHONY: all chrome firefox clean clean-chrome clean-firefox

@@ -1,3 +1,6 @@
+// Use the browser API with polyfill fallback to chrome
+const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
+
 let currentConversationId = null;
 let organizationId = null;
 
@@ -7,7 +10,7 @@ const processedRequests = new Set();
 // Regular expression for matching URLs
 const urlRegex = /\/api\/organizations\/([^/]+)\/chat_conversations\/([^/]+)/;
 
-chrome.webRequest.onBeforeRequest.addListener(
+browserAPI.webRequest.onBeforeRequest.addListener(
     function (details) {
         const match = details.url.match(urlRegex);
         if (match) {
@@ -21,7 +24,7 @@ chrome.webRequest.onBeforeRequest.addListener(
     ["blocking"]
 );
 
-chrome.runtime.onMessage.addListener(
+browserAPI.runtime.onMessage.addListener(
     function(request, sender, sendResponse) {
         if (request.action === "downloadConversation") {
             if (currentConversationId && organizationId) {
@@ -60,13 +63,13 @@ function downloadMarkdown(orgId, convId) {
             const markdownContent = generateMarkdown(data);
             const blob = new Blob([markdownContent], {type: 'text/markdown'});
             const url = URL.createObjectURL(blob);
-            chrome.downloads.download({
+            browserAPI.downloads.download({
                 url: url,
                 filename: `conversation_${data.uuid}.md`,
                 saveAs: false
             }, function(downloadId) {
-                if (chrome.runtime.lastError) {
-                    console.error('Download failed:', chrome.runtime.lastError);
+                if (browserAPI.runtime.lastError) {
+                    console.error('Download failed:', browserAPI.runtime.lastError);
                 } else {
                     console.log('Markdown file saved with ID:', downloadId);
                 }
@@ -99,13 +102,13 @@ function downloadLastArtifacts(orgId, convId) {
             zip.generateAsync({type:"blob"})
                 .then(function(content) {
                     const url = URL.createObjectURL(content);
-                    chrome.downloads.download({
+                    browserAPI.downloads.download({
                         url: url,
                         filename: `last_message_artifacts_${data.uuid}.zip`,
                         saveAs: false
                     }, function(downloadId) {
-                        if (chrome.runtime.lastError) {
-                            console.error('Download failed:', chrome.runtime.lastError);
+                        if (browserAPI.runtime.lastError) {
+                            console.error('Download failed:', browserAPI.runtime.lastError);
                         } else {
                             console.log('Last message artifacts zip saved with ID:', downloadId);
                         }
@@ -148,13 +151,13 @@ function processConversation(data) {
         .then(function(content) {
             // Use chrome.downloads.download() to save the zip file
             const url = URL.createObjectURL(content);
-            chrome.downloads.download({
+            browserAPI.downloads.download({
                 url: url,
                 filename: `conversation_${data.uuid}.zip`,
                 saveAs: false
             }, function(downloadId) {
-                if (chrome.runtime.lastError) {
-                    console.error('Download failed:', chrome.runtime.lastError);
+                if (browserAPI.runtime.lastError) {
+                    console.error('Download failed:', browserAPI.runtime.lastError);
                 } else {
                     console.log('Zip file saved with ID:', downloadId);
                 }
