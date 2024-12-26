@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Claude Conversation Downloader</title>
+    <style>
+        body { width: 300px; padding: 10px; }
+        button { width: 100%; padding: 10px; margin-top: 10px; }
+        #conversationId { font-weight: bold; word-break: break-all; }
+    </style>
+</head>
+<body>
+<h1>Claude Conversation Downloader</h1>
+<p id="status">No active conversation</p>
+<p>Current Conversation ID: <span id="conversationId">None</span></p>
+<button id="downloadBtn">Download Full Conversation</button>
+<button id="downloadMarkdownBtn">Download Markdown Only</button>
+<button id="downloadLastArtifactsBtn">Download Last Message Artifacts</button>
+<script src="popup.js"></script>
+</body>
+</html>

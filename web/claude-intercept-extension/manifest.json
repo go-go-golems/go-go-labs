@@ -1,0 +1,21 @@
+{
+  "manifest_version": 2,
+  "name": "Chat Snapshot Logger",
+  "version": "1.0",
+  "description": "Logs response bodies of requests containing 'chat_snapshot'",
+  "permissions": [
+    "webRequest",
+    "webRequestBlocking",
+    "<all_urls>",
+    "downloads"
+  ],
+  "background": {
+    "scripts": ["jszip.min.js", "background.js"],
+    "persistent": true
+  },
+  "browser_action": {
+    "default_popup": "popup.html",
+    "default_title": "Claude Conversation Downloader"
+  }
+}
+
