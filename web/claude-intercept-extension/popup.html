@@ -14,7 +14,14 @@
     <button id="downloadMarkdown">Download as Markdown</button>
     <button id="downloadLastArtifacts">Download Last Message Artifacts</button>
     <div id="status"></div>
-    <script src="browser-polyfill.min.js"></script>
+    <script>
+        // Only load polyfill in Firefox
+        if (typeof browser === 'undefined') {
+            const script = document.createElement('script');
+            script.src = 'browser-polyfill.min.js';
+            document.head.appendChild(script);
+        }
+    </script>
     <script src="popup.js"></script>
 </body>
 </html>

@@ -16,7 +16,7 @@
     "downloads"
   ],
   "background": {
-    "scripts": ["browser-polyfill.min.js", "jszip.min.js", "background.js"],
+    "scripts": ["background.js"],
     "persistent": true
   },
   "browser_action": {
