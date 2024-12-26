@@ -18,3 +18,13 @@ Added a set of Lua test files to demonstrate various server functionalities.
 - Added `echo.lua` for echoing request details
 - Added `calculator.lua` for simple arithmetic operations
 - Added `counter.lua` to demonstrate maintaining state between requests
+
+# Cross-Platform Extension Support
+
+Added Firefox support to the Claude Intercept Extension while maintaining Chrome compatibility.
+
+- Added WebExtension browser API polyfill for cross-browser compatibility
+- Updated manifest.json with Firefox-specific settings
+- Refactored background.js and popup.js to use browser API
+- Updated build system to generate both Chrome and Firefox versions
+- Improved popup UI and button handling

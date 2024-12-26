@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Claude Conversation Downloader</title>
+    <style>
+        body { width: 300px; padding: 10px; }
+        button { margin: 5px 0; width: 100%; }
+        #status { margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h3>Current Conversation: <span id="conversationId">None</span></h3>
+    <button id="downloadConversation">Download Full Conversation</button>
+    <button id="downloadMarkdown">Download as Markdown</button>
+    <button id="downloadLastArtifacts">Download Last Message Artifacts</button>
+    <div id="status"></div>
+    <script>
+        // Only load polyfill in Firefox
+        if (typeof browser === 'undefined') {
+            const script = document.createElement('script');
+            script.src = 'browser-polyfill.min.js';
+            document.head.appendChild(script);
+        }
+    </script>
+    <script src="popup.js"></script>
+</body>
+</html>

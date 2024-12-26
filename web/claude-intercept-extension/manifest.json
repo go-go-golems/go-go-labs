@@ -1,0 +1,28 @@
+{
+  "manifest_version": 2,
+  "name": "Chat Snapshot Logger",
+  "version": "1.0",
+  "description": "Logs response bodies of requests containing 'chat_snapshot'",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "claude-intercept@wesen.com",
+      "strict_min_version": "57.0"
+    }
+  },
+  "permissions": [
+    "webRequest",
+    "webRequestBlocking",
+    "<all_urls>",
+    "downloads"
+  ],
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": true
+  },
+  "browser_action": {
+    "default_popup": "popup.html",
+    "default_title": "Claude Conversation Downloader"
+  },
+  "content_security_policy": "script-src 'self'; object-src 'self';"
+}
+

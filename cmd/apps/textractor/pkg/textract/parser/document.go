@@ -146,6 +146,21 @@ func (d *documentImpl) processBlocks(options *DocumentOptions) error {
 							childImpl := childBlock.(*blockImpl)
 							childImpl.parents = append(childImpl.parents, block)
 						} else {
+							// Print all known block index values and their types
+							log.Info().Msg("Known block index values:")
+							blockIDs := make([]string, 0, len(d.blockIndex))
+							for blockID := range d.blockIndex {
+								blockIDs = append(blockIDs, blockID)
+							}
+							sort.Strings(blockIDs)
+
+							for _, blockID := range blockIDs {
+								block := d.blockIndex[blockID]
+								log.Info().
+									Str("blockID", blockID).
+									Str("blockType", string(block.BlockType())).
+									Msg("Block in index")
+							}
 							log.Fatal().Str("child.blockID", *childID).Msg("child block not found")
 						}
 					}

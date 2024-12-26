@@ -21,12 +21,21 @@ func main() {
 	rootCmd := &cobra.Command{
 		Use:   "textractor",
 		Short: "Manage Textractor AWS resources and process PDFs",
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			logLevel, _ := cmd.Flags().GetString("log-level")
+			level, err := zerolog.ParseLevel(logLevel)
+			if err != nil {
+				log.Warn().Msgf("Invalid log level: %s, defaulting to info", logLevel)
+				level = zerolog.InfoLevel
+			}
+			zerolog.SetGlobalLevel(level)
+		},
 	}
 
-	// Configure zerolog for console output
+	// Configure zerolog for console output and show caller information
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	log.Logger = log.Output(zerolog.ConsoleWriter{
+	log.Logger = log.With().Caller().Logger().Output(zerolog.ConsoleWriter{
 		Out:        os.Stderr,
 		TimeFormat: time.RFC3339,
 	})
@@ -37,6 +46,7 @@ func main() {
 	// Add persistent flags to root command
 	rootCmd.PersistentFlags().String("tf-dir", "terraform", "Directory containing Terraform state")
 	rootCmd.PersistentFlags().String("config", "", "JSON config file containing resource configuration")
+	rootCmd.PersistentFlags().String("log-level", "info", "Set the logging level (debug, info, warn, error, fatal)")
 
 	// Initialize list command with glazed support
 	listCmd, err := cmds.NewListCommand()
