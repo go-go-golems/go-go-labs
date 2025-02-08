@@ -1,0 +1,84 @@
+package views
+
+import "fmt"
+
+templ ModelsList(models []map[string]interface{}) {
+	<div class="card">
+		<div class="card-header">
+			<h2>Note Types (Models)</h2>
+		</div>
+		<div class="card-body">
+			<div class="accordion" id="modelsAccordion">
+				for i, model := range models {
+					<div class="accordion-item">
+						<h2 class="accordion-header">
+							<button 
+								class="accordion-button collapsed" 
+								type="button" 
+								data-bs-toggle="collapse" 
+								data-bs-target={ fmt.Sprintf("#model-%d", i) }
+								aria-expanded="false"
+							>
+								{ model["name"].(string) }
+							</button>
+						</h2>
+						<div 
+							id={ fmt.Sprintf("model-%d", i) }
+							class="accordion-collapse collapse"
+							data-bs-parent="#modelsAccordion"
+						>
+							<div class="accordion-body">
+								<h5>Fields</h5>
+								<ul class="list-group mb-3">
+									if fields, ok := model["flds"].([]interface{}); ok {
+										for _, field := range fields {
+											if fieldMap, ok := field.(map[string]interface{}); ok {
+												<li class="list-group-item">
+													<strong>{ fieldMap["name"].(string) }</strong>
+													if desc, ok := fieldMap["description"].(string); ok && desc != "" {
+														<br/>
+														<small class="text-muted">{ desc }</small>
+													}
+												</li>
+											}
+										}
+									}
+								</ul>
+
+								<h5>Templates</h5>
+								<ul class="list-group">
+									if tmpls, ok := model["tmpls"].([]interface{}); ok {
+										for _, tmpl := range tmpls {
+											if tmplMap, ok := tmpl.(map[string]interface{}); ok {
+												<li class="list-group-item">
+													<div class="mb-2">
+														<strong>{ tmplMap["name"].(string) }</strong>
+													</div>
+													<div class="row">
+														<div class="col">
+															<h6>Front Template</h6>
+															<pre class="bg-light p-2 rounded"><code>{ tmplMap["qfmt"].(string) }</code></pre>
+														</div>
+														<div class="col">
+															<h6>Back Template</h6>
+															<pre class="bg-light p-2 rounded"><code>{ tmplMap["afmt"].(string) }</code></pre>
+														</div>
+													</div>
+												</li>
+											}
+										}
+									}
+								</ul>
+
+								if css, ok := model["css"].(string); ok {
+									<h5 class="mt-3">Styling</h5>
+									<pre class="bg-light p-2 rounded"><code>{ css }</code></pre>
+								}
+							</div>
+						</div>
+					</div>
+				}
+			</div>
+		</div>
+	</div>
+} 

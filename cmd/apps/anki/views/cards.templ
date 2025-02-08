@@ -1,0 +1,29 @@
+package views
+
+templ CardsList(deckName string, cards []map[string]interface{}) {
+	<div class="card">
+		<div class="card-header">
+			<h2>{ deckName }</h2>
+		</div>
+		<div class="card-body">
+			<div class="list-group">
+				for _, card := range cards {
+					<div class="list-group-item">
+						<div class="d-flex justify-content-between align-items-center">
+							<div class="w-100">
+								<h5 class="mb-1">Question</h5>
+								<div class="mb-3">
+									@templ.Raw(card["question"].(string))
+								</div>
+								<h5 class="mb-1">Answer</h5>
+								<div class="mb-3">
+									@templ.Raw(card["answer"].(string))
+								</div>
+							</div>
+						</div>
+					</div>
+				}
+			</div>
+		</div>
+	</div>
+} 
