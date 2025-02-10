@@ -32,3 +32,5 @@ __debug*
 *.tfstate.*
 *.zip
 
+
+cmd/apps/textractor/outputs
