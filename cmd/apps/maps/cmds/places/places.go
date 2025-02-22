@@ -9,6 +9,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
+	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/types"
 	"github.com/rs/zerolog/log"
@@ -20,12 +21,16 @@ type RootCommandInterface interface {
 	GetMapsClient(ctx context.Context) (*maps.Client, error)
 }
 
+type SearchSettings struct {
+	Query    string `glazed.parameter:"query"`
+	Location string `glazed.parameter:"location"`
+	Radius   int    `glazed.parameter:"radius"`
+	Type     string `glazed.parameter:"type"`
+}
+
 type SearchCommand struct {
 	*cmds.CommandDescription
-	query    string
-	location string
-	radius   int
-	typeOf   string
+	settings SearchSettings
 }
 
 func NewSearchCommand() (*cobra.Command, error) {
@@ -34,6 +39,30 @@ func NewSearchCommand() (*cobra.Command, error) {
 			"search",
 			cmds.WithShort("Search for places"),
 			cmds.WithLong("Search for places using text queries, location, and other filters"),
+			cmds.WithFlags(
+				parameters.NewParameterDefinition(
+					"query",
+					parameters.ParameterTypeString,
+					parameters.WithHelp("Text to search for"),
+					parameters.WithRequired(true),
+				),
+				parameters.NewParameterDefinition(
+					"location",
+					parameters.ParameterTypeString,
+					parameters.WithHelp("Location in lat,lng format (e.g. 40.7128,-74.0060)"),
+				),
+				parameters.NewParameterDefinition(
+					"radius",
+					parameters.ParameterTypeInteger,
+					parameters.WithHelp("Search radius in meters"),
+					parameters.WithDefault(1500),
+				),
+				parameters.NewParameterDefinition(
+					"type",
+					parameters.ParameterTypeString,
+					parameters.WithHelp("Type of place (e.g. restaurant, museum)"),
+				),
+			),
 		),
 	}
 
@@ -41,12 +70,16 @@ func NewSearchCommand() (*cobra.Command, error) {
 }
 
 func (c *SearchCommand) RunIntoGlazeProcessor(ctx context.Context, parsedLayers *layers.ParsedLayers, gp middlewares.Processor) error {
+	if err := parsedLayers.InitializeStruct(layers.DefaultSlug, &c.settings); err != nil {
+		return err
+	}
+
 	// Log query parameters
 	log.Debug().
-		Str("query", c.query).
-		Str("location", c.location).
-		Int("radius", c.radius).
-		Str("type", c.typeOf).
+		Str("query", c.settings.Query).
+		Str("location", c.settings.Location).
+		Int("radius", c.settings.Radius).
+		Str("type", c.settings.Type).
 		Msg("Executing place search")
 
 	// Get the root command to access the Maps client
@@ -61,20 +94,20 @@ func (c *SearchCommand) RunIntoGlazeProcessor(ctx context.Context, parsedLayers 
 
 	// Prepare the search request
 	req := &maps.TextSearchRequest{
-		Query:  c.query,
-		Radius: uint(c.radius),
+		Query:  c.settings.Query,
+		Radius: uint(c.settings.Radius),
 	}
 
 	// Add type if provided
-	if c.typeOf != "" {
-		req.Type = maps.PlaceType(c.typeOf)
+	if c.settings.Type != "" {
+		req.Type = maps.PlaceType(c.settings.Type)
 	}
 
 	// Add location if provided
-	if c.location != "" {
-		parts := strings.Split(c.location, ",")
+	if c.settings.Location != "" {
+		parts := strings.Split(c.settings.Location, ",")
 		if len(parts) != 2 {
-			return fmt.Errorf("invalid location format, expected lat,lng but got: %s", c.location)
+			return fmt.Errorf("invalid location format, expected lat,lng but got: %s", c.settings.Location)
 		}
 		lat, err := strconv.ParseFloat(strings.TrimSpace(parts[0]), 64)
 		if err != nil {
@@ -114,15 +147,19 @@ func (c *SearchCommand) RunIntoGlazeProcessor(ctx context.Context, parsedLayers 
 	// Log results
 	log.Debug().
 		Int("results", len(resp.Results)).
-		Str("query", c.query).
+		Str("query", c.settings.Query).
 		Msg("Place search completed")
 
 	return nil
 }
 
+type DetailsSettings struct {
+	PlaceID string `glazed.parameter:"place-id"`
+}
+
 type DetailsCommand struct {
 	*cmds.CommandDescription
-	placeID string
+	settings DetailsSettings
 }
 
 func NewDetailsCommand() (*cobra.Command, error) {
@@ -131,6 +168,14 @@ func NewDetailsCommand() (*cobra.Command, error) {
 			"details",
 			cmds.WithShort("Get place details"),
 			cmds.WithLong("Get detailed information about a specific place using its Place ID"),
+			cmds.WithFlags(
+				parameters.NewParameterDefinition(
+					"place-id",
+					parameters.ParameterTypeString,
+					parameters.WithHelp("Place ID to get details for"),
+					parameters.WithRequired(true),
+				),
+			),
 		),
 	}
 
@@ -138,9 +183,13 @@ func NewDetailsCommand() (*cobra.Command, error) {
 }
 
 func (c *DetailsCommand) RunIntoGlazeProcessor(ctx context.Context, parsedLayers *layers.ParsedLayers, gp middlewares.Processor) error {
+	if err := parsedLayers.InitializeStruct(layers.DefaultSlug, &c.settings); err != nil {
+		return err
+	}
+
 	// Log query parameters
 	log.Debug().
-		Str("placeID", c.placeID).
+		Str("placeID", c.settings.PlaceID).
 		Msg("Fetching place details")
 
 	// Get the root command to access the Maps client
@@ -155,7 +204,7 @@ func (c *DetailsCommand) RunIntoGlazeProcessor(ctx context.Context, parsedLayers
 
 	// Execute the details request
 	resp, err := client.PlaceDetails(ctx, &maps.PlaceDetailsRequest{
-		PlaceID: c.placeID,
+		PlaceID: c.settings.PlaceID,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to get place details: %w", err)
@@ -193,19 +242,23 @@ func (c *DetailsCommand) RunIntoGlazeProcessor(ctx context.Context, parsedLayers
 
 	// Log results
 	log.Debug().
-		Str("placeID", c.placeID).
+		Str("placeID", c.settings.PlaceID).
 		Str("name", resp.Name).
 		Msg("Place details retrieved")
 
 	return nil
 }
 
+type NearbySettings struct {
+	Location string `glazed.parameter:"location"`
+	Radius   int    `glazed.parameter:"radius"`
+	Type     string `glazed.parameter:"type"`
+	Keyword  string `glazed.parameter:"keyword"`
+}
+
 type NearbyCommand struct {
 	*cmds.CommandDescription
-	location string
-	radius   int
-	typeOf   string
-	keyword  string
+	settings NearbySettings
 }
 
 func NewNearbyCommand() (*cobra.Command, error) {
@@ -214,6 +267,30 @@ func NewNearbyCommand() (*cobra.Command, error) {
 			"nearby",
 			cmds.WithShort("Search for nearby places"),
 			cmds.WithLong("Search for places near a specific location using various filters"),
+			cmds.WithFlags(
+				parameters.NewParameterDefinition(
+					"location",
+					parameters.ParameterTypeString,
+					parameters.WithHelp("Location in lat,lng format (e.g. 40.7128,-74.0060)"),
+					parameters.WithRequired(true),
+				),
+				parameters.NewParameterDefinition(
+					"radius",
+					parameters.ParameterTypeInteger,
+					parameters.WithHelp("Search radius in meters"),
+					parameters.WithDefault(1500),
+				),
+				parameters.NewParameterDefinition(
+					"type",
+					parameters.ParameterTypeString,
+					parameters.WithHelp("Type of place (e.g. restaurant, museum)"),
+				),
+				parameters.NewParameterDefinition(
+					"keyword",
+					parameters.ParameterTypeString,
+					parameters.WithHelp("Keyword to search for"),
+				),
+			),
 		),
 	}
 
@@ -221,12 +298,16 @@ func NewNearbyCommand() (*cobra.Command, error) {
 }
 
 func (c *NearbyCommand) RunIntoGlazeProcessor(ctx context.Context, parsedLayers *layers.ParsedLayers, gp middlewares.Processor) error {
+	if err := parsedLayers.InitializeStruct(layers.DefaultSlug, &c.settings); err != nil {
+		return err
+	}
+
 	// Log query parameters
 	log.Debug().
-		Str("location", c.location).
-		Int("radius", c.radius).
-		Str("type", c.typeOf).
-		Str("keyword", c.keyword).
+		Str("location", c.settings.Location).
+		Int("radius", c.settings.Radius).
+		Str("type", c.settings.Type).
+		Str("keyword", c.settings.Keyword).
 		Msg("Searching for nearby places")
 
 	// Get the root command to access the Maps client
@@ -240,9 +321,9 @@ func (c *NearbyCommand) RunIntoGlazeProcessor(ctx context.Context, parsedLayers 
 	}
 
 	// Parse location
-	parts := strings.Split(c.location, ",")
+	parts := strings.Split(c.settings.Location, ",")
 	if len(parts) != 2 {
-		return fmt.Errorf("invalid location format, expected lat,lng but got: %s", c.location)
+		return fmt.Errorf("invalid location format, expected lat,lng but got: %s", c.settings.Location)
 	}
 	lat, err := strconv.ParseFloat(strings.TrimSpace(parts[0]), 64)
 	if err != nil {
@@ -259,13 +340,13 @@ func (c *NearbyCommand) RunIntoGlazeProcessor(ctx context.Context, parsedLayers 
 			Lat: lat,
 			Lng: lng,
 		},
-		Radius:  uint(c.radius),
-		Keyword: c.keyword,
+		Radius:  uint(c.settings.Radius),
+		Keyword: c.settings.Keyword,
 	}
 
 	// Add type if provided
-	if c.typeOf != "" {
-		req.Type = maps.PlaceType(c.typeOf)
+	if c.settings.Type != "" {
+		req.Type = maps.PlaceType(c.settings.Type)
 	}
 
 	// Execute the nearby search
@@ -292,7 +373,7 @@ func (c *NearbyCommand) RunIntoGlazeProcessor(ctx context.Context, parsedLayers 
 	// Log results
 	log.Debug().
 		Int("results", len(resp.Results)).
-		Str("location", c.location).
+		Str("location", c.settings.Location).
 		Msg("Nearby search completed")
 
 	return nil

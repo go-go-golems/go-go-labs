@@ -66,3 +66,13 @@ Converted Places API commands to use Glazed structured output:
 - Improved data formatting for opening hours
 - Removed direct printing in favor of structured output
 - Added support for Glazed output formatting options
+
+# Glazed Settings and Parameters
+
+Enhanced Places API commands with Glazed settings and parameters:
+- Added settings structs with glazed.parameter tags for all commands
+- Added proper parameter definitions with types, help text, and defaults
+- Implemented parameter initialization from parsed layers
+- Improved command help text and documentation
+- Added validation for required parameters
+- Unified parameter handling across all commands
