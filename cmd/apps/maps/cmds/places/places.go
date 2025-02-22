@@ -3,12 +3,22 @@ package places
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 
+	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
+	"github.com/go-go-golems/glazed/pkg/middlewares"
+	"github.com/go-go-golems/glazed/pkg/types"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"googlemaps.github.io/maps"
 )
+
+type RootCommandInterface interface {
+	GetMapsClient(ctx context.Context) (*maps.Client, error)
+}
 
 type SearchCommand struct {
 	*cmds.CommandDescription
@@ -27,28 +37,10 @@ func NewSearchCommand() (*cobra.Command, error) {
 		),
 	}
 
-	cobraCmd := &cobra.Command{
-		Use:   "search",
-		Short: cmd.Short,
-		Long:  cmd.Long,
-		RunE: func(cobraCmd *cobra.Command, args []string) error {
-			ctx := cobraCmd.Context()
-			parsedLayers := &layers.ParsedLayers{}
-			return cmd.Run(ctx, parsedLayers)
-		},
-	}
-
-	cobraCmd.Flags().StringVarP(&cmd.query, "query", "q", "", "Text to search for")
-	cobraCmd.Flags().StringVarP(&cmd.location, "location", "l", "", "Location in lat,lng format (e.g. 40.7128,-74.0060)")
-	cobraCmd.Flags().IntVarP(&cmd.radius, "radius", "r", 1500, "Search radius in meters")
-	cobraCmd.Flags().StringVarP(&cmd.typeOf, "type", "t", "", "Type of place (e.g. restaurant, museum)")
-
-	_ = cobraCmd.MarkFlagRequired("query")
-
-	return cobraCmd, nil
+	return cli.BuildCobraCommandFromGlazeCommand(cmd)
 }
 
-func (c *SearchCommand) Run(ctx context.Context, parsedLayers *layers.ParsedLayers) error {
+func (c *SearchCommand) RunIntoGlazeProcessor(ctx context.Context, parsedLayers *layers.ParsedLayers, gp middlewares.Processor) error {
 	// Log query parameters
 	log.Debug().
 		Str("query", c.query).
@@ -57,18 +49,71 @@ func (c *SearchCommand) Run(ctx context.Context, parsedLayers *layers.ParsedLaye
 		Str("type", c.typeOf).
 		Msg("Executing place search")
 
-	// TODO: Implement the actual search functionality using the Google Maps client
-	fmt.Printf("Searching for places with query: %s\n", c.query)
-	if c.location != "" {
-		fmt.Printf("Near location: %s\n", c.location)
+	// Get the root command to access the Maps client
+	rootCmd, ok := ctx.Value("rootCmd").(RootCommandInterface)
+	if !ok {
+		return fmt.Errorf("root command not found in context")
 	}
-	if c.typeOf != "" {
-		fmt.Printf("Of type: %s\n", c.typeOf)
+	client, err := rootCmd.GetMapsClient(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get Maps client: %w", err)
 	}
-	fmt.Printf("Within radius: %d meters\n", c.radius)
 
-	// Log mock results for now
+	// Prepare the search request
+	req := &maps.TextSearchRequest{
+		Query:  c.query,
+		Radius: uint(c.radius),
+	}
+
+	// Add type if provided
+	if c.typeOf != "" {
+		req.Type = maps.PlaceType(c.typeOf)
+	}
+
+	// Add location if provided
+	if c.location != "" {
+		parts := strings.Split(c.location, ",")
+		if len(parts) != 2 {
+			return fmt.Errorf("invalid location format, expected lat,lng but got: %s", c.location)
+		}
+		lat, err := strconv.ParseFloat(strings.TrimSpace(parts[0]), 64)
+		if err != nil {
+			return fmt.Errorf("invalid latitude: %w", err)
+		}
+		lng, err := strconv.ParseFloat(strings.TrimSpace(parts[1]), 64)
+		if err != nil {
+			return fmt.Errorf("invalid longitude: %w", err)
+		}
+		req.Location = &maps.LatLng{
+			Lat: lat,
+			Lng: lng,
+		}
+	}
+
+	// Execute the search
+	resp, err := client.TextSearch(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to execute text search: %w", err)
+	}
+
+	// Output results as structured data
+	for _, place := range resp.Results {
+		row := types.NewRow(
+			types.MRP("name", place.Name),
+			types.MRP("address", place.FormattedAddress),
+			types.MRP("place_id", place.PlaceID),
+			types.MRP("rating", place.Rating),
+			types.MRP("user_ratings_total", place.UserRatingsTotal),
+			types.MRP("types", strings.Join(place.Types, ", ")),
+		)
+		if err := gp.AddRow(ctx, row); err != nil {
+			return err
+		}
+	}
+
+	// Log results
 	log.Debug().
+		Int("results", len(resp.Results)).
 		Str("query", c.query).
 		Msg("Place search completed")
 
@@ -89,35 +134,67 @@ func NewDetailsCommand() (*cobra.Command, error) {
 		),
 	}
 
-	cobraCmd := &cobra.Command{
-		Use:   "details",
-		Short: cmd.Short,
-		Long:  cmd.Long,
-		RunE: func(cobraCmd *cobra.Command, args []string) error {
-			ctx := cobraCmd.Context()
-			parsedLayers := &layers.ParsedLayers{}
-			return cmd.Run(ctx, parsedLayers)
-		},
-	}
-
-	cobraCmd.Flags().StringVarP(&cmd.placeID, "place-id", "p", "", "Place ID to get details for")
-	_ = cobraCmd.MarkFlagRequired("place-id")
-
-	return cobraCmd, nil
+	return cli.BuildCobraCommandFromGlazeCommand(cmd)
 }
 
-func (c *DetailsCommand) Run(ctx context.Context, parsedLayers *layers.ParsedLayers) error {
+func (c *DetailsCommand) RunIntoGlazeProcessor(ctx context.Context, parsedLayers *layers.ParsedLayers, gp middlewares.Processor) error {
 	// Log query parameters
 	log.Debug().
 		Str("placeID", c.placeID).
 		Msg("Fetching place details")
 
-	// TODO: Implement the actual details retrieval using the Google Maps client
-	fmt.Printf("Getting details for place ID: %s\n", c.placeID)
+	// Get the root command to access the Maps client
+	rootCmd, ok := ctx.Value("rootCmd").(RootCommandInterface)
+	if !ok {
+		return fmt.Errorf("root command not found in context")
+	}
+	client, err := rootCmd.GetMapsClient(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get Maps client: %w", err)
+	}
 
-	// Log mock results for now
+	// Execute the details request
+	resp, err := client.PlaceDetails(ctx, &maps.PlaceDetailsRequest{
+		PlaceID: c.placeID,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to get place details: %w", err)
+	}
+
+	// Create opening hours string if available
+	var openingHours []string
+	if resp.OpeningHours != nil {
+		for _, period := range resp.OpeningHours.Periods {
+			if period.Open.Time != "" && period.Close.Time != "" {
+				openingHours = append(openingHours,
+					fmt.Sprintf("%s: %s - %s",
+						period.Open.Day,
+						period.Open.Time,
+						period.Close.Time))
+			}
+		}
+	}
+
+	// Output results as structured data
+	row := types.NewRow(
+		types.MRP("name", resp.Name),
+		types.MRP("address", resp.FormattedAddress),
+		types.MRP("place_id", resp.PlaceID),
+		types.MRP("rating", resp.Rating),
+		types.MRP("user_ratings_total", resp.UserRatingsTotal),
+		types.MRP("types", strings.Join(resp.Types, ", ")),
+		types.MRP("phone", resp.InternationalPhoneNumber),
+		types.MRP("website", resp.Website),
+		types.MRP("opening_hours", strings.Join(openingHours, "\n")),
+	)
+	if err := gp.AddRow(ctx, row); err != nil {
+		return err
+	}
+
+	// Log results
 	log.Debug().
 		Str("placeID", c.placeID).
+		Str("name", resp.Name).
 		Msg("Place details retrieved")
 
 	return nil
@@ -140,28 +217,10 @@ func NewNearbyCommand() (*cobra.Command, error) {
 		),
 	}
 
-	cobraCmd := &cobra.Command{
-		Use:   "nearby",
-		Short: cmd.Short,
-		Long:  cmd.Long,
-		RunE: func(cobraCmd *cobra.Command, args []string) error {
-			ctx := cobraCmd.Context()
-			parsedLayers := &layers.ParsedLayers{}
-			return cmd.Run(ctx, parsedLayers)
-		},
-	}
-
-	cobraCmd.Flags().StringVarP(&cmd.location, "location", "l", "", "Location in lat,lng format (e.g. 40.7128,-74.0060)")
-	cobraCmd.Flags().IntVarP(&cmd.radius, "radius", "r", 1500, "Search radius in meters")
-	cobraCmd.Flags().StringVarP(&cmd.typeOf, "type", "t", "", "Type of place (e.g. restaurant, museum)")
-	cobraCmd.Flags().StringVarP(&cmd.keyword, "keyword", "k", "", "Keyword to search for")
-
-	_ = cobraCmd.MarkFlagRequired("location")
-
-	return cobraCmd, nil
+	return cli.BuildCobraCommandFromGlazeCommand(cmd)
 }
 
-func (c *NearbyCommand) Run(ctx context.Context, parsedLayers *layers.ParsedLayers) error {
+func (c *NearbyCommand) RunIntoGlazeProcessor(ctx context.Context, parsedLayers *layers.ParsedLayers, gp middlewares.Processor) error {
 	// Log query parameters
 	log.Debug().
 		Str("location", c.location).
@@ -170,18 +229,69 @@ func (c *NearbyCommand) Run(ctx context.Context, parsedLayers *layers.ParsedLaye
 		Str("keyword", c.keyword).
 		Msg("Searching for nearby places")
 
-	// TODO: Implement the actual nearby search using the Google Maps client
-	fmt.Printf("Searching for places near %s\n", c.location)
-	fmt.Printf("Within radius: %d meters\n", c.radius)
-	if c.typeOf != "" {
-		fmt.Printf("Of type: %s\n", c.typeOf)
+	// Get the root command to access the Maps client
+	rootCmd, ok := ctx.Value("rootCmd").(RootCommandInterface)
+	if !ok {
+		return fmt.Errorf("root command not found in context")
 	}
-	if c.keyword != "" {
-		fmt.Printf("With keyword: %s\n", c.keyword)
+	client, err := rootCmd.GetMapsClient(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get Maps client: %w", err)
 	}
 
-	// Log mock results for now
+	// Parse location
+	parts := strings.Split(c.location, ",")
+	if len(parts) != 2 {
+		return fmt.Errorf("invalid location format, expected lat,lng but got: %s", c.location)
+	}
+	lat, err := strconv.ParseFloat(strings.TrimSpace(parts[0]), 64)
+	if err != nil {
+		return fmt.Errorf("invalid latitude: %w", err)
+	}
+	lng, err := strconv.ParseFloat(strings.TrimSpace(parts[1]), 64)
+	if err != nil {
+		return fmt.Errorf("invalid longitude: %w", err)
+	}
+
+	// Prepare the nearby search request
+	req := &maps.NearbySearchRequest{
+		Location: &maps.LatLng{
+			Lat: lat,
+			Lng: lng,
+		},
+		Radius:  uint(c.radius),
+		Keyword: c.keyword,
+	}
+
+	// Add type if provided
+	if c.typeOf != "" {
+		req.Type = maps.PlaceType(c.typeOf)
+	}
+
+	// Execute the nearby search
+	resp, err := client.NearbySearch(ctx, req)
+	if err != nil {
+		return fmt.Errorf("failed to execute nearby search: %w", err)
+	}
+
+	// Output results as structured data
+	for _, place := range resp.Results {
+		row := types.NewRow(
+			types.MRP("name", place.Name),
+			types.MRP("address", place.Vicinity),
+			types.MRP("place_id", place.PlaceID),
+			types.MRP("rating", place.Rating),
+			types.MRP("user_ratings_total", place.UserRatingsTotal),
+			types.MRP("types", strings.Join(place.Types, ", ")),
+		)
+		if err := gp.AddRow(ctx, row); err != nil {
+			return err
+		}
+	}
+
+	// Log results
 	log.Debug().
+		Int("results", len(resp.Results)).
 		Str("location", c.location).
 		Msg("Nearby search completed")
 

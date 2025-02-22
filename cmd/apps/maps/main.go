@@ -32,6 +32,10 @@ func main() {
 	err = clay.InitLogger()
 	cobra.CheckErr(err)
 
+	fmt.Println("Starting maps")
+	log.Info().Msg("Starting maps")
+	log.Debug().Msg("Starting maps")
+
 	helpSystem := help.NewHelpSystem()
 	helpSystem.SetupCobraRootCommand(rootCmd)
 
