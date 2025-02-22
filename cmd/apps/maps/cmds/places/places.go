@@ -11,6 +11,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
+	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -34,6 +35,11 @@ type SearchCommand struct {
 }
 
 func NewSearchCommand() (*cobra.Command, error) {
+	glazedLayer, err := settings.NewGlazedParameterLayers()
+	if err != nil {
+		return nil, fmt.Errorf("could not create Glazed parameter layer: %w", err)
+	}
+
 	cmd := &SearchCommand{
 		CommandDescription: cmds.NewCommandDescription(
 			"search",
@@ -63,6 +69,7 @@ func NewSearchCommand() (*cobra.Command, error) {
 					parameters.WithHelp("Type of place (e.g. restaurant, museum)"),
 				),
 			),
+			cmds.WithLayersList(glazedLayer),
 		),
 	}
 
@@ -163,6 +170,11 @@ type DetailsCommand struct {
 }
 
 func NewDetailsCommand() (*cobra.Command, error) {
+	glazedLayer, err := settings.NewGlazedParameterLayers()
+	if err != nil {
+		return nil, fmt.Errorf("could not create Glazed parameter layer: %w", err)
+	}
+
 	cmd := &DetailsCommand{
 		CommandDescription: cmds.NewCommandDescription(
 			"details",
@@ -176,6 +188,7 @@ func NewDetailsCommand() (*cobra.Command, error) {
 					parameters.WithRequired(true),
 				),
 			),
+			cmds.WithLayersList(glazedLayer),
 		),
 	}
 
@@ -262,6 +275,11 @@ type NearbyCommand struct {
 }
 
 func NewNearbyCommand() (*cobra.Command, error) {
+	glazedLayer, err := settings.NewGlazedParameterLayers()
+	if err != nil {
+		return nil, fmt.Errorf("could not create Glazed parameter layer: %w", err)
+	}
+
 	cmd := &NearbyCommand{
 		CommandDescription: cmds.NewCommandDescription(
 			"nearby",
@@ -291,6 +309,7 @@ func NewNearbyCommand() (*cobra.Command, error) {
 					parameters.WithHelp("Keyword to search for"),
 				),
 			),
+			cmds.WithLayersList(glazedLayer),
 		),
 	}
 

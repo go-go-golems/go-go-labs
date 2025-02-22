@@ -76,3 +76,13 @@ Enhanced Places API commands with Glazed settings and parameters:
 - Improved command help text and documentation
 - Added validation for required parameters
 - Unified parameter handling across all commands
+
+# Added Glazed Parameter Layer
+
+Added Glazed parameter layer to all Places API commands:
+- Added support for standard Glazed output formatting options
+- Enabled table, JSON, YAML, and other output formats
+- Added column selection and filtering capabilities
+- Added output formatting options (width, headers, etc.)
+- Unified output handling across all commands
+- Improved command-line user experience
