@@ -106,4 +106,4 @@ output_pages:
         position:
           row: 1
           column: 3
-        rotation: r0
+        rotation: 0

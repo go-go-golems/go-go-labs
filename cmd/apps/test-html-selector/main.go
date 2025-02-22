@@ -16,7 +16,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/glazed/pkg/help"
-	"github.com/go-go-golems/go-go-mcp/pkg/htmlsimplifier"
+	"github.com/go-go-golems/go-go-labs/pkg/htmlsimplifier"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
