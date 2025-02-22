@@ -86,3 +86,15 @@ Added Glazed parameter layer to all Places API commands:
 - Added output formatting options (width, headers, etc.)
 - Unified output handling across all commands
 - Improved command-line user experience
+
+# Added Google Maps Directions Command
+
+Added new command for getting directions between locations:
+- Added `maps directions` command with comprehensive routing options
+- Support for different travel modes (driving, walking, bicycling, transit)
+- Support for waypoints and route preferences
+- Avoid options for tolls, highways, and ferries
+- Metric and imperial unit support
+- Structured output with route summaries and step-by-step instructions
+- Detailed distance, duration, and location information
+- Full Glazed parameter layer and output formatting support

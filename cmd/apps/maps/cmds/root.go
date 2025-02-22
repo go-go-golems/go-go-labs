@@ -8,6 +8,7 @@ import (
 	clay "github.com/go-go-golems/clay/pkg"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/go-go-labs/cmd/apps/maps/cmds/auth"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/maps/cmds/directions"
 	"github.com/go-go-golems/go-go-labs/cmd/apps/maps/cmds/places"
 	"github.com/spf13/cobra"
 	"googlemaps.github.io/maps"
@@ -61,6 +62,13 @@ func NewRootCommand() (*cobra.Command, error) {
 		return nil, fmt.Errorf("failed to create places command: %w", err)
 	}
 	rootCmd.AddCommand(placesCmd)
+
+	// Add directions commands
+	directionsCmd, err := directions.NewDirectionsCommand()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create directions command: %w", err)
+	}
+	rootCmd.AddCommand(directionsCmd)
 
 	return rootCmd, nil
 }
