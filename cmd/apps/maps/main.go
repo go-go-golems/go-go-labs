@@ -9,6 +9,7 @@ import (
 	clay "github.com/go-go-golems/clay/pkg"
 	"github.com/go-go-golems/glazed/pkg/help"
 	"github.com/go-go-golems/go-go-labs/cmd/apps/maps/cmds"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/maps/doc"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -26,6 +27,17 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Initialize help system
+	helpSystem := help.NewHelpSystem()
+	helpSystem.SetupCobraRootCommand(rootCmd)
+
+	// Register embedded documentation
+	err = helpSystem.LoadSectionsFromFS(doc.Files, ".")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading documentation: %v\n", err)
+		os.Exit(1)
+	}
+
 	// initializing as mento-service to get all the environment variables
 	err = clay.InitViper("maps", rootCmd)
 	cobra.CheckErr(err)
@@ -35,9 +47,6 @@ func main() {
 	fmt.Println("Starting maps")
 	log.Info().Msg("Starting maps")
 	log.Debug().Msg("Starting maps")
-
-	helpSystem := help.NewHelpSystem()
-	helpSystem.SetupCobraRootCommand(rootCmd)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
