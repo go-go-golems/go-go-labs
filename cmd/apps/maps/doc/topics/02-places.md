@@ -18,7 +18,7 @@ Flags:
 IsTopLevel: false
 IsTemplate: false
 ShowPerDefault: true
-SectionType: CommandDoc
+SectionType: GeneralTopic
 ---
 
 # Places API Commands

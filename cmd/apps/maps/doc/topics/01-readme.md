@@ -1,6 +1,6 @@
 ---
 Title: Google Maps CLI Tools
-Slug: maps-cli
+Slug: readme
 Short: A comprehensive guide to using and extending the Google Maps CLI tools
 Topics:
   - maps
@@ -346,27 +346,6 @@ maps places search --query "restaurants" --output-format json | jq .rating
 # Use in scripts
 places_json=$(maps places nearby --location "..." --output-format json)
 ```
-
-## Next Steps
-
-1. Implement additional API features:
-   - Place Photos
-   - Place Autocomplete
-   - Distance Matrix
-   - Elevation
-   - Geocoding
-
-2. Add advanced functionality:
-   - Custom routing algorithms
-   - Place recommendations
-   - Historical data analysis
-   - Integration with other services
-
-3. Improve user experience:
-   - Interactive mode
-   - Progress indicators
-   - Better error messages
-   - Configuration profiles
 
 For more information:
 - [Google Maps API Documentation](https://developers.google.com/maps/documentation)

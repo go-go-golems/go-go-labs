@@ -16,7 +16,7 @@ Flags:
 IsTopLevel: false
 IsTemplate: false
 ShowPerDefault: true
-SectionType: AdvancedTopic
+SectionType: GeneralTopic
 ---
 
 # Advanced Google Maps CLI Usage
