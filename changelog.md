@@ -98,3 +98,12 @@ Added new command for getting directions between locations:
 - Structured output with route summaries and step-by-step instructions
 - Detailed distance, duration, and location information
 - Full Glazed parameter layer and output formatting support
+
+# Added Google Maps CLI Documentation
+
+Added comprehensive documentation for the Google Maps CLI tools:
+- Detailed usage examples for all commands
+- Implementation details and API references
+- Best practices for extending functionality
+- Advanced usage scenarios and integration examples
+- Next steps and future improvements
