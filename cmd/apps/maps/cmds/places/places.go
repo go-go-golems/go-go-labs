@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
 
@@ -48,6 +49,14 @@ func NewSearchCommand() (*cobra.Command, error) {
 }
 
 func (c *SearchCommand) Run(ctx context.Context, parsedLayers *layers.ParsedLayers) error {
+	// Log query parameters
+	log.Debug().
+		Str("query", c.query).
+		Str("location", c.location).
+		Int("radius", c.radius).
+		Str("type", c.typeOf).
+		Msg("Executing place search")
+
 	// TODO: Implement the actual search functionality using the Google Maps client
 	fmt.Printf("Searching for places with query: %s\n", c.query)
 	if c.location != "" {
@@ -57,6 +66,12 @@ func (c *SearchCommand) Run(ctx context.Context, parsedLayers *layers.ParsedLaye
 		fmt.Printf("Of type: %s\n", c.typeOf)
 	}
 	fmt.Printf("Within radius: %d meters\n", c.radius)
+
+	// Log mock results for now
+	log.Debug().
+		Str("query", c.query).
+		Msg("Place search completed")
+
 	return nil
 }
 
@@ -92,8 +107,19 @@ func NewDetailsCommand() (*cobra.Command, error) {
 }
 
 func (c *DetailsCommand) Run(ctx context.Context, parsedLayers *layers.ParsedLayers) error {
+	// Log query parameters
+	log.Debug().
+		Str("placeID", c.placeID).
+		Msg("Fetching place details")
+
 	// TODO: Implement the actual details retrieval using the Google Maps client
 	fmt.Printf("Getting details for place ID: %s\n", c.placeID)
+
+	// Log mock results for now
+	log.Debug().
+		Str("placeID", c.placeID).
+		Msg("Place details retrieved")
+
 	return nil
 }
 
@@ -136,6 +162,14 @@ func NewNearbyCommand() (*cobra.Command, error) {
 }
 
 func (c *NearbyCommand) Run(ctx context.Context, parsedLayers *layers.ParsedLayers) error {
+	// Log query parameters
+	log.Debug().
+		Str("location", c.location).
+		Int("radius", c.radius).
+		Str("type", c.typeOf).
+		Str("keyword", c.keyword).
+		Msg("Searching for nearby places")
+
 	// TODO: Implement the actual nearby search using the Google Maps client
 	fmt.Printf("Searching for places near %s\n", c.location)
 	fmt.Printf("Within radius: %d meters\n", c.radius)
@@ -145,6 +179,12 @@ func (c *NearbyCommand) Run(ctx context.Context, parsedLayers *layers.ParsedLaye
 	if c.keyword != "" {
 		fmt.Printf("With keyword: %s\n", c.keyword)
 	}
+
+	// Log mock results for now
+	log.Debug().
+		Str("location", c.location).
+		Msg("Nearby search completed")
+
 	return nil
 }
 

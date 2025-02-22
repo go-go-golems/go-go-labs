@@ -37,3 +37,12 @@ Added new commands for interacting with the Google Places API:
 - `maps places details`: Get detailed information about a specific place
 
 These commands provide a CLI interface to the Google Places API functionality, allowing users to search for and get information about places of interest.
+
+# Debug Logging for Places API Commands
+
+Added debug logging for Places API commands:
+- Added detailed logging of query parameters for all commands
+- Added result logging for search, nearby, and details operations
+- Using zerolog for structured logging output
+
+The debug logs help track the execution flow and parameters of Places API operations.
