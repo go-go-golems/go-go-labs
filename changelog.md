@@ -28,3 +28,12 @@ Added Firefox support to the Claude Intercept Extension while maintaining Chrome
 - Refactored background.js and popup.js to use browser API
 - Updated build system to generate both Chrome and Firefox versions
 - Improved popup UI and button handling
+
+# Google Maps Places API Commands
+
+Added new commands for interacting with the Google Places API:
+- `maps places search`: Search for places using text queries and filters
+- `maps places nearby`: Find places near a specific location
+- `maps places details`: Get detailed information about a specific place
+
+These commands provide a CLI interface to the Google Places API functionality, allowing users to search for and get information about places of interest.

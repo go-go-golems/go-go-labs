@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/go-go-labs/cmd/apps/maps/cmds/auth"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/maps/cmds/places"
 	"github.com/spf13/cobra"
 	"googlemaps.github.io/maps"
 )
@@ -43,6 +44,13 @@ func NewRootCommand() (*cobra.Command, error) {
 		return nil, fmt.Errorf("failed to create auth command: %w", err)
 	}
 	rootCmd.AddCommand(authCmd)
+
+	// Add places commands
+	placesCmd, err := places.NewPlacesCommand()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create places command: %w", err)
+	}
+	rootCmd.AddCommand(placesCmd)
 
 	return rootCmd, nil
 }
