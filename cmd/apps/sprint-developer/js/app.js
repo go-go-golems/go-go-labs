@@ -3,6 +3,7 @@ import { BootstrapLitElement } from './base-component.js';
 import { filmData, adjustChartLetterForPushPull, chartTimes } from './data.js';
 import { FilmSelector, PushPullSelector, TemperatureSelector, OptionalStepsSelector } from './selectors.js';
 import { DevelopmentTimer } from './timer.js';
+import { Documentation } from './components/Documentation.js';
 
 // Register custom elements
 customElements.define('film-selector', FilmSelector);
@@ -10,6 +11,7 @@ customElements.define('push-pull-selector', PushPullSelector);
 customElements.define('temperature-selector', TemperatureSelector);
 customElements.define('optional-steps-selector', OptionalStepsSelector);
 customElements.define('development-timer', DevelopmentTimer);
+customElements.define('process-documentation', Documentation);
 
 // Main application component
 export class DevelopmentApp extends BootstrapLitElement {
@@ -49,6 +51,14 @@ export class DevelopmentApp extends BootstrapLitElement {
   render() {
     return html`
       <div class="container">
+        <div class="row mb-4">
+          <div class="col-12">
+            <div class="documentation-container">
+              <process-documentation></process-documentation>
+            </div>
+          </div>
+        </div>
+        
         <div class="row">
           <div class="col-md-5">
             <div class="card mb-4">

@@ -1,14 +1,14 @@
+import { html } from 'https://cdn.jsdelivr.net/gh/lit/dist@2/core/lit-core.min.js';
+import { BootstrapLitElement } from '../base-component.js';
 import { processDocumentation } from '../documentation.js';
 
-export class Documentation {
+export class Documentation extends BootstrapLitElement {
   constructor() {
-    this.element = document.createElement('div');
-    this.element.className = 'documentation mt-4';
-    this.render();
+    super();
   }
 
   renderIntroduction() {
-    return `
+    return html`
       <div class="card mb-4">
         <div class="card-header">
           <h2 class="h4 mb-0">${processDocumentation.introduction.title}</h2>
@@ -21,73 +21,69 @@ export class Documentation {
   }
 
   renderPreparation() {
-    const steps = processDocumentation.preparation.steps.map(step => `
-      <div class="mb-3">
-        <h4 class="h5">${step.title} (${step.ratio})</h4>
-        <div class="ms-3">
-          <p class="mb-1">${step.example.concentrate}</p>
-          <p class="mb-1">${step.example.water}</p>
-          ${step.example.hardener ? `<p class="mb-1">${step.example.hardener}</p>` : ''}
-          <p class="mb-1 fw-bold">${step.example.result}</p>
-        </div>
-      </div>
-    `).join('');
-
-    return `
+    return html`
       <div class="card mb-4">
         <div class="card-header">
           <h2 class="h4 mb-0">${processDocumentation.preparation.title}</h2>
         </div>
         <div class="card-body">
-          ${steps}
+          ${processDocumentation.preparation.steps.map(step => html`
+            <div class="mb-3">
+              <h4 class="h5">${step.title} (${step.ratio})</h4>
+              <div class="ms-3">
+                <p class="mb-1">${step.example.concentrate}</p>
+                <p class="mb-1">${step.example.water}</p>
+                ${step.example.hardener ? html`<p class="mb-1">${step.example.hardener}</p>` : ''}
+                <p class="mb-1 fw-bold">${step.example.result}</p>
+              </div>
+            </div>
+          `)}
         </div>
       </div>
     `;
   }
 
   renderProcessSteps() {
-    const steps = processDocumentation.process.steps.map(step => `
-      <div class="accordion-item">
-        <h3 class="accordion-header">
-          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#step${step.id}">
-            ${step.id}. ${step.name} (${step.duration})
-          </button>
-        </h3>
-        <div id="step${step.id}" class="accordion-collapse collapse">
-          <div class="accordion-body">
-            <dl class="row mb-0">
-              <dt class="col-sm-3">Purpose</dt>
-              <dd class="col-sm-9">${step.details.purpose}</dd>
-              
-              <dt class="col-sm-3">Instructions</dt>
-              <dd class="col-sm-9">${step.details.instructions}</dd>
-              
-              ${step.details.agitation ? `
-                <dt class="col-sm-3">Agitation</dt>
-                <dd class="col-sm-9">${step.details.agitation}</dd>
-              ` : ''}
-              
-              <dt class="col-sm-3">Notes</dt>
-              <dd class="col-sm-9">${step.details.notes}</dd>
-              
-              ${step.details.warnings ? `
-                <dt class="col-sm-3 text-danger">Warning</dt>
-                <dd class="col-sm-9 text-danger">${step.details.warnings}</dd>
-              ` : ''}
-            </dl>
-          </div>
-        </div>
-      </div>
-    `).join('');
-
-    return `
+    return html`
       <div class="card mb-4">
         <div class="card-header">
           <h2 class="h4 mb-0">${processDocumentation.process.title}</h2>
         </div>
         <div class="card-body p-0">
           <div class="accordion" id="processSteps">
-            ${steps}
+            ${processDocumentation.process.steps.map(step => html`
+              <div class="accordion-item">
+                <h3 class="accordion-header">
+                  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#step${step.id}">
+                    ${step.id}. ${step.name} (${step.duration})
+                  </button>
+                </h3>
+                <div id="step${step.id}" class="accordion-collapse collapse">
+                  <div class="accordion-body">
+                    <dl class="row mb-0">
+                      <dt class="col-sm-3">Purpose</dt>
+                      <dd class="col-sm-9">${step.details.purpose}</dd>
+                      
+                      <dt class="col-sm-3">Instructions</dt>
+                      <dd class="col-sm-9">${step.details.instructions}</dd>
+                      
+                      ${step.details.agitation ? html`
+                        <dt class="col-sm-3">Agitation</dt>
+                        <dd class="col-sm-9">${step.details.agitation}</dd>
+                      ` : ''}
+                      
+                      <dt class="col-sm-3">Notes</dt>
+                      <dd class="col-sm-9">${step.details.notes}</dd>
+                      
+                      ${step.details.warnings ? html`
+                        <dt class="col-sm-3 text-danger">Warning</dt>
+                        <dd class="col-sm-9 text-danger">${step.details.warnings}</dd>
+                      ` : ''}
+                    </dl>
+                  </div>
+                </div>
+              </div>
+            `)}
           </div>
         </div>
       </div>
@@ -95,7 +91,7 @@ export class Documentation {
   }
 
   renderTemperatureChart() {
-    return `
+    return html`
       <div class="card mb-4">
         <div class="card-header">
           <h2 class="h4 mb-0">${processDocumentation.temperatureChart.title}</h2>
@@ -111,12 +107,12 @@ export class Documentation {
                 </tr>
               </thead>
               <tbody>
-                ${processDocumentation.temperatureChart.temperatures.map(temp => `
+                ${processDocumentation.temperatureChart.temperatures.map(temp => html`
                   <tr>
                     <td>${temp.celsius}°C</td>
                     <td>${temp.fahrenheit}°F</td>
                   </tr>
-                `).join('')}
+                `)}
               </tbody>
             </table>
           </div>
@@ -126,7 +122,7 @@ export class Documentation {
   }
 
   renderSafetyGuidelines() {
-    return `
+    return html`
       <div class="card mb-4">
         <div class="card-header">
           <h2 class="h4 mb-0">${processDocumentation.safetyGuidelines.title}</h2>
@@ -134,9 +130,9 @@ export class Documentation {
         <div class="card-body">
           <h3 class="h5">General Guidelines</h3>
           <ul class="mb-4">
-            ${processDocumentation.safetyGuidelines.general.map(guideline => `
+            ${processDocumentation.safetyGuidelines.general.map(guideline => html`
               <li>${guideline}</li>
-            `).join('')}
+            `)}
           </ul>
           
           <h3 class="h5">First Aid</h3>
@@ -159,7 +155,7 @@ export class Documentation {
   }
 
   render() {
-    this.element.innerHTML = `
+    return html`
       <div class="row">
         <div class="col-12">
           ${this.renderIntroduction()}
