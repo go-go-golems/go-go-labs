@@ -15,4 +15,14 @@ Enhanced the Film Development Timer application by integrating Bootstrap CSS dir
 Enhanced the Film Development Timer application with several usability improvements:
 - Made all optional steps unchecked by default to allow users to explicitly choose which steps they want to include
 - Added a "Restart Step" button to allow users to restart the current processing step if needed
-- Added a "+30s" button to extend the current step's duration by 30 seconds for more flexibility during development 
+- Added a "+30s" button to extend the current step's duration by 30 seconds for more flexibility during development
+- Added step navigation by clicking on steps in the process list, allowing users to quickly jump to any step
+
+## Film Development Timer Code Restructuring
+
+Refactored the Film Development Timer application to use a modular code structure:
+- Split the monolithic JavaScript code into multiple files for better organization and maintainability
+- Created separate modules for data, base components, selectors, timer, and the main application
+- Implemented proper ES module imports/exports between files
+- Improved code organization with a clear separation of concerns
+- Added a dedicated CSS class for clickable elements 
