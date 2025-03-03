@@ -12,6 +12,23 @@
   <script type="module">
     import { LitElement, html, css } from 'https://cdn.jsdelivr.net/gh/lit/dist@2/core/lit-core.min.js';
     
+    // Create a function to include Bootstrap CSS in shadow DOM
+    function createBootstrapLink() {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css';
+      return link;
+    }
+    
+    // Base class for all components that need Bootstrap
+    class BootstrapLitElement extends LitElement {
+      firstUpdated() {
+        super.firstUpdated();
+        // Add Bootstrap CSS to shadow DOM
+        this.shadowRoot.appendChild(createBootstrapLink());
+      }
+    }
+    
     // Data preparation
     // Film data extracted from documentation
     const filmData = {
@@ -94,7 +111,7 @@
     
     // UI Components
     // 1. Film Selection Component
-    class FilmSelector extends LitElement {
+    class FilmSelector extends BootstrapLitElement {
       static properties = {
         films: { type: Array },
         selectedFilm: { type: String }
@@ -131,7 +148,7 @@
     }
     
     // 2. Push/Pull Selector Component
-    class PushPullSelector extends LitElement {
+    class PushPullSelector extends BootstrapLitElement {
       static properties = {
         value: { type: Number }
       };
@@ -166,7 +183,7 @@
     }
     
     // 3. Temperature Selector Component
-    class TemperatureSelector extends LitElement {
+    class TemperatureSelector extends BootstrapLitElement {
       static properties = {
         temperature: { type: Number }
       };
@@ -199,7 +216,7 @@
     }
     
     // 4. Optional Steps Selector Component
-    class OptionalStepsSelector extends LitElement {
+    class OptionalStepsSelector extends BootstrapLitElement {
       static properties = {
         steps: { type: Array }
       };
@@ -240,7 +257,7 @@
     }
     
     // 5. Development Timer Component
-    class DevelopmentTimer extends LitElement {
+    class DevelopmentTimer extends BootstrapLitElement {
       static properties = {
         steps: { type: Array },
         currentStep: { type: Number },
@@ -409,7 +426,243 @@
       }
     }
     
-    // Main application component will be defined here
+    // Main application component
+    class DevelopmentApp extends BootstrapLitElement {
+      static properties = {
+        filmData: { type: Object },
+        selectedFilm: { type: String },
+        pushPullValue: { type: Number },
+        temperature: { type: Number },
+        optionalSteps: { type: Array },
+        processSteps: { type: Array },
+        developmentTime: { type: Number },
+        chartLetter: { type: String }
+      };
+      
+      constructor() {
+        super();
+        this.filmData = filmData;
+        this.selectedFilm = '';
+        this.pushPullValue = 0;
+        this.temperature = 20;
+        this.optionalSteps = [
+          { id: 'prewet', name: 'Water Pre-wet', enabled: true, duration: 60 },
+          { id: 'prewash', name: 'Water Pre-wash', enabled: true, duration: 60 },
+          { id: 'fixerRemover', name: 'Remove Fixer', enabled: true, duration: 180 },
+          { id: 'stabilize', name: 'Stabilize', enabled: true, duration: 60 }
+        ];
+        this.processSteps = [];
+        this.developmentTime = 0;
+        this.chartLetter = '';
+        
+        // Request notification permission on startup
+        if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+          Notification.requestPermission();
+        }
+      }
+      
+      render() {
+        return html`
+          <div class="container">
+            <div class="row">
+              <div class="col-md-5">
+                <div class="card mb-4">
+                  <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Film Settings</h5>
+                  </div>
+                  <div class="card-body">
+                    <film-selector 
+                      .films=${Object.entries(this.filmData).map(([id, data]) => ({ id, name: data.name }))}
+                      .selectedFilm=${this.selectedFilm}
+                      @film-selected=${this._onFilmSelected}>
+                    </film-selector>
+                    
+                    <push-pull-selector
+                      .value=${this.pushPullValue}
+                      @push-pull-changed=${this._onPushPullChanged}>
+                    </push-pull-selector>
+                    
+                    <temperature-selector
+                      .temperature=${this.temperature}
+                      @temperature-changed=${this._onTemperatureChanged}>
+                    </temperature-selector>
+                    
+                    <optional-steps-selector
+                      .steps=${this.optionalSteps}
+                      @steps-changed=${this._onOptionalStepsChanged}>
+                    </optional-steps-selector>
+                  </div>
+                </div>
+                
+                ${this.selectedFilm ? html`
+                  <div class="card mb-4">
+                    <div class="card-header bg-info text-white">
+                      <h5 class="mb-0">Development Information</h5>
+                    </div>
+                    <div class="card-body">
+                      <p><strong>Film:</strong> ${this.filmData[this.selectedFilm]?.name}</p>
+                      <p><strong>Base Chart Letter:</strong> ${this.filmData[this.selectedFilm]?.chartLetter}</p>
+                      <p><strong>Adjusted Chart Letter:</strong> ${this.chartLetter} 
+                        ${this.pushPullValue !== 0 ? 
+                          `(${this.pushPullValue > 0 ? '+' : ''}${this.pushPullValue} stops)` : 
+                          ''}
+                      </p>
+                      <p><strong>Development Time:</strong> ${this._formatTime(this.developmentTime)}</p>
+                      <p><strong>Temperature:</strong> ${this.temperature}°C / ${this._convertToFahrenheit(this.temperature)}°F</p>
+                    </div>
+                  </div>
+                ` : ''}
+              </div>
+              
+              <div class="col-md-7">
+                <div class="card">
+                  <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Development Timer</h5>
+                  </div>
+                  <div class="card-body">
+                    <development-timer
+                      id="timer"
+                      .steps=${this.processSteps}>
+                    </development-timer>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+      
+      _formatTime(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+      }
+      
+      _convertToFahrenheit(celsius) {
+        return (celsius * 9/5 + 32).toFixed(1);
+      }
+      
+      _calculateDevelopmentTime() {
+        if (!this.selectedFilm) {
+          this.developmentTime = 0;
+          this.chartLetter = '';
+          return 0;
+        }
+        
+        const film = this.filmData[this.selectedFilm];
+        let chartLetter = film.chartLetter;
+        
+        // Adjust chart letter based on push/pull value
+        chartLetter = adjustChartLetterForPushPull(chartLetter, this.pushPullValue);
+        this.chartLetter = chartLetter;
+        
+        // Get development time from chart
+        const time = chartTimes[chartLetter][this.temperature.toString()] || 0;
+        this.developmentTime = time;
+        return time;
+      }
+      
+      _calculateProcessSteps() {
+        const developTime = this._calculateDevelopmentTime();
+        
+        // Create the process steps array
+        this.processSteps = [];
+        
+        // Add optional pre-wet step
+        const prewet = this.optionalSteps.find(s => s.id === 'prewet');
+        if (prewet && prewet.enabled) {
+          this.processSteps.push({
+            name: 'Water Pre-wet',
+            duration: prewet.duration
+          });
+        }
+        
+        // Add development step
+        if (developTime > 0) {
+          this.processSteps.push({
+            name: 'Develop',
+            duration: developTime
+          });
+        }
+        
+        // Add stop bath step
+        this.processSteps.push({
+          name: 'Stop Bath',
+          duration: 60 // 1 minute
+        });
+        
+        // Add fixer step
+        this.processSteps.push({
+          name: 'Fix',
+          duration: 180 // 3 minutes
+        });
+        
+        // Add optional pre-wash step
+        const prewash = this.optionalSteps.find(s => s.id === 'prewash');
+        if (prewash && prewash.enabled) {
+          this.processSteps.push({
+            name: 'Water Pre-wash',
+            duration: prewash.duration
+          });
+        }
+        
+        // Add optional fixer remover step
+        const fixerRemover = this.optionalSteps.find(s => s.id === 'fixerRemover');
+        if (fixerRemover && fixerRemover.enabled) {
+          this.processSteps.push({
+            name: 'Remove Fixer',
+            duration: fixerRemover.duration
+          });
+        }
+        
+        // Add water wash step
+        this.processSteps.push({
+          name: 'Water Wash',
+          duration: 300 // 5 minutes
+        });
+        
+        // Add optional stabilize step
+        const stabilize = this.optionalSteps.find(s => s.id === 'stabilize');
+        if (stabilize && stabilize.enabled) {
+          this.processSteps.push({
+            name: 'Stabilize',
+            duration: stabilize.duration
+          });
+        }
+        
+        // Update the timer component
+        const timer = this.shadowRoot.querySelector('#timer');
+        if (timer) {
+          timer.updateSteps(this.processSteps);
+        }
+      }
+      
+      firstUpdated() {
+        super.firstUpdated();
+        // Calculate initial process steps
+        this._calculateProcessSteps();
+      }
+      
+      _onFilmSelected(e) {
+        this.selectedFilm = e.detail.film;
+        this._calculateProcessSteps();
+      }
+      
+      _onPushPullChanged(e) {
+        this.pushPullValue = e.detail.value;
+        this._calculateProcessSteps();
+      }
+      
+      _onTemperatureChanged(e) {
+        this.temperature = e.detail.temperature;
+        this._calculateProcessSteps();
+      }
+      
+      _onOptionalStepsChanged(e) {
+        this.optionalSteps = e.detail.steps;
+        this._calculateProcessSteps();
+      }
+    }
     
     // Register custom elements
     customElements.define('film-selector', FilmSelector);
@@ -417,6 +670,15 @@
     customElements.define('temperature-selector', TemperatureSelector);
     customElements.define('optional-steps-selector', OptionalStepsSelector);
     customElements.define('development-timer', DevelopmentTimer);
+    customElements.define('development-app', DevelopmentApp);
+    
+    // Initialize the app when the DOM is loaded
+    window.addEventListener('DOMContentLoaded', () => {
+      const appContainer = document.getElementById('app-container');
+      appContainer.innerHTML = '';
+      const app = document.createElement('development-app');
+      appContainer.appendChild(app);
+    });
   </script>
   
   <style>
@@ -439,17 +701,38 @@
     .form-group {
       margin-bottom: 1rem;
     }
+    
+    .card {
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .card-header {
+      font-weight: bold;
+    }
+    
+    @media (max-width: 768px) {
+      .time-display {
+        font-size: 2.5rem;
+      }
+    }
   </style>
 </head>
 <body>
-  <div class="container mt-4">
-    <h1 class="text-center mb-4">Film Development Timer</h1>
+  <div class="container mt-4 mb-5">
+    <h1 class="text-center mb-2">Film Development Timer</h1>
     <p class="text-center mb-4">Based on SPRINT Standard B&W Film Developer</p>
     
-    <!-- Placeholder for our app -->
+    <!-- App container -->
     <div id="app-container">
       <p class="text-center">Loading application...</p>
     </div>
+    
+    <footer class="mt-5 text-center text-muted">
+      <small>
+        <p>Based on SPRINT Standard B&W Film Developer documentation.</p>
+        <p>All development times and procedures follow official SPRINT SYSTEMS guidelines.</p>
+      </small>
+    </footer>
   </div>
   
   <!-- Bootstrap JS Bundle with Popper -->
