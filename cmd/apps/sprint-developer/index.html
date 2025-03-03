@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Film Development Timer</title>
+  
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  
+  <!-- Lit.js -->
+  <script type="module">
+    import { LitElement, html, css } from 'https://cdn.jsdelivr.net/gh/lit/dist@2/core/lit-core.min.js';
+    
+    // Data preparation
+    // Film data extracted from documentation
+    const filmData = {
+      // Agfa films
+      'agfa_apx100': { name: 'Agfa APX100', chartLetter: 'N' },
+      'agfa_apx400': { name: 'Agfa APX400', chartLetter: 'R' },
+      
+      // Fuji films
+      'fuji_acros100': { name: 'Fuji Acros 100', chartLetter: 'O' },
+      'fuji_neopan_ss100': { name: 'Fuji Neopan SS 100', chartLetter: 'N' },
+      'fuji_neopan400': { name: 'Fuji Neopan 400', chartLetter: 'N' },
+      'fuji_neopan1600': { name: 'Fuji Neopan 1600', chartLetter: 'P' },
+      
+      // Ilford films
+      'ilford_panf_plus': { name: 'Ilford PanF+', chartLetter: 'N' },
+      'ilford_fp4_plus': { name: 'Ilford FP4+', chartLetter: 'N' },
+      'ilford_hp5_plus': { name: 'Ilford HP5+', chartLetter: 'O' },
+      'ilford_delta100': { name: 'Ilford Delta 100', chartLetter: 'N' },
+      'ilford_delta400': { name: 'Ilford Delta 400', chartLetter: 'P' },
+      'ilford_delta3200': { name: 'Ilford Delta 3200', chartLetter: 'S' },
+      'ilford_sfx200': { name: 'Ilford SFX200', chartLetter: 'O' },
+      
+      // Kodak films
+      'kodak_125px': { name: 'Kodak 125PX', chartLetter: 'N' },
+      'kodak_400tx': { name: 'Kodak 400TX', chartLetter: 'O' },
+      'kodak_tmax100': { name: 'Kodak T-MAX 100', chartLetter: 'O' },
+      'kodak_400tmy': { name: 'Kodak 400TMY', chartLetter: 'P' },
+      'kodak_3200tmz': { name: 'Kodak 3200TMZ', chartLetter: 'S' }
+    };
+    
+    // Development times in seconds for each chart letter at different temperatures
+    const chartTimes = {
+      'L': { '18': 480, '20': 390, '22': 315, '24': 255 },
+      'M': { '18': 555, '20': 450, '22': 360, '24': 300 },
+      'N': { '18': 630, '20': 510, '22': 420, '24': 330 },
+      'O': { '18': 750, '20': 600, '22': 480, '24': 390 },
+      'P': { '18': 840, '20': 690, '22': 555, '24': 450 },
+      'Q': { '18': 960, '20': 780, '22': 630, '24': 510 },
+      'R': { '18': 1080, '20': 900, '22': 750, '24': 600 },
+      'S': { '18': 1260, '20': 1020, '22': 840, '24': 675 },
+      'T': { '18': 1500, '20': 1200, '22': 960, '24': 780 }
+    };
+    
+    // Default process steps with their durations in seconds
+    const defaultProcessSteps = [
+      { id: 'prewet', name: 'Water Pre-wet', duration: 60, optional: true },
+      { id: 'develop', name: 'Develop', duration: 0, optional: false }, // Duration will be calculated based on film and temperature
+      { id: 'stop', name: 'Stop Bath', duration: 60, optional: false },
+      { id: 'fix', name: 'Fix', duration: 180, optional: false },
+      { id: 'prewash', name: 'Water Pre-wash', duration: 60, optional: true },
+      { id: 'fixerRemover', name: 'Remove Fixer', duration: 180, optional: true },
+      { id: 'wash', name: 'Water Wash', duration: 300, optional: false },
+      { id: 'stabilize', name: 'Stabilize', duration: 60, optional: true }
+    ];
+    
+    // Push/pull adjustment logic
+    // Each push/pull stop typically moves 1-2 chart letters
+    const letterOrder = ['L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T'];
+    
+    function adjustChartLetterForPushPull(chartLetter, pushPullValue) {
+      const baseIndex = letterOrder.indexOf(chartLetter);
+      const adjustedIndex = Math.max(0, Math.min(letterOrder.length - 1, baseIndex + pushPullValue));
+      return letterOrder[adjustedIndex];
+    }
+    
+    function calculateDevelopmentTime(filmId, temperature, pushPullValue) {
+      if (!filmId) return 0;
+      
+      const film = filmData[filmId];
+      if (!film) return 0;
+      
+      let chartLetter = film.chartLetter;
+      
+      // Adjust chart letter based on push/pull value
+      chartLetter = adjustChartLetterForPushPull(chartLetter, pushPullValue);
+      
+      // Get development time from chart
+      return chartTimes[chartLetter][temperature.toString()] || 0;
+    }
+    
+    // UI Components
+    // 1. Film Selection Component
+    class FilmSelector extends LitElement {
+      static properties = {
+        films: { type: Array },
+        selectedFilm: { type: String }
+      };
+      
+      constructor() {
+        super();
+        this.films = [];
+        this.selectedFilm = '';
+      }
+      
+      render() {
+        return html`
+          <div class="form-group">
+            <label for="film-select">Film Type</label>
+            <select id="film-select" class="form-select" @change=${this._handleChange}>
+              <option value="" selected disabled>Select a film</option>
+              ${this.films.map(film => html`
+                <option value=${film.id} ?selected=${film.id === this.selectedFilm}>
+                  ${film.name}
+                </option>
+              `)}
+            </select>
+          </div>
+        `;
+      }
+      
+      _handleChange(e) {
+        this.selectedFilm = e.target.value;
+        this.dispatchEvent(new CustomEvent('film-selected', { 
+          detail: { film: this.selectedFilm }
+        }));
+      }
+    }
+    
+    // 2. Push/Pull Selector Component
+    class PushPullSelector extends LitElement {
+      static properties = {
+        value: { type: Number }
+      };
+      
+      constructor() {
+        super();
+        this.value = 0;
+      }
+      
+      render() {
+        return html`
+          <div class="form-group">
+            <label for="push-pull">Push/Pull (stops)</label>
+            <select id="push-pull" class="form-select" @change=${this._handleChange}>
+              <option value="-2" ?selected=${this.value === -2}>Pull 2 stops</option>
+              <option value="-1" ?selected=${this.value === -1}>Pull 1 stop</option>
+              <option value="0" ?selected=${this.value === 0}>Normal</option>
+              <option value="1" ?selected=${this.value === 1}>Push 1 stop</option>
+              <option value="2" ?selected=${this.value === 2}>Push 2 stops</option>
+              <option value="3" ?selected=${this.value === 3}>Push 3 stops</option>
+            </select>
+          </div>
+        `;
+      }
+      
+      _handleChange(e) {
+        this.value = parseInt(e.target.value);
+        this.dispatchEvent(new CustomEvent('push-pull-changed', { 
+          detail: { value: this.value }
+        }));
+      }
+    }
+    
+    // 3. Temperature Selector Component
+    class TemperatureSelector extends LitElement {
+      static properties = {
+        temperature: { type: Number }
+      };
+      
+      constructor() {
+        super();
+        this.temperature = 20;
+      }
+      
+      render() {
+        return html`
+          <div class="form-group">
+            <label for="temperature">Development Temperature</label>
+            <select id="temperature" class="form-select" @change=${this._handleChange}>
+              <option value="18" ?selected=${this.temperature === 18}>18°C / 64.5°F</option>
+              <option value="20" ?selected=${this.temperature === 20}>20°C / 68°F</option>
+              <option value="22" ?selected=${this.temperature === 22}>22°C / 71.5°F</option>
+              <option value="24" ?selected=${this.temperature === 24}>24°C / 75°F</option>
+            </select>
+          </div>
+        `;
+      }
+      
+      _handleChange(e) {
+        this.temperature = parseInt(e.target.value);
+        this.dispatchEvent(new CustomEvent('temperature-changed', { 
+          detail: { temperature: this.temperature }
+        }));
+      }
+    }
+    
+    // 4. Optional Steps Selector Component
+    class OptionalStepsSelector extends LitElement {
+      static properties = {
+        steps: { type: Array }
+      };
+      
+      constructor() {
+        super();
+        this.steps = [
+          { id: 'prewet', name: 'Water Pre-wet', enabled: true },
+          { id: 'prewash', name: 'Water Pre-wash', enabled: true },
+          { id: 'fixerRemover', name: 'Remove Fixer', enabled: true },
+          { id: 'stabilize', name: 'Stabilize', enabled: true }
+        ];
+      }
+      
+      render() {
+        return html`
+          <div class="form-group">
+            <label>Optional Steps</label>
+            ${this.steps.map(step => html`
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="${step.id}" 
+                  ?checked=${step.enabled} @change=${e => this._toggleStep(step.id, e.target.checked)}>
+                <label class="form-check-label" for="${step.id}">${step.name}</label>
+              </div>
+            `)}
+          </div>
+        `;
+      }
+      
+      _toggleStep(id, enabled) {
+        this.steps = this.steps.map(step => 
+          step.id === id ? {...step, enabled} : step
+        );
+        this.dispatchEvent(new CustomEvent('steps-changed', { 
+          detail: { steps: this.steps }
+        }));
+      }
+    }
+    
+    // 5. Development Timer Component
+    class DevelopmentTimer extends LitElement {
+      static properties = {
+        steps: { type: Array },
+        currentStep: { type: Number },
+        timeRemaining: { type: Number },
+        isRunning: { type: Boolean }
+      };
+      
+      constructor() {
+        super();
+        this.steps = [];
+        this.currentStep = -1;
+        this.timeRemaining = 0;
+        this.isRunning = false;
+        this.timer = null;
+      }
+      
+      render() {
+        return html`
+          <div class="timer-container">
+            <div class="current-step">
+              ${this.currentStep >= 0 ? html`
+                <h3>${this.steps[this.currentStep].name}</h3>
+                <div class="time-display">${this._formatTime(this.timeRemaining)}</div>
+                <div class="progress mb-3">
+                  <div class="progress-bar" role="progressbar" 
+                    style="width: ${this._calculateProgress()}%" 
+                    aria-valuenow="${this._calculateProgress()}" 
+                    aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+              ` : html`
+                <h3 class="text-center">Ready to Start</h3>
+                <p class="text-center text-muted">Select a film and configure settings, then press Start</p>
+              `}
+            </div>
+            
+            <div class="controls text-center mb-4">
+              ${!this.isRunning ? html`
+                <button class="btn btn-primary" @click=${this._startTimer} ?disabled=${this.steps.length === 0}>
+                  ${this.currentStep < 0 ? 'Start' : 'Resume'}
+                </button>
+              ` : html`
+                <button class="btn btn-secondary" @click=${this._pauseTimer}>Pause</button>
+              `}
+              <button class="btn btn-danger" @click=${this._resetTimer} ?disabled=${this.currentStep < 0}>Reset</button>
+              ${this.isRunning ? html`
+                <button class="btn btn-success" @click=${this._nextStep}>Next Step</button>
+              ` : ''}
+            </div>
+            
+            <div class="step-list">
+              <h4>Process Steps</h4>
+              <ol class="list-group">
+                ${this.steps.map((step, index) => html`
+                  <li class="list-group-item ${index === this.currentStep ? 'active' : ''} 
+                    ${index < this.currentStep ? 'list-group-item-success' : ''}">
+                    ${step.name} - ${this._formatTime(step.duration)}
+                  </li>
+                `)}
+              </ol>
+            </div>
+          </div>
+        `;
+      }
+      
+      _formatTime(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+      }
+      
+      _calculateProgress() {
+        if (this.currentStep < 0) return 0;
+        const totalTime = this.steps[this.currentStep].duration;
+        const elapsed = totalTime - this.timeRemaining;
+        return Math.floor((elapsed / totalTime) * 100);
+      }
+      
+      _startTimer() {
+        if (this.steps.length === 0) return;
+        
+        if (this.currentStep < 0) {
+          this.currentStep = 0;
+          this.timeRemaining = this.steps[0].duration;
+        }
+        
+        this.isRunning = true;
+        this.timer = setInterval(() => {
+          if (this.timeRemaining > 0) {
+            this.timeRemaining--;
+          } else {
+            this._playAlert();
+            this._nextStep();
+          }
+        }, 1000);
+      }
+      
+      _pauseTimer() {
+        this.isRunning = false;
+        clearInterval(this.timer);
+      }
+      
+      _resetTimer() {
+        this._pauseTimer();
+        this.currentStep = -1;
+        this.timeRemaining = 0;
+        this.requestUpdate();
+      }
+      
+      _nextStep() {
+        this._pauseTimer();
+        if (this.currentStep < this.steps.length - 1) {
+          this.currentStep++;
+          this.timeRemaining = this.steps[this.currentStep].duration;
+          this._startTimer();
+        } else {
+          // Process complete
+          this._playCompleteAlert();
+          this._resetTimer();
+        }
+      }
+      
+      _playAlert() {
+        // Play sound for step change
+        try {
+          // Simple beep sound (base64 encoded short WAV)
+          const beepSound = 'data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU'+Array(20).join('A');
+          const audio = new Audio(beepSound);
+          audio.play();
+        } catch (e) {
+          console.log('Audio playback failed:', e);
+        }
+        
+        // Show browser notification if supported and permitted
+        if ('Notification' in window) {
+          if (Notification.permission === 'granted') {
+            new Notification('Next Step', {
+              body: `Time to move to: ${this.steps[this.currentStep + 1]?.name || 'Finished!'}`
+            });
+          } else if (Notification.permission !== 'denied') {
+            Notification.requestPermission();
+          }
+        }
+      }
+      
+      _playCompleteAlert() {
+        try {
+          // Different sound for completion (base64 encoded short WAV)
+          const completeSound = 'data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU'+Array(30).join('A');
+          const audio = new Audio(completeSound);
+          audio.play();
+        } catch (e) {
+          console.log('Audio playback failed:', e);
+        }
+        
+        // Show browser notification for completion
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('Development Complete!', {
+            body: 'All steps have been completed.'
+          });
+        }
+      }
+      
+      updateSteps(steps) {
+        this.steps = steps;
+        this._resetTimer();
+      }
+    }
+    
+    // Main application component will be defined here
+    
+    // Register custom elements
+    customElements.define('film-selector', FilmSelector);
+    customElements.define('push-pull-selector', PushPullSelector);
+    customElements.define('temperature-selector', TemperatureSelector);
+    customElements.define('optional-steps-selector', OptionalStepsSelector);
+    customElements.define('development-timer', DevelopmentTimer);
+  </script>
+  
+  <style>
+    /* Additional custom styles */
+    .timer-container {
+      margin-bottom: 20px;
+    }
+    
+    .time-display {
+      font-size: 3rem;
+      font-weight: bold;
+      text-align: center;
+      margin: 20px 0;
+    }
+    
+    .step-list {
+      margin-top: 20px;
+    }
+    
+    .form-group {
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container mt-4">
+    <h1 class="text-center mb-4">Film Development Timer</h1>
+    <p class="text-center mb-4">Based on SPRINT Standard B&W Film Developer</p>
+    
+    <!-- Placeholder for our app -->
+    <div id="app-container">
+      <p class="text-center">Loading application...</p>
+    </div>
+  </div>
+  
+  <!-- Bootstrap JS Bundle with Popper -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
