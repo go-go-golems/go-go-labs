@@ -224,10 +224,10 @@
       constructor() {
         super();
         this.steps = [
-          { id: 'prewet', name: 'Water Pre-wet', enabled: true },
-          { id: 'prewash', name: 'Water Pre-wash', enabled: true },
-          { id: 'fixerRemover', name: 'Remove Fixer', enabled: true },
-          { id: 'stabilize', name: 'Stabilize', enabled: true }
+          { id: 'prewet', name: 'Water Pre-wet', enabled: false },
+          { id: 'prewash', name: 'Water Pre-wash', enabled: false },
+          { id: 'fixerRemover', name: 'Remove Fixer', enabled: false },
+          { id: 'stabilize', name: 'Stabilize', enabled: false }
         ];
       }
       
@@ -262,7 +262,8 @@
         steps: { type: Array },
         currentStep: { type: Number },
         timeRemaining: { type: Number },
-        isRunning: { type: Boolean }
+        isRunning: { type: Boolean },
+        originalDurations: { type: Array }
       };
       
       constructor() {
@@ -272,6 +273,7 @@
         this.timeRemaining = 0;
         this.isRunning = false;
         this.timer = null;
+        this.originalDurations = [];
       }
       
       render() {
@@ -302,6 +304,14 @@
                 <button class="btn btn-secondary" @click=${this._pauseTimer}>Pause</button>
               `}
               <button class="btn btn-danger" @click=${this._resetTimer} ?disabled=${this.currentStep < 0}>Reset</button>
+              ${this.currentStep >= 0 ? html`
+                <button class="btn btn-warning" @click=${this._restartCurrentStep} ?disabled=${this.currentStep < 0}>
+                  Restart Step
+                </button>
+                <button class="btn btn-info" @click=${this._extendCurrentStep} ?disabled=${this.currentStep < 0}>
+                  +30s
+                </button>
+              ` : ''}
               ${this.isRunning ? html`
                 <button class="btn btn-success" @click=${this._nextStep}>Next Step</button>
               ` : ''}
@@ -420,8 +430,33 @@
         }
       }
       
+      _restartCurrentStep() {
+        if (this.currentStep < 0) return;
+        
+        // Reset the time remaining to the original duration for this step
+        this.timeRemaining = this.steps[this.currentStep].duration;
+        
+        // If the timer is running, it will continue from the new time
+        // If it's paused, the user can resume when ready
+        this.requestUpdate();
+      }
+      
+      _extendCurrentStep() {
+        if (this.currentStep < 0) return;
+        
+        // Add 30 seconds to the current time remaining
+        this.timeRemaining += 30;
+        
+        // Also update the step's duration so the progress bar calculation is correct
+        this.steps[this.currentStep].duration += 30;
+        
+        this.requestUpdate();
+      }
+      
       updateSteps(steps) {
         this.steps = steps;
+        // Store original durations for potential resets
+        this.originalDurations = steps.map(step => step.duration);
         this._resetTimer();
       }
     }
@@ -446,10 +481,10 @@
         this.pushPullValue = 0;
         this.temperature = 20;
         this.optionalSteps = [
-          { id: 'prewet', name: 'Water Pre-wet', enabled: true, duration: 60 },
-          { id: 'prewash', name: 'Water Pre-wash', enabled: true, duration: 60 },
-          { id: 'fixerRemover', name: 'Remove Fixer', enabled: true, duration: 180 },
-          { id: 'stabilize', name: 'Stabilize', enabled: true, duration: 60 }
+          { id: 'prewet', name: 'Water Pre-wet', enabled: false, duration: 60 },
+          { id: 'prewash', name: 'Water Pre-wash', enabled: false, duration: 60 },
+          { id: 'fixerRemover', name: 'Remove Fixer', enabled: false, duration: 180 },
+          { id: 'stabilize', name: 'Stabilize', enabled: false, duration: 60 }
         ];
         this.processSteps = [];
         this.developmentTime = 0;
