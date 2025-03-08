@@ -123,7 +123,7 @@ Create a shareable format:
 
 ```bash
 # Create a markdown summary
-cat << EOF > itinerary.md
+cat << 'EOF' > itinerary.md
 # New York City Sightseeing Tour
 
 ## Attractions

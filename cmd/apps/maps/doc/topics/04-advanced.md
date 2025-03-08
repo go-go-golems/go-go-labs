@@ -52,7 +52,7 @@ Create custom output templates:
 
 ```bash
 # Create a template
-cat > place.tmpl <<EOF
+cat > place.tmpl <<'EOF'
 {{range .}}
 Name: {{.name}}
 Rating: {{.rating}}/5 ({{.user_ratings_total}} reviews)
