@@ -31,6 +31,8 @@ This comprehensive guide covers working with the Raspberry Pi Pico W (RP2040) in
 
 ## Initial Setup
 
+The initial setup section demonstrates how to properly initialize your Pico Display project. The code imports the necessary libraries: `picographics` for display handling, `Button` for input management, and `network` for WiFi connectivity. The PicoGraphics class is initialized with the specific display type (PICO_DISPLAY), and buttons are mapped to their corresponding GPIO pins. Color constants are created using the display's color pen system, which converts RGB values into the display's native color format.
+
 ### Required Libraries
 ```python
 from picographics import PicoGraphics, DISPLAY_PICO_DISPLAY
@@ -59,6 +61,8 @@ BLUE = display.create_pen(0, 0, 255)
 ```
 
 ## Display Basics
+
+The display basics section covers fundamental drawing operations on the Pico Display. The screen uses a standard coordinate system where (0,0) is at the top-left corner. All drawing operations require setting an active pen color first using `set_pen()`, followed by the specific drawing command. The `update()` method must be called after drawing operations to refresh the display buffer.
 
 ### Screen Coordinates
 The display uses a coordinate system where (0,0) is at the top-left corner:
@@ -93,6 +97,8 @@ display.update()
 ```
 
 ### Text Rendering
+The text rendering system supports multiple built-in fonts with different sizes and styles. The `measure_text()` function helps calculate text dimensions for proper positioning. Text can be scaled to different sizes using the scale parameter, though larger scales may impact performance.
+
 ```python
 # Available fonts
 FONTS = ["bitmap6", "bitmap8", "bitmap14_outline", "sans"]
@@ -105,6 +111,8 @@ def draw_text(text, x, y, font="bitmap8", scale=1):
 ```
 
 ## Button Handling
+
+The button handling section demonstrates two approaches to managing button inputs. The basic approach provides simple polling of button states, while the event-based system offers a more sophisticated callback-based architecture. Both implementations include debouncing to prevent false triggers from button bounce.
 
 ### Basic Button Reading
 ```python
@@ -161,6 +169,8 @@ class ButtonHandler:
 
 ## Graphics Programming
 
+The graphics programming section showcases more advanced drawing capabilities. These examples demonstrate how to create complex shapes and animations. The rounded rectangle implementation combines basic shapes to create a more sophisticated visual element, while the progress bar provides a practical UI component. All drawing operations are optimized to minimize display updates.
+
 ### Drawing Shapes
 ```python
 def draw_rounded_rect(x, y, width, height, radius):
@@ -185,6 +195,8 @@ def draw_progress_bar(x, y, width, height, progress):
 ```
 
 ### Animation
+The animation example demonstrates smooth motion by implementing a basic physics system. The code uses double buffering (clearing and redrawing the entire screen each frame) to prevent visual artifacts. The sleep delay controls the animation speed while preventing the CPU from running at 100%.
+
 ```python
 def bounce_ball():
     x, y = 120, 67
@@ -214,6 +226,8 @@ def bounce_ball():
 
 ## WiFi Connectivity
 
+The WiFi section provides a robust connection implementation that includes error handling and timeout management. The code attempts to connect to the specified network and provides status updates during the connection process. It also includes error handling for common WiFi connection issues.
+
 ### Basic WiFi Setup
 ```python
 def connect_wifi(ssid, password):
@@ -241,6 +255,8 @@ def connect_wifi(ssid, password):
 
 ## Advanced Topics
 
+The advanced topics section covers important aspects of power management and UI design. The power management examples show how to control display brightness and implement power-saving features. The menu system demonstrates a complete UI implementation that combines multiple concepts from earlier sections.
+
 ### Power Management
 ```python
 def set_display_power(on):
@@ -256,6 +272,8 @@ def power_saving_mode():
 ```
 
 ### Complete Example: Menu System
+The menu system example demonstrates a complete UI implementation that combines button handling, text rendering, and display updates. It uses object-oriented programming to create a reusable menu component that can be easily extended. The system supports navigation, selection, and custom callbacks for menu items.
+
 ```python
 class MenuItem:
     def __init__(self, text, callback):

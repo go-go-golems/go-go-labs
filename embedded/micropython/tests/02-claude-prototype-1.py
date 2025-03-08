@@ -1,11 +1,11 @@
 import time
-from picographics import PicoGraphics, DISPLAY_PIMIRONI_PICO_DISPLAY
+from picographics import PicoGraphics, DISPLAY_PICO_DISPLAY
 from pimoroni import Button
 import machine
 from machine import Pin, Timer
 
 # Initialize display
-display = PicoGraphics(display=DISPLAY_PIMIRONI_PICO_DISPLAY)
+display = PicoGraphics(display=DISPLAY_PICO_DISPLAY)
 WIDTH, HEIGHT = display.get_bounds()
 
 # Setup buttons - Assuming standard Pimoroni button configuration
@@ -33,12 +33,12 @@ current_fixer = 0
 develop_time = 0
 fix_time = 0
 timer_running = False
+current_stage = 0  # 0=Develop, 1=Fix, 2=Complete
 timer_started = 0
-current_stage = "IDLE"  # IDLE, DEVELOP, FIX
 results = []  # Store results for later retrieval
 
 # Timer interrupt for counting seconds
-timer = Timer()
+timer = Timer(-1)  # Use any available timer ID
 
 def update_timer(timer):
     global develop_time, fix_time, timer_running, timer_started, current_stage
@@ -47,9 +47,9 @@ def update_timer(timer):
         current_time = time.ticks_ms()
         elapsed = (current_time - timer_started) // 1000  # Convert to seconds
         
-        if current_stage == "DEVELOP":
+        if current_stage == 0:
             develop_time = elapsed
-        elif current_stage == "FIX":
+        elif current_stage == 1:
             fix_time = elapsed
             
         draw_screen()
@@ -62,64 +62,102 @@ def setup():
 def draw_screen():
     display.set_pen(BLACK)
     display.clear()
-    display.set_pen(WHITE)
     
-    # Draw header
-    display.set_pen(BLUE)
-    display.text(f"Experiment #{current_experiment}", 10, 10, 240, 2)
-    display.set_pen(WHITE)
+    # Set up vertical layout with smaller text
+    margin = 5
+    line_height = 18  # Smaller line height for vertical layout
+    y_pos = margin
     
-    # Draw chemical selection or current timers
-    if current_stage == "IDLE":
-        display.text("Developer:", 10, 40, 240, 2)
-        display.text(DEVELOPERS[current_developer], 120, 40, 240, 2)
+    if timer_running:
+        # Header - Current stage
+        display.set_pen(WHITE)
+        current_stage_text = "DEVELOP" if current_stage == 0 else "FIX"
+        display.text(current_stage_text, (WIDTH // 2) - 30, y_pos, scale=1)
+        y_pos += line_height
         
-        display.text("Fixer:", 10, 70, 240, 2)
-        display.text(FIXERS[current_fixer], 120, 70, 240, 2)
-        
-        # Button labels
+        # Chemical being used
         display.set_pen(YELLOW)
-        display.text("A: Dev+", 10, HEIGHT - 60, 240, 1)
-        display.text("B: Fix+", 120, HEIGHT - 60, 240, 1)
-        display.text("C: Start", 10, HEIGHT - 40, 240, 1)
-        display.text("D: Exp+", 120, HEIGHT - 40, 240, 1)
-    else:
-        # Show stage and timer
-        if current_stage == "DEVELOP":
-            display.set_pen(GREEN)
-            display.text("DEVELOPING", 10, 40, 240, 2)
-            display.text(f"Developer: {DEVELOPERS[current_developer]}", 10, 70, 240, 1)
-            display.set_pen(WHITE)
-            display.text(f"Time: {format_time(develop_time)}", 10, 100, 240, 3)
-        elif current_stage == "FIX":
-            display.set_pen(BLUE)
-            display.text("FIXING", 10, 40, 240, 2)
-            display.text(f"Fixer: {FIXERS[current_fixer]}", 10, 70, 240, 1)
-            display.set_pen(WHITE)
-            display.text(f"Time: {format_time(fix_time)}", 10, 100, 240, 3)
-        elif current_stage == "COMPLETE":
-            display.set_pen(GREEN)
-            display.text("COMPLETE", 10, 40, 240, 2)
-            display.text(f"Developer: {format_time(develop_time)}", 10, 70, 240, 1)
-            display.text(f"Fixer: {format_time(fix_time)}", 10, 100, 240, 1)
+        chemical = DEVELOPERS[current_developer] if current_stage == 0 else FIXERS[current_fixer]
+        display.text(chemical, (WIDTH // 2) - (len(chemical) * 4), y_pos, scale=1)
+        y_pos += line_height + 5
         
-        # Button labels for active timer
+        # Timer display (larger)
+        display.set_pen(WHITE)
+        time_text = format_time(develop_time if current_stage == 0 else fix_time)
+        display.text(time_text, (WIDTH // 2) - 40, y_pos, scale=3)  # Keep timer large
+        y_pos += 30  # Larger offset for the larger text
+        
+        # Secondary timer if needed
+        if current_stage == 1:
+            display.set_pen(GREEN)
+            display.text("Dev: " + format_time(develop_time), margin, y_pos, scale=1)
+            y_pos += line_height
+        
+        # Instructions at bottom
+        y_pos = HEIGHT - (line_height * 2)
+        display.set_pen(BLUE)
+        if current_stage == 0:
+            display.text("C: Next Stage", margin, y_pos, scale=1)
+        else:
+            display.text("C: Complete", margin, y_pos, scale=1)
+        y_pos += line_height
+        display.text("D: Cancel", margin, y_pos, scale=1)
+    elif current_stage == 2:  # Complete screen
+        display.set_pen(WHITE)
+        display.text("COMPLETE", (WIDTH // 2) - 35, y_pos, scale=1)
+        y_pos += line_height
+        
+        display.set_pen(GREEN)
+        display.text("Dev: " + DEVELOPERS[current_developer], margin, y_pos, scale=1)
+        y_pos += line_height
+        display.text("Time: " + format_time(develop_time), margin, y_pos, scale=1)
+        y_pos += line_height + 5
+        
+        display.set_pen(BLUE)
+        display.text("Fix: " + FIXERS[current_fixer], margin, y_pos, scale=1)
+        y_pos += line_height
+        display.text("Time: " + format_time(fix_time), margin, y_pos, scale=1)
+        y_pos += line_height + 10
+        
+        # Instructions at bottom
+        y_pos = HEIGHT - (line_height * 2)
         display.set_pen(YELLOW)
-        if current_stage == "DEVELOP":
-            display.text("A: -", 10, HEIGHT - 60, 240, 1)
-            display.text("B: -", 120, HEIGHT - 60, 240, 1)
-            display.text("C: To Fix", 10, HEIGHT - 40, 240, 1)
-            display.text("D: Cancel", 120, HEIGHT - 40, 240, 1)
-        elif current_stage == "FIX":
-            display.text("A: -", 10, HEIGHT - 60, 240, 1)
-            display.text("B: -", 120, HEIGHT - 60, 240, 1)
-            display.text("C: Done", 10, HEIGHT - 40, 240, 1)
-            display.text("D: Cancel", 120, HEIGHT - 40, 240, 1)
-        elif current_stage == "COMPLETE":
-            display.text("A: -", 10, HEIGHT - 60, 240, 1)
-            display.text("B: -", 120, HEIGHT - 60, 240, 1)
-            display.text("C: Save", 10, HEIGHT - 40, 240, 1)
-            display.text("D: Discard", 120, HEIGHT - 40, 240, 1)
+        display.text("C: Save", margin, y_pos, scale=1)
+        y_pos += line_height
+        display.text("D: Discard", margin, y_pos, scale=1)
+    else:  # Idle screen
+        # Show experiment number at top
+        display.set_pen(WHITE)
+        exp_text = "Experiment #" + str(current_experiment)
+        display.text(exp_text, (WIDTH // 2) - (len(exp_text) * 4), y_pos, scale=1)
+        y_pos += line_height + 5
+        
+        # Developer selection
+        display.set_pen(GREEN)
+        display.text("Developer:", margin, y_pos, scale=1)
+        y_pos += line_height
+        dev_text = DEVELOPERS[current_developer]
+        display.text(dev_text, margin + 10, y_pos, scale=1)
+        y_pos += line_height + 5
+        
+        # Fixer selection
+        display.set_pen(BLUE)
+        display.text("Fixer:", margin, y_pos, scale=1)
+        y_pos += line_height
+        fix_text = FIXERS[current_fixer]
+        display.text(fix_text, margin + 10, y_pos, scale=1)
+        y_pos += line_height + 5
+        
+        # Instructions at bottom
+        y_pos = HEIGHT - (line_height * 4)
+        display.set_pen(YELLOW)
+        display.text("A: Change Developer", margin, y_pos, scale=1)
+        y_pos += line_height
+        display.text("B: Change Fixer", margin, y_pos, scale=1)
+        y_pos += line_height
+        display.text("C: Start Timer", margin, y_pos, scale=1)
+        y_pos += line_height
+        display.text("D: Next Experiment", margin, y_pos, scale=1)
     
     display.update()
 
@@ -133,19 +171,19 @@ def start_timer():
     
     timer_running = True
     timer_started = time.ticks_ms()
-    current_stage = "DEVELOP"
+    current_stage = 0
     draw_screen()
 
 def stop_timer():
     global timer_running, current_stage
     
     timer_running = False
-    if current_stage == "DEVELOP":
-        current_stage = "FIX"
+    if current_stage == 0:
+        current_stage = 1
         timer_started = time.ticks_ms()
         timer_running = True
-    elif current_stage == "FIX":
-        current_stage = "COMPLETE"
+    elif current_stage == 1:
+        current_stage = 2
         timer_running = False
     draw_screen()
 
@@ -180,14 +218,14 @@ def reset_timer():
     global timer_running, current_stage, develop_time, fix_time
     
     timer_running = False
-    current_stage = "IDLE"
+    current_stage = 0
     develop_time = 0
     fix_time = 0
     draw_screen()
 
 def check_buttons():
     if button_a.read():
-        if current_stage == "IDLE":
+        if current_stage == 0:
             # Cycle through developers
             global current_developer
             current_developer = (current_developer + 1) % len(DEVELOPERS)
@@ -195,7 +233,7 @@ def check_buttons():
         draw_screen()
     
     if button_b.read():
-        if current_stage == "IDLE":
+        if current_stage == 0:
             # Cycle through fixers
             global current_fixer
             current_fixer = (current_fixer + 1) % len(FIXERS)
@@ -203,18 +241,16 @@ def check_buttons():
         draw_screen()
     
     if button_c.read():
-        if current_stage == "IDLE":
+        if current_stage == 0:
             start_timer()
-        elif current_stage == "DEVELOP":
+        elif current_stage == 1:
             stop_timer()  # Move to FIX stage
-        elif current_stage == "FIX":
-            stop_timer()  # Move to COMPLETE stage
-        elif current_stage == "COMPLETE":
+        elif current_stage == 2:
             save_result()  # Save and reset
         time.sleep(0.2)  # Debounce
     
     if button_d.read():
-        if current_stage == "IDLE":
+        if current_stage == 0:
             # Increment experiment number
             global current_experiment
             current_experiment += 1
