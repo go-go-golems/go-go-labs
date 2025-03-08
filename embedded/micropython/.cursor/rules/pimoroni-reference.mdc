@@ -1,0 +1,6 @@
+---
+description: Add pimoroni reference
+globs: *.py
+alwaysApply: false
+---
+Look at [02-pico-reference.md](mdc:micropython/micropython/micropython/micropython/ttmp/2025-03-08/02-pico-reference.md)
