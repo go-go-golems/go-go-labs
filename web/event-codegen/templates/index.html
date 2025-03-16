@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mouse Event Code Generator</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/ruby/ruby.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/keymap/vim.min.js"></script>
+    <style>
+        .CodeMirror {
+            height: 400px;
+            border: 1px solid #ddd;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1 class="mb-4">Mouse Event Code Generator</h1>
+        
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Event Configuration</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="eventForm" hx-post="/generate" hx-target="#codeOutput" hx-trigger="change">
+                            <div class="form-group">
+                                <label for="eventName">Event Name:</label>
+                                <input type="text" class="form-control" name="eventName" value="MouseDetected">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Fields:</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="fields.location" checked>
+                                    <label class="form-check-label">Location (x, y coordinates)</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="fields.timestamp">
+                                    <label class="form-check-label">Timestamp</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="fields.speed">
+                                    <label class="form-check-label">Speed</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="fields.direction">
+                                    <label class="form-check-label">Direction</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="fields.size">
+                                    <label class="form-check-label">Size estimate</label>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Features:</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="features.validation" checked>
+                                    <label class="form-check-label">Add field validation</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="features.serializer">
+                                    <label class="form-check-label">Include JSON serializer</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="features.kafka">
+                                    <label class="form-check-label">Add Kafka producer</label>
+                                </div>
+                            </div>
+
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="vimMode">
+                                <label class="form-check-label">Vim Mode</label>
+                            </div>
+
+                            <button type="button" class="btn btn-primary" 
+                                hx-post="/download" 
+                                hx-include="#eventForm"
+                                hx-trigger="click"
+                                hx-swap="none">
+                                Download Ruby Code
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Generated Ruby Code</h5>
+                    </div>
+                    <div class="card-body">
+                        <textarea id="codeOutput"></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let editor = CodeMirror.fromTextArea(document.getElementById('codeOutput'), {
+            mode: 'ruby',
+            theme: 'monokai',
+            lineNumbers: true,
+            indentUnit: 2,
+            autoCloseBrackets: true,
+            matchBrackets: true,
+            readOnly: true
+        });
+
+        document.getElementById('vimMode').addEventListener('change', function(e) {
+            editor.setOption('keyMap', e.target.checked ? 'vim' : 'default');
+        });
+
+        // Update CodeMirror when HTMX updates the textarea
+        document.body.addEventListener('htmx:afterSwap', function(evt) {
+            if (evt.detail.target.id === 'codeOutput') {
+                editor.setValue(evt.detail.target.value);
+            }
+        });
+
+        // Initial code generation
+        htmx.trigger('#eventForm', 'change');
+    </script>
+</body>
+</html> 

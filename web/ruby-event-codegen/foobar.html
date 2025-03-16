@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mouse Event Code Generator</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
+    <style>
+        .CodeMirror {
+            height: 400px;
+            border: 1px solid #ddd;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1 class="mb-4">Mouse Event Code Generator</h1>
+        
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Event Configuration</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="eventForm">
+                            <div class="form-group">
+                                <label for="eventName">Event Name:</label>
+                                <input type="text" class="form-control" id="eventName" value="MouseDetected">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Fields:</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="fieldLocation" checked>
+                                    <label class="form-check-label" for="fieldLocation">Location (x, y coordinates)</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="fieldTimestamp">
+                                    <label class="form-check-label" for="fieldTimestamp">Timestamp</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="fieldSpeed">
+                                    <label class="form-check-label" for="fieldSpeed">Speed</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="fieldDirection">
+                                    <label class="form-check-label" for="fieldDirection">Direction</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="fieldSize">
+                                    <label class="form-check-label" for="fieldSize">Size estimate</label>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Features:</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="featureValidation" checked>
+                                    <label class="form-check-label" for="featureValidation">Add field validation</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="featureSerializer">
+                                    <label class="form-check-label" for="featureSerializer">Include JSON serializer</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="featureKafka">
+                                    <label class="form-check-label" for="featureKafka">Add Kafka producer</label>
+                                </div>
+                            </div>
+
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="vimMode">
+                                <label class="form-check-label" for="vimMode">Vim Mode</label>
+                            </div>
+
+                            <button type="button" class="btn btn-primary" onclick="generateCode()">Generate Code</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Generated Ruby Code</h5>
+                    </div>
+                    <div class="card-body">
+                        <textarea id="codeOutput"></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Event Timeline</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="mermaidDiagram"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/ruby/ruby.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/keymap/vim.min.js"></script>
+
+    <script>
+        let editor = CodeMirror.fromTextArea(document.getElementById('codeOutput'), {
+            mode: 'ruby',
+            theme: 'monokai',
+            lineNumbers: true,
+            indentUnit: 2,
+            autoCloseBrackets: true,
+            matchBrackets: true
+        });
+
+        document.getElementById('vimMode').addEventListener('change', function(e) {
+            editor.setOption('keyMap', e.target.checked ? 'vim' : 'default');
+        });
+
+        function generateCode() {
+            const eventName = document.getElementById('eventName').value;
+            const fields = {
+                location: document.getElementById('fieldLocation').checked,
+                timestamp: document.getElementById('fieldTimestamp').checked,
+                speed: document.getElementById('fieldSpeed').checked,
+                direction: document.getElementById('fieldDirection').checked,
+                size: document.getElementById('fieldSize').checked
+            };
+            const features = {
+                validation: document.getElementById('featureValidation').checked,
+                serializer: document.getElementById('featureSerializer').checked,
+                kafka: document.getElementById('featureKafka').checked
+            };
+
+            let code = `# frozen_string_literal: true\n\n`;
+
+            if (features.kafka) {
+                code += `require 'kafka'\n`;
+            }
+            
+            code += `\nclass ${eventName}Event\n`;
+
+            // Add attribute accessors
+            const attrs = [];
+            if (fields.location) attrs.push('x', 'y');
+            if (fields.timestamp) attrs.push('timestamp');
+            if (fields.speed) attrs.push('speed');
+            if (fields.direction) attrs.push('direction');
+            if (fields.size) attrs.push('size');
+
+            if (attrs.length > 0) {
+                code += `  attr_accessor :${attrs.join(', :')}\n\n`;
+            }
+
+            // Initialize
+            code += `  def initialize(${attrs.join(', ')})\n`;
+            attrs.forEach(attr => {
+                code += `    @${attr} = ${attr}\n`;
+            });
+            code += `  end\n\n`;
+
+            // Validation
+            if (features.validation) {
+                code += `  def valid?\n`;
+                code += `    return false if ${attrs.join(' .nil? || ')} .nil?\n\n`;
+                
+                if (fields.location) {
+                    code += `    return false unless x.is_a?(Numeric) && y.is_a?(Numeric)\n`;
+                }
+                if (fields.speed) {
+                    code += `    return false unless speed.is_a?(Numeric) && speed >= 0\n`;
+                }
+                if (fields.direction) {
+                    code += `    return false unless (0..360).include?(direction)\n`;
+                }
+                
+                code += `    true\n`;
+                code += `  end\n\n`;
+            }
+
+            // Serializer
+            if (features.serializer) {
+                code += `  def to_json\n`;
+                code += `    {\n`;
+                attrs.forEach(attr => {
+                    code += `      ${attr}: @${attr},\n`;
+                });
+                code += `    }.to_json\n`;
+                code += `  end\n\n`;
+            }
+
+            // Kafka producer
+            if (features.kafka) {
+                code += `  def publish\n`;
+                code += `    return unless valid?\n\n`;
+                code += `    kafka = Kafka.new(['localhost:9092'])\n`;
+                code += `    producer = kafka.producer\n`;
+                code += `    producer.produce(\n`;
+                code += `      topic: 'mouse_events',\n`;
+                code += `      payload: to_json\n`;
+                code += `    )\n`;
+                code += `    producer.deliver_messages\n`;
+                code += `  end\n`;
+            }
+
+            code += `end\n`;
+
+            editor.setValue(code);
+        }
+
+        // Initialize Mermaid
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default',
+            securityLevel: 'loose'
+        });
+
+        function generateMermaidDiagram() {
+            const eventName = document.getElementById('eventName').value;
+            const fields = {
+                location: document.getElementById('fieldLocation').checked,
+                timestamp: document.getElementById('fieldTimestamp').checked,
+                speed: document.getElementById('fieldSpeed').checked,
+                direction: document.getElementById('fieldDirection').checked,
+                size: document.getElementById('fieldSize').checked
+            };
+            const features = {
+                validation: document.getElementById('featureValidation').checked,
+                serializer: document.getElementById('featureSerializer').checked,
+                kafka: document.getElementById('featureKafka').checked
+            };
+
+            let diagram = 'timeline\n';
+            diagram += `    title ${eventName} Timeline\n`;
+            
+            // Detection Phase
+            diagram += '    section Detection Phase\n';
+            diagram += '        Initial trigger : Sensor activated\n';
+            if (fields.location) {
+                diagram += '        Position recorded : x: 120, y: 85\n';
+            }
+            if (fields.timestamp) {
+                diagram += `        Time logged : ${new Date().toISOString()}\n`;
+            }
+
+            // Analysis Phase
+            diagram += '    section Analysis Phase\n';
+            if (fields.speed) {
+                diagram += '        Speed calculated : 0.3 m/s\n';
+            }
+            if (fields.direction) {
+                diagram += '        Direction measured : 45°\n';
+            }
+            if (fields.size) {
+                diagram += '        Size estimated : 8cm length\n';
+            }
+
+            // Processing Phase
+            diagram += '    section Processing Phase\n';
+            if (features.validation) {
+                diagram += '        Validation : Data verified\n';
+            }
+            if (features.serializer) {
+                diagram += '        Serialization : JSON format\n';
+            }
+            if (features.kafka) {
+                diagram += '        Message queue : Kafka published\n';
+            }
+
+            // Clear and recreate the diagram element
+            const container = document.getElementById('mermaidDiagram');
+            container.innerHTML = '';
+            
+            const newElement = document.createElement('div');
+            newElement.className = 'mermaid';
+            newElement.textContent = diagram;
+            container.appendChild(newElement);
+            
+            // Reinitialize mermaid
+            mermaid.run({
+                querySelector: '.mermaid'
+            });
+        }
+
+        // Initialize both code and diagram
+        generateCode();
+        generateMermaidDiagram();
+
+        // Update both when form changes
+        document.querySelectorAll('#eventForm input').forEach(input => {
+            input.addEventListener('change', () => {
+                generateCode();
+                generateMermaidDiagram();
+            });
+        });
+    </script>
+</body>
+</html>
