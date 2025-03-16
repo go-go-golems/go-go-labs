@@ -1,0 +1,12 @@
+name: "Emails from Important Contact"
+description: "Find all emails from a specific sender"
+search:
+  from: "john.doe@example.com"
+output:
+  format: json
+  fields:
+    - subject
+    - date
+    - body:
+        type: text/plain
+        max_length: 200 

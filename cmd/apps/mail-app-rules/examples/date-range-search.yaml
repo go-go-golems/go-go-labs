@@ -1,0 +1,12 @@
+name: "Date Range Search"
+description: "Find emails between two specific dates"
+search:
+  since: "2023-01-01"
+  before: "2023-02-01"
+output:
+  format: text
+  fields:
+    - subject
+    - from
+    - date
+    - size 

@@ -1,0 +1,49 @@
+# This is a detailed example of an IMAP DSL rule file
+# It demonstrates all available options with explanations
+
+# Basic information about the rule
+name: "Detailed Example Rule"
+description: "This rule demonstrates all available options in the IMAP DSL"
+
+# Search criteria - define what emails to find
+search:
+  # Find emails since January 1, 2023
+  # Date formats supported: YYYY-MM-DD, YYYY/MM/DD, MM/DD/YYYY, etc.
+  since: "2023-01-01"
+  
+  # Find emails before February 1, 2023
+  before: "2023-02-01"
+  
+  # Alternative to using since/before: find emails on a specific date
+  # Uncomment to use:
+  # on: "2023-01-15"
+  
+  # Alternative to using specific dates: find emails within the last N days
+  # Uncomment to use:
+  # within_days: 30
+  
+  # Find emails from a specific sender (partial match)
+  from: "example.com"
+
+# Output configuration - define how to display the results
+output:
+  # Format options: text, json, table
+  format: json
+  
+  # Fields to include in the output
+  fields:
+    # Basic message fields
+    - uid           # Unique message ID
+    - subject       # Email subject
+    - from          # Sender address
+    - to            # Recipient addresses
+    - date          # Date received
+    
+    # Message metadata
+    - flags         # Email flags (e.g., \Seen, \Answered)
+    - size          # Message size in bytes
+    
+    # Message body with configuration
+    - body:
+        type: text/plain    # Content type to retrieve
+        max_length: 500     # Maximum length to display 

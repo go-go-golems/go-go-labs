@@ -1,0 +1,11 @@
+name: "Recent Emails"
+description: "Find emails received in the last 7 days"
+search:
+  within_days: 7
+output:
+  format: text
+  fields:
+    - subject
+    - from
+    - date
+    - flags 

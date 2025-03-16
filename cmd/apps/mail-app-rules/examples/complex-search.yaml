@@ -1,0 +1,20 @@
+name: "Complex Search Example"
+description: "Find emails from a specific domain within a date range"
+search:
+  # Combine date range with sender filter
+  since: "2023-06-01"
+  before: "2023-12-31"
+  from: "github.com"  # Find emails from GitHub (notifications, etc.)
+output:
+  # Use JSON format for easier processing
+  format: json
+  fields:
+    - uid
+    - subject
+    - from
+    - date
+    - flags
+    # Include a snippet of the body
+    - body:
+        type: text/plain
+        max_length: 300 

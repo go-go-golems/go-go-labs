@@ -1,0 +1,17 @@
+name: "Full Message Content"
+description: "Retrieve complete message content for recent emails"
+search:
+  within_days: 3
+output:
+  format: json
+  fields:
+    - uid
+    - subject
+    - from
+    - to
+    - date
+    - flags
+    - size
+    - body:
+        type: text/plain
+        max_length: 10000 

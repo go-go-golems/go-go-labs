@@ -1,0 +1,13 @@
+name: "Important Emails"
+description: "Find important emails from the last month"
+search:
+  within_days: 30
+  from: "boss@company.com"
+output:
+  format: table
+  fields:
+    - uid
+    - subject
+    - from
+    - date
+    - flags 
