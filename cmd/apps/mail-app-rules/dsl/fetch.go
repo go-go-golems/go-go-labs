@@ -134,3 +134,36 @@ func determineRequiredBodySections(
 
 	return parts, nil
 }
+
+// BuildFetchOptions converts OutputConfig to imap.FetchOptions
+func BuildFetchOptions(config OutputConfig) (*imap.FetchOptions, error) {
+	options := &imap.FetchOptions{}
+
+	// Process fields
+	for _, fieldInterface := range config.Fields {
+		field, ok := fieldInterface.(Field)
+		if !ok {
+			// Skip fields that couldn't be properly parsed
+			continue
+		}
+
+		switch field.Name {
+		case "uid":
+			options.UID = true
+		case "envelope", "subject", "from", "to", "date":
+			// All these fields require the envelope
+			options.Envelope = true
+		case "flags":
+			options.Flags = true
+		case "size":
+			options.RFC822Size = true
+		case "mime_parts":
+			// We need the body structure for MIME parts
+			options.BodyStructure = &imap.FetchItemBodyStructure{
+				Extended: true,
+			}
+		}
+	}
+
+	return options, nil
+}

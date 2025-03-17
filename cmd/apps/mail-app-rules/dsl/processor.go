@@ -6,10 +6,11 @@ import (
 
 	"github.com/emersion/go-imap/v2"
 	"github.com/emersion/go-imap/v2/imapclient"
+	"github.com/rs/zerolog/log"
 )
 
 // FetchMessages retrieves messages from IMAP server based on the rule
-func FetchMessages(client *imapclient.Client, rule *Rule) ([]*EmailMessage, error) {
+func (rule *Rule) FetchMessages(client *imapclient.Client) ([]*EmailMessage, error) {
 	// 1. Build search criteria
 	criteria, err := BuildSearchCriteria(rule.Search)
 	if err != nil {
@@ -158,13 +159,13 @@ func FetchMessages(client *imapclient.Client, rule *Rule) ([]*EmailMessage, erro
 // ProcessRule executes an IMAP rule
 func ProcessRule(client *imapclient.Client, rule *Rule) error {
 	// 1. Fetch messages
-	messages, err := FetchMessages(client, rule)
+	messages, err := rule.FetchMessages(client)
 	if err != nil {
 		return err
 	}
 
 	if len(messages) == 0 {
-		fmt.Println("No messages found matching the criteria")
+		log.Warn().Msg("No messages found matching the criteria")
 		return nil
 	}
 

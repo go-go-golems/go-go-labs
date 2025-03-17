@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
+	"time"
 
 	"github.com/emersion/go-imap/v2/imapclient"
 	"github.com/go-go-golems/glazed/pkg/cmds"
@@ -11,6 +13,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
+	"github.com/go-go-golems/glazed/pkg/types"
 
 	"github.com/go-go-golems/go-go-labs/cmd/apps/mail-app-rules/dsl"
 )
@@ -89,9 +92,82 @@ func (c *MailRulesCommand) RunIntoGlazeProcessor(
 		return fmt.Errorf("error selecting mailbox: %w", err)
 	}
 
-	// Process rule
-	if err := dsl.ProcessRule(client, rule); err != nil {
-		return fmt.Errorf("error processing rule: %w", err)
+	msgs, err := rule.FetchMessages(client)
+	if err != nil {
+		return fmt.Errorf("error fetching messages: %w", err)
+	}
+
+	for _, msg := range msgs {
+		// Create a new row for each message
+		row := types.NewRow()
+
+		// Process each field according to the rule's output configuration
+		for _, fieldInterface := range rule.Output.Fields {
+			field, ok := fieldInterface.(dsl.Field)
+			if !ok {
+				continue
+			}
+
+			switch field.Name {
+			case "uid":
+				row.Set("uid", msg.UID)
+			case "subject":
+				if msg.Envelope != nil {
+					row.Set("subject", msg.Envelope.Subject)
+				}
+			case "from":
+				if msg.Envelope != nil && len(msg.Envelope.From) > 0 {
+					from := msg.Envelope.From[0]
+					row.Set("from", fmt.Sprintf("%s <%s>", from.Name, from.Address))
+				}
+			case "to":
+				if msg.Envelope != nil && len(msg.Envelope.To) > 0 {
+					var toAddresses []string
+					for _, to := range msg.Envelope.To {
+						toAddresses = append(toAddresses, fmt.Sprintf("%s <%s>", to.Name, to.Address))
+					}
+					row.Set("to", strings.Join(toAddresses, ", "))
+				}
+			case "date":
+				if msg.Envelope != nil {
+					row.Set("date", msg.Envelope.Date.Format(time.RFC3339))
+				}
+			case "flags":
+				row.Set("flags", strings.Join(msg.Flags, ", "))
+			case "size":
+				row.Set("size", msg.Size)
+			case "mime_parts":
+				if field.Content != nil && len(msg.MimeParts) > 0 {
+					var parts []map[string]interface{}
+					for _, part := range msg.MimeParts {
+						if field.Content.ShouldInclude(part.Type + "/" + part.Subtype) {
+							partMap := map[string]interface{}{
+								"type":    part.Type + "/" + part.Subtype,
+								"size":    part.Size,
+								"charset": part.Charset,
+							}
+							if part.Filename != "" {
+								partMap["filename"] = part.Filename
+							}
+							if field.Content.ShowContent {
+								content := part.Content
+								if field.Content.MaxLength > 0 && len(content) > field.Content.MaxLength {
+									content = content[:field.Content.MaxLength] + "..."
+								}
+								partMap["content"] = content
+							}
+							parts = append(parts, partMap)
+						}
+					}
+					row.Set("mime_parts", parts)
+				}
+			}
+		}
+
+		// Add the row to the processor
+		if err := gp.AddRow(ctx, row); err != nil {
+			return fmt.Errorf("error adding row to processor: %w", err)
+		}
 	}
 
 	return nil
