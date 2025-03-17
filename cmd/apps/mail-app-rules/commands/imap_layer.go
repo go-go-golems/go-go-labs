@@ -29,7 +29,6 @@ func NewIMAPParameterLayer() (layers.ParameterLayer, error) {
 				"server",
 				parameters.ParameterTypeString,
 				parameters.WithHelp("IMAP server address"),
-				parameters.WithRequired(true),
 			),
 			parameters.NewParameterDefinition(
 				"port",
@@ -41,7 +40,6 @@ func NewIMAPParameterLayer() (layers.ParameterLayer, error) {
 				"username",
 				parameters.ParameterTypeString,
 				parameters.WithHelp("IMAP username"),
-				parameters.WithRequired(true),
 			),
 			parameters.NewParameterDefinition(
 				"password",
