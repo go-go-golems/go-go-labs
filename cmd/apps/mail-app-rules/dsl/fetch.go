@@ -79,18 +79,12 @@ func determineRequiredBodySections(bodyStructure imap.BodyStructure, config Outp
 			// Create section for this part
 			section := &imap.FetchItemBodySection{
 				// Part: path,
-				Peek:      true,   // Don't mark as read
-				Specifier: "TEXT", // Get the actual content
+				Peek: true, // Don't mark as read
+				Part: path,
+				// Specifier: "TEXT", // Get the actual content
 			}
 			sections = append(sections, section)
 
-			// Always get headers for MIME parts
-			headerSection := &imap.FetchItemBodySection{
-				// Part: path,
-				Peek:      true,
-				Specifier: imap.PartSpecifierHeader,
-			}
-			sections = append(sections, headerSection)
 		}
 
 		return true

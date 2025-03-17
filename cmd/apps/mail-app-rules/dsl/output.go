@@ -240,24 +240,18 @@ func formatOutputText(msgData *imapclient.FetchMessageBuffer, config OutputConfi
 			sb.WriteString(fmt.Sprintf("Size: %d bytes\n", msgData.RFC822Size))
 		case "mime_parts":
 			if msgData.BodyStructure != nil {
-				mimeParts, err := formatMimeParts(bodySectionData)
-				if err != nil {
-					return "", err
-				}
+				for _, section := range msgData.BodySection {
 
-				sb.WriteString("MIME Parts:\n")
-				var writePart func(part MimePart, indent string)
-				writePart = func(part MimePart, indent string) {
-					sb.WriteString(fmt.Sprintf("%s- Type: %s\n", indent, part.Type))
-					if part.Content != "" && field.Content != nil && field.Content.ShowContent {
-						sb.WriteString(fmt.Sprintf("%s  Content: %s\n", indent, part.Content))
+					if len(section.Bytes) > 0 && field.Content != nil && field.Content.ShowContent {
+						var data []byte
+						if len(section.Bytes) > field.Content.MaxLength && field.Content.MaxLength > 0 {
+							data = section.Bytes[:field.Content.MaxLength]
+							data = append(data, []byte("...")...)
+						} else {
+							data = section.Bytes
+						}
+						sb.WriteString(fmt.Sprintf("Content: %s\n", string(data)))
 					}
-					for _, child := range part.Children {
-						writePart(child, indent+"  ")
-					}
-				}
-				for _, part := range mimeParts {
-					writePart(part, "")
 				}
 			}
 		}

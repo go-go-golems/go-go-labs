@@ -53,6 +53,12 @@ func ProcessRule(client *imapclient.Client, rule *Rule) error {
 		return fmt.Errorf("failed to build fetch options: %w", err)
 	}
 
+	bodySection := &imap.FetchItemBodySection{
+		Part: []int{1},
+		Peek: true,
+	}
+	fetchOptions.BodySection = []*imap.FetchItemBodySection{bodySection}
+
 	// 6. First fetch: get metadata and structure
 	messages, err := client.Fetch(seqSet, fetchOptions).Collect()
 	if err != nil {
@@ -76,9 +82,11 @@ func ProcessRule(client *imapclient.Client, rule *Rule) error {
 			msgSeqSet := imap.SeqSetNum(msg.SeqNum)
 
 			// Second fetch: get required body sections
-			bodyFetchOptions := &imap.FetchOptions{
-				BodySection: bodySections,
+			bodyFetchOptions, err := BuildFetchOptions(rule.Output)
+			if err != nil {
+				return fmt.Errorf("failed to build fetch options: %w", err)
 			}
+			bodyFetchOptions.BodySection = bodySections
 
 			fetchCmd := client.Fetch(msgSeqSet, bodyFetchOptions)
 			defer fetchCmd.Close()
@@ -89,7 +97,6 @@ func ProcessRule(client *imapclient.Client, rule *Rule) error {
 			}
 
 			var found bool
-
 			for {
 				item := msg.Next()
 				if item == nil {
@@ -99,8 +106,27 @@ func ProcessRule(client *imapclient.Client, rule *Rule) error {
 				if data, ok := item.(imapclient.FetchItemDataBodySection); ok {
 					bodySectionData = data
 					found = true
-					// break
+					break
 				}
+			}
+			// msg_, err := msg.Collect()
+			// _ = msg_
+			// if err != nil {
+			// 	return fmt.Errorf("failed to collect message body: %w", err)
+			// }
+
+			// var found bool
+			// for _, item := range msg_.BodySection {
+			// 	if data, ok := item.Section.
+			// 		bodySectionData = data
+			// 		found = true
+			// 		// break
+			// 	}
+			// }
+
+			err = fetchCmd.Close()
+			if err != nil {
+				return fmt.Errorf("failed to close fetch command: %w", err)
 			}
 
 			if !found {
