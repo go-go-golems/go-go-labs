@@ -29,38 +29,15 @@ func ParseRuleString(yamlStr string) (*Rule, error) {
 		return nil, fmt.Errorf("failed to parse YAML: %w", err)
 	}
 
-	// Validate basic requirements
-	if err := validateRule(&rule); err != nil {
+	// Validate the rule using the Validate method
+	if err := rule.Validate(); err != nil {
 		return nil, err
 	}
 
+	// Set default values if needed
+	if rule.Output.Format == "" {
+		rule.Output.Format = "text"
+	}
+
 	return &rule, nil
-}
-
-// validateRule performs basic validation on the rule
-func validateRule(rule *Rule) error {
-	// Check if search section exists
-	if rule.Search.From == "" && rule.Search.Since == "" &&
-		rule.Search.Before == "" && rule.Search.On == "" &&
-		rule.Search.WithinDays == 0 {
-		return fmt.Errorf("rule must contain at least one search criterion")
-	}
-
-	// Check if output format is valid
-	switch rule.Output.Format {
-	case "text", "json", "table", "":
-		// Valid formats (empty defaults to text)
-		if rule.Output.Format == "" {
-			rule.Output.Format = "text"
-		}
-	default:
-		return fmt.Errorf("invalid output format: %s", rule.Output.Format)
-	}
-
-	// Check if at least one field is specified
-	if len(rule.Output.Fields) == 0 {
-		return fmt.Errorf("output must specify at least one field")
-	}
-
-	return nil
 }

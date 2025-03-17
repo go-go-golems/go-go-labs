@@ -1,0 +1,23 @@
+name: "MIME Parts Filtered Content Example"
+description: "List specific MIME content types with their content"
+
+search:
+  within_days: 7
+
+output:
+  format: text
+  limit: 5
+  fields:
+    - uid
+    - subject
+    - from
+    - date
+    - mime_parts:
+        mode: "filter"
+        types:
+          - "text/plain"
+          - "text/html"
+        show_types: true
+        show_content: true
+        max_length: 500
+        min_length: 10 

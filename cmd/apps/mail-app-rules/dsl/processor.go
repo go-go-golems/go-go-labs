@@ -29,36 +29,87 @@ func ProcessRule(client *imapclient.Client, rule *Rule) error {
 		return nil
 	}
 
-	// 4. Create sequence set from results
+	// 4. Create sequence set from results, respecting the limit if set
 	var seqSet imap.SeqSet
-	for _, num := range seqNums {
-		seqSet.AddNum(num)
+	limit := len(seqNums)
+	if rule.Output.Limit > 0 && rule.Output.Limit < limit {
+		limit = rule.Output.Limit
 	}
 
-	// 5. Build fetch options
+	// Use the most recent messages first (highest sequence numbers)
+	startIdx := len(seqNums) - 1
+	endIdx := len(seqNums) - limit
+	if endIdx < 0 {
+		endIdx = 0
+	}
+
+	for i := startIdx; i >= endIdx; i-- {
+		seqSet.AddNum(seqNums[i])
+	}
+
+	// 5. Build initial fetch options for metadata and structure
 	fetchOptions, err := BuildFetchOptions(rule.Output)
 	if err != nil {
 		return fmt.Errorf("failed to build fetch options: %w", err)
 	}
 
-	// 6. Fetch messages
-	fetchCmd := client.Fetch(seqSet, fetchOptions)
-	defer fetchCmd.Close()
+	// 6. First fetch: get metadata and structure
+	messages, err := client.Fetch(seqSet, fetchOptions).Collect()
+	if err != nil {
+		return fmt.Errorf("failed to fetch messages: %w", err)
+	}
 
-	// 7. Process and output messages
+	// 7. Process each message
 	count := 0
-	for {
-		msg := fetchCmd.Next()
-		if msg == nil {
-			break
-		}
-
-		msgData, err := msg.Collect()
+	for _, msg := range messages {
+		// Determine required body sections based on structure
+		bodySections, err := determineRequiredBodySections(msg.BodyStructure, rule.Output)
 		if err != nil {
-			return fmt.Errorf("failed to collect message data: %w", err)
+			return fmt.Errorf("failed to determine required body sections: %w", err)
 		}
 
-		output, err := FormatOutput(msgData, rule.Output)
+		var bodySectionData imapclient.FetchItemDataBodySection
+
+		// If we need body sections, do a second fetch
+		if len(bodySections) > 0 {
+			// Create a sequence set for just this message
+			msgSeqSet := imap.SeqSetNum(msg.SeqNum)
+
+			// Second fetch: get required body sections
+			bodyFetchOptions := &imap.FetchOptions{
+				BodySection: bodySections,
+			}
+
+			fetchCmd := client.Fetch(msgSeqSet, bodyFetchOptions)
+			defer fetchCmd.Close()
+
+			msg := fetchCmd.Next()
+			if msg == nil {
+				return fmt.Errorf("failed to fetch message body: %w", err)
+			}
+
+			var found bool
+
+			for {
+				item := msg.Next()
+				if item == nil {
+					break
+				}
+
+				if data, ok := item.(imapclient.FetchItemDataBodySection); ok {
+					bodySectionData = data
+					found = true
+					// break
+				}
+			}
+
+			if !found {
+				return fmt.Errorf("failed to find body section data")
+			}
+		}
+
+		// Format and output the message
+		output, err := FormatOutput(msg, rule.Output, bodySectionData)
 		if err != nil {
 			return fmt.Errorf("failed to format output: %w", err)
 		}
@@ -68,10 +119,6 @@ func ProcessRule(client *imapclient.Client, rule *Rule) error {
 			fmt.Println("----------------------------------------")
 		}
 		fmt.Println(output)
-	}
-
-	if err := fetchCmd.Close(); err != nil {
-		return fmt.Errorf("failed to close fetch command: %w", err)
 	}
 
 	// 8. Print summary

@@ -1,0 +1,19 @@
+name: "MIME Parts Filter Example"
+description: "List only specific MIME content types of recent emails"
+
+search:
+  within_days: 7
+
+output:
+  format: text
+  limit: 5
+  fields:
+    - uid
+    - subject
+    - from
+    - date
+    - mime_parts:
+        mode: "filter"
+        types:
+          - "image/*"
+          - "application/pdf" 

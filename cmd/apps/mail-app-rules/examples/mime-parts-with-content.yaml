@@ -1,0 +1,19 @@
+name: "MIME Parts With Content Example"
+description: "List MIME content types with their content"
+
+search:
+  within_days: 7
+
+output:
+  format: text
+  limit: 5
+  fields:
+    - uid
+    - subject
+    - from
+    - date
+    - mime_parts:
+        mode: "text_only"
+        show_types: true
+        show_content: true
+        max_length: 500 

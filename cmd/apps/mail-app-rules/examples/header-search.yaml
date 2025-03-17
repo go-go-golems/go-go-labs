@@ -1,0 +1,23 @@
+name: "Header Search Example"
+description: "Search for emails with specific header values"
+
+search:
+  # Search for emails with a specific Message-ID
+  header:
+    name: "Message-ID"
+    value: "<CAE+FiQ8oH6M_tcBhJ=example@mail.gmail.com>"
+  
+  # Limit to recent emails (last 90 days)
+  within_days: 90
+
+output:
+  format: text
+  fields:
+    - subject
+    - from
+    - date
+    - headers:
+        include:
+          - "Message-ID"
+          - "In-Reply-To"
+          - "References" 

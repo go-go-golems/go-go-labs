@@ -2,6 +2,7 @@ package dsl
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/emersion/go-imap/v2"
@@ -51,12 +52,103 @@ func BuildSearchCriteria(config SearchConfig) (*imap.SearchCriteria, error) {
 		criteria.Since = since
 	}
 
-	// Process From criteria
+	// Process header-based search criteria
 	if config.From != "" {
 		criteria.Header = append(criteria.Header, imap.SearchCriteriaHeaderField{
 			Key:   "From",
 			Value: config.From,
 		})
+	}
+
+	if config.To != "" {
+		criteria.Header = append(criteria.Header, imap.SearchCriteriaHeaderField{
+			Key:   "To",
+			Value: config.To,
+		})
+	}
+
+	if config.Cc != "" {
+		criteria.Header = append(criteria.Header, imap.SearchCriteriaHeaderField{
+			Key:   "Cc",
+			Value: config.Cc,
+		})
+	}
+
+	if config.Bcc != "" {
+		criteria.Header = append(criteria.Header, imap.SearchCriteriaHeaderField{
+			Key:   "Bcc",
+			Value: config.Bcc,
+		})
+	}
+
+	if config.Subject != "" {
+		criteria.Header = append(criteria.Header, imap.SearchCriteriaHeaderField{
+			Key:   "Subject",
+			Value: config.Subject,
+		})
+	}
+
+	if config.SubjectContains != "" {
+		criteria.Header = append(criteria.Header, imap.SearchCriteriaHeaderField{
+			Key:   "Subject",
+			Value: config.SubjectContains,
+		})
+	}
+
+	if config.Header != nil && config.Header.Name != "" {
+		criteria.Header = append(criteria.Header, imap.SearchCriteriaHeaderField{
+			Key:   config.Header.Name,
+			Value: config.Header.Value,
+		})
+	}
+
+	// Process content-based search criteria
+	if config.BodyContains != "" {
+		criteria.Body = []string{config.BodyContains}
+	}
+
+	if config.Text != "" {
+		criteria.Text = []string{config.Text}
+	}
+
+	// Process flag-based search criteria
+	if config.Flags != nil {
+		if len(config.Flags.Has) > 0 {
+			for _, flag := range config.Flags.Has {
+				// Convert flag name to IMAP format if needed
+				imapFlag := convertToIMAPFlag(flag)
+				criteria.Flag = append(criteria.Flag, imap.Flag(imapFlag))
+			}
+		}
+
+		if len(config.Flags.NotHas) > 0 {
+			for _, flag := range config.Flags.NotHas {
+				// Convert flag name to IMAP format if needed
+				imapFlag := convertToIMAPFlag(flag)
+				criteria.NotFlag = append(criteria.NotFlag, imap.Flag(imapFlag))
+			}
+		}
+	}
+
+	// Process size-based search criteria
+	if config.Size != nil {
+		if config.Size.LargerThan != "" {
+			size, err := parseSize(config.Size.LargerThan)
+			if err != nil {
+				return nil, fmt.Errorf("invalid 'larger_than' size: %w", err)
+			}
+
+			criteria.Larger = int64(size)
+		}
+
+		if config.Size.SmallerThan != "" {
+			size, err := parseSize(config.Size.SmallerThan)
+			if err != nil {
+				return nil, fmt.Errorf("invalid 'smaller_than' size: %w", err)
+			}
+
+			criteria.Smaller = int64(size)
+		}
 	}
 
 	return criteria, nil
@@ -80,8 +172,11 @@ func parseDate(dateStr string) (time.Time, error) {
 	formats := []string{
 		"2006/01/02",
 		"01/02/2006",
+		"02/01/2006",
 		"Jan 2, 2006",
 		"2 Jan 2006",
+		time.RFC822,
+		time.RFC1123,
 	}
 
 	for _, format := range formats {
@@ -92,4 +187,34 @@ func parseDate(dateStr string) (time.Time, error) {
 	}
 
 	return time.Time{}, fmt.Errorf("could not parse date: %s", dateStr)
+}
+
+// convertToIMAPFlag converts a user-friendly flag name to IMAP format
+func convertToIMAPFlag(flag string) string {
+	// If it already starts with \ or $, return as is
+	if strings.HasPrefix(flag, "\\") || strings.HasPrefix(flag, "$") {
+		return flag
+	}
+
+	// Map of standard flag names to IMAP format
+	standardFlags := map[string]string{
+		"seen":      "\\Seen",
+		"answered":  "\\Answered",
+		"flagged":   "\\Flagged",
+		"deleted":   "\\Deleted",
+		"draft":     "\\Draft",
+		"recent":    "\\Recent",
+		"important": "$Important",
+	}
+
+	// Convert to lowercase for case-insensitive comparison
+	flagLower := strings.ToLower(flag)
+
+	// Check if it's a standard flag
+	if imapFlag, ok := standardFlags[flagLower]; ok {
+		return imapFlag
+	}
+
+	// Return as is for custom flags
+	return flag
 }

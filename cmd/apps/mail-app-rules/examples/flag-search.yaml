@@ -1,0 +1,23 @@
+name: "Flag Search Example"
+description: "Search for emails with specific flags"
+
+search:
+  # Find important unread emails
+  flags:
+    has:
+      - flagged      # Important/starred emails
+      - important    # Some clients use this flag
+    not_has:
+      - seen         # Unread emails
+  
+  # Limit to recent emails (last 14 days)
+  within_days: 14
+
+output:
+  format: table
+  fields:
+    - uid
+    - subject
+    - from
+    - date
+    - flags 

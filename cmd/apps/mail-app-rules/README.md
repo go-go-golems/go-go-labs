@@ -70,11 +70,55 @@ output:
 
 The following search criteria are supported:
 
-- `since`: Emails received since this date (format: YYYY-MM-DD)
-- `before`: Emails received before this date (format: YYYY-MM-DD)
-- `on`: Emails received on this specific date (format: YYYY-MM-DD)
-- `within_days`: Emails received within the last N days
-- `from`: Emails from a specific sender (partial match)
+#### Date-based Search
+```yaml
+search:
+  since: "2023-01-01"     # Messages since date
+  before: "2023-03-01"    # Messages before date
+  on: "2023-02-14"        # Messages on specific date
+  within_days: 7          # Messages within last N days
+```
+
+#### Header-based Search
+```yaml
+search:
+  from: "sender@example.com"
+  to: "recipient@example.com"
+  cc: "cc@example.com"
+  bcc: "bcc@example.com"
+  subject: "Important Meeting"
+  subject_contains: "Report"
+  header:
+    name: "Message-ID"
+    value: "<123@example.com>"
+```
+
+#### Content-based Search
+```yaml
+search:
+  body_contains: "specific text"
+  text: "search anywhere"  # Searches in headers and body
+```
+
+#### Flag-based Search
+```yaml
+search:
+  flags:
+    has:
+      - seen
+      - flagged
+    not_has:
+      - deleted
+      - draft
+```
+
+#### Size-based Search
+```yaml
+search:
+  size:
+    larger_than: 1M    # Supports B, K, M, G units
+    smaller_than: 5M
+```
 
 ### Output Format
 
@@ -114,6 +158,9 @@ The `examples/` directory contains sample YAML rule files and helper scripts:
 - `full-message-content.yaml`: Retrieve complete message content
 - `complex-search.yaml`: Combine multiple search criteria
 - `detailed-example.yaml`: A comprehensive example with comments
+- `advanced-search.yaml`: Demonstrates all search criteria options
+- `header-search.yaml`: Search by specific headers
+- `flag-search.yaml`: Search by message flags
 - `run-example.sh`: Shell script to run the examples
 
 To run an example:

@@ -1,0 +1,40 @@
+name: "Advanced Search Example"
+description: "Demonstrates all the new search criteria options"
+
+search:
+  # Header-based search
+  from: "notifications@github.com"
+  to: "your.email@example.com"
+  cc: "team@example.com"
+  subject_contains: "Pull request"
+  
+  # Content-based search
+  body_contains: "merged your pull request"
+  
+  # Flag-based search
+  flags:
+    has:
+      - seen
+    not_has:
+      - flagged
+  
+  # Size-based search
+  size:
+    larger_than: 10K
+    smaller_than: 1M
+  
+  # Date-based search (limit to last month)
+  within_days: 30
+
+output:
+  format: json
+  fields:
+    - uid
+    - subject
+    - from
+    - date
+    - flags
+    - size
+    - body:
+        type: text/plain
+        max_length: 200 

@@ -3,11 +3,13 @@ package dsl
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
 	"github.com/emersion/go-imap/v2"
 	"github.com/emersion/go-imap/v2/imapclient"
+	"github.com/emersion/go-message/mail"
 )
 
 // BuildFetchOptions converts OutputConfig to imap.FetchOptions
@@ -32,14 +34,10 @@ func BuildFetchOptions(config OutputConfig) (*imap.FetchOptions, error) {
 			options.Flags = true
 		case "size":
 			options.RFC822Size = true
-		case "body":
-			if field.Body != nil {
-				// Configure body section fetch
-				bodySection := &imap.FetchItemBodySection{
-					Specifier: "TEXT",
-					Peek:      true,
-				}
-				options.BodySection = append(options.BodySection, bodySection)
+		case "mime_parts":
+			// We need the body structure for MIME parts
+			options.BodyStructure = &imap.FetchItemBodyStructure{
+				Extended: true,
 			}
 		}
 	}
@@ -48,20 +46,94 @@ func BuildFetchOptions(config OutputConfig) (*imap.FetchOptions, error) {
 }
 
 // FormatOutput formats message data according to OutputConfig
-func FormatOutput(msgData *imapclient.FetchMessageBuffer, config OutputConfig) (string, error) {
+func FormatOutput(msgData *imapclient.FetchMessageBuffer, config OutputConfig, bodySectionData imapclient.FetchItemDataBodySection) (string, error) {
 	switch config.Format {
 	case "json":
-		return formatOutputJSON(msgData, config)
+		return formatOutputJSON(msgData, config, bodySectionData)
 	case "table":
-		return formatOutputTable(msgData, config)
+		return formatOutputTable(msgData, config, bodySectionData)
 	default:
 		// Default to text format
-		return formatOutputText(msgData, config)
+		return formatOutputText(msgData, config, bodySectionData)
 	}
 }
 
+// MimePart represents a single MIME part in the message
+type MimePart struct {
+	Children    []MimePart
+	Type        string
+	Subtype     string
+	Disposition string
+	Encoding    string
+	Size        uint32
+	Content     string
+	Filename    string
+	Charset     string
+}
+
+func findBodySection(bodySections []imapclient.FetchBodySectionBuffer, specifier imap.PartSpecifier) []byte {
+	for _, section := range bodySections {
+		if section.Section.Specifier == specifier {
+			return section.Bytes
+		}
+	}
+	return nil
+}
+
+// formatMimeParts extracts MIME part content types and content from the message
+func formatMimeParts(
+	bodySectionData imapclient.FetchItemDataBodySection,
+) ([]MimePart, error) {
+	result := []MimePart{}
+
+	mr, err := mail.CreateReader(bodySectionData.Literal)
+	if err != nil {
+		return nil, err
+	}
+
+	for {
+		part, err := mr.NextPart()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		switch header := part.Header.(type) {
+		case *mail.InlineHeader:
+			contentType, params, _ := header.ContentType()
+			content, err := io.ReadAll(part.Body)
+			if err != nil {
+				return nil, err
+			}
+			result = append(result, MimePart{
+				Type:    contentType,
+				Subtype: params["subtype"],
+				Content: string(content),
+				Size:    uint32(len(content)),
+				Charset: params["charset"],
+			})
+		case *mail.AttachmentHeader:
+			filename, _ := header.Filename()
+			contentType, _, _ := header.ContentType()
+			content, err := io.ReadAll(part.Body)
+			if err != nil {
+				return nil, err
+			}
+			result = append(result, MimePart{
+				Filename: filename,
+				Type:     contentType,
+				Size:     uint32(len(content)),
+			})
+		}
+	}
+
+	return result, nil
+}
+
 // formatOutputJSON formats message data as JSON
-func formatOutputJSON(msgData *imapclient.FetchMessageBuffer, config OutputConfig) (string, error) {
+func formatOutputJSON(msgData *imapclient.FetchMessageBuffer, config OutputConfig, bodySectionData imapclient.FetchItemDataBodySection) (string, error) {
 	// Create a map to hold the output data
 	output := make(map[string]interface{})
 
@@ -102,14 +174,13 @@ func formatOutputJSON(msgData *imapclient.FetchMessageBuffer, config OutputConfi
 			}
 		case "size":
 			output["size"] = msgData.RFC822Size
-		case "body":
-			// For simplicity, we'll just get the first body section
-			if field.Body != nil && len(msgData.BodySection) > 0 {
-				bodyText := string(msgData.BodySection[0].Bytes)
-				if field.Body.MaxLength > 0 && len(bodyText) > field.Body.MaxLength {
-					bodyText = bodyText[:field.Body.MaxLength] + "..."
+		case "mime_parts":
+			if msgData.BodyStructure != nil {
+				mimeParts, err := formatMimeParts(bodySectionData)
+				if err != nil {
+					return "", err
 				}
-				output["body"] = bodyText
+				output["mime_parts"] = mimeParts
 			}
 		}
 	}
@@ -124,7 +195,7 @@ func formatOutputJSON(msgData *imapclient.FetchMessageBuffer, config OutputConfi
 }
 
 // formatOutputText formats message data as plain text
-func formatOutputText(msgData *imapclient.FetchMessageBuffer, config OutputConfig) (string, error) {
+func formatOutputText(msgData *imapclient.FetchMessageBuffer, config OutputConfig, bodySectionData imapclient.FetchItemDataBodySection) (string, error) {
 	var sb strings.Builder
 
 	// Process each field
@@ -148,11 +219,14 @@ func formatOutputText(msgData *imapclient.FetchMessageBuffer, config OutputConfi
 			}
 		case "to":
 			if msgData.Envelope != nil && len(msgData.Envelope.To) > 0 {
-				addresses := make([]string, 0, len(msgData.Envelope.To))
-				for _, addr := range msgData.Envelope.To {
-					addresses = append(addresses, formatAddress(addr))
+				sb.WriteString("To: ")
+				for i, addr := range msgData.Envelope.To {
+					if i > 0 {
+						sb.WriteString(", ")
+					}
+					sb.WriteString(formatAddress(addr))
 				}
-				sb.WriteString(fmt.Sprintf("To: %s\n", strings.Join(addresses, ", ")))
+				sb.WriteString("\n")
 			}
 		case "date":
 			if msgData.Envelope != nil {
@@ -164,14 +238,27 @@ func formatOutputText(msgData *imapclient.FetchMessageBuffer, config OutputConfi
 			}
 		case "size":
 			sb.WriteString(fmt.Sprintf("Size: %d bytes\n", msgData.RFC822Size))
-		case "body":
-			// For simplicity, we'll just get the first body section
-			if field.Body != nil && len(msgData.BodySection) > 0 {
-				bodyText := string(msgData.BodySection[0].Bytes)
-				if field.Body.MaxLength > 0 && len(bodyText) > field.Body.MaxLength {
-					bodyText = bodyText[:field.Body.MaxLength] + "..."
+		case "mime_parts":
+			if msgData.BodyStructure != nil {
+				mimeParts, err := formatMimeParts(bodySectionData)
+				if err != nil {
+					return "", err
 				}
-				sb.WriteString(fmt.Sprintf("\nBody:\n%s\n", bodyText))
+
+				sb.WriteString("MIME Parts:\n")
+				var writePart func(part MimePart, indent string)
+				writePart = func(part MimePart, indent string) {
+					sb.WriteString(fmt.Sprintf("%s- Type: %s\n", indent, part.Type))
+					if part.Content != "" && field.Content != nil && field.Content.ShowContent {
+						sb.WriteString(fmt.Sprintf("%s  Content: %s\n", indent, part.Content))
+					}
+					for _, child := range part.Children {
+						writePart(child, indent+"  ")
+					}
+				}
+				for _, part := range mimeParts {
+					writePart(part, "")
+				}
 			}
 		}
 	}
@@ -180,10 +267,10 @@ func formatOutputText(msgData *imapclient.FetchMessageBuffer, config OutputConfi
 }
 
 // formatOutputTable formats message data as a table (simplified for now)
-func formatOutputTable(msgData *imapclient.FetchMessageBuffer, config OutputConfig) (string, error) {
+func formatOutputTable(msgData *imapclient.FetchMessageBuffer, config OutputConfig, bodySectionData imapclient.FetchItemDataBodySection) (string, error) {
 	// For simplicity, we'll just use the text format for now
-	// In a real implementation, this would format the data as a table
-	return formatOutputText(msgData, config)
+	// In a real implementation, this would format the data as a table with proper column alignment
+	return formatOutputText(msgData, config, bodySectionData)
 }
 
 // formatAddress formats an email address

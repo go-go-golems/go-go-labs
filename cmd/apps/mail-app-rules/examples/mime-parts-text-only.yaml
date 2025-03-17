@@ -1,0 +1,16 @@
+name: "MIME Parts Text Only Example"
+description: "List only text MIME content types of recent emails"
+
+search:
+  within_days: 7
+
+output:
+  format: text
+  limit: 5
+  fields:
+    - uid
+    - subject
+    - from
+    - date
+    - mime_parts:
+        mode: "text_only" 

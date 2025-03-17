@@ -92,6 +92,7 @@ The `output` section defines what information to extract and how to format it:
 ```yaml
 output:
   format: json  # json, text, table
+  limit: 10     # Maximum number of messages to return (optional)
   fields:
     - uid
     - subject
@@ -110,6 +111,18 @@ output:
         type: "text/plain"  # or text/html
         max_length: 1000
         strip_quotes: true
+```
+
+### MIME Parts Listing
+```yaml
+output:
+  fields:
+    - mime_parts:
+        list_only: true  # Just list content types without content
+        mode: "full"     # Options: "full", "text_only", "filter"
+        types:           # Required when mode is "filter"
+          - "image/*"    # Supports wildcards
+          - "application/pdf"
 ```
 
 ### Header Selection
@@ -134,6 +147,28 @@ output:
         types:              # Filter by mime types
           - "application/pdf"
           - "image/*"
+```
+
+### Message Body and MIME Parts Options
+```yaml
+output:
+  fields:
+    # Body field
+    - body:
+        type: "text/plain"  # or text/html
+        max_length: 1000    # Maximum length of content to return
+        min_length: 10      # Minimum length of content to return
+    
+    # MIME parts field
+    - mime_parts:
+        mode: "full"        # Options: "full", "text_only", "filter"
+        types:              # Required when mode is "filter"
+          - "image/*"       # Supports wildcards
+          - "application/pdf"
+        show_types: true    # Whether to show MIME types (default true)
+        show_content: true  # Whether to show content (default false)
+        max_length: 1000    # Maximum length of content to return
+        min_length: 10      # Minimum length of content to return
 ```
 
 ## Actions
