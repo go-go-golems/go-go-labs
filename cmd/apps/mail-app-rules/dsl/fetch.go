@@ -7,16 +7,27 @@ import (
 	"github.com/emersion/go-imap/v2"
 )
 
+// MimePartMetadata contains information about a MIME part to be fetched
+type MimePartMetadata struct {
+	FetchSection *imap.FetchItemBodySection
+	Type         string
+	Subtype      string
+	Params       map[string]string
+	IsAttachment bool
+	Filename     string
+	Path         []int
+}
+
 // determineRequiredBodySections analyzes the output config and body structure to determine which parts need to be fetched
 func determineRequiredBodySections(
 	bodyStructure imap.BodyStructure,
 	config OutputConfig,
-) ([]*imap.FetchItemBodySection, error) {
+) ([]MimePartMetadata, error) {
 	if bodyStructure == nil {
 		return nil, fmt.Errorf("no body structure provided")
 	}
 
-	var sections []*imap.FetchItemBodySection
+	var parts []MimePartMetadata
 
 	// Check if we need MIME parts
 	var contentField *ContentField
@@ -37,7 +48,7 @@ func determineRequiredBodySections(
 
 	// If we don't need MIME parts, return empty slice
 	if !needsMimeParts {
-		return sections, nil
+		return parts, nil
 	}
 
 	// Helper function to determine if we should include a part based on content field settings
@@ -81,17 +92,45 @@ func determineRequiredBodySections(
 		if shouldIncludePart(mediaType) {
 			// Create section for this part
 			section := &imap.FetchItemBodySection{
-				// Part: path,
 				Peek: true, // Don't mark as read
 				Part: path,
-				// Specifier: "TEXT", // Get the actual content
 			}
-			sections = append(sections, section)
 
+			if contentField.MaxLength > 0 {
+				section.Partial = &imap.SectionPartial{
+					Offset: 0,
+					// fetch 1 more to be able to elide ... later on
+					Size: int64(contentField.MaxLength) + 1,
+				}
+			}
+
+			// Extract MIME information
+			mimeType := part.MediaType()
+
+			// Determine if it's an attachment and get filename
+			isAttachment := false
+			filename := ""
+			if disp := part.Disposition(); disp != nil {
+				isAttachment = disp.Value == "attachment"
+				if len(disp.Params) > 0 {
+					filename = disp.Params["filename"]
+				}
+			}
+
+			metadata := MimePartMetadata{
+				FetchSection: section,
+				Type:         mimeType,
+				Params:       map[string]string{}, // Initialize empty map since we can't access params directly
+				IsAttachment: isAttachment,
+				Filename:     filename,
+				Path:         path,
+			}
+
+			parts = append(parts, metadata)
 		}
 
 		return true
 	})
 
-	return sections, nil
+	return parts, nil
 }

@@ -1,0 +1,44 @@
+selectors:
+  - title: Page Title
+    selector: "title"
+    assemble: single
+
+  - title: Article Title
+    selector: "h1.entry-title span"
+    assemble: single
+
+  - title: Author
+    selector: "h3.byline"
+    assemble: single
+    transformations:
+      - strip
+
+  - title: Article Content
+    selector: ".entry_content p"
+    assemble: concatenate
+    transformations:
+      - strip
+
+  - title: Main Images
+    selector: ".entry_content img"
+    assemble: hash
+    key_attribute: alt
+    value_attribute: src
+
+  - title: Related Links
+    selector: ".entry_content a"
+    assemble: hash
+    key_attribute: text
+    value_attribute: href
+
+  - title: Tags
+    selector: "h4.tags a"
+    assemble: list
+    attributes:
+      - text
+
+  - title: Publication Date
+    selector: "#end_print p"
+    assemble: single
+    transformations:
+      - strip

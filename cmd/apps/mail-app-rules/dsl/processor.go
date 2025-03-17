@@ -8,26 +8,25 @@ import (
 	"github.com/emersion/go-imap/v2/imapclient"
 )
 
-// ProcessRule executes an IMAP rule
-func ProcessRule(client *imapclient.Client, rule *Rule) error {
+// FetchMessages retrieves messages from IMAP server based on the rule
+func FetchMessages(client *imapclient.Client, rule *Rule) ([]*EmailMessage, error) {
 	// 1. Build search criteria
 	criteria, err := BuildSearchCriteria(rule.Search)
 	if err != nil {
-		return fmt.Errorf("failed to build search criteria: %w", err)
+		return nil, fmt.Errorf("failed to build search criteria: %w", err)
 	}
 
 	// 2. Execute search
 	searchCmd := client.Search(criteria, nil)
 	searchData, err := searchCmd.Wait()
 	if err != nil {
-		return fmt.Errorf("failed to execute search: %w", err)
+		return nil, fmt.Errorf("failed to execute search: %w", err)
 	}
 
 	// 3. Check if we have results
 	seqNums := searchData.AllSeqNums()
 	if len(seqNums) == 0 {
-		fmt.Println("No messages found matching the criteria")
-		return nil
+		return nil, nil
 	}
 
 	// 4. Create sequence set from results, respecting the limit if set
@@ -51,7 +50,7 @@ func ProcessRule(client *imapclient.Client, rule *Rule) error {
 	// 5. Build initial fetch options for metadata and structure
 	fetchOptions, err := BuildFetchOptions(rule.Output)
 	if err != nil {
-		return fmt.Errorf("failed to build fetch options: %w", err)
+		return nil, fmt.Errorf("failed to build fetch options: %w", err)
 	}
 
 	fetchOptions.BodySection = []*imap.FetchItemBodySection{}
@@ -59,42 +58,51 @@ func ProcessRule(client *imapclient.Client, rule *Rule) error {
 	// 6. First fetch: get metadata and structure
 	messages, err := client.Fetch(seqSet, fetchOptions).Collect()
 	if err != nil {
-		return fmt.Errorf("failed to fetch messages: %w", err)
+		return nil, fmt.Errorf("failed to fetch messages: %w", err)
 	}
 
 	// 7. Process each message
-	count := 0
+	result := make([]*EmailMessage, 0, len(messages))
 	for _, msg := range messages {
 		// Determine required body sections based on structure
-		bodySections, err := determineRequiredBodySections(msg.BodyStructure, rule.Output)
+		bodyStructure := msg.BodyStructure
+		mimePartMetadata, err := determineRequiredBodySections(bodyStructure, rule.Output)
 		if err != nil {
-			return fmt.Errorf("failed to determine required body sections: %w", err)
+			return nil, fmt.Errorf("failed to determine required body sections: %w", err)
 		}
 
-		var bodySectionData imapclient.FetchItemDataBodySection
+		var mimeParts []MimePart
+		var fetchSections []*imap.FetchItemBodySection
+
+		// Collect all fetch sections
+		for _, metadata := range mimePartMetadata {
+			fetchSections = append(fetchSections, metadata.FetchSection)
+		}
 
 		// If we need body sections, do a second fetch
-		if len(bodySections) > 0 {
+		if len(fetchSections) > 0 {
 			// Create a sequence set for just this message
 			msgSeqSet := imap.SeqSetNum(msg.SeqNum)
 
 			// Second fetch: get required body sections
 			bodyFetchOptions, err := BuildFetchOptions(rule.Output)
 			if err != nil {
-				return fmt.Errorf("failed to build fetch options: %w", err)
+				return nil, fmt.Errorf("failed to build fetch options: %w", err)
 			}
 			bodyFetchOptions.BodyStructure = &imap.FetchItemBodyStructure{}
-			bodyFetchOptions.BodySection = bodySections
+			bodyFetchOptions.BodySection = fetchSections
 
 			fetchCmd := client.Fetch(msgSeqSet, bodyFetchOptions)
 			defer fetchCmd.Close()
 
 			msg := fetchCmd.Next()
 			if msg == nil {
-				return fmt.Errorf("failed to fetch message body: %w", err)
+				return nil, fmt.Errorf("failed to fetch message body")
 			}
 
-			var found bool
+			// Create a map to store content for each path
+			contentMap := make(map[string][]byte)
+
 			for {
 				item := msg.Next()
 				if item == nil {
@@ -102,41 +110,69 @@ func ProcessRule(client *imapclient.Client, rule *Rule) error {
 				}
 
 				if data, ok := item.(imapclient.FetchItemDataBodySection); ok {
-					bodySectionData = data
-					found = true
+					// Read the body content
 					content, err := io.ReadAll(data.Literal)
 					if err != nil {
-						return fmt.Errorf("failed to read body section: %w", err)
+						return nil, fmt.Errorf("failed to read body section: %w", err)
 					}
-					fmt.Println(string(content))
-					break
+
+					// Create a key from the section
+					pathKey := fmt.Sprintf("%v", data.Section.Part)
+					contentMap[pathKey] = content
 				}
 			}
+
 			err = fetchCmd.Close()
 			if err != nil {
-				return fmt.Errorf("failed to close fetch command: %w", err)
+				return nil, fmt.Errorf("failed to close fetch command: %w", err)
 			}
 
-			if !found {
-				return fmt.Errorf("failed to find body section data")
+			// Create MimeParts using metadata and content
+			for _, metadata := range mimePartMetadata {
+				pathKey := fmt.Sprintf("%v", metadata.Path)
+				content := contentMap[pathKey]
+
+				mimePart := MimePart{
+					Type:     metadata.Type,
+					Subtype:  metadata.Subtype,
+					Content:  string(content),
+					Size:     uint32(len(content)),
+					Charset:  metadata.Params["charset"],
+					Filename: metadata.Filename,
+				}
+				mimeParts = append(mimeParts, mimePart)
 			}
 		}
 
-		// Format and output the message
-		output, err := FormatOutput(msg, rule.Output, bodySectionData)
+		// Convert to our internal format
+		email, err := NewEmailMessageFromIMAP(msg, mimeParts)
 		if err != nil {
-			return fmt.Errorf("failed to format output: %w", err)
+			return nil, fmt.Errorf("failed to convert message: %w", err)
 		}
-
-		count++
-		if count > 1 {
-			fmt.Println("----------------------------------------")
-		}
-		fmt.Println(output)
+		result = append(result, email)
 	}
 
-	// 8. Print summary
-	fmt.Printf("\nFound %d message(s) matching the criteria\n", count)
+	return result, nil
+}
+
+// ProcessRule executes an IMAP rule
+func ProcessRule(client *imapclient.Client, rule *Rule) error {
+	// 1. Fetch messages
+	messages, err := FetchMessages(client, rule)
+	if err != nil {
+		return err
+	}
+
+	if len(messages) == 0 {
+		fmt.Println("No messages found matching the criteria")
+		return nil
+	}
+
+	// 2. Output messages
+	err = OutputMessages(messages, rule.Output)
+	if err != nil {
+		return fmt.Errorf("failed to output messages: %w", err)
+	}
 
 	return nil
 }
