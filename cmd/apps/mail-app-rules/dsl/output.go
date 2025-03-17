@@ -80,8 +80,8 @@ func findBodySection(bodySections []imapclient.FetchBodySectionBuffer, specifier
 	return nil
 }
 
-// formatMimeParts extracts MIME part content types and content from the message
-func formatMimeParts(
+// fetchMimeParts extracts MIME part content types and content from the message
+func fetchMimeParts(
 	bodySectionData imapclient.FetchItemDataBodySection,
 ) ([]MimePart, error) {
 	result := []MimePart{}
@@ -176,7 +176,7 @@ func formatOutputJSON(msgData *imapclient.FetchMessageBuffer, config OutputConfi
 			output["size"] = msgData.RFC822Size
 		case "mime_parts":
 			if msgData.BodyStructure != nil {
-				mimeParts, err := formatMimeParts(bodySectionData)
+				mimeParts, err := fetchMimeParts(bodySectionData)
 				if err != nil {
 					return "", err
 				}
@@ -239,9 +239,13 @@ func formatOutputText(msgData *imapclient.FetchMessageBuffer, config OutputConfi
 		case "size":
 			sb.WriteString(fmt.Sprintf("Size: %d bytes\n", msgData.RFC822Size))
 		case "mime_parts":
+			content, err := io.ReadAll(bodySectionData.Literal)
+			_ = content
+			_ = err
 			if msgData.BodyStructure != nil {
 				for _, section := range msgData.BodySection {
 
+					/// XXX properly print out the collected sections
 					if len(section.Bytes) > 0 && field.Content != nil && field.Content.ShowContent {
 						var data []byte
 						if len(section.Bytes) > field.Content.MaxLength && field.Content.MaxLength > 0 {

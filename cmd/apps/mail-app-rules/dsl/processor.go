@@ -2,6 +2,7 @@ package dsl
 
 import (
 	"fmt"
+	"io"
 
 	"github.com/emersion/go-imap/v2"
 	"github.com/emersion/go-imap/v2/imapclient"
@@ -53,11 +54,7 @@ func ProcessRule(client *imapclient.Client, rule *Rule) error {
 		return fmt.Errorf("failed to build fetch options: %w", err)
 	}
 
-	bodySection := &imap.FetchItemBodySection{
-		Part: []int{1},
-		Peek: true,
-	}
-	fetchOptions.BodySection = []*imap.FetchItemBodySection{bodySection}
+	fetchOptions.BodySection = []*imap.FetchItemBodySection{}
 
 	// 6. First fetch: get metadata and structure
 	messages, err := client.Fetch(seqSet, fetchOptions).Collect()
@@ -86,6 +83,7 @@ func ProcessRule(client *imapclient.Client, rule *Rule) error {
 			if err != nil {
 				return fmt.Errorf("failed to build fetch options: %w", err)
 			}
+			bodyFetchOptions.BodyStructure = &imap.FetchItemBodyStructure{}
 			bodyFetchOptions.BodySection = bodySections
 
 			fetchCmd := client.Fetch(msgSeqSet, bodyFetchOptions)
@@ -106,24 +104,14 @@ func ProcessRule(client *imapclient.Client, rule *Rule) error {
 				if data, ok := item.(imapclient.FetchItemDataBodySection); ok {
 					bodySectionData = data
 					found = true
+					content, err := io.ReadAll(data.Literal)
+					if err != nil {
+						return fmt.Errorf("failed to read body section: %w", err)
+					}
+					fmt.Println(string(content))
 					break
 				}
 			}
-			// msg_, err := msg.Collect()
-			// _ = msg_
-			// if err != nil {
-			// 	return fmt.Errorf("failed to collect message body: %w", err)
-			// }
-
-			// var found bool
-			// for _, item := range msg_.BodySection {
-			// 	if data, ok := item.Section.
-			// 		bodySectionData = data
-			// 		found = true
-			// 		// break
-			// 	}
-			// }
-
 			err = fetchCmd.Close()
 			if err != nil {
 				return fmt.Errorf("failed to close fetch command: %w", err)

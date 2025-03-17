@@ -8,7 +8,10 @@ import (
 )
 
 // determineRequiredBodySections analyzes the output config and body structure to determine which parts need to be fetched
-func determineRequiredBodySections(bodyStructure imap.BodyStructure, config OutputConfig) ([]*imap.FetchItemBodySection, error) {
+func determineRequiredBodySections(
+	bodyStructure imap.BodyStructure,
+	config OutputConfig,
+) ([]*imap.FetchItemBodySection, error) {
 	if bodyStructure == nil {
 		return nil, fmt.Errorf("no body structure provided")
 	}
