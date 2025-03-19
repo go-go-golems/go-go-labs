@@ -107,3 +107,10 @@ Added comprehensive documentation for the Google Maps CLI tools:
 - Best practices for extending functionality
 - Advanced usage scenarios and integration examples
 - Next steps and future improvements
+
+# Add Sprig Template Functions
+
+Added Sprig template functions to enhance template functionality in the reusable manager form experiment.
+
+- Added Sprig template functions to enable advanced template operations
+- Updated template initialization to include Sprig's function map

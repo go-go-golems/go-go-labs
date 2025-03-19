@@ -120,8 +120,8 @@ func (c *DirectionsCommand) RunIntoGlazeProcessor(ctx context.Context, parsedLay
 	req := &maps.DirectionsRequest{
 		Origin:      c.settings.Origin,
 		Destination: c.settings.Destination,
-		Mode:        maps.Mode(strings.ToUpper(c.settings.Mode)),
-		Units:       maps.Units(strings.ToUpper(c.settings.Units)),
+		Mode:        maps.Mode(c.settings.Mode),
+		Units:       maps.Units(c.settings.Units),
 	}
 
 	// Add waypoints if provided
