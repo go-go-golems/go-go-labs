@@ -1,0 +1,11 @@
+{{ define "report_dropdown" }}
+<div class="form-group">
+    <label for="{{ .FormID }}-report-select">Report</label>
+    <select id="{{ .FormID }}-report-select" name="report_id">
+        <option value="">Select a Report</option>
+        {{ range .Reports }}
+        <option value="{{ .ID }}">{{ .Name }}</option>
+        {{ end }}
+    </select>
+</div>
+{{ end }} 

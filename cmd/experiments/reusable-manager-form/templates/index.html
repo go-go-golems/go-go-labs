@@ -1,0 +1,52 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTMX Dropdown Demo</title>
+    <script src="https://unpkg.com/htmx.org@1.9.2"></script>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>HTMX Dependent Dropdowns</h1>
+        
+        <div class="forms-container">
+            <!-- Sales Form -->
+            <div class="form-wrapper">
+                <h2>Sales Report Form</h2>
+                <form id="sales-form" action="/submit-sales-report" method="post">
+                    {{ template "dropdown_component" dict "Managers" .Managers "Reports" .Reports "FormID" "sales" }}
+                    
+                    <div class="form-group">
+                        <label for="sales-notes">Notes</label>
+                        <textarea id="sales-notes" name="notes" rows="3"></textarea>
+                    </div>
+                    
+                    <button type="submit">Submit Sales Form</button>
+                </form>
+            </div>
+            
+            <!-- Performance Form -->
+            <div class="form-wrapper">
+                <h2>Performance Review Form</h2>
+                <form id="performance-form" action="/submit-performance-review" method="post">
+                    {{ template "dropdown_component" dict "Managers" .Managers "Reports" .Reports "FormID" "performance" }}
+                    
+                    <div class="form-group">
+                        <label for="performance-priority">Priority</label>
+                        <select id="performance-priority" name="priority">
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit">Submit Performance Form</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

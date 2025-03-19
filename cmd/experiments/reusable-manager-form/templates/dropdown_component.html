@@ -1,0 +1,32 @@
+{{ define "dropdown_component" }}
+<div id="{{ .FormID }}-dropdown-container" class="dropdown-container">
+    <!-- Manager Dropdown -->
+    <div class="form-group">
+        <label for="{{ .FormID }}-manager-select">Manager</label>
+        <select id="{{ .FormID }}-manager-select" name="manager_id" 
+                hx-get="/api/reports-by-manager"
+                hx-trigger="change"
+                hx-target="#{{ .FormID }}-report-select-container"
+                hx-indicator="#{{ .FormID }}-loading-indicator"
+                hx-include="[name='form_id']">
+            <option value="">Select a Manager</option>
+            {{ range .Managers }}
+            <option value="{{ .ID }}">{{ .Name }}</option>
+            {{ end }}
+        </select>
+    </div>
+
+    <!-- Hidden input to identify which form is making the request -->
+    <input type="hidden" name="form_id" value="{{ .FormID }}">
+
+    <!-- Report Dropdown Container -->
+    <div id="{{ .FormID }}-report-select-container">
+        {{ template "report_dropdown" dict "Reports" .Reports "FormID" .FormID }}
+    </div>
+    
+    <!-- Loading indicator -->
+    <div id="{{ .FormID }}-loading-indicator" class="htmx-indicator">
+        <div class="spinner"></div> Loading...
+    </div>
+</div>
+{{ end }} 
