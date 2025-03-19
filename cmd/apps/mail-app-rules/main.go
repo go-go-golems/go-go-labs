@@ -25,6 +25,10 @@ func main() {
 	rootCmd := &cobra.Command{
 		Use:   "smailnail",
 		Short: "Process mail rules on an IMAP server",
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			err := clay.InitLogger()
+			cobra.CheckErr(err)
+		},
 	}
 
 	helpSystem := help.NewHelpSystem()

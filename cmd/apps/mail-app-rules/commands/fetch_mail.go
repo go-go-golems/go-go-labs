@@ -13,6 +13,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
+	"github.com/rs/zerolog/log"
 	"gopkg.in/yaml.v3"
 
 	"github.com/go-go-golems/go-go-labs/cmd/apps/mail-app-rules/dsl"
@@ -275,9 +276,26 @@ func (c *FetchMailCommand) RunIntoGlazeProcessor(
 				// Concatenate all matching MIME parts into a single content string
 				var contents []string
 				for _, part := range msg.MimeParts {
-					mimeType := part.Type + "/" + part.Subtype
+					// Fix: Only add slash if Subtype is not empty
+					mimeType := part.Type
+					if part.Subtype != "" {
+						mimeType = part.Type + "/" + part.Subtype
+					}
+
 					if c.shouldIncludeMimeType(mimeType, settings.ContentType) {
 						contents = append(contents, part.Content)
+						log.Debug().
+							Str("mime_type", mimeType).
+							Str("filter", settings.ContentType).
+							Bool("included", true).
+							Int("content_length", len(part.Content)).
+							Msg("Added MIME part content")
+					} else {
+						log.Debug().
+							Str("mime_type", mimeType).
+							Str("filter", settings.ContentType).
+							Bool("included", false).
+							Msg("Excluded MIME part content")
 					}
 				}
 				content := strings.Join(contents, "\n\n")
@@ -285,11 +303,21 @@ func (c *FetchMailCommand) RunIntoGlazeProcessor(
 					content = content[:settings.ContentMaxLength] + "..."
 				}
 				row.Set("content", content)
+				log.Debug().
+					Int("total_parts", len(msg.MimeParts)).
+					Int("matched_parts", len(contents)).
+					Int("final_content_length", len(content)).
+					Msg("Finished processing MIME parts")
 			} else {
 				// Structured MIME parts output
 				var parts []map[string]interface{}
 				for _, part := range msg.MimeParts {
-					mimeType := part.Type + "/" + part.Subtype
+					// Fix: Only add slash if Subtype is not empty
+					mimeType := part.Type
+					if part.Subtype != "" {
+						mimeType = part.Type + "/" + part.Subtype
+					}
+
 					if c.shouldIncludeMimeType(mimeType, settings.ContentType) {
 						partMap := map[string]interface{}{
 							"type":    mimeType,
@@ -307,9 +335,25 @@ func (c *FetchMailCommand) RunIntoGlazeProcessor(
 						partMap["content"] = content
 
 						parts = append(parts, partMap)
+						log.Debug().
+							Str("mime_type", mimeType).
+							Str("filter", settings.ContentType).
+							Bool("included", true).
+							Int("content_length", len(content)).
+							Msg("Added structured MIME part")
+					} else {
+						log.Debug().
+							Str("mime_type", mimeType).
+							Str("filter", settings.ContentType).
+							Bool("included", false).
+							Msg("Excluded structured MIME part")
 					}
 				}
 				row.Set("mime_parts", parts)
+				log.Debug().
+					Int("total_parts", len(msg.MimeParts)).
+					Int("matched_parts", len(parts)).
+					Msg("Finished processing structured MIME parts")
 			}
 		}
 
@@ -421,16 +465,28 @@ func (c *FetchMailCommand) shouldIncludeMimeType(mimeType string, filter string)
 		return true
 	}
 
+	log.Debug().
+		Str("mime_type", mimeType).
+		Str("filter", filter).
+		Msg("Checking MIME type match")
+
 	// Exact match
 	if mimeType == filter {
+		log.Debug().Msg("Exact match")
 		return true
 	}
 
 	// Wildcard match (e.g., text/*)
 	if strings.HasSuffix(filter, "/*") {
 		prefix := strings.TrimSuffix(filter, "/*")
-		return strings.HasPrefix(mimeType, prefix+"/")
+		result := strings.HasPrefix(mimeType, prefix+"/")
+		log.Debug().
+			Str("prefix", prefix).
+			Bool("wildcard_match", result).
+			Msg("Checking wildcard match")
+		return result
 	}
 
+	log.Debug().Msg("No match found")
 	return false
 }

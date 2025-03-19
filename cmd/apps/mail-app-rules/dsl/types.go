@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/rs/zerolog/log"
 )
 
 // Rule represents a complete IMAP DSL rule
@@ -288,25 +290,57 @@ type ContentField struct {
 }
 
 func (c *ContentField) ShouldInclude(mediaType string) bool {
+	log.Debug().
+		Str("media_type", mediaType).
+		Str("mode", c.Mode).
+		Strs("allowed_types", c.Types).
+		Msg("Checking if MIME type should be included")
+
 	switch c.Mode {
 	case "text_only":
-		return strings.HasPrefix(mediaType, "text/plain")
+		result := strings.HasPrefix(mediaType, "text/plain")
+		log.Debug().
+			Str("media_type", mediaType).
+			Bool("result", result).
+			Msg("text_only mode check")
+		return result
 	case "filter":
 		if len(c.Types) == 0 {
+			log.Debug().Msg("No types specified in filter mode, including all")
 			return true
 		}
 		for _, allowedType := range c.Types {
+			log.Debug().
+				Str("media_type", mediaType).
+				Str("allowed_type", allowedType).
+				Msg("Checking type match")
+
 			if strings.HasSuffix(allowedType, "/*") {
 				prefix := strings.TrimSuffix(allowedType, "/*")
 				if strings.HasPrefix(mediaType, prefix+"/") {
+					log.Debug().
+						Str("media_type", mediaType).
+						Str("prefix", prefix).
+						Msg("Wildcard match found")
 					return true
 				}
 			} else if mediaType == allowedType {
+				log.Debug().
+					Str("media_type", mediaType).
+					Str("allowed_type", allowedType).
+					Msg("Exact match found")
 				return true
 			}
 		}
+		log.Debug().
+			Str("media_type", mediaType).
+			Strs("allowed_types", c.Types).
+			Msg("No matching type found")
 		return false
 	default: // "full" or empty
+		log.Debug().
+			Str("mode", c.Mode).
+			Msg("Using default mode (full), including all types")
 		return true
 	}
 }

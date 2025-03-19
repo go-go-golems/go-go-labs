@@ -14,6 +14,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
+	"github.com/rs/zerolog/log"
 
 	"github.com/go-go-golems/go-go-labs/cmd/apps/mail-app-rules/dsl"
 	"gopkg.in/yaml.v3"
@@ -169,13 +170,36 @@ func (c *MailRulesCommand) RunIntoGlazeProcessor(
 				row.Set("size", msg.Size)
 			case "mime_parts":
 				if field.Content != nil && len(msg.MimeParts) > 0 {
+					log.Debug().
+						Str("mode", field.Content.Mode).
+						Strs("types", field.Content.Types).
+						Int("num_parts", len(msg.MimeParts)).
+						Msg("Processing MIME parts with content field configuration")
+
 					if settings.ConcatenateMimeParts {
 						// Concatenate all matching MIME parts into a single content string
 						var contents []string
 						for _, part := range msg.MimeParts {
-							if field.Content.ShouldInclude(part.Type + "/" + part.Subtype) {
+							// Fix: Only add slash if Subtype is not empty
+							mimeType := part.Type
+							if part.Subtype != "" {
+								mimeType = part.Type + "/" + part.Subtype
+							}
+							shouldInclude := field.Content.ShouldInclude(mimeType)
+							log.Debug().
+								Str("mime_type", mimeType).
+								Bool("should_include", shouldInclude).
+								Bool("show_content", field.Content.ShowContent).
+								Int("content_length", len(part.Content)).
+								Msg("Evaluating MIME part for inclusion")
+
+							if shouldInclude {
 								if field.Content.ShowContent && part.Content != "" {
 									contents = append(contents, part.Content)
+									log.Debug().
+										Str("mime_type", mimeType).
+										Int("content_length", len(part.Content)).
+										Msg("Added MIME part content")
 								}
 							}
 						}
@@ -184,30 +208,56 @@ func (c *MailRulesCommand) RunIntoGlazeProcessor(
 							content = content[:field.Content.MaxLength] + "..."
 						}
 						row.Set("content", content)
+						log.Debug().
+							Int("total_parts", len(msg.MimeParts)).
+							Int("matched_parts", len(contents)).
+							Int("final_content_length", len(content)).
+							Msg("Finished processing MIME parts")
 					} else {
 						// Original structured MIME parts output
 						var parts []map[string]interface{}
 						for _, part := range msg.MimeParts {
-							if field.Content.ShouldInclude(part.Type + "/" + part.Subtype) {
+							// Fix: Only add slash if Subtype is not empty
+							mimeType := part.Type
+							if part.Subtype != "" {
+								mimeType = part.Type + "/" + part.Subtype
+							}
+							shouldInclude := field.Content.ShouldInclude(mimeType)
+							log.Debug().
+								Str("mime_type", mimeType).
+								Bool("should_include", shouldInclude).
+								Bool("show_content", field.Content.ShowContent).
+								Int("content_length", len(part.Content)).
+								Msg("Evaluating MIME part for structured output")
+
+							if shouldInclude {
 								partMap := map[string]interface{}{
-									"type":    part.Type + "/" + part.Subtype,
+									"type":    mimeType,
 									"size":    part.Size,
 									"charset": part.Charset,
 								}
 								if part.Filename != "" {
 									partMap["filename"] = part.Filename
 								}
-								if field.Content.ShowContent {
-									content := part.Content
-									if field.Content.MaxLength > 0 && len(content) > field.Content.MaxLength {
-										content = content[:field.Content.MaxLength] + "..."
-									}
-									partMap["content"] = content
+
+								content := part.Content
+								if field.Content.MaxLength > 0 && len(content) > field.Content.MaxLength {
+									content = content[:field.Content.MaxLength] + "..."
 								}
+								partMap["content"] = content
+
 								parts = append(parts, partMap)
+								log.Debug().
+									Str("mime_type", mimeType).
+									Int("content_length", len(content)).
+									Msg("Added structured MIME part")
 							}
 						}
 						row.Set("mime_parts", parts)
+						log.Debug().
+							Int("total_parts", len(msg.MimeParts)).
+							Int("matched_parts", len(parts)).
+							Msg("Finished processing structured MIME parts")
 					}
 				}
 			}
