@@ -2,7 +2,7 @@ module github.com/go-go-golems/go-go-labs
 
 go 1.23
 
-toolchain go1.23.2
+toolchain go1.23.7
 
 require (
 	github.com/BobuSumisu/aho-corasick v1.0.3
@@ -14,7 +14,7 @@ require (
 	github.com/ThreeDotsLabs/watermill v1.3.7
 	github.com/a-h/templ v0.3.833
 	github.com/alecthomas/kong v0.8.0
-	github.com/alecthomas/participle/v2 v2.0.0
+	github.com/alecthomas/participle/v2 v2.1.0
 	github.com/asg017/sqlite-vss/bindings/go v0.0.0-20230830180803-8fc443018430
 	github.com/aws/aws-sdk-go v1.55.6
 	github.com/aws/aws-sdk-go-v2 v1.36.1
@@ -191,7 +191,7 @@ require (
 	github.com/catppuccin/go v0.2.0 // indirect
 	github.com/charmbracelet/glamour v0.7.0
 	github.com/charmbracelet/harmonica v0.2.0 // indirect
-	github.com/charmbracelet/x/ansi v0.4.5 // indirect
+	github.com/charmbracelet/x/ansi v0.6.0 // indirect
 	github.com/charmbracelet/x/exp/strings v0.0.0-20240725160154-f9f6568126ec // indirect
 	github.com/charmbracelet/x/term v0.2.1 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
@@ -273,7 +273,7 @@ require (
 	github.com/mschoch/smat v0.2.0 // indirect
 	github.com/muesli/ansi v0.0.0-20230316100256-276c6243b2f6 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
-	github.com/muesli/termenv v0.15.3-0.20240618155329-98d742f6907a // indirect
+	github.com/muesli/termenv v0.16.0 // indirect
 	github.com/oklog/run v1.0.0 // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
@@ -312,7 +312,7 @@ require (
 	golang.org/x/mobile v0.0.0-20231127183840-76ac6878050a // indirect
 	golang.org/x/mod v0.22.0 // indirect
 	golang.org/x/oauth2 v0.21.0
-	golang.org/x/sys v0.29.0 // indirect
+	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
 	golang.org/x/tools v0.24.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240318140521-94a12d6c2237 // indirect
