@@ -1,0 +1,21 @@
+name: "GitHub Notifications"
+description: "Retrieve the last 10 emails from GitHub notifications with full body content"
+
+search:
+  from: "notifications@github.com"
+
+output:
+  format: text
+  limit: 10
+  fields:
+    - uid
+    - subject
+    - from
+    - date
+    - mime_parts:
+        mode: "filter"
+        show_content: true
+        show_types: true
+        types:
+          - text/plain
+        max_length: 100

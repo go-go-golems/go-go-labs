@@ -16,6 +16,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/types"
 
 	"github.com/go-go-golems/go-go-labs/cmd/apps/mail-app-rules/dsl"
+	"gopkg.in/yaml.v3"
 )
 
 type MailRulesCommand struct {
@@ -23,7 +24,9 @@ type MailRulesCommand struct {
 }
 
 type MailRulesSettings struct {
-	RuleFile string `glazed.parameter:"rule"`
+	RuleFile             string `glazed.parameter:"rule"`
+	ConcatenateMimeParts bool   `glazed.parameter:"concatenate-mime-parts"`
+	PrintRule            bool   `glazed.parameter:"print-rule"`
 	IMAPSettings
 }
 
@@ -50,6 +53,18 @@ func NewMailRulesCommand() (*MailRulesCommand, error) {
 					parameters.WithHelp("Path to YAML rule file"),
 					parameters.WithRequired(true),
 				),
+				parameters.NewParameterDefinition(
+					"concatenate-mime-parts",
+					parameters.ParameterTypeBool,
+					parameters.WithHelp("Concatenate all MIME parts into a single content string instead of showing structured output"),
+					parameters.WithDefault(true),
+				),
+				parameters.NewParameterDefinition(
+					"print-rule",
+					parameters.ParameterTypeBool,
+					parameters.WithHelp("Print the rule instead of executing it"),
+					parameters.WithDefault(false),
+				),
 			),
 			cmds.WithLayersList(imapLayer, layer),
 		),
@@ -69,15 +84,31 @@ func (c *MailRulesCommand) RunIntoGlazeProcessor(
 		return err
 	}
 
-	// Read password from environment if not provided
-	if settings.Password == "" {
-		return fmt.Errorf("password is required (provide via --password flag or IMAP_PASSWORD environment variable)")
-	}
-
 	// Parse rule file
 	rule, err := c.parseRuleFile(settings.RuleFile)
 	if err != nil {
 		return fmt.Errorf("error parsing rule file: %w", err)
+	}
+
+	// If print-rule is set, output the rule and return
+	if settings.PrintRule {
+		yamlData, err := yaml.Marshal(rule)
+		if err != nil {
+			return fmt.Errorf("error marshaling rule to YAML: %w", err)
+		}
+
+		// Create a row with the YAML data
+		row := types.NewRow()
+		row.Set("rule", string(yamlData))
+		if err := gp.AddRow(ctx, row); err != nil {
+			return fmt.Errorf("error adding rule to output: %w", err)
+		}
+		return nil
+	}
+
+	// Check if password is provided
+	if settings.Password == "" {
+		return fmt.Errorf("password is required (provide via --password flag or IMAP_PASSWORD environment variable)")
 	}
 
 	// Connect to IMAP server
@@ -138,28 +169,46 @@ func (c *MailRulesCommand) RunIntoGlazeProcessor(
 				row.Set("size", msg.Size)
 			case "mime_parts":
 				if field.Content != nil && len(msg.MimeParts) > 0 {
-					var parts []map[string]interface{}
-					for _, part := range msg.MimeParts {
-						if field.Content.ShouldInclude(part.Type + "/" + part.Subtype) {
-							partMap := map[string]interface{}{
-								"type":    part.Type + "/" + part.Subtype,
-								"size":    part.Size,
-								"charset": part.Charset,
-							}
-							if part.Filename != "" {
-								partMap["filename"] = part.Filename
-							}
-							if field.Content.ShowContent {
-								content := part.Content
-								if field.Content.MaxLength > 0 && len(content) > field.Content.MaxLength {
-									content = content[:field.Content.MaxLength] + "..."
+					if settings.ConcatenateMimeParts {
+						// Concatenate all matching MIME parts into a single content string
+						var contents []string
+						for _, part := range msg.MimeParts {
+							if field.Content.ShouldInclude(part.Type + "/" + part.Subtype) {
+								if field.Content.ShowContent && part.Content != "" {
+									contents = append(contents, part.Content)
 								}
-								partMap["content"] = content
 							}
-							parts = append(parts, partMap)
 						}
+						content := strings.Join(contents, "\n\n")
+						if field.Content.MaxLength > 0 && len(content) > field.Content.MaxLength {
+							content = content[:field.Content.MaxLength] + "..."
+						}
+						row.Set("content", content)
+					} else {
+						// Original structured MIME parts output
+						var parts []map[string]interface{}
+						for _, part := range msg.MimeParts {
+							if field.Content.ShouldInclude(part.Type + "/" + part.Subtype) {
+								partMap := map[string]interface{}{
+									"type":    part.Type + "/" + part.Subtype,
+									"size":    part.Size,
+									"charset": part.Charset,
+								}
+								if part.Filename != "" {
+									partMap["filename"] = part.Filename
+								}
+								if field.Content.ShowContent {
+									content := part.Content
+									if field.Content.MaxLength > 0 && len(content) > field.Content.MaxLength {
+										content = content[:field.Content.MaxLength] + "..."
+									}
+									partMap["content"] = content
+								}
+								parts = append(parts, partMap)
+							}
+						}
+						row.Set("mime_parts", parts)
 					}
-					row.Set("mime_parts", parts)
 				}
 			}
 		}

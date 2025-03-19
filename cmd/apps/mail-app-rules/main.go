@@ -38,37 +38,57 @@ func main() {
 
 	log.Debug().Msg("Starting smailnail")
 
+	// Configure middlewares for all commands
+	middlewaresFunc := func(
+		parsedLayers *layers.ParsedLayers,
+		cmd *cobra.Command,
+		args []string,
+	) ([]middlewares.Middleware, error) {
+		log.Debug().Msg("Setting up middlewares")
+		return []middlewares.Middleware{
+			// Command line args (highest priority)
+			middlewares.ParseFromCobraCommand(cmd),
+			middlewares.GatherArguments(args),
+
+			// Viper config for environment variables
+			middlewares.GatherFlagsFromViper(),
+
+			// Defaults (lowest priority)
+			middlewares.SetFromDefaults(),
+		}, nil
+	}
+
+	// Create and add the mail-rules command
 	mailRulesCmd, err := commands.NewMailRulesCommand()
 	if err != nil {
 		fmt.Printf("Error creating mail rules command: %v\n", err)
 		os.Exit(1)
 	}
 
-	cobraCmd, err := cli.BuildCobraCommandFromCommand(mailRulesCmd,
-		cli.WithCobraMiddlewaresFunc(func(
-			parsedLayers *layers.ParsedLayers,
-			cmd *cobra.Command,
-			args []string,
-		) ([]middlewares.Middleware, error) {
-			log.Debug().Msg("Setting up middlewares")
-			return []middlewares.Middleware{
-				// Command line args (highest priority)
-				middlewares.ParseFromCobraCommand(cmd),
-				middlewares.GatherArguments(args),
-
-				// Viper config for environment variables
-				middlewares.GatherFlagsFromViper(),
-
-				// Defaults (lowest priority)
-				middlewares.SetFromDefaults(),
-			}, nil
-		}),
+	cobraMailRulesCmd, err := cli.BuildCobraCommandFromCommand(mailRulesCmd,
+		cli.WithCobraMiddlewaresFunc(middlewaresFunc),
 	)
 	if err != nil {
 		fmt.Printf("Error building Cobra command: %v\n", err)
 		os.Exit(1)
 	}
-	rootCmd.AddCommand(cobraCmd)
+	rootCmd.AddCommand(cobraMailRulesCmd)
+
+	// Create and add the fetch-mail command
+	fetchMailCmd, err := commands.NewFetchMailCommand()
+	if err != nil {
+		fmt.Printf("Error creating fetch mail command: %v\n", err)
+		os.Exit(1)
+	}
+
+	cobraFetchMailCmd, err := cli.BuildCobraCommandFromCommand(fetchMailCmd,
+		cli.WithCobraMiddlewaresFunc(middlewaresFunc),
+	)
+	if err != nil {
+		fmt.Printf("Error building Cobra command: %v\n", err)
+		os.Exit(1)
+	}
+	rootCmd.AddCommand(cobraFetchMailCmd)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

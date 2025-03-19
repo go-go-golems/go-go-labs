@@ -35,29 +35,29 @@ func (r *Rule) Validate() error {
 // SearchConfig defines search criteria
 type SearchConfig struct {
 	// Date-based search
-	Since      string `yaml:"since"`
-	Before     string `yaml:"before"`
-	On         string `yaml:"on"`
-	WithinDays int    `yaml:"within_days"`
+	Since      string `yaml:"since,omitempty"`
+	Before     string `yaml:"before,omitempty"`
+	On         string `yaml:"on,omitempty"`
+	WithinDays int    `yaml:"within_days,omitempty"`
 
 	// Header-based search
-	From            string          `yaml:"from"`
-	To              string          `yaml:"to"`
-	Cc              string          `yaml:"cc"`
-	Bcc             string          `yaml:"bcc"`
-	Subject         string          `yaml:"subject"`
-	SubjectContains string          `yaml:"subject_contains"`
-	Header          *HeaderCriteria `yaml:"header"`
+	From            string          `yaml:"from,omitempty"`
+	To              string          `yaml:"to,omitempty"`
+	Cc              string          `yaml:"cc,omitempty"`
+	Bcc             string          `yaml:"bcc,omitempty"`
+	Subject         string          `yaml:"subject,omitempty"`
+	SubjectContains string          `yaml:"subject_contains,omitempty"`
+	Header          *HeaderCriteria `yaml:"header,omitempty"`
 
 	// Content-based search
-	BodyContains string `yaml:"body_contains"`
-	Text         string `yaml:"text"`
+	BodyContains string `yaml:"body_contains,omitempty"`
+	Text         string `yaml:"text,omitempty"`
 
 	// Flag-based search
-	Flags *FlagCriteria `yaml:"flags"`
+	Flags *FlagCriteria `yaml:"flags,omitempty"`
 
 	// Size-based search
-	Size *SizeCriteria `yaml:"size"`
+	Size *SizeCriteria `yaml:"size,omitempty"`
 }
 
 // HeaderCriteria defines criteria for searching specific headers
@@ -68,14 +68,14 @@ type HeaderCriteria struct {
 
 // FlagCriteria defines criteria for searching by flags
 type FlagCriteria struct {
-	Has    []string `yaml:"has"`
-	NotHas []string `yaml:"not_has"`
+	Has    []string `yaml:"has,omitempty"`
+	NotHas []string `yaml:"not_has,omitempty"`
 }
 
 // SizeCriteria defines criteria for searching by message size
 type SizeCriteria struct {
-	LargerThan  string `yaml:"larger_than"`
-	SmallerThan string `yaml:"smaller_than"`
+	LargerThan  string `yaml:"larger_than,omitempty"`
+	SmallerThan string `yaml:"smaller_than,omitempty"`
 }
 
 // Validate checks if the search config is valid
@@ -141,9 +141,9 @@ func (s *SearchConfig) Validate() error {
 
 // OutputConfig defines output formatting
 type OutputConfig struct {
-	Format string        `yaml:"format"` // json, text, table
-	Limit  int           `yaml:"limit"`  // Maximum number of messages to return
-	Fields []interface{} `yaml:"fields"`
+	Format string        `yaml:"format,omitempty"` // json, text, table
+	Limit  int           `yaml:"limit,omitempty"`  // Maximum number of messages to return
+	Fields []interface{} `yaml:"fields,omitempty"`
 }
 
 // Validate checks if the output config is valid
@@ -271,20 +271,20 @@ func (o *OutputConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 // Field represents an output field, which can be a simple string or complex field
 type Field struct {
-	Name    string
-	Content *ContentField
+	Name    string        `yaml:"name"`
+	Content *ContentField `yaml:"content,omitempty"`
 	// More field types will be added later
 }
 
 // ContentField represents content output configuration for both body and MIME parts
 type ContentField struct {
-	Type        string   `yaml:"type"`         // MIME type for body or filter for MIME parts
-	MaxLength   int      `yaml:"max_length"`   // Maximum length of content to return
-	MinLength   int      `yaml:"min_length"`   // Minimum length of content to return
-	Mode        string   `yaml:"mode"`         // "text_only", "full", "filter", or empty for body
-	Types       []string `yaml:"types"`        // List of MIME types to include when mode is "filter"
-	ShowTypes   bool     `yaml:"show_types"`   // Whether to show MIME types in output
-	ShowContent bool     `yaml:"show_content"` // Whether to show content in output (default true)
+	Type        string   `yaml:"type,omitempty"`         // MIME type for body or filter for MIME parts
+	MaxLength   int      `yaml:"max_length,omitempty"`   // Maximum length of content to return
+	MinLength   int      `yaml:"min_length,omitempty"`   // Minimum length of content to return
+	Mode        string   `yaml:"mode,omitempty"`         // "text_only", "full", "filter", or empty for body
+	Types       []string `yaml:"types,omitempty"`        // List of MIME types to include when mode is "filter"
+	ShowTypes   bool     `yaml:"show_types,omitempty"`   // Whether to show MIME types in output
+	ShowContent bool     `yaml:"show_content,omitempty"` // Whether to show content in output (default true)
 }
 
 func (c *ContentField) ShouldInclude(mediaType string) bool {
