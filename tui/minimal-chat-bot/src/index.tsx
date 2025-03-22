@@ -41,6 +41,25 @@ store.dispatch(addMessage({
   content: 'Type a message below and press Enter to chat. Use arrow keys to scroll.',
 }));
 
+store.dispatch(addMessage({
+  id: uuidv4(),
+  role: 'assistant', 
+  content: 'Here is another very long message to test wrapping and scrolling: "Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem."'
+}));
+
+store.dispatch(addMessage({
+  id: uuidv4(),
+  role: 'user',
+  content: 'Thanks for all the information!'
+}));
+
+store.dispatch(addMessage({
+  id: uuidv4(),
+  role: 'assistant',
+  content: 'And one final long message to really test things out: "At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga. Et harum quidem rerum facilis est et expedita distinctio. Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus, omnis voluptas assumenda est, omnis dolor repellendus."'
+}));
+
+
 logger.info('Added initial messages to the chat');
 
 // Handle CLI with meow
@@ -105,10 +124,10 @@ const App: FC = () => {
 
   // Handle message clicks
   const handleMessageClick = useCallback((event: ChatMessageClickEvent) => {
-    logger.info('Message clicked in app', {
-      clickEvent: event,
-      timestamp: new Date().toISOString()
-    });
+    // logger.info('Message clicked in app', {
+    //   // clickEvent: event,
+    //   timestamp: new Date().toISOString()
+    // });
   }, []);
 
   // Log terminal size changes
@@ -124,7 +143,7 @@ const App: FC = () => {
   }, [error]);
 
   // Calculate available height for messages
-  const messageAreaHeight = Math.max(3, size.height - 14); // Adjust for header, input, status, margins
+  const messageAreaHeight = Math.max(3, size.height - 16); // Adjust for header, input, status, margins
 
   // Handle keyboard input for scrolling
   useInput((_, key) => {

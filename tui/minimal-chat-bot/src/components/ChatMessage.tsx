@@ -1,7 +1,7 @@
 import React, { FC, useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import { Box, Text, measureElement } from 'ink';
 import { useOnMouseHover, useMousePosition, useElementPosition, useElementDimensions, useMouse } from '@zenobius/ink-mouse';
-import { useOnMouseClick } from './useOnMouseClick.js';
+import { getElementDimensions, getElementPosition, useOnMouseClick } from './useOnMouseClick.js';
 import type { ChatMessage as ChatMessageType } from '../store/chatSlice.ts';
 import { getTheme } from '../utils/theme.js';
 import { createLogger } from '../utils/logger.js';
@@ -44,8 +44,6 @@ export const ChatMessage: FC<Props> = ({ message, onClick }) => {
   // Get mouse position and element dimensions for detailed logging
   const mouse = useMouse();
   const mousePosition = useMousePosition();
-  const elementPosition = useElementPosition(ref);
-  const elementDimensions = useElementDimensions(ref);
   
   // Create the complete text with emoji preamble
   const fullText = useMemo(() => {
@@ -71,17 +69,31 @@ export const ChatMessage: FC<Props> = ({ message, onClick }) => {
           lineCount: wrapped.split('\n').length
         });
       }
-    }, 100);
+    }, 600);
     
     return () => clearTimeout(timeoutId);
-  }, [fullText, elementDimensions.width, ref.current]);
+  }, [fullText, ref.current]);
+
+  const onSetHovering = useCallback((isHovering: boolean) => {
+    // logger.info('Hovering', { isHovering,
+    //   beginningText: wrappedContent.split('\n')[0],
+    //   wrappedContent,
+    //  });
+    setHovering(isHovering);
+  }, [wrappedContent]);
   
   // Handle hover events
-  useOnMouseHover(ref, setHovering);
+  useOnMouseHover(ref, onSetHovering);
 
   const handler = useCallback((isClicked: boolean) => {
     setClicking(isClicked);
-    
+
+    const elementPosition = getElementPosition(ref.current);
+    const elementDimensions = getElementDimensions(ref.current);
+    if (!elementPosition || !elementDimensions) {
+      return;
+    }
+
     if (isClicked) {
       // Calculate relative mouse position within the component
       const relativeX = mousePosition.x - elementPosition.left - 3;
@@ -129,7 +141,11 @@ export const ChatMessage: FC<Props> = ({ message, onClick }) => {
 
       // Log detailed information about the click
       logger.info(`Message clicked: ${role}`, {
-        ...clickEvent,
+        // ...clickEvent,
+        position: {
+          absolute: { x: mousePosition.x, y: mousePosition.y },
+          relative: { x: relativeX, y: relativeY }
+        },
         role,
         elementPos: { 
           left: elementPosition.left, 
@@ -141,7 +157,9 @@ export const ChatMessage: FC<Props> = ({ message, onClick }) => {
           width: elementDimensions.width, 
           height: elementDimensions.height 
         },
-        inkMeasure: ref.current ? measureElement(ref.current) : null
+        inkMeasure: ref.current ? measureElement(ref.current) : null,
+        textUnderCursor: textUnderCursor,
+
       });
       
       // Call the onClick handler if provided
@@ -149,7 +167,7 @@ export const ChatMessage: FC<Props> = ({ message, onClick }) => {
         onClick(clickEvent);
       }
     }
-  }, [mousePosition, elementPosition, elementDimensions, wrappedContent, fullText, role, onClick]);
+  }, [mousePosition, wrappedContent, fullText, role, onClick]);
   
   // Handle click events with detailed logging
   useOnMouseClick(ref, handler);
