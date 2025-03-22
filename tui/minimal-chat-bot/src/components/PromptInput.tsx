@@ -1,19 +1,37 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { useOnMouseClick, useElementPosition, useMousePosition } from '@zenobius/ink-mouse';
 import { getTheme } from '../utils/theme.js';
 
 type Props = {
   onSubmit: (input: string) => void;
+  onChange?: (input: string) => void;
   isLoading: boolean;
   placeholder?: string;
+  value?: string;
 };
 
-export function PromptInput({ onSubmit, isLoading, placeholder = 'Type a message...' }: Props): JSX.Element {
-  const [input, setInput] = useState('');
+export function PromptInput({ onSubmit, onChange, isLoading, placeholder = 'Type a message...', value }: Props): JSX.Element {
+  const [input, setInput] = useState(value || '');
   const [cursorPosition, setCursorPosition] = useState(0);
   const inputRef = useRef(null);
   const theme = getTheme();
+
+  // Update input when value prop changes
+  useEffect(() => {
+    if (value !== undefined && value !== input) {
+      setInput(value);
+      setCursorPosition(value.length);
+    }
+  }, [value]);
+
+  // Notify parent of input changes
+  const updateInput = (newInput: string) => {
+    setInput(newInput);
+    if (onChange) {
+      onChange(newInput);
+    }
+  };
 
   // Get element position and mouse position
   const elementPosition = useElementPosition(inputRef);
@@ -56,7 +74,7 @@ export function PromptInput({ onSubmit, isLoading, placeholder = 'Type a message
     if (key.return) {
       if (input.trim()) {
         onSubmit(input);
-        setInput('');
+        updateInput('');
         setCursorPosition(0);
       }
       return;
@@ -64,7 +82,7 @@ export function PromptInput({ onSubmit, isLoading, placeholder = 'Type a message
 
     // Clear input on Escape
     if (key.escape) {
-      setInput('');
+      updateInput('');
       setCursorPosition(0);
       return;
     }
@@ -72,7 +90,7 @@ export function PromptInput({ onSubmit, isLoading, placeholder = 'Type a message
     // Handle backspace/delete
     if (key.backspace || key.delete) {
       if (cursorPosition > 0) {
-        setInput(
+        updateInput(
           input.slice(0, cursorPosition - 1) + input.slice(cursorPosition)
         );
         setCursorPosition(cursorPosition - 1);
@@ -93,7 +111,7 @@ export function PromptInput({ onSubmit, isLoading, placeholder = 'Type a message
 
     // Add typed characters at cursor position
     if (inputChar && !key.ctrl && !key.meta) {
-      setInput(
+      updateInput(
         input.slice(0, cursorPosition) + inputChar + input.slice(cursorPosition)
       );
       setCursorPosition(cursorPosition + 1);

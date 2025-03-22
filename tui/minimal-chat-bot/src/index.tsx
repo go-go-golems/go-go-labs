@@ -28,37 +28,50 @@ logger.info('Application starting', {
   nodeVersion: process.version 
 });
 
-// Add initial messages to the chat
-store.dispatch(addMessage({
-  id: uuidv4(),
-  role: 'assistant',
-  content: 'Hello! I\'m your minimal terminal chatbot. How can I help you today? We are going to say something very long: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."',
-}));
+// // Add initial messages to the chat
+// store.dispatch(addMessage({
+//   id: uuidv4(),
+//   role: 'assistant',
+//   content: 'Hello! I\'m your minimal terminal chatbot. How can I help you today? We are going to say something very long: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."',
+// }));
+
+// store.dispatch(addMessage({
+//   id: uuidv4(),
+//   role: 'assistant',
+//   content: 'Type a message below and press Enter to chat. Use arrow keys to scroll.',
+// }));
+
+// store.dispatch(addMessage({
+//   id: uuidv4(),
+//   role: 'assistant', 
+//   content: 'Here is another very long message to test wrapping and scrolling: "Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem."'
+// }));
+
+// store.dispatch(addMessage({
+//   id: uuidv4(),
+//   role: 'user',
+//   content: 'Thanks for all the information!'
+// }));
 
 store.dispatch(addMessage({
   id: uuidv4(),
   role: 'assistant',
-  content: 'Type a message below and press Enter to chat. Use arrow keys to scroll.',
-}));
+  content: `
+  <uiInstructions>
+  You are responsible for rendering a consistent ASCII UI.  Clicks will be sent with an X at the click position.
+  
+  UI Controls:
+  ( ) / (x) = Checkboxes (click to toggle)
+  [ Button ] = Clickable buttons
+  [v| Value ] = Dropdown menu (click v to expand, which will cause you to render the dropdown menu in the UI).
+  Only expand the dropdown menu if the user clicks on the v. Close the dropdown menu once the user has made a selection.
 
-store.dispatch(addMessage({
-  id: uuidv4(),
-  role: 'assistant', 
-  content: 'Here is another very long message to test wrapping and scrolling: "Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem."'
-}));
+  Render the full UI after each user interaction. Keep it consistent, don't drop or add elements unless asked to.
 
-store.dispatch(addMessage({
-  id: uuidv4(),
-  role: 'user',
-  content: 'Thanks for all the information!'
+  ALWAYS RENDER THE FULL UI AFTER EACH USER INTERACTION.
+  </uiInstructions>
+  `
 }));
-
-store.dispatch(addMessage({
-  id: uuidv4(),
-  role: 'assistant',
-  content: 'And one final long message to really test things out: "At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga. Et harum quidem rerum facilis est et expedita distinctio. Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus, omnis voluptas assumenda est, omnis dolor repellendus."'
-}));
-
 
 logger.info('Added initial messages to the chat');
 
@@ -114,6 +127,7 @@ function useTerminalSize() {
   return size;
 }
 
+
 const App: FC = () => {
   const { messages, isLoading, error, sendMessage } = useChat();
   const size = useTerminalSize();
@@ -121,14 +135,42 @@ const App: FC = () => {
   const dispatch = useAppDispatch();
   const scrollState = useAppSelector((state: {scroll: ScrollState}) => state.scroll);
   const scrollAreaRef = useRef(null);
+  const [inputValue, setInputValue] = useState('');
+
+  useEffect(() => {
+    sendMessage('Make the UI for a crazy spaceship.')
+  }, []);
+
+
+
+  // Wrap sendMessage to log message sending
+  const handleSendMessage = useCallback((message: string) => {
+    logger.info('Sending message', { message });
+    sendMessage(message);
+  }, [sendMessage]);
+
+  // Handle input changes
+  const handleInputChange = useCallback((value: string) => {
+    setInputValue(value);
+  }, [setInputValue]);
 
   // Handle message clicks
   const handleMessageClick = useCallback((event: ChatMessageClickEvent) => {
-    // logger.info('Message clicked in app', {
-    //   // clickEvent: event,
-    //   timestamp: new Date().toISOString()
-    // });
-  }, []);
+    logger.info('Message clicked in app', {
+      clickedLine: event.clickedLine,
+      timestamp: new Date().toISOString()
+    });
+
+    // Create a string with an X at the clicked position
+    const line = event.clickedLine.content;
+    const pos = event.textAtPosition.charPosition;
+    const markedLine = line.substring(0, pos) + 'X' + line.substring(pos + 1);
+    
+    // Send the message with the marked line and current input context
+    const clickContext = `\n\n<click>\noriginal line: "${line}"\nline index: ${event.clickedLine.index}\nclicked line: "${markedLine}"\n</click>`;
+    const messageWithContext = inputValue ? `${inputValue}${clickContext}` : clickContext;
+    handleSendMessage(messageWithContext);
+  }, [inputValue, handleSendMessage]);
 
   // Log terminal size changes
   useEffect(() => {
@@ -167,12 +209,6 @@ const App: FC = () => {
     }
   });
 
-  // Wrap sendMessage to log message sending
-  const handleSendMessage = (message: string) => {
-    logger.info('Sending message', { message });
-    sendMessage(message);
-  };
-
   return (
     <Box 
       flexDirection="column" 
@@ -189,7 +225,7 @@ const App: FC = () => {
       </Box>
 
       {/* Mouse position display */}
-      <MouseTracker scrollAreaRef={scrollAreaRef} />
+      {/* <MouseTracker scrollAreaRef={scrollAreaRef} /> */}
 
       {/* Error display */}
       {error && (
@@ -228,6 +264,8 @@ const App: FC = () => {
       <Box marginTop={1}>
         <PromptInput
           onSubmit={handleSendMessage}
+          onChange={handleInputChange}
+          value={inputValue}
           isLoading={isLoading}
           placeholder="Type a message..."
         />

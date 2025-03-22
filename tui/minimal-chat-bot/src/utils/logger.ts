@@ -32,15 +32,29 @@ type LogEntry = {
  */
 export class Logger {
   private component: string;
+  private level: LogLevel;
 
-  constructor(component: string) {
+  constructor(component: string, level: LogLevel = LogLevel.INFO) {
     this.component = component;
+    this.level = level;
+  }
+
+  /**
+   * Check if a given log level should be logged based on current logger level
+   */
+  private shouldLog(level: LogLevel): boolean {
+    const levels = [LogLevel.DEBUG, LogLevel.INFO, LogLevel.WARN, LogLevel.ERROR];
+    return levels.indexOf(level) >= levels.indexOf(this.level);
   }
 
   /**
    * Log a message with structured data
    */
   private log(level: LogLevel, message: string, data?: any): void {
+    if (!this.shouldLog(level)) {
+      return;
+    }
+
     const timestamp = new Date().toISOString();
     
     const logEntry: LogEntry = {
@@ -83,6 +97,6 @@ export class Logger {
 /**
  * Create a logger for a specific component
  */
-export function createLogger(component: string): Logger {
-  return new Logger(component);
+export function createLogger(component: string, level: LogLevel = LogLevel.INFO): Logger {
+  return new Logger(component, level);
 } 

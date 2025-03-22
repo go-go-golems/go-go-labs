@@ -108,13 +108,13 @@ export function wrapComponentText(
   // Get the width of the widest line in the text
   const currentWidth = widestLine(text);
 
-  logger.info('Current width', { currentWidth })
-      logger.info('Max width', { maxWidth })
+  logger.debug('Current width', { currentWidth })
+  logger.debug('Max width', { maxWidth })
   
   // Only wrap if text exceeds available width
   if (currentWidth > maxWidth) {
     const wrapped = wrapText(text, maxWidth, wrapType);
-    logger.info('Wrapped', { wrapped })
+    logger.debug('Wrapped', { wrapped })
     return wrapped;
   }
   
