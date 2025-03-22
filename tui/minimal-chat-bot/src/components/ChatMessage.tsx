@@ -30,8 +30,8 @@ export function ChatMessage({ message, showIndicator = true }: Props): JSX.Eleme
       ref={messageRef}
       flexDirection="row" 
       marginY={1}
-      borderStyle={isHovering ? "round" : "single"}
-      borderColor={isHovering ? (isUser ? theme.accent : theme.primary) : "transparent"}
+      // borderStyle={isHovering ? "round" : "single"}
+      // borderColor={isHovering ? (isUser ? theme.accent : theme.primary) : "transparent"}
       padding={isHovering ? 1 : 0}
     >
       {showIndicator && (

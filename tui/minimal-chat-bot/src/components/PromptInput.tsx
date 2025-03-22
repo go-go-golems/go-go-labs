@@ -2,7 +2,6 @@ import React, { useState, useRef } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { useOnMouseClick, useElementPosition, useMousePosition } from '@zenobius/ink-mouse';
 import { getTheme } from '../utils/theme.js';
-import { Button } from './Button.js';
 
 type Props = {
   onSubmit: (input: string) => void;
@@ -108,59 +107,27 @@ export function PromptInput({ onSubmit, isLoading, placeholder = 'Type a message
   const atCursor = input[cursorPosition] || ' ';
   const afterCursor = input.slice(cursorPosition + 1);
 
-  // Handle clear button click
-  const handleClear = () => {
-    setInput('');
-    setCursorPosition(0);
-  };
-
-  // Handle submit button click
-  const handleSubmit = () => {
-    if (input.trim() && !isLoading) {
-      onSubmit(input);
-      setInput('');
-      setCursorPosition(0);
-    }
-  };
-
   return (
-    <Box flexDirection="column" marginTop={1}>
-      <Box 
-        ref={inputRef}
-        borderStyle="round" 
-        borderColor={theme.border} 
-        padding={0}
-      >
-        <Box marginLeft={1}>
-          <Text color={theme.primary}>{'>'}</Text>
-        </Box>
-        <Box marginLeft={1} marginRight={1} flexGrow={1}>
-          {placeholderActive ? (
-            <Text dimColor>{placeholder}</Text>
-          ) : (
-            <Text>
-              <Text>{beforeCursor}</Text>
-              <Text inverse>{atCursor}</Text>
-              <Text>{afterCursor}</Text>
-            </Text>
-          )}
-        </Box>
+    <Box 
+      ref={inputRef}
+      borderStyle="round" 
+      borderColor={theme.border} 
+      padding={0}
+      marginTop={1}
+    >
+      <Box marginLeft={1}>
+        <Text color={theme.primary}>{'>'}</Text>
       </Box>
-      
-      {/* Button controls */}
-      <Box marginTop={1} justifyContent="flex-end">
-        <Button 
-          label="Clear" 
-          onClick={handleClear} 
-          type="secondary" 
-          disabled={isLoading || !input}
-        />
-        <Button 
-          label="Send" 
-          onClick={handleSubmit} 
-          type="primary" 
-          disabled={isLoading || !input.trim()}
-        />
+      <Box marginLeft={1} marginRight={1} flexGrow={1}>
+        {placeholderActive ? (
+          <Text dimColor>{placeholder}</Text>
+        ) : (
+          <Text>
+            <Text>{beforeCursor}</Text>
+            <Text inverse>{atCursor}</Text>
+            <Text>{afterCursor}</Text>
+          </Text>
+        )}
       </Box>
     </Box>
   );

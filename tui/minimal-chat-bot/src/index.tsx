@@ -7,7 +7,6 @@ import { ChatMessage } from './components/ChatMessage.js';
 import { PromptInput } from './components/PromptInput.js';
 import { Spinner } from './components/Spinner.js';
 import { MouseTracker } from './components/MouseTracker.js';
-import { ScrollableBox } from './components/ScrollableBox.js';
 import { useChat } from './hooks/useChat.js';
 import { getTheme } from './utils/theme.js';
 
@@ -46,7 +45,7 @@ const App: FC = () => {
       {/* Header */}
       <Box marginBottom={1}>
         <Text bold color={theme.primary}>
-          Minimal TUI Chatbot (with Mouse Support)
+          Minimal TUI Chatbot
         </Text>
       </Box>
       
@@ -60,17 +59,15 @@ const App: FC = () => {
         </Box>
       )}
       
-      {/* Message history with scrolling */}
-      <Box marginY={1} height={10}>
-        <ScrollableBox height={10}>
-          {messages.map((message) => (
-            <ChatMessage 
-              key={message.id} 
-              message={message} 
-            />
-          ))}
-        </ScrollableBox>
-      </Box>
+      {/* Message history - Static prevents re-rendering of existing messages */}
+      <Static items={messages}>
+        {(message) => (
+          <ChatMessage 
+            key={message.id} 
+            message={message} 
+          />
+        )}
+      </Static>
       
       {/* Loading indicator */}
       {isLoading && <Spinner />}
