@@ -1,8 +1,10 @@
 import React, { useEffect } from 'react';
 import { Box, Text } from 'ink';
+import { useOnMouseClick } from '@zenobius/ink-mouse';
 import { useAppDispatch, useAppSelector } from '../store/hooks.js';
 import { setOffset, setDimensions } from '../store/scrollSlice.js';
 import { getTheme } from '../utils/theme.js';
+import { Button } from './Button.js';
 
 type Props = {
   height: number;
@@ -25,44 +27,57 @@ export function ScrollableBox({ height, children }: Props): JSX.Element {
     }));
   }, [dispatch, height, childrenArray.length]);
 
+  // Calculate maximum scroll offset
+  const maxScroll = Math.max(0, childrenArray.length - height);
+  
+  // Handler functions for scrolling
+  const scrollUp = () => {
+    dispatch(setOffset(Math.max(0, offset - 1)));
+  };
+  
+  const scrollDown = () => {
+    dispatch(setOffset(Math.min(maxScroll, offset + 1)));
+  };
+
   // Calculate visible children
   const visibleChildren = childrenArray.slice(
     offset,
     offset + height
   );
 
-  // Calculate scroll indicators
-  const canScrollUp = offset > 0;
-  const canScrollDown = offset + height < childrenArray.length;
+  // Check if scroll controls should be shown
+  const showControls = childrenArray.length > height;
   
   return (
-    <Box flexDirection="column" height={height}>
-      {/* Scroll position indicator */}
-      <Box>
-        <Text color={theme.dimText}>
-          {offset + 1}-{Math.min(offset + height, childrenArray.length)}/{childrenArray.length}
-          {isAutoScrollEnabled ? ' (Auto-scroll)' : ''}
-        </Text>
-      </Box>
-
+    <Box flexDirection="row">
       {/* Main content area */}
-      <Box 
-        flexDirection="column" 
-        height={height - 1} // Account for the indicator line
-        overflow="hidden"
-      >
+      <Box flexDirection="column" flexGrow={1}>
         {visibleChildren}
       </Box>
-
-      {/* Scroll indicators */}
-      <Box position="absolute" flexDirection="column" marginLeft={1}>
-        {canScrollUp && (
-          <Text color={theme.dimText}>↑</Text>
-        )}
-        {canScrollDown && (
-          <Text color={theme.dimText}>↓</Text>
-        )}
-      </Box>
+      
+      {/* Scroll controls */}
+      {showControls && (
+        <Box flexDirection="column" marginLeft={1}>
+          <Button 
+            label="▲" 
+            onClick={scrollUp} 
+            type="secondary"
+            disabled={offset === 0}
+          />
+          <Box marginY={1}>
+            <Text color={theme.dimText}>
+              {offset + 1}-{Math.min(offset + height, childrenArray.length)}/{childrenArray.length}
+              {isAutoScrollEnabled ? ' (A)' : ''}
+            </Text>
+          </Box>
+          <Button 
+            label="▼" 
+            onClick={scrollDown} 
+            type="secondary"
+            disabled={offset >= maxScroll}
+          />
+        </Box>
+      )}
     </Box>
   );
 } 

@@ -8,7 +8,7 @@ import { ChatMessage } from './components/ChatMessage.js';
 import { PromptInput } from './components/PromptInput.js';
 import { Spinner } from './components/Spinner.js';
 import { MouseTracker } from './components/MouseTracker.js';
-import { ScrollableBox } from './components/ScrollableBox.js';
+import { ScrollArea } from './components/ScrollArea.js';
 import { useChat } from './hooks/useChat.js';
 import { getTheme } from './utils/theme.js';
 import { store } from './store/store.js';
@@ -75,7 +75,7 @@ const App: FC = () => {
   const scrollState = useAppSelector((state: {scroll: ScrollState}) => state.scroll);
 
   // Calculate available height for messages
-  const messageAreaHeight = Math.max(3, size.height - 10); // Adjust for header, input, status, margins
+  const messageAreaHeight = Math.max(3, size.height - 14); // Adjust for header, input, status, margins
 
   // Handle keyboard input for scrolling
   useInput((input, key) => {
@@ -128,21 +128,23 @@ const App: FC = () => {
       <Box 
         borderStyle="single"
         borderColor={theme.primary}
-        padding={1}
+        paddingX={1}
       >
-        <ScrollableBox height={messageAreaHeight}>
+        <ScrollArea height={messageAreaHeight}>
           {messages.map((message) => (
             <ChatMessage key={message.id} message={message} />
           ))}
-        </ScrollableBox>
+        </ScrollArea>
       </Box>
 
-      {/* Loading indicator */}
-      {isLoading && (
         <Box marginTop={1}>
+      {/* Loading indicator */}
+      {isLoading ? (
           <Spinner label="Thinking..." />
-        </Box>
+      ) : (
+          <Text>...</Text>
       )}
+        </Box>
 
       {/* Input area */}
       <Box marginTop={1}>
