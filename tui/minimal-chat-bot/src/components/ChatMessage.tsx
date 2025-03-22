@@ -1,16 +1,165 @@
-import React, { FC } from 'react';
-import { Box, Text } from 'ink';
+import React, { FC, useCallback, useRef, useState, useEffect, useMemo } from 'react';
+import { Box, Text, measureElement } from 'ink';
+import { useOnMouseHover, useMousePosition, useElementPosition, useElementDimensions, useMouse } from '@zenobius/ink-mouse';
+import { useOnMouseClick } from './useOnMouseClick.js';
 import type { ChatMessage as ChatMessageType } from '../store/chatSlice.ts';
+import { getTheme } from '../utils/theme.js';
+import { createLogger } from '../utils/logger.js';
+import { wrapComponentText } from '../utils/text-wrapper.js';
 
 interface Props {
   message: ChatMessageType;
+  onClick?: () => void;
 }
 
-export const ChatMessage: FC<Props> = ({ message }) => {
+// Create a logger for this component
+const logger = createLogger('ChatMessage');
+
+export const ChatMessage: FC<Props> = ({ message, onClick }) => {
   const { content, role } = message;
+  const ref = useRef(null);
+  const [hovering, setHovering] = useState(false);
+  const [clicking, setClicking] = useState(false);
+  const [wrappedContent, setWrappedContent] = useState('');
+  const theme = getTheme();
+  
+  // Get mouse position and element dimensions for detailed logging
+  const mouse = useMouse();
+  const mousePosition = useMousePosition();
+  const elementPosition = useElementPosition(ref);
+  const elementDimensions = useElementDimensions(ref);
+  
+  // Create the complete text with emoji preamble
+  const fullText = useMemo(() => {
+    const preamble = role === 'user' ? '🧑 You: ' : '🤖 Bot: ';
+    return preamble + content;
+  }, [role, content]);
+  
+  // Update wrapped content when element dimensions or content changes
+  useEffect(() => {
+    // Delay the wrapping calculation until after the initial render
+    // so that the element measurements are available
+    const timeoutId = setTimeout(() => {
+      const wrapped = wrapComponentText(fullText, ref);
+      setWrappedContent(wrapped);
+      
+      if (wrapped !== fullText) {
+        logger.debug('Text wrapped', {
+          originalText: fullText,
+          originalLength: fullText.length,
+          wrappedLength: wrapped.length,
+          originalFirstLine: fullText.split('\n')[0],
+          wrappedFirstLine: wrapped.split('\n')[0],
+          lineCount: wrapped.split('\n').length
+        });
+      }
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
+  }, [fullText, elementDimensions.width, ref.current]);
+  
+  // Handle hover events
+  useOnMouseHover(ref, setHovering);
+
+  const handler = useCallback((isClicked: boolean) => {
+    setClicking(isClicked);
+    
+    if (isClicked) {
+      // Calculate relative mouse position within the component
+      const relativeX = mousePosition.x - elementPosition.left - 2;
+      const relativeY = mousePosition.y - elementPosition.top - 1;
+      
+      // Determine which line was clicked
+      const contentLines = wrappedContent.split('\n');
+      const clickedLineIndex = Math.min(Math.max(0, relativeY), contentLines.length - 1);
+      const clickedLine = contentLines[clickedLineIndex] || '';
+      
+      // Estimate character position based on X coordinate
+      // Assuming monospace font with 1 character = 1 horizontal unit
+      const charPos = Math.max(0, Math.floor(relativeX));
+      
+      // Get character under cursor if possible
+      let textUnderCursor = '';
+      if (charPos < clickedLine.length) {
+        textUnderCursor = clickedLine.substring(charPos, charPos + 10) + 
+          (clickedLine.length > charPos + 10 ? '...' : '');
+      }
+
+      // Extract the content part of the wrapped text (removing preamble)
+      const preambleLength = (role === 'user' ? '🧑 You: ' : '🤖 Bot: ').length;
+      const contentStart = clickedLine.startsWith('🧑') || clickedLine.startsWith('🤖') 
+        ? preambleLength 
+        : 0;
+        
+      // Adjusted character position (accounting for preamble)
+      const adjustedCharPos = Math.max(0, charPos - contentStart);
+
+      // Log detailed information about the click
+      logger.info(`Message clicked: ${role}`, {
+        // Message metadata
+        role: role,
+        preamble: role === 'user' ? '🧑 You: ' : '🤖 Bot: ',
+        
+        // Content info
+        contentStart: content.substring(0, 20) + (content.length > 20 ? '...' : ''),
+        contentLength: content.length,
+        
+        // Wrapped content information
+        fullText,
+        wrappedContent,
+        wrappedLineCount: contentLines.length,
+        clickedLineIndex,
+        clickedLine,
+        preambleOnLine: clickedLine.startsWith('🧑') || clickedLine.startsWith('🤖'),
+        
+        // Mouse position information
+        mouseAbs: { x: mousePosition.x, y: mousePosition.y },
+        mouseRel: { x: relativeX, y: relativeY },
+        
+        // Component dimensions and position
+        elementPos: { 
+          left: elementPosition.left, 
+          top: elementPosition.top,
+          right: elementPosition.left + elementDimensions.width,
+          bottom: elementPosition.top + elementDimensions.height
+        },
+        elementDim: { 
+          width: elementDimensions.width, 
+          height: elementDimensions.height 
+        },
+        
+        // Content under cursor
+        rawCharPos: charPos,
+        adjustedCharPos,
+        textAtCursor: textUnderCursor || '[no text]',
+        
+        // Additional measurements from Ink
+        inkMeasure: ref.current ? measureElement(ref.current) : null
+      });
+      
+      // Call the onClick handler if provided
+      if (onClick) {
+        onClick();
+      }
+    }
+  }, [mousePosition, elementPosition, elementDimensions, wrappedContent, fullText, role, onClick]);
+  
+  // Handle click events with detailed logging
+  useOnMouseClick(ref, handler);
+  
+  // Determine border style based on state
+  const borderStyle = onClick ? (clicking ? 'double' : (hovering ? 'round' : 'single')) : undefined;
+  const roleColor = role === 'user' ? theme.accent : theme.primary;
   
   return (
-    <Box marginY={1}>
+    <Box 
+      ref={ref}
+      borderStyle={borderStyle}
+      borderColor={hovering ? roleColor : undefined}
+      paddingX={1}
+      paddingY={0}
+      marginY={1}
+    >
       <Text color={role === 'user' ? 'green' : 'blue'}>
         {role === 'user' ? '🧑 You: ' : '🤖 Bot: '}
         {content}

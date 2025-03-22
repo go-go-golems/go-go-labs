@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import React, { FC, useState, useEffect, useRef } from 'react';
-import { Box, render, Text, useStdout, useInput } from 'ink';
+import { Box, Text, useStdout, useInput, render } from 'ink';
+import { render as testRender } from 'ink-testing-library';
 import { MouseProvider } from '@zenobius/ink-mouse';
 import { Provider } from 'react-redux/alternate-renderers';
 import meow from 'meow';
@@ -10,10 +11,36 @@ import { Spinner } from './components/Spinner.js';
 import { MouseTracker } from './components/MouseTracker.js';
 import { ScrollArea } from './components/ScrollArea.js';
 import { useChat } from './hooks/useChat.js';
-import { getTheme } from './utils/theme.js';
+import { getTheme, createLogger } from './utils/index.js';
 import { store } from './store/store.js';
 import { useAppDispatch, useAppSelector } from './store/hooks.js';
 import { ScrollState, setOffset } from './store/scrollSlice.js';
+import { addMessage } from './store/chatSlice.js';
+import { v4 as uuidv4 } from 'uuid';
+
+// Create a logger for the main app
+const logger = createLogger('App');
+
+// Log application start
+logger.info('Application starting', { 
+  version: process.env.npm_package_version,
+  nodeVersion: process.version 
+});
+
+// Add initial messages to the chat
+store.dispatch(addMessage({
+  id: uuidv4(),
+  role: 'assistant',
+  content: 'Hello! I\'m your minimal terminal chatbot. How can I help you today? We are going to say something very long: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."',
+}));
+
+store.dispatch(addMessage({
+  id: uuidv4(),
+  role: 'assistant',
+  content: 'Type a message below and press Enter to chat. Use arrow keys to scroll.',
+}));
+
+logger.info('Added initial messages to the chat');
 
 // Handle CLI with meow
 const cli = meow(
@@ -75,11 +102,23 @@ const App: FC = () => {
   const scrollState = useAppSelector((state: {scroll: ScrollState}) => state.scroll);
   const scrollAreaRef = useRef(null);
 
+  // Log terminal size changes
+  useEffect(() => {
+    logger.debug('Terminal size updated', { width: size.width, height: size.height });
+  }, [size.width, size.height]);
+
+  // Log errors
+  useEffect(() => {
+    if (error) {
+      logger.error('Chat error occurred', { error });
+    }
+  }, [error]);
+
   // Calculate available height for messages
   const messageAreaHeight = Math.max(3, size.height - 14); // Adjust for header, input, status, margins
 
   // Handle keyboard input for scrolling
-  useInput((input, key) => {
+  useInput((_, key) => {
     if (key.upArrow) {
       dispatch(setOffset(Math.max(0, scrollState.offset - 1)));
     }
@@ -99,6 +138,18 @@ const App: FC = () => {
       )));
     }
   });
+
+  // Wrap sendMessage to log message sending
+  const handleSendMessage = (message: string) => {
+    logger.info('Sending message', { message });
+    sendMessage(message);
+  };
+
+  const scrollAreaText = <ScrollArea height={messageAreaHeight} ref={scrollAreaRef}>  
+  {messages.map((message) => (
+    <ChatMessage key={message.id} message={message} />
+  ))}
+  </ScrollArea>
 
   return (
     <Box 
@@ -150,7 +201,7 @@ const App: FC = () => {
       {/* Input area */}
       <Box marginTop={1}>
         <PromptInput
-          onSubmit={sendMessage}
+          onSubmit={handleSendMessage}
           isLoading={isLoading}
           placeholder="Type a message..."
         />
@@ -158,6 +209,9 @@ const App: FC = () => {
     </Box>
   );
 };
+
+// Log when application is about to render
+logger.info('Rendering application');
 
 render(
   <Provider store={store}>
@@ -169,4 +223,15 @@ render(
     stdin: process.stdin,
     stdout: process.stdout
   }
-); 
+);
+
+// Handle process termination
+process.on('SIGINT', () => {
+  logger.info('Application shutting down');
+  process.exit(0);
+});
+
+process.on('uncaughtException', (error) => {
+  logger.error('Uncaught exception', { error: error.toString(), stack: error.stack });
+  process.exit(1);
+}); 

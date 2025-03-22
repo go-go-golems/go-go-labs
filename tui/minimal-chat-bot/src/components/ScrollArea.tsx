@@ -1,13 +1,16 @@
-import React, { useRef, useEffect, forwardRef } from 'react';
-import { Box, useInput, measureElement } from 'ink';
+import React, { useRef, useEffect, forwardRef, ReactElement, cloneElement, Children, isValidElement } from 'react';
+import { Box, useInput, measureElement, } from 'ink';
 import { useAppDispatch, useAppSelector } from '../store/hooks.js';
 import { setOffset, setDimensions } from '../store/scrollSlice.js';
+import { createLogger } from '../utils/logger.js';
+import type { ChatMessage as ChatMessageType } from '../store/chatSlice.ts';
 
 type Props = {
   height: number;
   children: React.ReactNode;
 };
 
+const logger = createLogger('ScrollArea');
 export const ScrollArea = forwardRef<any, Props>(
   function ScrollArea({ height, children }: Props, ref): JSX.Element {
   const dispatch = useAppDispatch();
@@ -50,7 +53,7 @@ export const ScrollArea = forwardRef<any, Props>(
     }
   });
 
-  return (
+  const ret = (
     <Box
      ref={ref}
      height={height}
@@ -70,4 +73,7 @@ export const ScrollArea = forwardRef<any, Props>(
       </Box>
     </Box>
   );
+
+
+  return ret;
 }); 
