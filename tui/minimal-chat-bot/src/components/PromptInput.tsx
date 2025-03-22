@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Box, Text, useInput } from 'ink';
-import { useOnMouseClick, useElementPosition } from '@zenobius/ink-mouse';
+import { useOnMouseClick, useElementPosition, useMousePosition } from '@zenobius/ink-mouse';
 import { getTheme } from '../utils/theme.js';
 import { Button } from './Button.js';
 
@@ -16,18 +16,18 @@ export function PromptInput({ onSubmit, isLoading, placeholder = 'Type a message
   const inputRef = useRef(null);
   const theme = getTheme();
 
-  // Get element position to calculate cursor position from click
+  // Get element position and mouse position
   const elementPosition = useElementPosition(inputRef);
+  const mousePosition = useMousePosition();
 
   // Handle mouse clicks on the input field
-  useOnMouseClick(inputRef, (event) => {
-    if (event && !isLoading) {
+  useOnMouseClick(inputRef, (isClicked) => {
+    if (isClicked && !isLoading) {
       // Calculate cursor position based on click position
       // This is a simplified calculation - may need adjustment based on font size
-      const clickX = event.x - elementPosition.x - 3; // Adjust for left margin and borders
+      const clickX = mousePosition.x - elementPosition.left - 3; // Adjust for left margin and borders
       
       // Calculate approximately where the click happened in the string
-      const textBeforeClick = input.slice(0, input.length);
       const estimatedPosition = Math.min(
         Math.max(0, Math.round(clickX)),
         input.length
@@ -37,10 +37,21 @@ export function PromptInput({ onSubmit, isLoading, placeholder = 'Type a message
     }
   });
 
+  // Check if a string contains mouse escape sequences
+  const isMouseEscapeSequence = (str: string): boolean => {
+    // Match any mouse event sequence: [< followed by numbers and semicolons, ending with M or m
+    return /\[<\d+(?:;\d+)*[Mm]$/.test(str);
+  };
+
   // Handle keyboard input
   useInput((inputChar, key) => {
     // Disable input during loading
     if (isLoading) return;
+
+    // Filter out mouse escape sequences
+    if (isMouseEscapeSequence(inputChar)) {
+      return;
+    }
 
     // Submit on Enter
     if (key.return) {

@@ -13,7 +13,9 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "build:babel": "babel src --out-dir dist --extensions \".tsx,.ts\" --source-maps inline",
-    "start:js": "node dist/index.js"
+    "start:js": "node dist/index.js",
+    "demo": "tsx src/demo/index.tsx",
+    "demo:watch": "tsx --watch src/demo/index.tsx"
   },
   "keywords": [
     "chatbot",
@@ -44,6 +46,7 @@
     "@types/node": "^20.8.9",
     "@types/uuid": "^9.0.6",
     "ts-node": "^10.9.2",
+    "tsx": "^4.15.6",
     "typescript": "^5.2.2"
   }
 }

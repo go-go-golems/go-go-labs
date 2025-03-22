@@ -35,28 +35,19 @@ export function Button({
   };
   
   // Handle hover events
-  useOnMouseHover(ref, (isHovering) => {
-    if (!disabled) {
-      setHovering(!!isHovering);
-    }
-  });
+  useOnMouseHover(ref, setHovering);
   
   // Handle click events
-  useOnMouseClick(ref, (event) => {
-    if (disabled || !event) return;
-    
-    setClicking(true);
-    onClick();
-    
-    // Reset clicking state after a brief delay
-    setTimeout(() => {
-      setClicking(false);
-    }, 150);
+  useOnMouseClick(ref, (isClicked) => {
+    setClicking(isClicked);
+    if (isClicked && !disabled) {
+      onClick();
+    }
   });
   
   // Determine border style based on state
   const borderStyle = clicking ? 'double' : (hovering ? 'round' : 'single');
-  const color = getColor();
+  const color = disabled ? theme.dimText : getColor();
   
   return (
     <Box 

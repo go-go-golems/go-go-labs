@@ -84,9 +84,14 @@ const App: FC = () => {
   );
 };
 
-// Wrap the App with MouseProvider and render
+// Wrap the App with MouseProvider and render with stdin in raw mode to properly handle mouse events
 render(
   <MouseProvider>
     <App />
-  </MouseProvider>
+  </MouseProvider>,
+  {
+    // Set stdin to raw mode to better handle mouse events
+    stdin: process.stdin,
+    stdout: process.stdout
+  }
 ); 
