@@ -55,7 +55,7 @@ logger.info('Application starting', {
 
 store.dispatch(addMessage({
   id: uuidv4(),
-  role: 'assistant',
+  role: 'user',
   content: `
   <uiInstructions>
   You are responsible for rendering a consistent ASCII UI.  Clicks will be sent with an X at the click position.
@@ -138,10 +138,12 @@ const App: FC = () => {
   const [inputValue, setInputValue] = useState('');
 
   useEffect(() => {
-    sendMessage('Make the UI for a crazy spaceship.')
+    sendMessage('Make the UI for a crazy spaceship. Multiple panels, weird widgets. Show action log terminal. Show incoming alien radar.')
   }, []);
 
 
+  const onlyShowLastAssistantMessage = true
+  const messagesToShow = onlyShowLastAssistantMessage ? messages.filter((message) => message.role === 'assistant').slice(-1) : messages;
 
   // Wrap sendMessage to log message sending
   const handleSendMessage = useCallback((message: string) => {
@@ -241,7 +243,7 @@ const App: FC = () => {
         paddingX={1}
       >
         <ScrollArea height={messageAreaHeight} ref={scrollAreaRef}>
-          {messages.map((message) => (
+          {messagesToShow.map((message) => (
             <ChatMessage 
               key={message.id} 
               message={message} 

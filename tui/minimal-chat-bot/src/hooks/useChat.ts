@@ -15,6 +15,9 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || "",
 });
 
+// const model = "claude-3-5-sonnet-20241022"
+const model = "claude-3-5-haiku-latest"
+
 export function useChat() {
   const dispatch = useAppDispatch();
   const messages = useAppSelector(
@@ -101,13 +104,13 @@ export function useChat() {
         });
 
         logger.info("Calling LLM API", {
-          model: "claude-3-5-sonnet-20241022",
+          model: model,
           messageCount: apiMessages.length,
         });
 
         // Call the LLM API
         const response = await anthropic.messages.create({
-          model: "claude-3-5-sonnet-20241022",
+          model: model,
           max_tokens: 1000,
           messages: apiMessages,
         });
