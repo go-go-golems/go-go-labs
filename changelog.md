@@ -114,3 +114,15 @@ Added Sprig template functions to enhance template functionality in the reusable
 
 - Added Sprig template functions to enable advanced template operations
 - Updated template initialization to include Sprig's function map
+
+# Changelog
+
+## [Unreleased]
+
+### Added
+- Minimal Terminal UI Chatbot implementation using React Ink and TypeScript
+  - Added beautiful interactive terminal UI for LLM conversations
+  - Implemented markdown rendering for rich text formatting
+  - Created component-based architecture with ChatMessage, PromptInput, and Spinner components
+  - Added keyboard navigation and input handling
+  - Added comprehensive documentation with manual JavaScript setup instructions
