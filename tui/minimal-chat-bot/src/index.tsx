@@ -2,6 +2,7 @@
 import React, { FC, useState, useEffect } from 'react';
 import { Box, render, Text, useStdout } from 'ink';
 import { MouseProvider } from '@zenobius/ink-mouse';
+import { Provider } from 'react-redux/alternate-renderers';
 import meow from 'meow';
 import { ChatMessage } from './components/ChatMessage.js';
 import { PromptInput } from './components/PromptInput.js';
@@ -10,6 +11,7 @@ import { MouseTracker } from './components/MouseTracker.js';
 import { ScrollArea } from './components/ScrollArea.js';
 import { useChat } from './hooks/useChat.js';
 import { getTheme } from './utils/theme.js';
+import { store } from './store/store.js';
 
 // Handle CLI with meow
 const cli = meow(
@@ -125,13 +127,14 @@ const App: FC = () => {
   );
 };
 
-// Wrap the App with MouseProvider and render with stdin in raw mode to properly handle mouse events
+// Wrap the App with MouseProvider and Redux Provider, then render
 render(
-  <MouseProvider>
-    <App />
-  </MouseProvider>,
+  <Provider store={store}>
+    <MouseProvider>
+      <App />
+    </MouseProvider>
+  </Provider>,
   {
-    // Set stdin to raw mode to better handle mouse events
     stdin: process.stdin,
     stdout: process.stdout
   }
