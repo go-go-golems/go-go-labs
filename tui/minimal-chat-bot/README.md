@@ -6,6 +6,8 @@ A minimal terminal-based LLM chatbot built with Ink and TypeScript. This chatbot
 
 - Beautiful terminal UI built with React Ink
 - Interactive chat interface with user and assistant messages
+- Full mouse support for clicking, hovering, and scrolling
+- Scrollable message history with navigation controls
 - Real-time loading indication with animated spinner
 - Markdown rendering for rich text formatting
 - Error handling and display
@@ -15,6 +17,7 @@ A minimal terminal-based LLM chatbot built with Ink and TypeScript. This chatbot
 
 - Node.js (v16+)
 - An Anthropic API key (environment variable: `ANTHROPIC_API_KEY`)
+- Terminal emulator with mouse support (most modern terminals like iTerm2, Windows Terminal, etc.)
 
 ## Installation
 
@@ -84,8 +87,16 @@ npm install -g .
 minimal-chat-bot
 ```
 
-### Keyboard Controls
+### Controls
 
+#### Mouse Controls
+- Click in the input field to position the cursor
+- Click the "Send" button to send a message
+- Click the "Clear" button to clear input
+- Use scroll buttons to navigate through message history
+- Hover over messages to see timestamps and highlight messages
+
+#### Keyboard Controls
 - Type your message and press `Enter` to send
 - Press `Escape` to clear the current input
 - Use `Left` and `Right` arrow keys to navigate the cursor within the input field
@@ -95,8 +106,11 @@ minimal-chat-bot
 
 The chatbot is built with a component-based architecture:
 
-- **ChatMessage**: Renders individual chat messages with styling
-- **PromptInput**: Handles user input with cursor positioning
+- **ChatMessage**: Renders individual chat messages with styling and hover effects
+- **PromptInput**: Handles user input with cursor positioning via keyboard and mouse
+- **Button**: Clickable buttons with hover effects
+- **ScrollableBox**: Provides scrollable content areas with controls
+- **MouseTracker**: Displays current mouse coordinates
 - **Spinner**: Shows an animated loading indicator
 - **useChat hook**: Manages chat state and API communication
 
@@ -173,6 +187,17 @@ Key points to remember:
   - `width`/`height`
   - `padding`/`margin`
 
+## Mouse Support
+
+Mouse support is implemented using the `@zenobius/ink-mouse` library, which provides several hooks:
+
+- `useMousePosition`: Tracks the current mouse coordinates
+- `useOnMouseClick`: Detects click events on a component
+- `useOnMouseHover`: Detects hover events on a component
+- `useElementPosition`: Gets the position of a component
+
+Note that mouse support requires a terminal emulator that supports mouse events. Most modern terminal emulators (iTerm2, Windows Terminal, modern versions of xterm) support mouse events, but some configuration may be required.
+
 ## Customization
 
 You can easily customize the chatbot by modifying the theme in `src/utils/theme.ts`.
@@ -180,6 +205,7 @@ You can easily customize the chatbot by modifying the theme in `src/utils/theme.
 ## Dependencies
 
 - React and Ink for terminal UI rendering
+- @zenobius/ink-mouse for mouse interaction support
 - Anthropic SDK for API communication
 - UUID for generating message IDs
 - Chalk for terminal styling

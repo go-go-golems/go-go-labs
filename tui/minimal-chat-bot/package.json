@@ -27,8 +27,9 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.19.0",
     "@types/react": "^18.2.31",
+    "@zenobius/ink-mouse": "^1.0.3",
     "chalk": "^5.3.0",
-    "ink": "^4.4.1",
+    "ink": "^5.2.0",
     "meow": "^11.0.0",
     "react": "^18.2.0",
     "uuid": "^9.0.1"
