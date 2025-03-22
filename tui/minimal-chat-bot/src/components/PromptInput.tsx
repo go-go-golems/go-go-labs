@@ -114,6 +114,8 @@ export function PromptInput({ onSubmit, isLoading, placeholder = 'Type a message
       borderColor={theme.border} 
       padding={0}
       marginTop={1}
+      flexShrink={0}
+      height={3}
     >
       <Box marginLeft={1}>
         <Text color={theme.primary}>{'>'}</Text>

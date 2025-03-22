@@ -1,12 +1,13 @@
 #!/usr/bin/env node
-import React, { FC } from 'react';
-import { Box, render, Text, Static } from 'ink';
+import React, { FC, useState, useEffect } from 'react';
+import { Box, render, Text, useStdout } from 'ink';
 import { MouseProvider } from '@zenobius/ink-mouse';
 import meow from 'meow';
 import { ChatMessage } from './components/ChatMessage.js';
 import { PromptInput } from './components/PromptInput.js';
 import { Spinner } from './components/Spinner.js';
 import { MouseTracker } from './components/MouseTracker.js';
+import { ScrollArea } from './components/ScrollArea.js';
 import { useChat } from './hooks/useChat.js';
 import { getTheme } from './utils/theme.js';
 
@@ -35,13 +36,50 @@ const cli = meow(
   }
 );
 
+// Hook to get and track terminal size
+function useTerminalSize() {
+  const out = useStdout();
+  const [size, setSize] = useState(() => ({
+    width: out.stdout.columns,
+    height: out.stdout.rows,
+  }));
+
+  useEffect(() => {
+    const handleTerminalResize = () => {
+      setSize({
+        width: out.stdout.columns,
+        height: out.stdout.rows,
+      });
+    };
+
+    process.stdout.on('resize', handleTerminalResize);
+    process.stdout.on('SIGWINCH', handleTerminalResize);
+    return () => {
+      process.stdout.off('SIGWINCH', handleTerminalResize);
+      process.stdout.off('resize', handleTerminalResize);
+    };
+  }, []);
+
+  return size;
+}
+
 const App: FC = () => {
   // Get chat functionality from our hook
   const { messages, isLoading, error, sendMessage } = useChat();
   const theme = getTheme();
+  const size = useTerminalSize();
+
+  // Calculate content height (total height minus padding and fixed elements)
+  const contentHeight = size.height - 6; // Adjust for header, input, padding, etc.
 
   return (
-    <Box flexDirection="column" padding={1}>
+    <Box 
+      flexDirection="column" 
+      padding={1}
+      width={size.width - 2}  // Account for padding
+      height={size.height}
+      marginX={1}
+    >
       {/* Header */}
       <Box marginBottom={1}>
         <Text bold color={theme.primary}>
@@ -59,15 +97,21 @@ const App: FC = () => {
         </Box>
       )}
       
-      {/* Message history - Static prevents re-rendering of existing messages */}
-      <Static items={messages}>
-        {(message) => (
-          <ChatMessage 
-            key={message.id} 
-            message={message} 
-          />
-        )}
-      </Static>
+      {/* Message history */}
+      <Box 
+        borderStyle="single"
+        borderColor={theme.primary}
+        padding={1}
+      >
+        <ScrollArea height={contentHeight - 8}>
+          {messages.map((message) => (
+            <ChatMessage 
+              key={message.id} 
+              message={message} 
+            />
+          ))}
+        </ScrollArea>
+      </Box>
       
       {/* Loading indicator */}
       {isLoading && <Spinner />}
