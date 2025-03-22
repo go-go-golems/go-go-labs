@@ -1,0 +1,48 @@
+{
+  "name": "minimal-chat-bot",
+  "version": "1.0.0",
+  "description": "A minimal terminal-based LLM chatbot built with Ink and TypeScript",
+  "main": "dist/index.js",
+  "type": "module",
+  "bin": "dist/index.js",
+  "engines": {
+    "node": ">=16"
+  },
+  "scripts": {
+    "start": "ts-node src/index.tsx",
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "build:babel": "babel src --out-dir dist --extensions \".tsx,.ts\" --source-maps inline",
+    "start:js": "node dist/index.js"
+  },
+  "keywords": [
+    "chatbot",
+    "llm",
+    "terminal",
+    "ink",
+    "react"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.19.0",
+    "@types/react": "^18.2.31",
+    "chalk": "^5.3.0",
+    "ink": "^4.4.1",
+    "meow": "^11.0.0",
+    "react": "^18.2.0",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.23.4",
+    "@babel/core": "^7.23.5",
+    "@babel/preset-env": "^7.23.5",
+    "@babel/preset-react": "^7.23.3",
+    "@babel/preset-typescript": "^7.23.3",
+    "@sindresorhus/tsconfig": "^3.0.1",
+    "@types/node": "^20.8.9",
+    "@types/uuid": "^9.0.6",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.2.2"
+  }
+}
