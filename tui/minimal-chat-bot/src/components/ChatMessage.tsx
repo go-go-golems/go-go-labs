@@ -7,9 +7,27 @@ import { getTheme } from '../utils/theme.js';
 import { createLogger } from '../utils/logger.js';
 import { wrapComponentText } from '../utils/text-wrapper.js';
 
+export interface ChatMessageClickEvent {
+  wrappedContent: string;
+  position: {
+    absolute: { x: number; y: number };
+    relative: { x: number; y: number };
+  };
+  clickedLine: {
+    content: string;
+    index: number;
+    hasPreamble: boolean;
+  };
+  textAtPosition: {
+    raw: string;
+    adjusted: string;
+    charPosition: number;
+  };
+}
+
 interface Props {
   message: ChatMessageType;
-  onClick?: () => void;
+  onClick?: (event: ChatMessageClickEvent) => void;
 }
 
 // Create a logger for this component
@@ -66,8 +84,8 @@ export const ChatMessage: FC<Props> = ({ message, onClick }) => {
     
     if (isClicked) {
       // Calculate relative mouse position within the component
-      const relativeX = mousePosition.x - elementPosition.left - 2;
-      const relativeY = mousePosition.y - elementPosition.top - 1;
+      const relativeX = mousePosition.x - elementPosition.left - 3;
+      const relativeY = mousePosition.y - elementPosition.top - 2;
       
       // Determine which line was clicked
       const contentLines = wrappedContent.split('\n');
@@ -75,7 +93,6 @@ export const ChatMessage: FC<Props> = ({ message, onClick }) => {
       const clickedLine = contentLines[clickedLineIndex] || '';
       
       // Estimate character position based on X coordinate
-      // Assuming monospace font with 1 character = 1 horizontal unit
       const charPos = Math.max(0, Math.floor(relativeX));
       
       // Get character under cursor if possible
@@ -87,36 +104,33 @@ export const ChatMessage: FC<Props> = ({ message, onClick }) => {
 
       // Extract the content part of the wrapped text (removing preamble)
       const preambleLength = (role === 'user' ? '🧑 You: ' : '🤖 Bot: ').length;
-      const contentStart = clickedLine.startsWith('🧑') || clickedLine.startsWith('🤖') 
-        ? preambleLength 
-        : 0;
+      const hasPreamble = clickedLine.startsWith('🧑') || clickedLine.startsWith('🤖');
+      const contentStart = hasPreamble ? preambleLength : 0;
         
-      // Adjusted character position (accounting for preamble)
-      const adjustedCharPos = Math.max(0, charPos - contentStart);
+
+      // Create click event object
+      const clickEvent: ChatMessageClickEvent = {
+        wrappedContent,
+        position: {
+          absolute: { x: mousePosition.x, y: mousePosition.y },
+          relative: { x: relativeX, y: relativeY }
+        },
+        clickedLine: {
+          content: clickedLine,
+          index: clickedLineIndex,
+          hasPreamble
+        },
+        textAtPosition: {
+          raw: textUnderCursor || '',
+          adjusted: textUnderCursor.slice(contentStart) || '',
+          charPosition: charPos,
+        }
+      };
 
       // Log detailed information about the click
       logger.info(`Message clicked: ${role}`, {
-        // Message metadata
-        role: role,
-        preamble: role === 'user' ? '🧑 You: ' : '🤖 Bot: ',
-        
-        // Content info
-        contentStart: content.substring(0, 20) + (content.length > 20 ? '...' : ''),
-        contentLength: content.length,
-        
-        // Wrapped content information
-        fullText,
-        wrappedContent,
-        wrappedLineCount: contentLines.length,
-        clickedLineIndex,
-        clickedLine,
-        preambleOnLine: clickedLine.startsWith('🧑') || clickedLine.startsWith('🤖'),
-        
-        // Mouse position information
-        mouseAbs: { x: mousePosition.x, y: mousePosition.y },
-        mouseRel: { x: relativeX, y: relativeY },
-        
-        // Component dimensions and position
+        ...clickEvent,
+        role,
         elementPos: { 
           left: elementPosition.left, 
           top: elementPosition.top,
@@ -127,19 +141,12 @@ export const ChatMessage: FC<Props> = ({ message, onClick }) => {
           width: elementDimensions.width, 
           height: elementDimensions.height 
         },
-        
-        // Content under cursor
-        rawCharPos: charPos,
-        adjustedCharPos,
-        textAtCursor: textUnderCursor || '[no text]',
-        
-        // Additional measurements from Ink
         inkMeasure: ref.current ? measureElement(ref.current) : null
       });
       
       // Call the onClick handler if provided
       if (onClick) {
-        onClick();
+        onClick(clickEvent);
       }
     }
   }, [mousePosition, elementPosition, elementDimensions, wrappedContent, fullText, role, onClick]);
@@ -158,7 +165,7 @@ export const ChatMessage: FC<Props> = ({ message, onClick }) => {
       borderColor={hovering ? roleColor : undefined}
       paddingX={1}
       paddingY={0}
-      marginY={1}
+      marginY={0}
     >
       <Text color={role === 'user' ? 'green' : 'blue'}>
         {role === 'user' ? '🧑 You: ' : '🤖 Bot: '}

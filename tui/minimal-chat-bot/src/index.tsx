@@ -1,11 +1,12 @@
 #!/usr/bin/env node
-import React, { FC, useState, useEffect, useRef } from 'react';
+import React, { FC, useState, useEffect, useRef, useCallback } from 'react';
 import { Box, Text, useStdout, useInput, render } from 'ink';
 import { render as testRender } from 'ink-testing-library';
 import { MouseProvider } from '@zenobius/ink-mouse';
 import { Provider } from 'react-redux/alternate-renderers';
 import meow from 'meow';
 import { ChatMessage } from './components/ChatMessage.js';
+import type { ChatMessageClickEvent } from './components/ChatMessage.js';
 import { PromptInput } from './components/PromptInput.js';
 import { Spinner } from './components/Spinner.js';
 import { MouseTracker } from './components/MouseTracker.js';
@@ -102,6 +103,14 @@ const App: FC = () => {
   const scrollState = useAppSelector((state: {scroll: ScrollState}) => state.scroll);
   const scrollAreaRef = useRef(null);
 
+  // Handle message clicks
+  const handleMessageClick = useCallback((event: ChatMessageClickEvent) => {
+    logger.info('Message clicked in app', {
+      clickEvent: event,
+      timestamp: new Date().toISOString()
+    });
+  }, []);
+
   // Log terminal size changes
   useEffect(() => {
     logger.debug('Terminal size updated', { width: size.width, height: size.height });
@@ -145,12 +154,6 @@ const App: FC = () => {
     sendMessage(message);
   };
 
-  const scrollAreaText = <ScrollArea height={messageAreaHeight} ref={scrollAreaRef}>  
-  {messages.map((message) => (
-    <ChatMessage key={message.id} message={message} />
-  ))}
-  </ScrollArea>
-
   return (
     <Box 
       flexDirection="column" 
@@ -184,7 +187,11 @@ const App: FC = () => {
       >
         <ScrollArea height={messageAreaHeight} ref={scrollAreaRef}>
           {messages.map((message) => (
-            <ChatMessage key={message.id} message={message} />
+            <ChatMessage 
+              key={message.id} 
+              message={message} 
+              onClick={handleMessageClick}
+            />
           ))}
         </ScrollArea>
       </Box>
