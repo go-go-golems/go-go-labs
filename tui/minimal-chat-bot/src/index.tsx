@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import React, { FC, useState, useEffect } from 'react';
+import React, { FC, useState, useEffect, useRef } from 'react';
 import { Box, render, Text, useStdout, useInput } from 'ink';
 import { MouseProvider } from '@zenobius/ink-mouse';
 import { Provider } from 'react-redux/alternate-renderers';
@@ -73,6 +73,7 @@ const App: FC = () => {
   const theme = getTheme();
   const dispatch = useAppDispatch();
   const scrollState = useAppSelector((state: {scroll: ScrollState}) => state.scroll);
+  const scrollAreaRef = useRef(null);
 
   // Calculate available height for messages
   const messageAreaHeight = Math.max(3, size.height - 14); // Adjust for header, input, status, margins
@@ -115,7 +116,7 @@ const App: FC = () => {
       </Box>
 
       {/* Mouse position display */}
-      <MouseTracker />
+      <MouseTracker scrollAreaRef={scrollAreaRef} />
 
       {/* Error display */}
       {error && (
@@ -130,7 +131,7 @@ const App: FC = () => {
         borderColor={theme.primary}
         paddingX={1}
       >
-        <ScrollArea height={messageAreaHeight}>
+        <ScrollArea height={messageAreaHeight} ref={scrollAreaRef}>
           {messages.map((message) => (
             <ChatMessage key={message.id} message={message} />
           ))}

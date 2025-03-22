@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, forwardRef } from 'react';
 import { Box, useInput, measureElement } from 'ink';
 import { useAppDispatch, useAppSelector } from '../store/hooks.js';
 import { setOffset, setDimensions } from '../store/scrollSlice.js';
@@ -8,7 +8,8 @@ type Props = {
   children: React.ReactNode;
 };
 
-export function ScrollArea({ height, children }: Props): JSX.Element {
+export const ScrollArea = forwardRef<any, Props>(
+  function ScrollArea({ height, children }: Props, ref): JSX.Element {
   const dispatch = useAppDispatch();
   const { offset, contentHeight } = useAppSelector(state => state.scroll);
   const innerRef = useRef<any>();
@@ -51,6 +52,7 @@ export function ScrollArea({ height, children }: Props): JSX.Element {
 
   return (
     <Box
+     ref={ref}
      height={height}
     //  borderStyle="single"
     //   borderColor="gray"
@@ -68,4 +70,4 @@ export function ScrollArea({ height, children }: Props): JSX.Element {
       </Box>
     </Box>
   );
-} 
+}); 
