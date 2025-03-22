@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import React, { FC, useState, useEffect } from 'react';
-import { Box, render, Text, useStdout } from 'ink';
+import { Box, render, Text, useStdout, useInput } from 'ink';
 import { MouseProvider } from '@zenobius/ink-mouse';
 import { Provider } from 'react-redux/alternate-renderers';
 import meow from 'meow';
@@ -8,10 +8,12 @@ import { ChatMessage } from './components/ChatMessage.js';
 import { PromptInput } from './components/PromptInput.js';
 import { Spinner } from './components/Spinner.js';
 import { MouseTracker } from './components/MouseTracker.js';
-import { ScrollArea } from './components/ScrollArea.js';
+import { ScrollableBox } from './components/ScrollableBox.js';
 import { useChat } from './hooks/useChat.js';
 import { getTheme } from './utils/theme.js';
 import { store } from './store/store.js';
+import { useAppDispatch, useAppSelector } from './store/hooks.js';
+import { ScrollState, setOffset } from './store/scrollSlice.js';
 
 // Handle CLI with meow
 const cli = meow(
@@ -66,13 +68,36 @@ function useTerminalSize() {
 }
 
 const App: FC = () => {
-  // Get chat functionality from our hook
   const { messages, isLoading, error, sendMessage } = useChat();
-  const theme = getTheme();
   const size = useTerminalSize();
+  const theme = getTheme();
+  const dispatch = useAppDispatch();
+  const scrollState = useAppSelector((state: {scroll: ScrollState}) => state.scroll);
 
-  // Calculate content height (total height minus padding and fixed elements)
-  const contentHeight = size.height - 6; // Adjust for header, input, padding, etc.
+  // Calculate available height for messages
+  const messageAreaHeight = Math.max(3, size.height - 10); // Adjust for header, input, status, margins
+
+  // Handle keyboard input for scrolling
+  useInput((input, key) => {
+    if (key.upArrow) {
+      dispatch(setOffset(Math.max(0, scrollState.offset - 1)));
+    }
+    if (key.downArrow) {
+      dispatch(setOffset(Math.min(
+        messages.length - messageAreaHeight,
+        scrollState.offset + 1
+      )));
+    }
+    if (key.pageUp) {
+      dispatch(setOffset(Math.max(0, scrollState.offset - messageAreaHeight)));
+    }
+    if (key.pageDown) {
+      dispatch(setOffset(Math.min(
+        messages.length - messageAreaHeight,
+        scrollState.offset + messageAreaHeight
+      )));
+    }
+  });
 
   return (
     <Box 
@@ -88,46 +113,49 @@ const App: FC = () => {
           Minimal TUI Chatbot
         </Text>
       </Box>
-      
+
       {/* Mouse position display */}
       <MouseTracker />
-      
+
       {/* Error display */}
       {error && (
         <Box marginBottom={1}>
           <Text color={theme.error}>Error: {error}</Text>
         </Box>
       )}
-      
+
       {/* Message history */}
       <Box 
         borderStyle="single"
         borderColor={theme.primary}
         padding={1}
       >
-        <ScrollArea height={contentHeight - 8}>
+        <ScrollableBox height={messageAreaHeight}>
           {messages.map((message) => (
-            <ChatMessage 
-              key={message.id} 
-              message={message} 
-            />
+            <ChatMessage key={message.id} message={message} />
           ))}
-        </ScrollArea>
+        </ScrollableBox>
       </Box>
-      
+
       {/* Loading indicator */}
-      {isLoading && <Spinner />}
-      
+      {isLoading && (
+        <Box marginTop={1}>
+          <Spinner label="Thinking..." />
+        </Box>
+      )}
+
       {/* Input area */}
-      <PromptInput 
-        onSubmit={sendMessage} 
-        isLoading={isLoading}
-      />
+      <Box marginTop={1}>
+        <PromptInput
+          onSubmit={sendMessage}
+          isLoading={isLoading}
+          placeholder="Type a message..."
+        />
+      </Box>
     </Box>
   );
 };
 
-// Wrap the App with MouseProvider and Redux Provider, then render
 render(
   <Provider store={store}>
     <MouseProvider>
