@@ -22,10 +22,41 @@ import { v4 as uuidv4 } from 'uuid';
 // Create a logger for the main app
 const logger = createLogger('App');
 
+// Handle CLI with meow
+const cli = meow(
+  `
+  Usage
+    $ minimal-chat-bot [options] [initial-prompt]
+
+  Options
+    --help             Show this help message
+    --version          Show version
+    --initial-prompt   Set an initial prompt for the chatbot
+`,
+  {
+    importMeta: import.meta,
+    flags: {
+      help: {
+        type: 'boolean',
+        alias: 'h',
+      },
+      version: {
+        type: 'boolean',
+        alias: 'v',
+      },
+      initialPrompt: {
+        type: 'string',
+        alias: 'i',
+      },
+    },
+  }
+);
+
 // Log application start
 logger.info('Application starting', { 
   version: process.env.npm_package_version,
-  nodeVersion: process.version 
+  nodeVersion: process.version,
+  initialPrompt: cli.flags.initialPrompt || cli.input[0] || null
 });
 
 // // Add initial messages to the chat
@@ -59,6 +90,7 @@ store.dispatch(addMessage({
   content: `
   <uiInstructions>
   You are responsible for rendering a consistent ASCII UI.  Clicks will be sent with an X at the click position.
+  For example, clicking on [UPDATE] will be signaled as [UPDXTE]. You should not render the X in the UI.
   
   UI Controls:
   ( ) / (x) = Checkboxes (click to toggle)
@@ -74,31 +106,6 @@ store.dispatch(addMessage({
 }));
 
 logger.info('Added initial messages to the chat');
-
-// Handle CLI with meow
-const cli = meow(
-  `
-  Usage
-    $ minimal-chat-bot
-
-  Options
-    --help    Show this help message
-    --version Show version
-`,
-  {
-    importMeta: import.meta,
-    flags: {
-      help: {
-        type: 'boolean',
-        alias: 'h',
-      },
-      version: {
-        type: 'boolean',
-        alias: 'v',
-      },
-    },
-  }
-);
 
 // Hook to get and track terminal size
 function useTerminalSize() {
@@ -138,7 +145,8 @@ const App: FC = () => {
   const [inputValue, setInputValue] = useState('');
 
   useEffect(() => {
-    sendMessage('Make the UI for a crazy spaceship. Multiple panels, weird widgets. Show action log terminal. Show incoming alien radar.')
+    const initialPrompt = cli.flags.initialPrompt || cli.input[0] || 'Make the UI for a crazy spaceship. Multiple panels, weird widgets. Show action log terminal. Show incoming alien radar.';
+    sendMessage(initialPrompt);
   }, []);
 
 
@@ -248,19 +256,21 @@ const App: FC = () => {
               key={message.id} 
               message={message} 
               onClick={handleMessageClick}
+              isLoading={isLoading}
+              showPrefix={!onlyShowLastAssistantMessage}
             />
           ))}
         </ScrollArea>
       </Box>
 
-        <Box marginTop={1}>
+      <Box marginTop={1}>
       {/* Loading indicator */}
       {isLoading ? (
           <Spinner label="Thinking..." />
       ) : (
           <Text>...</Text>
       )}
-        </Box>
+      </Box>
 
       {/* Input area */}
       <Box marginTop={1}>

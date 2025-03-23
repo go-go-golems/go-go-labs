@@ -28,18 +28,44 @@ export interface ChatMessageClickEvent {
 interface Props {
   message: ChatMessageType;
   onClick?: (event: ChatMessageClickEvent) => void;
+  isLoading?: boolean;
+  showPrefix?: boolean;
 }
 
 // Create a logger for this component
 const logger = createLogger('ChatMessage');
 
-export const ChatMessage: FC<Props> = ({ message, onClick }) => {
+export const ChatMessage: FC<Props> = ({ 
+  message, 
+  onClick, 
+  isLoading = false, 
+  showPrefix = true 
+}) => {
   const { content, role } = message;
   const ref = useRef(null);
   const [hovering, setHovering] = useState(false);
   const [clicking, setClicking] = useState(false);
   const [wrappedContent, setWrappedContent] = useState('');
+  const [colorIndex, setColorIndex] = useState(0);
   const theme = getTheme();
+  
+  // Array of colors for glitter effect
+  const glitterColors = ['blue', 'cyan', 'magenta', 'green', 'yellow'];
+  
+  // Update color index for glitter effect when loading
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+    
+    if (isLoading) {
+      intervalId = setInterval(() => {
+        setColorIndex((prevIndex) => (prevIndex + 1) % glitterColors.length);
+      }, 150); // Change color every 150ms
+    }
+    
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [isLoading]);
   
   // Get mouse position and element dimensions for detailed logging
   const mouse = useMouse();
@@ -47,9 +73,10 @@ export const ChatMessage: FC<Props> = ({ message, onClick }) => {
   
   // Create the complete text with emoji preamble
   const fullText = useMemo(() => {
+    if (!showPrefix) return content;
     const preamble = role === 'user' ? '🧑 You: ' : '🤖 Bot: ';
     return preamble + content;
-  }, [role, content]);
+  }, [role, content, showPrefix]);
   
   // Update wrapped content when element dimensions or content changes
   useEffect(() => {
@@ -115,8 +142,8 @@ export const ChatMessage: FC<Props> = ({ message, onClick }) => {
       }
 
       // Extract the content part of the wrapped text (removing preamble)
-      const preambleLength = (role === 'user' ? '🧑 You: ' : '🤖 Bot: ').length;
-      const hasPreamble = clickedLine.startsWith('🧑') || clickedLine.startsWith('🤖');
+      const preambleLength = showPrefix ? (role === 'user' ? '🧑 You: ' : '🤖 Bot: ').length : 0;
+      const hasPreamble = showPrefix && (clickedLine.startsWith('🧑') || clickedLine.startsWith('🤖'));
       const contentStart = hasPreamble ? preambleLength : 0;
         
 
@@ -167,7 +194,7 @@ export const ChatMessage: FC<Props> = ({ message, onClick }) => {
         onClick(clickEvent);
       }
     }
-  }, [mousePosition, wrappedContent, fullText, role, onClick]);
+  }, [mousePosition, wrappedContent, fullText, role, onClick, showPrefix]);
   
   // Handle click events with detailed logging
   useOnMouseClick(ref, handler);
@@ -175,6 +202,14 @@ export const ChatMessage: FC<Props> = ({ message, onClick }) => {
   // Determine border style based on state
   const borderStyle = onClick ? (clicking ? 'double' : (hovering ? 'round' : 'single')) : undefined;
   const roleColor = role === 'user' ? theme.accent : theme.primary;
+  
+  // Determine text color based on role and loading state
+  const getTextColor = () => {
+    if (!isLoading) {
+      return role === 'user' ? 'green' : 'blue';
+    }
+    return glitterColors[colorIndex];
+  };
   
   return (
     <Box 
@@ -185,8 +220,8 @@ export const ChatMessage: FC<Props> = ({ message, onClick }) => {
       paddingY={0}
       marginY={0}
     >
-      <Text color={role === 'user' ? 'green' : 'blue'}>
-        {role === 'user' ? '🧑 You: ' : '🤖 Bot: '}
+      <Text color={getTextColor()}>
+        {showPrefix ? (role === 'user' ? '🧑 You: ' : '🤖 Bot: ') : ''}
         {content}
       </Text>
     </Box>
