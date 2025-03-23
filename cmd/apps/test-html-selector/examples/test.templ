@@ -1,8 +1,0 @@
-package examples
-
-{{- range $name, $matches := . }}
-# {{ $name }}
-{{- range $match := $matches }}
-* {{ $match }}
-{{- end }}
-{{ end }}
