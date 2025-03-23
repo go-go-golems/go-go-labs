@@ -1,16 +1,16 @@
-<div class=\"row g-4\"><div class=\"col-md-4\"><div class=\"form-floating\"><textarea class=\"form-control\" id=\"textA\" name=\"textA\" placeholder=\"Enter text A\" style=\"height: 200px;\" hx-trigger=\"keyup changed delay:500ms\" hx-post=\"/compare\" hx-target=\"#results\" hx-include=\"#textA, #textB, #textC\"></textarea> <label for=\"textA\">Text A</label></div></div><div class=\"col-md-4\"><div class=\"form-floating\"><textarea class=\"form-control\" id=\"textB\" name=\"textB\" placeholder=\"Enter text B\" style=\"height: 200px;\" hx-trigger=\"keyup changed delay:500ms\" hx-post=\"/compare\" hx-target=\"#results\" hx-include=\"#textA, #textB, #textC\"></textarea> <label for=\"textB\">Text B</label></div></div><div class=\"col-md-4\"><div class=\"form-floating\"><textarea class=\"form-control\" id=\"textC\" name=\"textC\" placeholder=\"Enter text C\" style=\"height: 200px;\" hx-trigger=\"keyup changed delay:500ms\" hx-post=\"/compare\" hx-target=\"#results\" hx-include=\"#textA, #textB, #textC\"></textarea> <label for=\"textC\">Text C</label></div></div></div><div id=\"results\" class=\"mt-4\">
+<div class=\"row g-4\"><div class=\"col-md-4\"><div class=\"form-floating comp-input\"><textarea class=\"form-control\" id=\"textA\" name=\"textA\" placeholder=\"Enter text A\" style=\"height: 200px;\" hx-trigger=\"keyup changed delay:500ms\" hx-post=\"/compare\" hx-target=\"#results\" hx-include=\"#textA, #textB, #textC\"></textarea> <label for=\"textA\">SUBJECT A</label><div class=\"input-glow\"></div></div></div><div class=\"col-md-4\"><div class=\"form-floating comp-input\"><textarea class=\"form-control\" id=\"textB\" name=\"textB\" placeholder=\"Enter text B\" style=\"height: 200px;\" hx-trigger=\"keyup changed delay:500ms\" hx-post=\"/compare\" hx-target=\"#results\" hx-include=\"#textA, #textB, #textC\"></textarea> <label for=\"textB\">SUBJECT B</label><div class=\"input-glow\"></div></div></div><div class=\"col-md-4\"><div class=\"form-floating comp-input\"><textarea class=\"form-control\" id=\"textC\" name=\"textC\" placeholder=\"Enter text C\" style=\"height: 200px;\" hx-trigger=\"keyup changed delay:500ms\" hx-post=\"/compare\" hx-target=\"#results\" hx-include=\"#textA, #textB, #textC\"></textarea> <label for=\"textC\">SUBJECT C</label><div class=\"input-glow\"></div></div></div></div><div id=\"results\" class=\"mt-4\">
 </div>
-<div class=\"row g-4\"><div class=\"col-md-4\"><div class=\"card result-card\"><div class=\"card-header\">Similarity: A ↔ B</div><div class=\"card-body text-center\">
-<p class=\"card-text text-muted\">Enter text in both fields to see similarity</p>
+<div class=\"row g-4\"><div class=\"col-md-4\"><div class=\"card result-card\"><div class=\"card-header\">SIMILARITY INDEX: A ↔ B</div><div class=\"card-body text-center\">
+<p class=\"card-text text-muted\">AWAITING DATA INPUT</p><div class=\"retro-loader\"></div>
 <p class=\"similarity-result\">
-</p>
-</div></div></div><div class=\"col-md-4\"><div class=\"card result-card\"><div class=\"card-header\">Similarity: A ↔ C</div><div class=\"card-body text-center\">
-<p class=\"card-text text-muted\">Enter text in both fields to see similarity</p>
+</p><div class=\"result-indicator\"></div>
+</div></div></div><div class=\"col-md-4\"><div class=\"card result-card\"><div class=\"card-header\">SIMILARITY INDEX: A ↔ C</div><div class=\"card-body text-center\">
+<p class=\"card-text text-muted\">AWAITING DATA INPUT</p><div class=\"retro-loader\"></div>
 <p class=\"similarity-result\">
-</p>
-</div></div></div><div class=\"col-md-4\"><div class=\"card result-card\"><div class=\"card-header\">Similarity: B ↔ C</div><div class=\"card-body text-center\">
-<p class=\"card-text text-muted\">Enter text in both fields to see similarity</p>
+</p><div class=\"result-indicator\"></div>
+</div></div></div><div class=\"col-md-4\"><div class=\"card result-card\"><div class=\"card-header\">SIMILARITY INDEX: B ↔ C</div><div class=\"card-body text-center\">
+<p class=\"card-text text-muted\">AWAITING DATA INPUT</p><div class=\"retro-loader\"></div>
 <p class=\"similarity-result\">
-</p>
+</p><div class=\"result-indicator\"></div>
 </div></div></div></div>
-<div class=\"mb-4\"><p class=\"lead\">Enter three pieces of text to compare their similarities.</p></div>
+<div class=\"mb-4\"><p class=\"lead\">ENTER LANGUAGE SAMPLES FOR SEMANTIC COHERENCE ANALYSIS</p><div class=\"retro-decoration\"></div></div>

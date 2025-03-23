@@ -3,7 +3,7 @@ package templates
 templ CompareForm() {
 	<div class="row g-4">
 		<div class="col-md-4">
-			<div class="form-floating">
+			<div class="form-floating comp-input">
 				<textarea
 					class="form-control"
 					id="textA"
@@ -15,11 +15,12 @@ templ CompareForm() {
 					hx-target="#results"
 					hx-include="#textA, #textB, #textC"
 				></textarea>
-				<label for="textA">Text A</label>
+				<label for="textA">SUBJECT A</label>
+				<div class="input-glow"></div>
 			</div>
 		</div>
 		<div class="col-md-4">
-			<div class="form-floating">
+			<div class="form-floating comp-input">
 				<textarea
 					class="form-control"
 					id="textB"
@@ -31,11 +32,12 @@ templ CompareForm() {
 					hx-target="#results"
 					hx-include="#textA, #textB, #textC"
 				></textarea>
-				<label for="textB">Text B</label>
+				<label for="textB">SUBJECT B</label>
+				<div class="input-glow"></div>
 			</div>
 		</div>
 		<div class="col-md-4">
-			<div class="form-floating">
+			<div class="form-floating comp-input">
 				<textarea
 					class="form-control"
 					id="textC"
@@ -47,7 +49,8 @@ templ CompareForm() {
 					hx-target="#results"
 					hx-include="#textA, #textB, #textC"
 				></textarea>
-				<label for="textC">Text C</label>
+				<label for="textC">SUBJECT C</label>
+				<div class="input-glow"></div>
 			</div>
 		</div>
 	</div>
@@ -61,13 +64,15 @@ templ SimilarityResults(similarityAB string, similarityAC string, similarityBC s
 		<div class="col-md-4">
 			<div class="card result-card">
 				<div class="card-header">
-					Similarity: A ↔ B
+					SIMILARITY INDEX: A ↔ B
 				</div>
 				<div class="card-body text-center">
 					if similarityAB == "" {
-						<p class="card-text text-muted">Enter text in both fields to see similarity</p>
+						<p class="card-text text-muted">AWAITING DATA INPUT</p>
+						<div class="retro-loader"></div>
 					} else {
 						<p class="similarity-result">{ similarityAB }</p>
+						<div class="result-indicator"></div>
 					}
 				</div>
 			</div>
@@ -75,13 +80,15 @@ templ SimilarityResults(similarityAB string, similarityAC string, similarityBC s
 		<div class="col-md-4">
 			<div class="card result-card">
 				<div class="card-header">
-					Similarity: A ↔ C
+					SIMILARITY INDEX: A ↔ C
 				</div>
 				<div class="card-body text-center">
 					if similarityAC == "" {
-						<p class="card-text text-muted">Enter text in both fields to see similarity</p>
+						<p class="card-text text-muted">AWAITING DATA INPUT</p>
+						<div class="retro-loader"></div>
 					} else {
 						<p class="similarity-result">{ similarityAC }</p>
+						<div class="result-indicator"></div>
 					}
 				</div>
 			</div>
@@ -89,13 +96,15 @@ templ SimilarityResults(similarityAB string, similarityAC string, similarityBC s
 		<div class="col-md-4">
 			<div class="card result-card">
 				<div class="card-header">
-					Similarity: B ↔ C
+					SIMILARITY INDEX: B ↔ C
 				</div>
 				<div class="card-body text-center">
 					if similarityBC == "" {
-						<p class="card-text text-muted">Enter text in both fields to see similarity</p>
+						<p class="card-text text-muted">AWAITING DATA INPUT</p>
+						<div class="retro-loader"></div>
 					} else {
 						<p class="similarity-result">{ similarityBC }</p>
+						<div class="result-indicator"></div>
 					}
 				</div>
 			</div>
@@ -104,9 +113,10 @@ templ SimilarityResults(similarityAB string, similarityAC string, similarityBC s
 }
 
 templ ComparePage() {
-	@Layout("Text Similarity Comparison") {
+	@Layout("Neural Consistency Analysis") {
 		<div class="mb-4">
-			<p class="lead">Enter three pieces of text to compare their similarities.</p>
+			<p class="lead">ENTER LANGUAGE SAMPLES FOR SEMANTIC COHERENCE ANALYSIS</p>
+			<div class="retro-decoration"></div>
 		</div>
 		@CompareForm()
 	}

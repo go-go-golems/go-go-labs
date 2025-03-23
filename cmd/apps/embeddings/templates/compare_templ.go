@@ -29,7 +29,7 @@ func CompareForm() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"row g-4\"><div class=\"col-md-4\"><div class=\"form-floating\"><textarea class=\"form-control\" id=\"textA\" name=\"textA\" placeholder=\"Enter text A\" style=\"height: 200px;\" hx-trigger=\"keyup changed delay:500ms\" hx-post=\"/compare\" hx-target=\"#results\" hx-include=\"#textA, #textB, #textC\"></textarea> <label for=\"textA\">Text A</label></div></div><div class=\"col-md-4\"><div class=\"form-floating\"><textarea class=\"form-control\" id=\"textB\" name=\"textB\" placeholder=\"Enter text B\" style=\"height: 200px;\" hx-trigger=\"keyup changed delay:500ms\" hx-post=\"/compare\" hx-target=\"#results\" hx-include=\"#textA, #textB, #textC\"></textarea> <label for=\"textB\">Text B</label></div></div><div class=\"col-md-4\"><div class=\"form-floating\"><textarea class=\"form-control\" id=\"textC\" name=\"textC\" placeholder=\"Enter text C\" style=\"height: 200px;\" hx-trigger=\"keyup changed delay:500ms\" hx-post=\"/compare\" hx-target=\"#results\" hx-include=\"#textA, #textB, #textC\"></textarea> <label for=\"textC\">Text C</label></div></div></div><div id=\"results\" class=\"mt-4\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"row g-4\"><div class=\"col-md-4\"><div class=\"form-floating comp-input\"><textarea class=\"form-control\" id=\"textA\" name=\"textA\" placeholder=\"Enter text A\" style=\"height: 200px;\" hx-trigger=\"keyup changed delay:500ms\" hx-post=\"/compare\" hx-target=\"#results\" hx-include=\"#textA, #textB, #textC\"></textarea> <label for=\"textA\">SUBJECT A</label><div class=\"input-glow\"></div></div></div><div class=\"col-md-4\"><div class=\"form-floating comp-input\"><textarea class=\"form-control\" id=\"textB\" name=\"textB\" placeholder=\"Enter text B\" style=\"height: 200px;\" hx-trigger=\"keyup changed delay:500ms\" hx-post=\"/compare\" hx-target=\"#results\" hx-include=\"#textA, #textB, #textC\"></textarea> <label for=\"textB\">SUBJECT B</label><div class=\"input-glow\"></div></div></div><div class=\"col-md-4\"><div class=\"form-floating comp-input\"><textarea class=\"form-control\" id=\"textC\" name=\"textC\" placeholder=\"Enter text C\" style=\"height: 200px;\" hx-trigger=\"keyup changed delay:500ms\" hx-post=\"/compare\" hx-target=\"#results\" hx-include=\"#textA, #textB, #textC\"></textarea> <label for=\"textC\">SUBJECT C</label><div class=\"input-glow\"></div></div></div></div><div id=\"results\" class=\"mt-4\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -66,12 +66,12 @@ func SimilarityResults(similarityAB string, similarityAC string, similarityBC st
 			templ_7745c5c3_Var2 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"row g-4\"><div class=\"col-md-4\"><div class=\"card result-card\"><div class=\"card-header\">Similarity: A ↔ B</div><div class=\"card-body text-center\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"row g-4\"><div class=\"col-md-4\"><div class=\"card result-card\"><div class=\"card-header\">SIMILARITY INDEX: A ↔ B</div><div class=\"card-body text-center\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if similarityAB == "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<p class=\"card-text text-muted\">Enter text in both fields to see similarity</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<p class=\"card-text text-muted\">AWAITING DATA INPUT</p><div class=\"retro-loader\"></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -83,23 +83,23 @@ func SimilarityResults(similarityAB string, similarityAC string, similarityBC st
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(similarityAB)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/compare.templ`, Line: 70, Col: 49}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/compare.templ`, Line: 74, Col: 49}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</p><div class=\"result-indicator\"></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</div></div></div><div class=\"col-md-4\"><div class=\"card result-card\"><div class=\"card-header\">Similarity: A ↔ C</div><div class=\"card-body text-center\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</div></div></div><div class=\"col-md-4\"><div class=\"card result-card\"><div class=\"card-header\">SIMILARITY INDEX: A ↔ C</div><div class=\"card-body text-center\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if similarityAC == "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<p class=\"card-text text-muted\">Enter text in both fields to see similarity</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<p class=\"card-text text-muted\">AWAITING DATA INPUT</p><div class=\"retro-loader\"></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -111,23 +111,23 @@ func SimilarityResults(similarityAB string, similarityAC string, similarityBC st
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(similarityAC)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/compare.templ`, Line: 84, Col: 49}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/compare.templ`, Line: 90, Col: 49}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</p><div class=\"result-indicator\"></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</div></div></div><div class=\"col-md-4\"><div class=\"card result-card\"><div class=\"card-header\">Similarity: B ↔ C</div><div class=\"card-body text-center\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</div></div></div><div class=\"col-md-4\"><div class=\"card result-card\"><div class=\"card-header\">SIMILARITY INDEX: B ↔ C</div><div class=\"card-body text-center\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if similarityBC == "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<p class=\"card-text text-muted\">Enter text in both fields to see similarity</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<p class=\"card-text text-muted\">AWAITING DATA INPUT</p><div class=\"retro-loader\"></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -139,13 +139,13 @@ func SimilarityResults(similarityAB string, similarityAC string, similarityBC st
 			var templ_7745c5c3_Var5 string
 			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(similarityBC)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/compare.templ`, Line: 98, Col: 49}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `templates/compare.templ`, Line: 106, Col: 49}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</p><div class=\"result-indicator\"></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -191,7 +191,7 @@ func ComparePage() templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"mb-4\"><p class=\"lead\">Enter three pieces of text to compare their similarities.</p></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"mb-4\"><p class=\"lead\">ENTER LANGUAGE SAMPLES FOR SEMANTIC COHERENCE ANALYSIS</p><div class=\"retro-decoration\"></div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -201,7 +201,7 @@ func ComparePage() templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = Layout("Text Similarity Comparison").Render(templ.WithChildren(ctx, templ_7745c5c3_Var7), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = Layout("Neural Consistency Analysis").Render(templ.WithChildren(ctx, templ_7745c5c3_Var7), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
