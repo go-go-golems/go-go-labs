@@ -4,15 +4,20 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/go-go-golems/geppetto/pkg/embeddings"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/go-go-labs/cmd/apps/embeddings/templates"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 
 	"github.com/pkg/errors"
 )
@@ -38,6 +43,8 @@ type ComputeSimilarityResponse struct {
 type EmbeddingsServer struct {
 	factory embeddings.ProviderFactory
 	port    int
+	server  *http.Server
+	logger  zerolog.Logger
 }
 
 // NewEmbeddingsServer creates a new server with the given embeddings provider factory
@@ -45,6 +52,7 @@ func NewEmbeddingsServer(factory embeddings.ProviderFactory, port int) *Embeddin
 	return &EmbeddingsServer{
 		factory: factory,
 		port:    port,
+		logger:  log.With().Str("component", "embeddings-server").Logger(),
 	}
 }
 
@@ -97,13 +105,17 @@ func (c *ServerCommand) Run(ctx context.Context, parsedLayers *layers.ParsedLaye
 	// Create server
 	server := NewEmbeddingsServer(factory, s.Port)
 
-	return server.Serve()
+	// Setup context with cancellation from OS signals
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	return server.Serve(ctx)
 }
 
 func init() {
 	serverCmd, err := NewServerCommand()
 	if err != nil {
-		log.Fatalf("Error creating server command: %v", err)
+		log.Fatal().Err(err).Msg("Error creating server command")
 	}
 
 	// The rootCmd is now created in main.go, so we need to use a different approach
@@ -112,40 +124,83 @@ func init() {
 	embeddings_commands = append(embeddings_commands, serverCmd)
 }
 
-func (s *EmbeddingsServer) Serve() error {
+func (s *EmbeddingsServer) Serve(ctx context.Context) error {
+	// Create a new server mux
+	mux := http.NewServeMux()
+
 	// API endpoints
-	http.HandleFunc("/compute-embeddings", s.handleComputeEmbeddings)
-	http.HandleFunc("/compute-similarity", s.handleComputeSimilarity)
+	mux.HandleFunc("/compute-embeddings", s.handleComputeEmbeddings)
+	mux.HandleFunc("/compute-similarity", s.handleComputeSimilarity)
 
 	// Web UI endpoints
-	http.HandleFunc("/", s.handleHomePage)
-	http.HandleFunc("/compare", s.handleCompare)
+	mux.HandleFunc("/", s.handleHomePage)
+	mux.HandleFunc("/compare", s.handleCompare)
 
+	// Create HTTP server
 	addr := fmt.Sprintf(":%d", s.port)
-	log.Printf("Starting server on %s", addr)
-	log.Printf("Web UI available at http://localhost:%d", s.port)
-	return errors.Wrap(http.ListenAndServe(addr, nil), "failed to start server")
+	s.server = &http.Server{
+		Addr:    addr,
+		Handler: mux,
+	}
+
+	// Channel to capture server errors
+	serverErr := make(chan error, 1)
+
+	// Start server in a goroutine
+	go func() {
+		s.logger.Info().Str("addr", addr).Msg("Starting server")
+		s.logger.Info().Str("url", fmt.Sprintf("http://localhost:%d", s.port)).Msg("Web UI available")
+		if err := s.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			serverErr <- err
+		}
+	}()
+
+	// Wait for context cancellation or server error
+	select {
+	case <-ctx.Done():
+		s.logger.Info().Msg("Shutdown signal received, shutting down server gracefully")
+
+		// Create a timeout context for shutdown
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		if err := s.server.Shutdown(shutdownCtx); err != nil {
+			s.logger.Error().Err(err).Msg("Server shutdown error")
+			return errors.Wrap(err, "server shutdown error")
+		}
+		s.logger.Info().Msg("Server shutdown complete")
+	case err := <-serverErr:
+		s.logger.Error().Err(err).Msg("Server error")
+		return errors.Wrap(err, "server error")
+	}
+
+	return nil
 }
 
 func (s *EmbeddingsServer) handleHomePage(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
+		s.logger.Debug().Str("path", r.URL.Path).Msg("Not found")
 		http.NotFound(w, r)
 		return
 	}
 
+	s.logger.Debug().Msg("Serving home page")
 	err := templates.ComparePage().Render(r.Context(), w)
 	if err != nil {
+		s.logger.Error().Err(err).Msg("Error rendering home page")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
 func (s *EmbeddingsServer) handleCompare(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
+		s.logger.Debug().Str("method", r.Method).Msg("Method not allowed")
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	if err := r.ParseForm(); err != nil {
+		s.logger.Error().Err(err).Msg("Failed to parse form")
 		http.Error(w, "Failed to parse form", http.StatusBadRequest)
 		return
 	}
@@ -154,38 +209,51 @@ func (s *EmbeddingsServer) handleCompare(w http.ResponseWriter, r *http.Request)
 	textB := r.FormValue("textB")
 	textC := r.FormValue("textC")
 
+	s.logger.Debug().
+		Str("textA_len", fmt.Sprintf("%d", len(textA))).
+		Str("textB_len", fmt.Sprintf("%d", len(textB))).
+		Str("textC_len", fmt.Sprintf("%d", len(textC))).
+		Msg("Processing compare request")
+
 	var similarityAB, similarityAC, similarityBC string
 
 	// Only calculate similarities if both texts are provided
 	if textA != "" && textB != "" {
 		simAB, err := s.computeSimilarityScore(r.Context(), textA, textB)
 		if err != nil {
+			s.logger.Error().Err(err).Msg("Error computing similarity A-B")
 			http.Error(w, fmt.Sprintf("Error computing similarity A-B: %v", err), http.StatusInternalServerError)
 			return
 		}
 		similarityAB = formatSimilarity(simAB)
+		s.logger.Debug().Str("similarity_AB", similarityAB).Msg("Computed similarity A-B")
 	}
 
 	if textA != "" && textC != "" {
 		simAC, err := s.computeSimilarityScore(r.Context(), textA, textC)
 		if err != nil {
+			s.logger.Error().Err(err).Msg("Error computing similarity A-C")
 			http.Error(w, fmt.Sprintf("Error computing similarity A-C: %v", err), http.StatusInternalServerError)
 			return
 		}
 		similarityAC = formatSimilarity(simAC)
+		s.logger.Debug().Str("similarity_AC", similarityAC).Msg("Computed similarity A-C")
 	}
 
 	if textB != "" && textC != "" {
 		simBC, err := s.computeSimilarityScore(r.Context(), textB, textC)
 		if err != nil {
+			s.logger.Error().Err(err).Msg("Error computing similarity B-C")
 			http.Error(w, fmt.Sprintf("Error computing similarity B-C: %v", err), http.StatusInternalServerError)
 			return
 		}
 		similarityBC = formatSimilarity(simBC)
+		s.logger.Debug().Str("similarity_BC", similarityBC).Msg("Computed similarity B-C")
 	}
 
 	err := templates.SimilarityResults(similarityAB, similarityAC, similarityBC).Render(r.Context(), w)
 	if err != nil {
+		s.logger.Error().Err(err).Msg("Error rendering similarity results")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -244,18 +312,23 @@ func formatSimilarity(similarity float64) string {
 
 func (s *EmbeddingsServer) handleComputeEmbeddings(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
+		s.logger.Debug().Str("method", r.Method).Msg("Method not allowed")
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	var req ComputeEmbeddingsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.logger.Error().Err(err).Msg("Failed to decode request body")
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
+	s.logger.Debug().Int("text_length", len(req.Text)).Msg("Computing embeddings")
+
 	provider, err := s.factory.NewProvider()
 	if err != nil {
+		s.logger.Error().Err(err).Msg("Failed to create embeddings provider")
 		http.Error(w, fmt.Sprintf("Failed to create embeddings provider: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -263,9 +336,12 @@ func (s *EmbeddingsServer) handleComputeEmbeddings(w http.ResponseWriter, r *htt
 	// Generate embeddings
 	embedding, err := provider.GenerateEmbedding(r.Context(), req.Text)
 	if err != nil {
+		s.logger.Error().Err(err).Msg("Failed to generate embeddings")
 		http.Error(w, fmt.Sprintf("Failed to generate embeddings: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	s.logger.Debug().Int("embedding_size", len(embedding)).Msg("Embeddings generated successfully")
 
 	// Convert float32 embeddings to float64 for JSON response
 	vector := make([]float64, len(embedding))
@@ -280,27 +356,38 @@ func (s *EmbeddingsServer) handleComputeEmbeddings(w http.ResponseWriter, r *htt
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(resp)
 	if err != nil {
+		s.logger.Error().Err(err).Msg("Failed to encode response")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
 func (s *EmbeddingsServer) handleComputeSimilarity(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
+		s.logger.Debug().Str("method", r.Method).Msg("Method not allowed")
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	var req ComputeSimilarityRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.logger.Error().Err(err).Msg("Failed to decode request body")
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
+	s.logger.Debug().
+		Int("text1_length", len(req.Text1)).
+		Int("text2_length", len(req.Text2)).
+		Msg("Computing similarity")
+
 	similarity, err := s.computeSimilarityScore(r.Context(), req.Text1, req.Text2)
 	if err != nil {
+		s.logger.Error().Err(err).Msg("Failed to compute similarity")
 		http.Error(w, fmt.Sprintf("Failed to compute similarity: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	s.logger.Debug().Float64("similarity", similarity).Msg("Similarity computed successfully")
 
 	resp := ComputeSimilarityResponse{
 		Similarity: similarity,
@@ -309,6 +396,7 @@ func (s *EmbeddingsServer) handleComputeSimilarity(w http.ResponseWriter, r *htt
 	w.Header().Set("Content-Type", "application/json")
 	err = json.NewEncoder(w).Encode(resp)
 	if err != nil {
+		s.logger.Error().Err(err).Msg("Failed to encode response")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }

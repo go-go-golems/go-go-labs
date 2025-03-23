@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	clay "github.com/go-go-golems/clay/pkg"
 	embeddings_config "github.com/go-go-golems/geppetto/pkg/embeddings/config"
@@ -40,17 +42,25 @@ It provides both CLI commands and a web server with APIs for:
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			// Reinitialize logger to apply log level from command line
 			err := clay.InitLogger()
-			cobra.CheckErr(err)
+			if err != nil {
+				log.Error().Err(err).Msg("Failed to initialize logger")
+				return
+			}
+			log.Debug().Msg("Logger initialized")
 		},
 	}
 
 	// Initialize Viper for config file support
 	err := clay.InitViper("embeddings", rootCmd)
-	cobra.CheckErr(err)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to initialize Viper")
+	}
 
 	// Initialize logger
 	err = clay.InitLogger()
-	cobra.CheckErr(err)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to initialize logger")
+	}
 
 	// Set up help system
 	helpSystem := help.NewHelpSystem()
@@ -60,13 +70,20 @@ It provides both CLI commands and a web server with APIs for:
 	err = cli.AddCommandsToRootCommand(rootCmd, embeddings_commands, []*alias.CommandAlias{},
 		cli.WithCobraMiddlewaresFunc(GetEmbeddingsMiddlewares),
 		cli.WithProfileSettingsLayer())
-	cobra.CheckErr(err)
-
-	// Execute the root command
-	if err := rootCmd.ExecuteContext(context.Background()); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to add commands to root command")
 	}
+
+	// Create context with signal handling for graceful shutdown
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	// Execute the root command with context
+	if err := rootCmd.ExecuteContext(ctx); err != nil {
+		log.Fatal().Err(err).Msg("Error executing command")
+	}
+
+	log.Info().Msg("Embeddings application exiting")
 }
 
 // GetEmbeddingsLayers returns all parameter layers used by the embeddings commands
