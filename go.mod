@@ -32,15 +32,14 @@ require (
 	github.com/charmbracelet/lipgloss v1.0.0
 	github.com/chromedp/chromedp v0.9.2
 	github.com/dop251/goja v0.0.0-20250309171923-bcd7cc6bf64c
-	github.com/emersion/go-message v0.18.1
 	github.com/getkin/kin-openapi v0.120.0
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-chi/chi/v5 v5.1.0
 	github.com/go-git/go-git/v5 v5.12.0
-	github.com/go-go-golems/clay v0.1.31
-	github.com/go-go-golems/geppetto v0.4.22
-	github.com/go-go-golems/glazed v0.5.34
-	github.com/go-go-golems/go-emrichen v0.0.2
+	github.com/go-go-golems/clay v0.1.34
+	github.com/go-go-golems/geppetto v0.4.44
+	github.com/go-go-golems/glazed v0.5.39
+	github.com/go-go-golems/go-emrichen v0.0.5
 	github.com/go-go-golems/pinocchio v0.0.1
 	github.com/google/uuid v1.6.0
 	github.com/googollee/go-socket.io v1.7.0
@@ -113,16 +112,16 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.33.14 // indirect
 	github.com/aws/smithy-go v1.22.2 // indirect
 	github.com/bits-and-blooms/bitset v1.12.0 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/emersion/go-sasl v0.0.0-20231106173351-e73c9f7bad43 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-go-golems/bobatea v0.0.11 // indirect
 	github.com/go-go-golems/sqleton v0.2.4 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/go-sourcemap/sourcemap v2.1.3+incompatible // indirect
+	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
 	github.com/go-sql-driver/mysql v1.7.1 // indirect
-	github.com/google/pprof v0.0.0-20230510103437-eeec1cb781c3 // indirect
+	github.com/google/pprof v0.0.0-20240727154555-813a5fbdbec8 // indirect
 	github.com/google/s2a-go v0.1.7 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.2 // indirect
 	github.com/googleapis/gax-go/v2 v2.12.3 // indirect
@@ -202,7 +201,6 @@ require (
 	github.com/cyphar/filepath-securejoin v0.2.4 // indirect
 	github.com/dlclark/regexp2 v1.11.4 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/emersion/go-imap/v2 v2.0.0-beta.5
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
 	github.com/fatih/color v1.16.0 // indirect

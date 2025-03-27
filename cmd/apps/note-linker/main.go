@@ -50,12 +50,6 @@ func getFileBaseNames(files []string) *orderedmap.OrderedMap[string, string] {
 var rootCmd = &cobra.Command{
 	Use:   "note-linker",
 	Short: "note-linker is a CLI app to create note links for markdown files",
-	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		// reinitialize the logger because we can now parse --log-level and co
-		// from the command line flag
-		err := clay.InitLogger()
-		cobra.CheckErr(err)
-	},
 }
 
 type ListCmd struct {
@@ -195,11 +189,6 @@ func initRootCmd() (*help.HelpSystem, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = clay.InitLogger()
-	if err != nil {
-		return nil, err
-	}
-
 	return helpSystem, nil
 }
 

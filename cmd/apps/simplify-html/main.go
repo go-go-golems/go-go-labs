@@ -265,17 +265,9 @@ func main() {
 	var rootCmd = &cobra.Command{
 		Use:   "simplify-html",
 		Short: "Simplify and minimize HTML documents",
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			// reinitialize the logger because we can now parse --log-level and co
-			// from the command line flag
-			err := clay.InitLogger()
-			cobra.CheckErr(err)
-		},
 	}
 
 	err := clay.InitViper("simplify-html", rootCmd)
-	cobra.CheckErr(err)
-	err = clay.InitLogger()
 	cobra.CheckErr(err)
 
 	helpSystem := help.NewHelpSystem()

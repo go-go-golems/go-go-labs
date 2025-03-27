@@ -214,10 +214,6 @@ func runPinocchio(description, diffFile, issueFile string) error {
 var rootCmd = &cobra.Command{
 	Use:   "pr-creator",
 	Short: "Create pull requests",
-	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		err := pkg.InitLogger()
-		cobra.CheckErr(err)
-	},
 }
 
 func initRootCmd() (*help.HelpSystem, error) {
@@ -225,11 +221,6 @@ func initRootCmd() (*help.HelpSystem, error) {
 	helpSystem.SetupCobraRootCommand(rootCmd)
 
 	err := pkg.InitViper("pr-creator", rootCmd)
-	if err != nil {
-		return nil, err
-	}
-
-	err = pkg.InitLogger()
 	if err != nil {
 		return nil, err
 	}

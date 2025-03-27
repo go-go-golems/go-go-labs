@@ -11,7 +11,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
 	"github.com/go-go-golems/go-go-labs/cmd/experiments/sqlite-vss/pkg"
-	geppetto_cmds "github.com/go-go-golems/pinocchio/pkg/cmds"
+	pinocchio_cmds "github.com/go-go-golems/pinocchio/pkg/cmds"
 	"github.com/pkg/errors"
 	"os"
 	"strings"
@@ -20,7 +20,7 @@ import (
 type SearchCommand struct {
 	*cmds.CommandDescription
 	embedder              *pkg.Embedder
-	AnswerQuestionCommand *geppetto_cmds.GeppettoCommand
+	AnswerQuestionCommand *pinocchio_cmds.PinocchioCommand
 }
 
 type SearchSettings struct {

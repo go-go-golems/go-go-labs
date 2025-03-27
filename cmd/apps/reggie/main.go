@@ -1,11 +1,9 @@
 package main
 
 import (
-	"fmt"
 	clay "github.com/go-go-golems/clay/pkg"
 	"github.com/go-go-golems/glazed/pkg/help"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 var rootCmd = &cobra.Command{
@@ -21,11 +19,5 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	err = clay.InitLogger()
-	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Error initializing logger: %s\n", err)
-		os.Exit(1)
-	}
-
 	_ = rootCmd.Execute()
 }

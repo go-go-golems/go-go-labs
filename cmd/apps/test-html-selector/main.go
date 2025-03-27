@@ -594,17 +594,9 @@ func main() {
 	var rootCmd = &cobra.Command{
 		Use:   "html-selector",
 		Short: "Run HTML/XPath selectors against HTML documents",
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			// reinitialize the logger because we can now parse --log-level and co
-			// from the command line flag
-			err := clay.InitLogger()
-			cobra.CheckErr(err)
-		},
 	}
 
 	err := clay.InitViper("html-selector", rootCmd)
-	cobra.CheckErr(err)
-	err = clay.InitLogger()
 	cobra.CheckErr(err)
 
 	helpSystem := help.NewHelpSystem()

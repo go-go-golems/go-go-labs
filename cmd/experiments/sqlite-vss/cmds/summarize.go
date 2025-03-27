@@ -5,7 +5,7 @@ import (
 	_ "embed"
 	glazed_cmds "github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/alias"
-	geppetto_cmds "github.com/go-go-golems/pinocchio/pkg/cmds"
+	pinocchio_cmds "github.com/go-go-golems/pinocchio/pkg/cmds"
 	"github.com/pkg/errors"
 )
 
@@ -15,9 +15,9 @@ var promptsFS embed.FS
 type AnswerQuestionCommand struct {
 }
 
-func NewAnswerQuestionCommand() (*geppetto_cmds.GeppettoCommand, error) {
+func NewAnswerQuestionCommand() (*pinocchio_cmds.PinocchioCommand, error) {
 	// TODO(manuel, 2024-04-26) We could add an easier way to load just one file
-	g := &geppetto_cmds.GeppettoCommandLoader{}
+	g := &pinocchio_cmds.PinocchioCommandLoader{}
 	cmds_, err := g.LoadCommands(
 		promptsFS,
 		"prompts/answer-question.yaml",
@@ -33,5 +33,5 @@ func NewAnswerQuestionCommand() (*geppetto_cmds.GeppettoCommand, error) {
 		return nil, errors.New("expected exactly one command")
 	}
 
-	return cmds_[0].(*geppetto_cmds.GeppettoCommand), nil
+	return cmds_[0].(*pinocchio_cmds.PinocchioCommand), nil
 }

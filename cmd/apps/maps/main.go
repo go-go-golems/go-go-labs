@@ -41,8 +41,6 @@ func main() {
 	// initializing as mento-service to get all the environment variables
 	err = clay.InitViper("maps", rootCmd)
 	cobra.CheckErr(err)
-	err = clay.InitLogger()
-	cobra.CheckErr(err)
 
 	fmt.Println("Starting maps")
 	log.Info().Msg("Starting maps")

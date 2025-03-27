@@ -3,6 +3,7 @@ package main
 
 import (
 	"fmt"
+
 	_ "github.com/asg017/sqlite-vss/bindings/go"
 	clay "github.com/go-go-golems/clay/pkg"
 	"github.com/go-go-golems/glazed/pkg/cli"
@@ -24,17 +25,11 @@ func createRootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:   "sqlite-vss",
 		Short: "Play with sqlite VSS",
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			err := clay.InitLogger()
-			cobra.CheckErr(err)
-		},
 	}
 
 	helpSystem.SetupCobraRootCommand(rootCmd)
 
 	err := clay.InitViper("sqlite-vss", rootCmd)
-	cobra.CheckErr(err)
-	err = clay.InitLogger()
 	cobra.CheckErr(err)
 
 	return rootCmd

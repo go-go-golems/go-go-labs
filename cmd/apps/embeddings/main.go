@@ -39,27 +39,12 @@ It provides both CLI commands and a web server with APIs for:
 - Computing embeddings for texts
 - Computing similarity scores between texts
 - Web UI for comparing up to three texts`,
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			// Reinitialize logger to apply log level from command line
-			err := clay.InitLogger()
-			if err != nil {
-				log.Error().Err(err).Msg("Failed to initialize logger")
-				return
-			}
-			log.Debug().Msg("Logger initialized")
-		},
 	}
 
 	// Initialize Viper for config file support
 	err := clay.InitViper("embeddings", rootCmd)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to initialize Viper")
-	}
-
-	// Initialize logger
-	err = clay.InitLogger()
-	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to initialize logger")
 	}
 
 	// Set up help system

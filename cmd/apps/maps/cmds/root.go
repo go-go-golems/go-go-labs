@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 
-	clay "github.com/go-go-golems/clay/pkg"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/go-go-labs/cmd/apps/maps/cmds/auth"
 	"github.com/go-go-golems/go-go-labs/cmd/apps/maps/cmds/directions"
@@ -34,11 +33,6 @@ func NewRootCommand() (*cobra.Command, error) {
 		Short: description.Short,
 		Long:  description.Long,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			// reinitialize the logger because we can now parse --log-level and co
-			// from the command line flag
-			err := clay.InitLogger()
-			cobra.CheckErr(err)
-
 			// Store the root command in the context for subcommands
 			cmd.SetContext(context.WithValue(cmd.Context(), "rootCmd", root))
 		},
