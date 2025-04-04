@@ -1,0 +1,31 @@
+<div class=\"row mb-5\"><div class=\"col-md-12 text-center mb-4\"><h1 class=\"display-4\">Friday Talks</h1><p class=\"lead\">Schedule, discover, and share knowledge with your friends.</p>
+<div class=\"mt-4\"><a href=\"/register\" class=\"btn btn-primary btn-lg me-2\">Get Started</a> <a href=\"/login\" class=\"btn btn-outline-primary btn-lg\">Login</a></div>
+<div class=\"mt-4\"><a href=\"/talks/propose\" class=\"btn btn-primary btn-lg me-2\">Propose a Talk</a> <a href=\"/calendar\" class=\"btn btn-outline-primary btn-lg\">View Calendar</a></div>
+</div></div>
+<div class=\"row mb-5\"><div class=\"col-12\"><h2 class=\"border-bottom pb-2 mb-4\">Upcoming Talks</h2></div>
+<div class=\"col-md-4 mb-4\">
+</div>
+</div>
+ 
+<div class=\"row mb-5\"><div class=\"col-12\"><h2 class=\"border-bottom pb-2 mb-4\">Proposed Talks</h2></div>
+<div class=\"col-md-4 mb-4\">
+</div>
+<div class=\"col-12 text-center mt-2\"><a href=\"/talks?status=proposed\" class=\"btn btn-outline-primary\">View All Proposed Talks</a></div></div>
+ 
+<div class=\"row mb-5\"><div class=\"col-12\"><h2 class=\"border-bottom pb-2 mb-4\">Recent Talks</h2></div>
+<div class=\"col-md-4 mb-4\">
+</div>
+<div class=\"col-12 text-center mt-2\"><a href=\"/talks?status=completed\" class=\"btn btn-outline-primary\">View All Past Talks</a></div></div>
+ <div class=\"row mb-5\"><div class=\"col-md-4 mb-4\"><div class=\"card h-100 border-primary\"><div class=\"card-body text-center\"><h3 class=\"card-title\">Propose</h3><p class=\"card-text\">Share your knowledge by proposing a talk on any topic you're passionate about.</p></div></div></div><div class=\"col-md-4 mb-4\"><div class=\"card h-100 border-primary\"><div class=\"card-body text-center\"><h3 class=\"card-title\">Vote</h3><p class=\"card-text\">Help decide which talks get scheduled by voting on proposals that interest you.</p></div></div></div><div class=\"col-md-4 mb-4\"><div class=\"card h-100 border-primary\"><div class=\"card-body text-center\"><h3 class=\"card-title\">Attend</h3><p class=\"card-text\">Join the sessions, learn from others, and provide valuable feedback.</p></div></div></div></div>
+<div class=\"card talk-card\"><div class=\"card-body\"><h5 class=\"card-title\">
+</h5><h6 class=\"card-subtitle mb-2 text-muted\">
+by 
+</h6><p class=\"card-text\">
+</p>
+<p class=\"card-text\"><small class=\"text-muted\"><strong>Date:</strong> 
+</small></p>
+<div class=\"d-flex justify-content-between align-items-center\">
+<span class=\"
+\">
+</span> <a href=\"
+\" class=\"btn btn-sm btn-outline-primary\">View Details</a></div></div></div>

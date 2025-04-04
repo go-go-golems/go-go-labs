@@ -1,0 +1,23 @@
+<div class=\"d-flex justify-content-between align-items-center mb-4\"><h1>Calendar</h1>
+<a href=\"/talks/propose\" class=\"btn btn-primary\">Propose a Talk</a>
+</div><div class=\"card mb-4\"><div class=\"card-header d-flex justify-content-between align-items-center\"><h3 class=\"mb-0\">Talk Schedule</h3><div><a href=\"
+\" class=\"btn btn-sm btn-outline-primary me-2\">&laquo; Previous</a> <a href=\"
+\" class=\"btn btn-sm btn-outline-primary\">Next &raquo;</a></div></div><div class=\"card-body\">
+<h4 class=\"mb-3\">
+ 
+</h4><table class=\"table table-bordered mb-5\"><thead><tr><th>Sunday</th><th>Monday</th><th>Tuesday</th><th>Wednesday</th><th>Thursday</th><th>Friday</th><th>Saturday</th></tr></thead> <tbody>
+<tr>
+<td></td>
+<td class=\"
+\"><div class=\"d-flex justify-content-between mb-2\"><div>
+</div></div>
+<div class=\"p-1\"><a href=\"
+\" class=\"d-block\"><div class=\"card-body p-1\"><strong>
+</strong> 
+<div class=\"small text-muted\">by 
+</div>
+</div></a></div>
+</td>
+</tr>
+</tbody></table>
+</div></div>
