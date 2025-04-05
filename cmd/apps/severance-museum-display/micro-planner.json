@@ -1,0 +1,231 @@
+[
+{
+  "microplanner_museum_display": {
+    "footer": {
+      "logos": [
+        "mit.png",
+        "openai.png",
+        "obsolescence.png"
+      ],
+      "text": "This exhibit was made possible by the MIT AI Lab Archives and the PDP-10 restoration community."
+    },
+    "navigation": {
+      "persistent_menu": true,
+      "show_progress": true,
+      "type": "sidebar"
+    },
+    "pages": [
+      {
+        "id": "intro",
+        "slides": [
+          {
+            "content": "Micro-Planner is one of the earliest AI programming languages, developed in the 1970s at MIT. It ran on the PDP-10 computer system under the ITS operating system.\n\nMicro-Planner powered landmark AI systems like SHRDLU, and introduced ideas like goal-directed inference, pattern matching, and rule-based reasoning—core concepts that would later influence Prolog and modern AI systems.\n",
+            "title": "What is Micro-Planner?"
+          },
+          {
+            "content": "Developed by Gerald Sussman, Terry Winograd, and Eugene Charniak, Micro-Planner was a simplified version of Carl Hewitt’s Planner language.\n\nIn a time when computers were massive and shared, Micro-Planner brought powerful reasoning capabilities to Lisp programmers at MIT’s AI Lab.\n",
+            "title": "The Historical Context"
+          },
+          {
+            "content": "Micro-Planner influenced:\n- SHRDLU (natural language \u0026 planning)\n- Expert systems (e.g., TAXMAN, LUNAR)\n- The development of Prolog\n- Embedded goal-directed logic in modern languages\n",
+            "title": "Why It Matters"
+          }
+        ],
+        "title": "Welcome to Micro-Planner",
+        "type": "slide_deck"
+      },
+      {
+        "id": "theory",
+        "slides": [
+          {
+            "content": "- **Assertions**: Facts stored in the knowledge base.\n- **Goals**: Tasks the system tries to accomplish.\n- **Procedures**: Rules defining how to achieve goals.\n- **Pattern Matching**: Variables unify with facts.\n- **Backtracking**: Searches for alternatives when a path fails.\n",
+            "title": "Core Concepts"
+          },
+          {
+            "content": "Micro-Planner uses **backward chaining**:\n- Start from a goal\n- Find matching rules\n- Recursively try sub-goals\n- Backtrack if no solution is found\n",
+            "title": "Goal-Directed Inference"
+          },
+          {
+            "code": "(THCONSE (MORTAL $?X)\n  (THGOAL (MAN $?X)))\n",
+            "title": "Example Rule"
+          },
+          {
+            "content": "Goals are stored in a stack:\n- Push new goals as you explore\n- Pop when goals are resolved or fail\n- Enables recursive and hierarchical reasoning\n",
+            "title": "The Goal Stack"
+          }
+        ],
+        "title": "How Micro-Planner Works",
+        "type": "slide_deck"
+      },
+      {
+        "id": "emulator_setup",
+        "steps": [
+          {
+            "description": "We recommend the **PiDP-10**, a Raspberry Pi-powered recreation of the PDP-10 front panel.\nAlternatively, use **SIMH** with the ITS disk image.\n",
+            "title": "Step 1: Get a PDP-10 Emulator"
+          },
+          {
+            "description": "On the emulator:\n- Type `ITS` at the boot prompt\n- Press ESC, then `G`\n- Wait for the system to finish loading\n",
+            "title": "Step 2: Boot into ITS"
+          },
+          {
+            "description": "Type `PLNR` or `LISP` to start the Lisp interpreter.\nThen initialize the Micro-Planner environment with:\n```lisp\n(THINIT)\n```\n",
+            "title": "Step 3: Start Lisp"
+          },
+          {
+            "description": "Try asserting a fact and a rule:\n```lisp\n(THASSERT (MAN SOCRATES))\n(THCONSE (MORTAL $?X)\n  (THGOAL (MAN $?X)))\n(THGOAL (MORTAL SOCRATES))\n```\n",
+            "title": "Step 4: Run a Demo"
+          }
+        ],
+        "title": "Try It Yourself: Running Micro-Planner",
+        "type": "tutorial"
+      },
+      {
+        "examples": [
+          {
+            "code": "(THINIT)\n(THASSERT (MAN SOCRATES))\n(THCONSE (MORTAL $?X)\n  (THGOAL (MAN $?X)))\n(THGOAL (MORTAL SOCRATES))\n",
+            "description": "Demonstrates how rules and facts infer new knowledge.",
+            "id": "example1",
+            "title": "Socrates is Mortal"
+          },
+          {
+            "code": "(THINIT)\n(THASSERT (PARENT ALICE BOB))\n(THASSERT (PARENT BOB CAROL))\n(THCONSE (GRANDPARENT $?X $?Z)\n  (THGOAL (PARENT $?X $?Y))\n  (THGOAL (PARENT $?Y $?Z)))\n(THGOAL (GRANDPARENT ALICE $?Z))\n",
+            "description": "Chained rule logic: parent + parent = grandparent",
+            "id": "example2",
+            "title": "Grandparent Rule"
+          },
+          {
+            "code": ";; Simplified rule: move X onto Y if both are clear\n(THCONSE (ON $?X $?Y)\n  (THGOAL (CLEAR $?X))\n  (THGOAL (CLEAR $?Y))\n  (THASSERT (ON $?X $?Y)))\n",
+            "description": "Planning-style reasoning in a physical world",
+            "id": "example3",
+            "title": "Blocks World (Sketch)"
+          },
+          {
+            "code": ";; See full example in Missionaries file or scan QR code for full listing\n",
+            "description": "Search problem with state tracking and constraints",
+            "id": "example4",
+            "title": "Missionaries \u0026 Cannibals"
+          }
+        ],
+        "id": "code_demos",
+        "language": "lisp",
+        "title": "Interactive Examples",
+        "type": "interactive_code"
+      },
+      {
+        "id": "interactive_display",
+        "panels": [
+          {
+            "description": "A working replica of the PDP-10, powered by a Raspberry Pi. Includes full ITS with Lisp and Micro-Planner.\n",
+            "image": "/images/pidp10.jpg",
+            "interactions": [
+              {
+                "action": "Start ITS emulator",
+                "label": "Toggle Boot"
+              },
+              {
+                "action": "Simulate running Lisp with blinking lights",
+                "label": "Show Panel Lights"
+              }
+            ],
+            "name": "PiDP-10"
+          }
+        ],
+        "title": "Explore the PDP-10",
+        "type": "hardware_visual"
+      },
+      {
+        "bios": [
+          {
+            "image": "/images/sussman.jpg",
+            "name": "Gerald Jay Sussman",
+            "quote": "Programs are procedures — representations of knowledge that can act.",
+            "role": "Co-inventor of Micro-Planner"
+          },
+          {
+            "image": "/images/winograd.jpg",
+            "name": "Terry Winograd",
+            "quote": "Micro-Planner enabled language understanding to become operational.",
+            "role": "Author of SHRDLU"
+          },
+          {
+            "image": "/images/hewitt.jpg",
+            "name": "Carl Hewitt",
+            "quote": "Planner was a challenge to purely logical representations in AI.",
+            "role": "Inventor of Planner"
+          }
+        ],
+        "id": "people",
+        "title": "The People Behind Micro-Planner",
+        "type": "bio_gallery"
+      },
+      {
+        "id": "resources",
+        "resources": [
+          {
+            "link": "https://dspace.mit.edu/handle/1721.1/6090",
+            "title": "Micro-Planner Reference Manual (MIT AI Memo 203A)"
+          },
+          {
+            "link": "https://github.com/MITDDC/plnr-1971-1982",
+            "title": "PLNR Source Code Archive"
+          },
+          {
+            "link": "https://hci.stanford.edu/~winograd/shrdlu/",
+            "title": "SHRDLU Demo (Winograd, 1971)"
+          },
+          {
+            "link": "https://obsolescence.wixsite.com/obsolescence/pidp-10",
+            "title": "PiDP-10 Project"
+          },
+          {
+            "link": "https://its.mit.edu",
+            "title": "ITS on SIMH Quickstart"
+          }
+        ],
+        "title": "Go Deeper",
+        "type": "resource_list"
+      },
+      {
+        "id": "quiz",
+        "questions": [
+          {
+            "answer": "Backtracking",
+            "options": [
+              "Unification",
+              "Backtracking",
+              "Memoization",
+              "Parallelism"
+            ],
+            "question": "What feature does Micro-Planner use to find multiple solutions?"
+          },
+          {
+            "answer": "SHRDLU",
+            "options": [
+              "DENDRAL",
+              "MYCIN",
+              "SHRDLU",
+              "ELIZA"
+            ],
+            "question": "Which system was written in Micro-Planner?"
+          },
+          {
+            "answer": "THASSERT",
+            "options": [
+              "ASSERT",
+              "THASSERT",
+              "FACT",
+              "DEFFACT"
+            ],
+            "question": "What is the function used to assert facts?"
+          }
+        ],
+        "title": "Test Your Understanding",
+        "type": "quiz"
+      }
+    ],
+    "theme": "dark",
+    "title": "MICRO-PLANNER: AI Programming on the PDP-10"
+  }
+}
+]

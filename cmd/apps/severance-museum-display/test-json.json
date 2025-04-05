@@ -1,0 +1,65 @@
+[
+{
+  "microplanner_museum_display": {
+    "footer": {
+      "logos": [
+        "mit.png",
+        "openai.png",
+        "obsolescence.png"
+      ],
+      "text": "This exhibit was made possible by the MIT AI Lab Archives and the PDP-10 restoration community."
+    },
+    "navigation": {
+      "persistent_menu": true,
+      "show_progress": true,
+      "type": "sidebar"
+    },
+    "pages": [
+      {
+        "id": "intro",
+        "slides": [
+          {
+            "content": "Micro-Planner is one of the earliest AI programming languages, developed in the 1970s at MIT. It ran on the PDP-10 computer system under the ITS operating system.\n\nMicro-Planner powered landmark AI systems like SHRDLU, and introduced ideas like goal-directed inference, pattern matching, and rule-based reasoning—core concepts that would later influence Prolog and modern AI systems.\n",
+            "title": "What is Micro-Planner?"
+          },
+          {
+            "content": "Developed by Gerald Sussman, Terry Winograd, and Eugene Charniak, Micro-Planner was a simplified version of Carl Hewitt's Planner language.\n\nIn a time when computers were massive and shared, Micro-Planner brought powerful reasoning capabilities to Lisp programmers at MIT's AI Lab.\n",
+            "title": "The Historical Context"
+          },
+          {
+            "content": "Micro-Planner influenced:\n- SHRDLU (natural language & planning)\n- Expert systems (e.g., TAXMAN, LUNAR)\n- The development of Prolog\n- Embedded goal-directed logic in modern languages\n",
+            "title": "Why It Matters"
+          }
+        ],
+        "title": "Welcome to Micro-Planner",
+        "type": "slide_deck"
+      },
+      {
+        "id": "theory",
+        "slides": [
+          {
+            "content": "- **Assertions**: Facts stored in the knowledge base.\n- **Goals**: Tasks the system tries to accomplish.\n- **Procedures**: Rules defining how to achieve goals.\n- **Pattern Matching**: Variables unify with facts.\n- **Backtracking**: Searches for alternatives when a path fails.\n",
+            "title": "Core Concepts"
+          },
+          {
+            "content": "Micro-Planner uses **backward chaining**:\n- Start from a goal\n- Find matching rules\n- Recursively try sub-goals\n- Backtrack if no solution is found\n",
+            "title": "Goal-Directed Inference"
+          },
+          {
+            "code": "(THCONSE (MORTAL $?X)\n  (THGOAL (MAN $?X)))\n",
+            "title": "Example Rule"
+          },
+          {
+            "content": "Goals are stored in a stack:\n- Push new goals as you explore\n- Pop when goals are resolved or fail\n- Enables recursive and hierarchical reasoning\n",
+            "title": "The Goal Stack"
+          }
+        ],
+        "title": "How Micro-Planner Works",
+        "type": "slide_deck"
+      }
+    ],
+    "theme": "dark",
+    "title": "MICRO-PLANNER: AI Programming on the PDP-10"
+  }
+}
+]

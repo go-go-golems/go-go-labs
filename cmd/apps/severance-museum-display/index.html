@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Severance Museum Display</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- File Upload Interface -->
+        <div class="file-interface" id="fileInterface">
+            <div class="file-interface-inner">
+                <h1 class="terminal-heading">MUSEUM DISPLAY TERMINAL</h1>
+                <div class="terminal-line"></div>
+                <p class="terminal-text">AWAITING DATA INPUT</p>
+                <div class="upload-container">
+                    <label for="fileUpload" class="upload-button">SELECT FILE</label>
+                    <input type="file" id="fileUpload" accept=".json" multiple>
+                    <p class="file-info" id="fileInfo">No file selected</p>
+                </div>
+                <div class="file-list-container">
+                    <h2 class="terminal-subheading">LOADED DISPLAYS</h2>
+                    <ul class="file-list" id="fileList"></ul>
+                </div>
+                <div class="terminal-cursor"></div>
+            </div>
+        </div>
+
+        <!-- Main Display Interface -->
+        <div class="main-interface hidden" id="mainInterface">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-left">
+                    <button id="menuToggle" class="menu-toggle">≡</button>
+                    <h1 id="displayTitle" class="display-title">DISPLAY TITLE</h1>
+                </div>
+                <div class="header-right">
+                    <div class="file-selector">
+                        <select id="fileSelector" class="file-select">
+                            <option value="">SELECT DISPLAY</option>
+                        </select>
+                    </div>
+                    <button id="uploadButton" class="upload-button">UPLOAD</button>
+                </div>
+            </header>
+
+            <!-- Navigation -->
+            <nav class="navigation" id="navigation">
+                <div class="nav-header">
+                    <span class="nav-title">NAVIGATION</span>
+                    <button id="closeNav" class="close-nav">×</button>
+                </div>
+                <ul class="nav-list" id="navList"></ul>
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar" id="progressBar"></div>
+                    <div class="progress-text" id="progressText">0/0</div>
+                </div>
+            </nav>
+
+            <!-- Content Area -->
+            <main class="content-area" id="contentArea">
+                <div class="content-container" id="contentContainer"></div>
+            </main>
+
+            <!-- Footer -->
+            <footer class="footer" id="footer">
+                <div class="footer-text" id="footerText"></div>
+                <div class="footer-logos" id="footerLogos"></div>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Templates for different page types -->
+    
+    <!-- Slide Deck Template -->
+    <template id="slideDeckTemplate">
+        <div class="slide-deck">
+            <h2 class="page-title"></h2>
+            <div class="slide-container">
+                <div class="slide-content"></div>
+                <div class="slide-navigation">
+                    <button class="prev-slide">◀</button>
+                    <span class="slide-counter"></span>
+                    <button class="next-slide">▶</button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Tutorial Template -->
+    <template id="tutorialTemplate">
+        <div class="tutorial">
+            <h2 class="page-title"></h2>
+            <div class="steps-container"></div>
+        </div>
+    </template>
+
+    <!-- Tutorial Step Template -->
+    <template id="tutorialStepTemplate">
+        <div class="tutorial-step">
+            <h3 class="step-title"></h3>
+            <div class="step-description"></div>
+        </div>
+    </template>
+
+    <!-- Interactive Code Template -->
+    <template id="interactiveCodeTemplate">
+        <div class="interactive-code">
+            <h2 class="page-title"></h2>
+            <div class="code-selector-container">
+                <select class="code-selector"></select>
+            </div>
+            <div class="code-example">
+                <h3 class="example-title"></h3>
+                <div class="example-description"></div>
+                <div class="code-container">
+                    <pre><code></code></pre>
+                    <button class="copy-code">COPY</button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Hardware Visual Template -->
+    <template id="hardwareVisualTemplate">
+        <div class="hardware-visual">
+            <h2 class="page-title"></h2>
+            <div class="panels-container"></div>
+        </div>
+    </template>
+
+    <!-- Hardware Panel Template -->
+    <template id="hardwarePanelTemplate">
+        <div class="hardware-panel">
+            <h3 class="panel-name"></h3>
+            <div class="panel-image-container">
+                <img class="panel-image" src="" alt="">
+            </div>
+            <div class="panel-description"></div>
+            <div class="panel-interactions"></div>
+        </div>
+    </template>
+
+    <!-- Bio Gallery Template -->
+    <template id="bioGalleryTemplate">
+        <div class="bio-gallery">
+            <h2 class="page-title"></h2>
+            <div class="bios-container"></div>
+        </div>
+    </template>
+
+    <!-- Bio Card Template -->
+    <template id="bioCardTemplate">
+        <div class="bio-card">
+            <div class="bio-image-container">
+                <img class="bio-image" src="" alt="">
+            </div>
+            <h3 class="bio-name"></h3>
+            <div class="bio-role"></div>
+            <blockquote class="bio-quote"></blockquote>
+        </div>
+    </template>
+
+    <!-- Resource List Template -->
+    <template id="resourceListTemplate">
+        <div class="resource-list">
+            <h2 class="page-title"></h2>
+            <ul class="resources-container"></ul>
+        </div>
+    </template>
+
+    <!-- Resource Item Template -->
+    <template id="resourceItemTemplate">
+        <li class="resource-item">
+            <a class="resource-link" href="" target="_blank"></a>
+        </li>
+    </template>
+
+    <!-- Quiz Template -->
+    <template id="quizTemplate">
+        <div class="quiz">
+            <h2 class="page-title"></h2>
+            <div class="quiz-container">
+                <div class="question-container">
+                    <h3 class="question-text"></h3>
+                    <div class="options-container"></div>
+                </div>
+                <div class="quiz-navigation">
+                    <button class="prev-question">◀</button>
+                    <span class="question-counter"></span>
+                    <button class="next-question">▶</button>
+                </div>
+                <div class="quiz-results hidden">
+                    <h3 class="results-title">RESULTS</h3>
+                    <div class="score-display"></div>
+                    <button class="restart-quiz">RESTART</button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Option Template -->
+    <template id="optionTemplate">
+        <button class="option-button"></button>
+    </template>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-container">
+            <div class="loading-text">PROCESSING DATA</div>
+            <div class="loading-animation">
+                <div class="loading-bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
