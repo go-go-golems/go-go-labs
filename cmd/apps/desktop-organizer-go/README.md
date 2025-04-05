@@ -1,4 +1,3 @@
-
 # desktop-organizer-go
 
 A powerful Go-based tool to analyze directories (like Downloads folders) and generate rich, structured reports about the files within. This tool helps you understand file distribution, find duplicates, identify large files, and get insights that make organizing your directories easier.
@@ -35,52 +34,82 @@ go build -o desktop-organizer ./cmd/desktop-organizer
 
 ## Usage
 
-### Basic Command
+### Basic Scan
+
+Analyze the `~/Downloads` directory and output a report to the console (default format is text):
 
 ```bash
-./desktop-organizer -d /path/to/downloads
+./desktop-organizer -d ~/Downloads
 ```
 
-This will analyze the specified directory and output a JSON report to standard output.
+### Example Scenarios
 
-### Common Options
+Here are some common ways to use `desktop-organizer`:
 
-```bash
-# Analyze with verbose logging
-./desktop-organizer -d ~/Downloads -v
+1.  **Quick Scan for Large Files (>500MB):**
+    Quickly identify very large files to free up space. Output in JSON format.
+    ```bash
+    ./desktop-organizer -d /path/to/large-dir --large-file-mb 500 --output-format json -o large_files_report.json
+    ```
 
-# Save results to a file
-./desktop-organizer -d ~/Downloads -o report.json
+2.  **Analyze Recent Activity (Last 7 Days) with Debug Logging:**
+    See what files have been added recently and get detailed logs.
+    ```bash
+    ./desktop-organizer -d ~/Downloads --recent-days 7 --log-level debug
+    ```
 
-# Use sampling to limit analysis (max 10 files per directory)
-./desktop-organizer -d ~/Downloads -s 10
+3.  **Detailed Analysis with Sampling, Excluding Caches, Saving Report:**
+    Perform a more thorough analysis on a large directory, but sample only 10 files per subdirectory, exclude common cache/temporary folders, and save the report.
+    ```bash
+    ./desktop-organizer -d /mnt/data \
+        -s 10 \
+        --exclude-path "*.tmp" \
+        --exclude-path ".cache/*" \
+        --exclude-path "node_modules/*" \
+        -o detailed_report.json \
+        --output-format json
+    ```
 
-# Exclude specific paths
-./desktop-organizer -d ~/Downloads --exclude-path "*.tmp" --exclude-path "node_modules/*"
+4.  **Specify Custom Tool Path for Magika and Use More Workers:**
+    If `magika` isn't in the standard PATH, specify it directly and increase concurrency.
+    ```bash
+    ./desktop-organizer -d ~/Documents --tool-path magika=/opt/magika/bin/magika --max-workers 12
+    ```
 
-# Change the number of concurrent workers
-./desktop-organizer -d ~/Downloads --max-workers 8
-```
+5.  **Generate Text Report and Pipe to `less`:**
+    Generate the default text report and view it page by page.
+    ```bash
+    ./desktop-organizer -d /media/external_drive | less
+    ```
+
+6.  **Using a Config File but Overriding Output:**
+    Use settings from the default config file but force output to stdout.
+    ```bash
+    # Assuming ~/.desktop-organizer.yaml exists
+    ./desktop-organizer -o -
+    ```
 
 ### All Available Options
 
+The tool offers several flags to customize its behavior. You can combine these flags as needed.
+
 ```
 Flags:
+      --config string            Config file (default is $HOME/.desktop-organizer.yaml or ./config.yaml)
   -d, --downloads-dir string     Directory to analyze (required)
-      --debug-log string         Path to write debug logs to a file
+      --debug-log string         Path to write debug logs to a file (JSON format, always debug level)
       --disable-analyzer strings Explicitly disable specific analyzers
       --enable-analyzer strings  Explicitly enable specific analyzers
       --exclude-path strings     Glob patterns for paths to exclude (can specify multiple)
   -h, --help                     Help for desktop-organizer
       --large-file-mb int        Threshold in MB to tag files as 'large' (default: 100)
+      --log-level string         Set the logging level (trace, debug, info, warn, error) (default: "info")
       --max-workers int          Number of concurrent workers for file analysis (default: 4)
-  -o, --output-file string       Output file path (default: stdout)
-      --output-format string     Output format: text, json, markdown (default: "text")
+  -o, --output-file string       Output file path ('-' for stdout) (default: stdout)
+      --output-format string     Output format: text, json (default: "text")
       --recent-days int          Threshold in days to tag files as 'recent' (default: 30)
   -s, --sample-per-dir int       Enable sampling: max N files per directory for type analysis (0=disabled)
       --tool-path strings        Override path for external tools (e.g., --tool-path magika=/usr/local/bin/magika)
-  -v, --verbose                  Enable verbose/debug logging
-      --config string            Config file (default is $HOME/.desktop-organizer.yaml or ./config.yaml)
 ```
 
 ## Configuration
