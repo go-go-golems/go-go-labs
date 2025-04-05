@@ -1,4 +1,4 @@
-/* Severance-inspired Museum Display CSS with Mermaid, Search, and Print Support */
+/* Severance-inspired Museum Display CSS */
 
 /* Base Styles and Variables */
 :root {
@@ -303,61 +303,6 @@ input[type="file"] {
     border-color: var(--accent-color);
 }
 
-/* Search Container */
-.search-container {
-    display: flex;
-    align-items: center;
-    margin-right: 15px;
-}
-
-.search-input {
-    background-color: var(--bg-color);
-    color: var(--primary-text);
-    border: 1px solid var(--border-color);
-    padding: 5px 10px;
-    font-family: inherit;
-    font-size: 0.8rem;
-    width: 150px;
-}
-
-.search-input:focus {
-    outline: none;
-    border-color: var(--accent-color);
-    box-shadow: var(--terminal-glow);
-}
-
-.search-button {
-    background: none;
-    border: none;
-    color: var(--accent-color);
-    cursor: pointer;
-    font-size: 1rem;
-    margin-left: 5px;
-}
-
-.search-button:hover {
-    color: var(--highlight-color);
-}
-
-/* Print View Button */
-.print-view-button {
-    display: inline-block;
-    padding: 5px 10px;
-    background-color: transparent;
-    color: var(--accent-color);
-    border: 1px solid var(--accent-color);
-    cursor: pointer;
-    font-family: inherit;
-    font-size: 0.8rem;
-    margin-left: 10px;
-    transition: all var(--transition-speed);
-}
-
-.print-view-button:hover {
-    background-color: rgba(0, 178, 255, 0.1);
-    box-shadow: var(--terminal-glow);
-}
-
 /* Navigation */
 .navigation {
     width: var(--nav-width);
@@ -580,12 +525,6 @@ input[type="file"] {
 
 .step-description {
     font-size: 0.9rem;
-    margin-bottom: 20px;
-}
-
-.step-mermaid {
-    margin-top: 20px;
-    text-align: center;
 }
 
 /* Interactive Code */
@@ -655,11 +594,6 @@ input[type="file"] {
     background-color: rgba(0, 178, 255, 0.1);
 }
 
-.example-mermaid {
-    margin-top: 30px;
-    text-align: center;
-}
-
 /* Hardware Visual */
 .hardware-visual {
     height: 100%;
@@ -691,11 +625,6 @@ input[type="file"] {
     max-width: 100%;
     max-height: 400px;
     border: 1px solid var(--border-color);
-}
-
-.panel-mermaid {
-    margin: 20px 0;
-    text-align: center;
 }
 
 .panel-description {
@@ -937,145 +866,6 @@ input[type="file"] {
     box-shadow: var(--terminal-glow);
 }
 
-/* Diagram Page */
-.diagram-page {
-    height: 100%;
-}
-
-.diagrams-container {
-    display: flex;
-    flex-direction: column;
-    gap: 40px;
-}
-
-.diagram-item {
-    border: 1px solid var(--border-color);
-    padding: 20px;
-}
-
-.diagram-title {
-    font-size: 1.1rem;
-    margin-bottom: 15px;
-    color: var(--secondary-text);
-    text-align: center;
-}
-
-.diagram-description {
-    font-size: 0.9rem;
-    margin-bottom: 20px;
-    text-align: center;
-}
-
-.diagram-container {
-    margin: 20px 0;
-    text-align: center;
-    overflow-x: auto;
-}
-
-/* Search Results */
-.search-results {
-    padding: 20px;
-}
-
-.search-results-title {
-    font-size: 1.3rem;
-    margin-bottom: 15px;
-    color: var(--accent-color);
-}
-
-.search-stats {
-    font-size: 0.9rem;
-    margin-bottom: 30px;
-    color: var(--secondary-text);
-}
-
-.search-results-container {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-
-.search-result-item {
-    border: 1px solid var(--border-color);
-    padding: 15px;
-    position: relative;
-}
-
-.result-page-title {
-    font-size: 1rem;
-    margin-bottom: 10px;
-    color: var(--secondary-text);
-}
-
-.result-context {
-    font-size: 0.85rem;
-    margin-bottom: 15px;
-    color: var(--primary-text);
-    line-height: 1.6;
-}
-
-.search-highlight {
-    background-color: rgba(0, 178, 255, 0.2);
-    color: var(--highlight-color);
-    padding: 0 2px;
-}
-
-.go-to-result {
-    background-color: transparent;
-    color: var(--accent-color);
-    border: 1px solid var(--accent-color);
-    padding: 5px 10px;
-    font-family: inherit;
-    font-size: 0.8rem;
-    cursor: pointer;
-    transition: all var(--transition-speed);
-}
-
-.go-to-result:hover {
-    background-color: rgba(0, 178, 255, 0.1);
-    box-shadow: var(--terminal-glow);
-}
-
-.no-results {
-    text-align: center;
-    padding: 30px;
-    color: var(--secondary-text);
-    font-size: 1.1rem;
-}
-
-.close-search-results {
-    background-color: transparent;
-    color: var(--accent-color);
-    border: 1px solid var(--accent-color);
-    padding: 8px 15px;
-    font-family: inherit;
-    font-size: 0.9rem;
-    cursor: pointer;
-    margin-top: 20px;
-    transition: all var(--transition-speed);
-}
-
-.close-search-results:hover {
-    background-color: rgba(0, 178, 255, 0.1);
-    box-shadow: var(--terminal-glow);
-}
-
-/* Mermaid Styling */
-.mermaid-container {
-    margin: 20px 0;
-    text-align: center;
-    overflow-x: auto;
-}
-
-.mermaid {
-    font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
-}
-
-.mermaid svg {
-    max-width: 100%;
-    margin: 0 auto;
-}
-
 /* Markdown Styling */
 .markdown {
     font-size: 0.9rem;
@@ -1139,144 +929,6 @@ input[type="file"] {
     text-decoration: underline;
 }
 
-/* Print View Styles */
-body.print-view {
-    background-color: white;
-    color: black;
-}
-
-body.print-view .navigation {
-    display: none;
-}
-
-body.print-view .content-area {
-    margin-left: 0;
-    overflow: visible;
-    height: auto;
-}
-
-body.print-view .header {
-    position: static;
-    background-color: white;
-    color: black;
-    border-bottom: 1px solid #ccc;
-}
-
-body.print-view .footer {
-    position: static;
-    background-color: white;
-    color: black;
-    border-top: 1px solid #ccc;
-}
-
-body.print-view .display-title {
-    color: black;
-}
-
-body.print-view .page-title {
-    color: black;
-}
-
-body.print-view .content-container {
-    border: none;
-    max-width: 100%;
-}
-
-body.print-view .slide-content h3,
-body.print-view .step-title,
-body.print-view .example-title,
-body.print-view .panel-name,
-body.print-view .diagram-title {
-    color: black;
-}
-
-body.print-view .prev-slide, 
-body.print-view .next-slide,
-body.print-view .prev-question,
-body.print-view .next-question {
-    display: none;
-}
-
-body.print-view .slide-counter,
-body.print-view .question-counter {
-    display: none;
-}
-
-body.print-view .markdown code,
-body.print-view .markdown pre {
-    background-color: #f5f5f5;
-    color: #333;
-}
-
-body.print-view .markdown a {
-    color: #0066cc;
-}
-
-body.print-view .footer-text {
-    color: #333;
-}
-
-body.print-view::before {
-    display: none;
-}
-
-/* Print Media Query */
-@media print {
-    body {
-        background-color: white;
-        color: black;
-    }
-    
-    .navigation, .header, .footer {
-        display: none !important;
-    }
-    
-    .content-area {
-        margin-left: 0;
-        overflow: visible;
-        height: auto;
-        padding: 0;
-    }
-    
-    .content-container {
-        border: none;
-        padding: 0;
-    }
-    
-    .prev-slide, .next-slide, .prev-question, .next-question,
-    .slide-counter, .question-counter, .copy-code {
-        display: none !important;
-    }
-    
-    .page-title {
-        color: black;
-        page-break-before: always;
-    }
-    
-    .slide-content h3, .step-title, .example-title, .panel-name, .diagram-title {
-        color: black;
-    }
-    
-    .markdown code, .markdown pre {
-        background-color: #f5f5f5;
-        color: #333;
-    }
-    
-    .markdown a {
-        color: #0066cc;
-    }
-    
-    /* Force page breaks */
-    .tutorial-step, .code-example, .hardware-panel, .diagram-item {
-        page-break-inside: avoid;
-    }
-    
-    /* Remove scan lines effect */
-    body::before {
-        display: none;
-    }
-}
-
 /* Responsive Styles */
 @media (max-width: 992px) {
     .content-area {
@@ -1293,14 +945,6 @@ body.print-view::before {
     
     .menu-toggle, .close-nav {
         display: block;
-    }
-    
-    .search-container {
-        display: none;
-    }
-    
-    .print-view-button {
-        display: none;
     }
 }
 
@@ -1338,7 +982,7 @@ body.print-view::before {
         font-size: 1.3rem;
     }
     
-    .quiz-container, .code-example, .tutorial-step, .hardware-panel, .diagram-item {
+    .quiz-container, .code-example, .tutorial-step, .hardware-panel {
         padding: 15px;
     }
     

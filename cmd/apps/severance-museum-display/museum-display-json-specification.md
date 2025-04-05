@@ -76,14 +76,6 @@ A sequence of slides with title and content.
       "title": "What is Micro-Planner?",
       "content": "String - slide content with optional markdown"
     },
-    {
-      "title": "Diagram Example",
-      "mermaid": "String - mermaid diagram syntax"
-    },
-    {
-      "title": "Code Example",
-      "code": "String - code content"
-    },
     /* More slides */
   ]
 }
@@ -102,11 +94,6 @@ Step-by-step instructions.
     {
       "title": "Step 1: Title",
       "description": "String - step description with optional markdown"
-    },
-    {
-      "title": "Step 2: Diagram",
-      "description": "String - step description text",
-      "mermaid": "String - mermaid diagram syntax"
     },
     /* More steps */
   ]
@@ -130,13 +117,6 @@ Code examples with descriptions.
       "description": "String - example description",
       "code": "String - code content"
     },
-    {
-      "id": "example2",
-      "title": "Example with Diagram",
-      "description": "String - example description",
-      "code": "String - code content",
-      "mermaid": "String - mermaid diagram syntax showing code flow or structure"
-    },
     /* More examples */
   ]
 }
@@ -155,18 +135,6 @@ Visual representation of hardware with interactive elements.
     {
       "name": "Panel Name",
       "image": "String - URL or path to image",
-      "description": "String - panel description",
-      "interactions": [
-        {
-          "label": "Button Label",
-          "action": "String - description of action"
-        },
-        /* More interactions */
-      ]
-    },
-    {
-      "name": "Panel with Diagram",
-      "mermaid": "String - mermaid diagram syntax for hardware schematic",
       "description": "String - panel description",
       "interactions": [
         {
@@ -246,58 +214,12 @@ Interactive quiz with questions and answers.
 }
 ```
 
-#### 8. Diagram Page (`type: "diagram"`)
-
-A page dedicated to displaying mermaid diagrams.
-
-```json
-{
-  "id": "diagram_page",
-  "title": "System Architecture",
-  "type": "diagram",
-  "diagrams": [
-    {
-      "title": "Component Diagram",
-      "description": "String - diagram description",
-      "mermaid": "String - mermaid diagram syntax"
-    },
-    {
-      "title": "Sequence Diagram",
-      "description": "String - diagram description",
-      "mermaid": "String - mermaid diagram syntax"
-    },
-    /* More diagrams */
-  ]
-}
-```
-
 ## Content Formatting
 
 - Text content fields (`content`, `description`, etc.) support basic Markdown formatting
 - Code blocks can be included using triple backticks (```)
 - Line breaks are preserved with `\n`
 - HTML entities can be used for special characters (e.g., `&amp;` for &)
-
-## Mermaid Diagram Support
-
-The `mermaid` property can be added to various content elements to include diagrams:
-
-- **Supported diagram types**: flowchart, sequence diagram, class diagram, state diagram, entity relationship diagram, gantt chart, pie chart
-- **Syntax**: Follow standard mermaid.js syntax (see [Mermaid.js documentation](https://mermaid-js.github.io/mermaid/#/))
-- **Example**:
-
-```json
-"mermaid": "graph TD;\n    A-->B;\n    A-->C;\n    B-->D;\n    C-->D;"
-```
-
-This would render as:
-```
-graph TD;
-    A-->B;
-    A-->C;
-    B-->D;
-    C-->D;
-```
 
 ## Image References
 
@@ -313,49 +235,7 @@ graph TD;
 4. **Markdown Usage**: Use markdown for formatting rather than HTML when possible
 5. **Quiz Options**: Provide 3-5 options for each quiz question
 6. **Consistent Naming**: Use consistent naming conventions for IDs and titles
-7. **Mermaid Diagrams**: Keep diagrams simple and focused for better readability
-8. **Diagram Themes**: Consider using the 'dark' theme for mermaid diagrams when using the dark theme for the display
 
 ## Example
 
 See the provided `micro-planner.json` for a complete example of a museum display JSON file.
-
-## Mermaid Diagram Examples
-
-### Flowchart
-```
-graph TD;
-    A[Start] --> B{Decision};
-    B -->|Yes| C[Action 1];
-    B -->|No| D[Action 2];
-    C --> E[End];
-    D --> E;
-```
-
-### Sequence Diagram
-```
-sequenceDiagram
-    participant User
-    participant System
-    User->>System: Request Data
-    System->>Database: Query
-    Database-->>System: Return Results
-    System-->>User: Display Results
-```
-
-### Class Diagram
-```
-classDiagram
-    class Animal {
-        +name: string
-        +eat(): void
-    }
-    class Dog {
-        +bark(): void
-    }
-    class Cat {
-        +meow(): void
-    }
-    Animal <|-- Dog
-    Animal <|-- Cat
-```

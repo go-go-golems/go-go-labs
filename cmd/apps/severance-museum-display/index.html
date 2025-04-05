@@ -8,8 +8,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
-    <!-- Mermaid JS Library -->
-    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
 </head>
 <body>
     <div class="app-container">
@@ -41,18 +39,12 @@
                     <h1 id="displayTitle" class="display-title">DISPLAY TITLE</h1>
                 </div>
                 <div class="header-right">
-                    <!-- Search Bar -->
-                    <div class="search-container">
-                        <input type="text" id="searchInput" class="search-input" placeholder="SEARCH...">
-                        <button id="searchButton" class="search-button">🔍</button>
-                    </div>
                     <div class="file-selector">
                         <select id="fileSelector" class="file-select">
                             <option value="">SELECT DISPLAY</option>
                         </select>
                     </div>
                     <button id="uploadButton" class="upload-button">UPLOAD</button>
-                    <button id="printViewButton" class="print-view-button">PRINT</button>
                 </div>
             </header>
 
@@ -112,7 +104,6 @@
         <div class="tutorial-step">
             <h3 class="step-title"></h3>
             <div class="step-description"></div>
-            <div class="step-mermaid"></div>
         </div>
     </template>
 
@@ -130,7 +121,6 @@
                     <pre><code></code></pre>
                     <button class="copy-code">COPY</button>
                 </div>
-                <div class="example-mermaid"></div>
             </div>
         </div>
     </template>
@@ -150,7 +140,6 @@
             <div class="panel-image-container">
                 <img class="panel-image" src="" alt="">
             </div>
-            <div class="panel-mermaid"></div>
             <div class="panel-description"></div>
             <div class="panel-interactions"></div>
         </div>
@@ -219,42 +208,6 @@
         <button class="option-button"></button>
     </template>
 
-    <!-- Diagram Template -->
-    <template id="diagramTemplate">
-        <div class="diagram-page">
-            <h2 class="page-title"></h2>
-            <div class="diagrams-container"></div>
-        </div>
-    </template>
-
-    <!-- Diagram Item Template -->
-    <template id="diagramItemTemplate">
-        <div class="diagram-item">
-            <h3 class="diagram-title"></h3>
-            <div class="diagram-description"></div>
-            <div class="diagram-container"></div>
-        </div>
-    </template>
-
-    <!-- Search Results Template -->
-    <template id="searchResultsTemplate">
-        <div class="search-results">
-            <h2 class="search-results-title">SEARCH RESULTS</h2>
-            <div class="search-stats"></div>
-            <div class="search-results-container"></div>
-            <button class="close-search-results">CLOSE</button>
-        </div>
-    </template>
-
-    <!-- Search Result Item Template -->
-    <template id="searchResultItemTemplate">
-        <div class="search-result-item">
-            <h3 class="result-page-title"></h3>
-            <div class="result-context"></div>
-            <button class="go-to-result">GO TO</button>
-        </div>
-    </template>
-
     <!-- Loading Overlay -->
     <div class="loading-overlay" id="loadingOverlay">
         <div class="loading-container">
@@ -265,6 +218,6 @@
         </div>
     </div>
 
-    <script src="script-updated.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
