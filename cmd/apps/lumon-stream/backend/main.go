@@ -8,9 +8,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/go-go-golems/go-go-labs/cmd/apps/lumon-stream/backend/database"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/lumon-stream/backend/handlers"
 	"github.com/gorilla/mux"
-	"github.com/lumonstream/backend/database"
-	"github.com/lumonstream/backend/handlers"
 	"github.com/rs/cors"
 )
 

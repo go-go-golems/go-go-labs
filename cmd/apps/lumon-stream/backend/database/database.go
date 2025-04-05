@@ -6,8 +6,8 @@ import (
 	"log"
 	"time"
 
+	"github.com/go-go-golems/go-go-labs/cmd/apps/lumon-stream/backend/models"
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/lumonstream/backend/models"
 )
 
 // DB is the database connection

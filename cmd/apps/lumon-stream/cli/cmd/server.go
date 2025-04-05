@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/spf13/cobra"
 )

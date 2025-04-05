@@ -95,7 +95,7 @@ Before you begin, ensure you have the following installed:
 ### Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/LumonStream.git
+git clone https://github.com/go-go-golems/go-go-labs/cmd/apps/lumon-stream.git
 cd LumonStream
 ```
 
@@ -108,7 +108,7 @@ cd LumonStream
 
 2. Initialize Go modules (if not already done):
    ```bash
-   go mod init github.com/lumonstream/backend
+   go mod init github.com/go-go-golems/go-go-labs/cmd/apps/lumon-stream/backend
    ```
 
 3. Install Go dependencies:
@@ -147,7 +147,7 @@ cd LumonStream
 
 2. Initialize Go modules (if not already done):
    ```bash
-   go mod init github.com/lumonstream/cli
+   go mod init github.com/go-go-golems/go-go-labs/cmd/apps/lumon-stream/cli
    ```
 
 3. Install Go dependencies:

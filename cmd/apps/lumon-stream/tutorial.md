@@ -104,7 +104,7 @@ First, let's set up the Go modules for our backend:
 ```bash
 mkdir -p LumonStream/backend
 cd LumonStream/backend
-go mod init github.com/lumonstream/backend
+go mod init github.com/go-go-golems/go-go-labs/cmd/apps/lumon-stream/backend
 ```
 
 Next, we'll install the necessary dependencies:
@@ -156,7 +156,7 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/lumonstream/backend/models"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/lumon-stream/backend/models"
 )
 
 // DB is the database connection
@@ -456,8 +456,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/lumonstream/backend/database"
-	"github.com/lumonstream/backend/models"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/lumon-stream/backend/database"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/lumon-stream/backend/models"
 )
 
 // Response is a generic API response structure
@@ -703,8 +703,8 @@ import (
 	"path/filepath"
 
 	"github.com/gorilla/mux"
-	"github.com/lumonstream/backend/database"
-	"github.com/lumonstream/backend/handlers"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/lumon-stream/backend/database"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/lumon-stream/backend/handlers"
 	"github.com/rs/cors"
 )
 
@@ -1495,7 +1495,7 @@ First, let's set up the CLI with Cobra:
 ```bash
 mkdir -p LumonStream/cli
 cd LumonStream/cli
-go mod init github.com/lumonstream/cli
+go mod init github.com/go-go-golems/go-go-labs/cmd/apps/lumon-stream/cli
 go get github.com/spf13/cobra
 ```
 
@@ -2021,7 +2021,7 @@ Finally, let's create the main.go file at `cli/main.go`:
 ```go
 package main
 
-import "github.com/lumonstream/cli/cmd"
+import "github.com/go-go-golems/go-go-labs/cmd/apps/lumon-stream/cli/cmd"
 
 func main() {
 	cmd.Execute()

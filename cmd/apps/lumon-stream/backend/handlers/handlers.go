@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/lumonstream/backend/database"
-	"github.com/lumonstream/backend/models"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/lumon-stream/backend/database"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/lumon-stream/backend/models"
 )
 
 // Response is a generic API response structure
