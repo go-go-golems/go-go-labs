@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -12,18 +13,21 @@ import (
 )
 
 // InitLogger initializes the zerolog logger with console and optional file outputs.
-// Returns a context with logger attached for context-based logging.
-func InitLogger(verbose bool, debugLogPath string) (context.Context, error) {
+// It takes the desired log level as a string and the path for an optional debug log file.
+// Returns a context with the configured logger attached.
+func InitLogger(logLevelStr string, debugLogPath string) (context.Context, error) {
 	// Setup console writer
 	consoleWriter := zerolog.ConsoleWriter{
 		Out:        os.Stderr,
 		TimeFormat: time.RFC3339,
 	}
 
-	// Determine log level
-	logLevel := zerolog.InfoLevel
-	if verbose {
-		logLevel = zerolog.DebugLevel
+	// Determine log level from string
+	logLevel, err := zerolog.ParseLevel(strings.ToLower(logLevelStr))
+	if err != nil {
+		// Use the global logger for this initial warning, as the context logger isn't fully set up yet
+		zlog.Warn().Str("level", logLevelStr).Msg("Invalid log level provided, defaulting to info")
+		logLevel = zerolog.InfoLevel
 	}
 
 	var writers []io.Writer
@@ -42,11 +46,13 @@ func InitLogger(verbose bool, debugLogPath string) (context.Context, error) {
 			Timestamp().
 			Caller().
 			Logger().Level(zerolog.DebugLevel)
-		
+
 		writers = append(writers, fileWriter)
 	}
 
 	// Create multi-writer
+	// The console writer within multiWriter will respect the main logLevel.
+	// The fileWriter (if present) always logs at Debug level.
 	multiWriter := zerolog.MultiLevelWriter(writers...)
 
 	// Set global logger
@@ -95,4 +101,4 @@ func Warn(ctx context.Context) *zerolog.Event {
 // Fatal is a shortcut for FromCtx(ctx).Fatal()
 func Fatal(ctx context.Context) *zerolog.Event {
 	return FromCtx(ctx).Fatal()
-} 
+}

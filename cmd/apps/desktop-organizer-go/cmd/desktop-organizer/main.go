@@ -6,17 +6,18 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
+	zlog "github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	// Placeholder for internal packages - adjust path if needed
-	// config_pkg "github.com/your-org/desktop-organizer-go/internal/config"
-	// log_pkg "github.com/your-org/desktop-organizer-go/internal/log"
+
+	"github.com/go-go-golems/go-go-labs/cmd/apps/desktop-organizer-go/internal/analysis"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/desktop-organizer-go/internal/config"
+	applog "github.com/go-go-golems/go-go-labs/cmd/apps/desktop-organizer-go/internal/log"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/desktop-organizer-go/internal/reporting"
 )
 
 var (
 	cfgFile string
-	// cliCfg config_pkg.Config // Placeholder for config struct
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -27,46 +28,114 @@ var rootCmd = &cobra.Command{
 modification dates, and generates a report. This report can be used 
 manually or by an LLM to suggest cleanup and organization rules.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		// Initialize Logger (before loading config potentially)
-		logLevel := zerolog.InfoLevel
-		if verbose, _ := cmd.Flags().GetBool("verbose"); verbose {
-			logLevel = zerolog.DebugLevel
+		// Initialize basic logger for early errors during config loading
+		logLevelStr := viper.GetString("logLevel")
+		logLevel, err := zerolog.ParseLevel(strings.ToLower(logLevelStr))
+		if err != nil {
+			zlog.Warn().Str("level", logLevelStr).Msg("Invalid log level provided, defaulting to info")
+			logLevel = zerolog.InfoLevel
 		}
-		// TODO: Replace with log_pkg initialization logic
-		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr}).Level(logLevel)
-		log.Debug().Msg("Logger initialized")
+		zlog.Logger = zlog.Output(zerolog.ConsoleWriter{Out: os.Stderr}).Level(logLevel)
+		zlog.Debug().Msg("Basic logger initialized")
 
 		// Initialize Viper
 		if err := initConfig(cmd); err != nil {
 			return err
 		}
 
-		// TODO: Initialize debug file logging if specified
-		// debugLogFile := viper.GetString("debugLog") ...
-
-		log.Debug().Str("configFile", viper.ConfigFileUsed()).Msg("Using config file")
-
-		// TODO: Unmarshal viper config into cliCfg struct
-		// if err := viper.Unmarshal(&cliCfg); err != nil {
-		// 	return fmt.Errorf("unable to decode config: %w", err)
-		// }
+		zlog.Debug().Str("configFile", viper.ConfigFileUsed()).Msg("Using config file")
 
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		log.Info().Msg("Starting Desktop Organizer Analysis...")
+		// Initialize full-featured logger with context and optional file output
+		ctx, err := applog.InitLogger(viper.GetString("logLevel"), viper.GetString("debugLog"))
+		if err != nil {
+			return fmt.Errorf("failed to initialize logger: %w", err)
+		}
 
-		// TODO: Load full config (Viper + Flags into cliCfg)
+		applog.Info(ctx).Msg("Starting Desktop Organizer Analysis...")
 
-		// TODO: Instantiate Analysis Runner with Config
+		// Process tool paths from flags into Viper map BEFORE loading config
+		if cmd.Flags().Changed("tool-path") {
+			toolPaths, _ := cmd.Flags().GetStringSlice("tool-path")
+			toolPathMap := make(map[string]string)
+			for _, pathSpec := range toolPaths {
+				parts := strings.SplitN(pathSpec, "=", 2)
+				if len(parts) == 2 {
+					toolPathMap[parts[0]] = parts[1]
+				} else {
+					applog.Warn(ctx).Str("spec", pathSpec).Msg("Ignoring invalid tool-path specification")
+				}
+			}
+			viper.Set("toolPaths", toolPathMap)
+			applog.Debug(ctx).Interface("toolPaths", toolPathMap).Msg("Processed tool paths from flags")
+		}
 
-		// TODO: Execute Analysis Runner
+		// Load configuration
+		cfg, err := config.LoadConfig(cmd, cfgFile)
+		if err != nil {
+			return fmt.Errorf("failed to load configuration: %w", err)
+		}
 
-		// TODO: Instantiate Reporter based on output format
+		// Create analyzer registry and register analyzers
+		registry := analysis.NewRegistry()
 
-		// TODO: Generate Report
+		// Register built-in analyzers
+		registry.Register(analysis.NewMagikaTypeAnalyzer())
+		// TODO: Register additional analyzers
+		// registry.Register(analysis.NewFileTypeAnalyzer())
+		// registry.Register(analysis.NewHashingAnalyzer())
+		// etc.
 
-		log.Info().Msg("Analysis finished successfully.")
+		// Create analysis runner
+		runner, err := analysis.NewRunner(ctx, cfg, registry)
+		if err != nil {
+			return fmt.Errorf("failed to create analysis runner: %w", err)
+		}
+
+		// Run analysis
+		result, err := runner.Run(ctx)
+		if err != nil {
+			return fmt.Errorf("analysis failed: %w", err)
+		}
+
+		// Setup output (file or stdout)
+		var outputFile *os.File
+		if cfg.OutputFile != "" {
+			outputFile, err = os.Create(cfg.OutputFile)
+			if err != nil {
+				return fmt.Errorf("failed to create output file: %w", err)
+			}
+			defer outputFile.Close()
+		} else {
+			outputFile = os.Stdout
+		}
+
+		// Create reporter registry and register reporters
+		reporterRegistry := reporting.NewRegistry()
+		reporterRegistry.Register(reporting.NewJSONReporter(true)) // Pretty JSON
+		// TODO: Register additional reporters
+		reporterRegistry.Register(reporting.NewTextReporter())
+		// reporterRegistry.Register(reporting.NewMarkdownReporter())
+
+		// Get reporter based on format
+		reporter, err := reporterRegistry.GetReporter(cfg.OutputFormat)
+		if err != nil {
+			// Fallback to JSON if requested format is not available
+			applog.Warn(ctx).
+				Err(err).
+				Str("format", cfg.OutputFormat).
+				Msg("Requested output format not available, using JSON")
+			reporter = reporting.NewJSONReporter(true)
+		}
+
+		// Generate report
+		if err := reporter.GenerateReport(ctx, result, outputFile); err != nil {
+			return fmt.Errorf("failed to generate report: %w", err)
+		}
+
+		applog.Info(ctx).Msg("Analysis finished successfully.")
 		return nil
 	},
 }
@@ -76,7 +145,7 @@ manually or by an LLM to suggest cleanup and organization rules.`,
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
-		log.Error().Err(err).Msg("Command execution failed")
+		zlog.Error().Err(err).Msg("Command execution failed")
 		os.Exit(1)
 	}
 }
@@ -84,7 +153,7 @@ func Execute() {
 func init() {
 	// Persistent flags (available to this command and all subcommands)
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.desktop-organizer.yaml or ./config.yaml)")
-	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose/debug logging")
+	rootCmd.PersistentFlags().String("log-level", "info", "Set the logging level (trace, debug, info, warn, error)")
 	rootCmd.PersistentFlags().String("debug-log", "", "Path to write debug logs to a file")
 
 	// Local flags (only available to this command)
@@ -94,6 +163,12 @@ func init() {
 	rootCmd.Flags().IntP("sample-per-dir", "s", 0, "Enable sampling: max N files per directory for type analysis (0=disabled)")
 	rootCmd.Flags().Int("max-workers", 4, "Number of concurrent workers for file analysis")
 	rootCmd.Flags().String("output-format", "text", "Output format (text, json, markdown)")
+	rootCmd.Flags().StringSlice("exclude-path", nil, "Glob patterns for paths to exclude (can specify multiple)")
+	rootCmd.Flags().Int("large-file-mb", 100, "Threshold in MB to tag files as 'large' (default: 100)")
+	rootCmd.Flags().Int("recent-days", 30, "Threshold in days to tag files as 'recent' (default: 30)")
+	rootCmd.Flags().StringSlice("tool-path", nil, "Override path for external tools (e.g., --tool-path magika=/usr/local/bin/magika)")
+	rootCmd.Flags().StringSlice("enable-analyzer", nil, "Explicitly enable specific analyzers")
+	rootCmd.Flags().StringSlice("disable-analyzer", nil, "Explicitly disable specific analyzers")
 
 	// Mark required flags
 	_ = rootCmd.MarkFlagRequired("downloads-dir")
@@ -102,12 +177,15 @@ func init() {
 	_ = viper.BindPFlag("targetDir", rootCmd.Flags().Lookup("downloads-dir"))
 	_ = viper.BindPFlag("outputFile", rootCmd.Flags().Lookup("output-file"))
 	_ = viper.BindPFlag("debugLog", rootCmd.Flags().Lookup("debug-log"))
-	_ = viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose")) // Bind persistent flag too
+	_ = viper.BindPFlag("logLevel", rootCmd.PersistentFlags().Lookup("log-level"))
 	_ = viper.BindPFlag("samplingPerDir", rootCmd.Flags().Lookup("sample-per-dir"))
 	_ = viper.BindPFlag("maxWorkers", rootCmd.Flags().Lookup("max-workers"))
 	_ = viper.BindPFlag("outputFormat", rootCmd.Flags().Lookup("output-format"))
-
-	// TODO: Add more viper bindings for config struct fields if needed
+	_ = viper.BindPFlag("excludePaths", rootCmd.Flags().Lookup("exclude-path"))
+	_ = viper.BindPFlag("largeFileThreshold", rootCmd.Flags().Lookup("large-file-mb"))
+	_ = viper.BindPFlag("recentFileDays", rootCmd.Flags().Lookup("recent-days"))
+	_ = viper.BindPFlag("enabledAnalyzers", rootCmd.Flags().Lookup("enable-analyzer"))
+	_ = viper.BindPFlag("disabledAnalyzers", rootCmd.Flags().Lookup("disable-analyzer"))
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -118,10 +196,16 @@ func initConfig(cmd *cobra.Command) error {
 	} else {
 		// Find home directory.
 		home, err := os.UserHomeDir()
-		cobra.CheckErr(err)
+		// cobra.CheckErr(err) -- Don't check err here, let viper handle it
+		if err != nil {
+			// Log warning if home dir cannot be found, but continue
+			zlog.Warn().Err(err).Msg("Could not find user home directory for config search")
+		} else {
+			viper.AddConfigPath(home)
+		}
 
 		// Search config in home directory with name ".desktop-organizer" (without extension).
-		viper.AddConfigPath(home)
+		//viper.AddConfigPath(home) // Moved up
 		viper.AddConfigPath(".") // Also look in the current directory
 		viper.SetConfigName(".desktop-organizer")
 		viper.SetConfigType("yaml") // Or json, toml
@@ -133,13 +217,13 @@ func initConfig(cmd *cobra.Command) error {
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
-		log.Info().Str("file", viper.ConfigFileUsed()).Msg("Using config file")
+		zlog.Info().Str("file", viper.ConfigFileUsed()).Msg("Using config file")
 	} else {
 		// Don't fail if config file not found, only if parsing failed
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
 			return fmt.Errorf("failed to read config file %s: %w", viper.ConfigFileUsed(), err)
 		}
-		log.Debug().Msg("No config file found, using defaults and flags.")
+		zlog.Debug().Msg("No config file found, using defaults and flags.")
 	}
 	return nil
 }
