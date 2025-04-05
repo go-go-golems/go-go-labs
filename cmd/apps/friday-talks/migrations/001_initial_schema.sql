@@ -1,5 +1,5 @@
 -- Create Users table
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     email TEXT NOT NULL UNIQUE,
@@ -9,7 +9,7 @@ CREATE TABLE users (
 );
 
 -- Create Talks table
-CREATE TABLE talks (
+CREATE TABLE IF NOT EXISTS talks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
     description TEXT NOT NULL,
@@ -23,7 +23,7 @@ CREATE TABLE talks (
 );
 
 -- Create Votes table
-CREATE TABLE votes (
+CREATE TABLE IF NOT EXISTS votes (
     user_id INTEGER NOT NULL,
     talk_id INTEGER NOT NULL,
     interest_level INTEGER NOT NULL CHECK (interest_level BETWEEN 1 AND 5),
@@ -36,7 +36,7 @@ CREATE TABLE votes (
 );
 
 -- Create Attendance table
-CREATE TABLE attendance (
+CREATE TABLE IF NOT EXISTS attendance (
     talk_id INTEGER NOT NULL,
     user_id INTEGER NOT NULL,
     status TEXT NOT NULL CHECK (status IN ('confirmed', 'attended', 'declined', 'no-show')),
@@ -49,7 +49,7 @@ CREATE TABLE attendance (
 );
 
 -- Create Resources table
-CREATE TABLE resources (
+CREATE TABLE IF NOT EXISTS resources (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     talk_id INTEGER NOT NULL,
     title TEXT NOT NULL,
@@ -61,9 +61,9 @@ CREATE TABLE resources (
 );
 
 -- Create indices for foreign keys
-CREATE INDEX idx_talks_speaker_id ON talks(speaker_id);
-CREATE INDEX idx_votes_talk_id ON votes(talk_id);
-CREATE INDEX idx_votes_user_id ON votes(user_id);
-CREATE INDEX idx_attendance_talk_id ON attendance(talk_id);
-CREATE INDEX idx_attendance_user_id ON attendance(user_id);
-CREATE INDEX idx_resources_talk_id ON resources(talk_id);
+CREATE INDEX IF NOT EXISTS idx_talks_speaker_id ON talks(speaker_id);
+CREATE INDEX IF NOT EXISTS idx_votes_talk_id ON votes(talk_id);
+CREATE INDEX IF NOT EXISTS idx_votes_user_id ON votes(user_id);
+CREATE INDEX IF NOT EXISTS idx_attendance_talk_id ON attendance(talk_id);
+CREATE INDEX IF NOT EXISTS idx_attendance_user_id ON attendance(user_id);
+CREATE INDEX IF NOT EXISTS idx_resources_talk_id ON resources(talk_id);
