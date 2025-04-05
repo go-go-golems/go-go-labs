@@ -42,9 +42,9 @@ require (
 	github.com/go-go-golems/go-emrichen v0.0.5
 	github.com/go-go-golems/pinocchio v0.0.1
 	github.com/golang-jwt/jwt/v5 v5.2.2
-	github.com/golang-migrate/migrate/v4 v4.18.2
 	github.com/google/uuid v1.6.0
 	github.com/googollee/go-socket.io v1.7.0
+	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/go-plugin v1.4.10
@@ -61,6 +61,7 @@ require (
 	github.com/muesli/reflow v0.3.0
 	github.com/philippgille/chromem-go v0.5.0
 	github.com/pkg/errors v0.9.1
+	github.com/rs/cors v1.11.0
 	github.com/rs/zerolog v1.33.0
 	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3
 	github.com/spf13/cobra v1.8.1
@@ -127,9 +128,6 @@ require (
 	github.com/google/s2a-go v0.1.7 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.2 // indirect
 	github.com/googleapis/gax-go/v2 v2.12.3 // indirect
-	github.com/gorilla/mux v1.8.1 // indirect
-	github.com/hashicorp/errwrap v1.1.0 // indirect
-	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/terraform-json v0.22.1 // indirect
 	github.com/huandu/go-clone v1.7.2 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
@@ -157,6 +155,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.29.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20240513163218-0867130af1f8 // indirect
 )
 
 require (
