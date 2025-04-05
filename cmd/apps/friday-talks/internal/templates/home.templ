@@ -1,0 +1,152 @@
+package templates
+
+import (
+	"github.com/go-go-golems/go-go-labs/cmd/apps/friday-talks/internal/models"
+	"fmt"
+	"time"
+)
+
+templ Home(user *models.User, upcomingTalks []*models.Talk, recentTalks []*models.Talk, proposedTalks []*models.Talk) {
+	@Layout("Home", user) {
+		<div class="row mb-5">
+			<div class="col-md-12 text-center mb-4">
+				<h1 class="display-4">Friday Talks</h1>
+				<p class="lead">Schedule, discover, and share knowledge with your friends.</p>
+				if user == nil {
+					<div class="mt-4">
+						<a href="/register" class="btn btn-primary btn-lg me-2">Get Started</a>
+						<a href="/login" class="btn btn-outline-primary btn-lg">Login</a>
+					</div>
+				} else {
+					<div class="mt-4">
+						<a href="/talks/propose" class="btn btn-primary btn-lg me-2">Propose a Talk</a>
+						<a href="/calendar" class="btn btn-outline-primary btn-lg">View Calendar</a>
+					</div>
+				}
+			</div>
+		</div>
+
+		if len(upcomingTalks) > 0 {
+			<div class="row mb-5">
+				<div class="col-12">
+					<h2 class="border-bottom pb-2 mb-4">Upcoming Talks</h2>
+				</div>
+				for _, talk := range upcomingTalks {
+					<div class="col-md-4 mb-4">
+						@TalkCard(talk)
+					</div>
+				}
+			</div>
+		}
+
+		if user != nil && len(proposedTalks) > 0 {
+			<div class="row mb-5">
+				<div class="col-12">
+					<h2 class="border-bottom pb-2 mb-4">Proposed Talks</h2>
+				</div>
+				for _, talk := range proposedTalks {
+					<div class="col-md-4 mb-4">
+						@TalkCard(talk)
+					</div>
+				}
+				<div class="col-12 text-center mt-2">
+					<a href="/talks?status=proposed" class="btn btn-outline-primary">View All Proposed Talks</a>
+				</div>
+			</div>
+		}
+
+		if len(recentTalks) > 0 {
+			<div class="row mb-5">
+				<div class="col-12">
+					<h2 class="border-bottom pb-2 mb-4">Recent Talks</h2>
+				</div>
+				for _, talk := range recentTalks {
+					<div class="col-md-4 mb-4">
+						@TalkCard(talk)
+					</div>
+				}
+				<div class="col-12 text-center mt-2">
+					<a href="/talks?status=completed" class="btn btn-outline-primary">View All Past Talks</a>
+				</div>
+			</div>
+		}
+
+		<div class="row mb-5">
+			<div class="col-md-4 mb-4">
+				<div class="card h-100 border-primary">
+					<div class="card-body text-center">
+						<h3 class="card-title">Propose</h3>
+						<p class="card-text">Share your knowledge by proposing a talk on any topic you're passionate about.</p>
+					</div>
+				</div>
+			</div>
+			<div class="col-md-4 mb-4">
+				<div class="card h-100 border-primary">
+					<div class="card-body text-center">
+						<h3 class="card-title">Vote</h3>
+						<p class="card-text">Help decide which talks get scheduled by voting on proposals that interest you.</p>
+					</div>
+				</div>
+			</div>
+			<div class="col-md-4 mb-4">
+				<div class="card h-100 border-primary">
+					<div class="card-body text-center">
+						<h3 class="card-title">Attend</h3>
+						<p class="card-text">Join the sessions, learn from others, and provide valuable feedback.</p>
+					</div>
+				</div>
+			</div>
+		</div>
+	}
+}
+
+templ TalkCard(talk *models.Talk) {
+	<div class="card talk-card">
+		<div class="card-body">
+			<h5 class="card-title">{ talk.Title }</h5>
+			<h6 class="card-subtitle mb-2 text-muted">
+				if talk.Speaker != nil {
+					by { talk.Speaker.Name }
+				}
+			</h6>
+			<p class="card-text">{ truncateText(talk.Description, 100) }</p>
+			if talk.ScheduledDate != nil {
+				<p class="card-text">
+					<small class="text-muted">
+						<strong>Date:</strong> { formatDate(*talk.ScheduledDate) }
+					</small>
+				</p>
+			}
+			<div class="d-flex justify-content-between align-items-center">
+				<span class={ "badge", getBadgeColorForStatus(talk.Status) }>{ string(talk.Status) }</span>
+				<a href={ templ.SafeURL(fmt.Sprintf("/talks/%d", talk.ID)) } class="btn btn-sm btn-outline-primary">View Details</a>
+			</div>
+		</div>
+	</div>
+}
+
+func truncateText(text string, maxLength int) string {
+	if len(text) <= maxLength {
+		return text
+	}
+	return text[:maxLength-3] + "..."
+}
+
+func formatDate(date time.Time) string {
+	return date.Format("Monday, Jan 2, 2006")
+}
+
+func getBadgeColorForStatus(status models.TalkStatus) string {
+	switch status {
+	case models.TalkStatusProposed:
+		return "bg-secondary"
+	case models.TalkStatusScheduled:
+		return "bg-primary"
+	case models.TalkStatusCompleted:
+		return "bg-success"
+	case models.TalkStatusCanceled:
+		return "bg-danger"
+	default:
+		return "bg-secondary"
+	}
+}
