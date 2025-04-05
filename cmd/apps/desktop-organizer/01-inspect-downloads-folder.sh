@@ -12,6 +12,8 @@ DEBUG_LOG="downloads_analysis_debug.log"
 
 # --- Verbose Option --- Default to 0 (off)
 VERBOSE=0
+# --- Sampling Option --- Default to 0 (off)
+SAMPLE_PER_DIR=0
 
 # --- Bash Version Check ---
 # Associative arrays require Bash 4.0+
@@ -73,7 +75,7 @@ if [ ! -d "$DOWNLOADS_DIR" ]; then
 fi
 
 # --- Argument Parsing ---
-TEMP=$(getopt -o v --long verbose -n '$0' -- "$@")
+TEMP=$(getopt -o vs: --long verbose,sample-per-dir: -n '$0' -- "$@")
 if [ $? != 0 ] ; then echo "Terminating..." >&2 ; exit 1 ; fi
 
 # Note the quotes around '$TEMP': they are essential!
@@ -82,6 +84,7 @@ eval set -- "$TEMP"
 while true; do
   case "$1" in
     -v | --verbose ) VERBOSE=1; shift ;; # Set verbose flag
+    -s | --sample-per-dir ) SAMPLE_PER_DIR="$2"; shift 2 ;; # Set sample limit
     -- ) shift; break ;; # End of options
     * ) break ;; # Unexpected option
   esac
@@ -89,6 +92,14 @@ done
 
 if [ "$VERBOSE" -eq 1 ]; then
     debug "Verbose mode enabled."
+fi
+
+if ! [[ "$SAMPLE_PER_DIR" =~ ^[0-9]+$ ]]; then
+    echo "Error: --sample-per-dir value must be a non-negative integer." >&2
+    debug "Invalid --sample-per-dir value: $SAMPLE_PER_DIR"
+    exit 1
+elif [ "$SAMPLE_PER_DIR" -gt 0 ]; then
+    debug "Directory sampling enabled: Max $SAMPLE_PER_DIR files per directory for type analysis."
 fi
 
 # --- Tool Detection ---
@@ -155,9 +166,10 @@ debug "Collecting basic top-level statistics for $DOWNLOADS_DIR"
 # --- Pre-computation: File List, Sizes, and Types (Recursive) ---
 show_status "Finding all files recursively..."
 TEMP_ALL_FILES_LIST=$(mktemp)
-find "$DOWNLOADS_DIR" -type f -print0 > "$TEMP_ALL_FILES_LIST"
+# Exclude __MACOSX directories and find all regular files, null-terminated
+find "$DOWNLOADS_DIR" -path '*/__MACOSX/*' -prune -o -type f -print0 > "$TEMP_ALL_FILES_LIST"
 TOTAL_FILES_RECURSIVE=$(grep -zc $'\0' "$TEMP_ALL_FILES_LIST")
-debug "Found $TOTAL_FILES_RECURSIVE files recursively. List stored in $TEMP_ALL_FILES_LIST"
+debug "Found $TOTAL_FILES_RECURSIVE files recursively (excluding __MACOSX). List stored in $TEMP_ALL_FILES_LIST"
 
 declare -A file_paths # Store paths (might be redundant but useful)
 declare -A file_sizes # Store sizes: path -> size_in_bytes
@@ -189,19 +201,48 @@ if [ "$MAGIKA_AVAILABLE" -eq 1 ]; then
     debug "Using Magika for recursive file type identification"
     TEMP_MAGIKA_OUTPUT=$(mktemp)
     # Use xargs to process files; output is one JSON object per line
-    vdebug "Starting xargs magika command (this might take a while for many files)..."
-    xargs -0 -I {} magika --json {} < "$TEMP_ALL_FILES_LIST" > "$TEMP_MAGIKA_OUTPUT" 2>>"$DEBUG_LOG"
-    local magika_rc=$?
+
+    # Determine the input list for Magika (potentially sampled)
+    local MAGIKA_INPUT_LIST="$TEMP_ALL_FILES_LIST"
+    local TOTAL_FILES_FOR_MAGIKA=$TOTAL_FILES_RECURSIVE
+    local TEMP_SAMPLED_FOR_MAGIKA=""
+
+    if [ "$SAMPLE_PER_DIR" -gt 0 ]; then
+        debug "Applying sampling (max $SAMPLE_PER_DIR per directory)..."
+        TEMP_SAMPLED_FOR_MAGIKA=$(mktemp)
+        # Use awk to filter the list based on directory counts
+        # Reads null-terminated input, outputs null-terminated paths
+        awk -v limit="$SAMPLE_PER_DIR" 'BEGIN{FS=OFS=RS="\0"; ORS="\0"} {
+            dir = $0; sub(/\/[^\/]*$/, "", dir); # Get dirname
+            if (count[dir] < limit) {
+                print $0;
+                count[dir]++;
+            }
+        }' "$TEMP_ALL_FILES_LIST" > "$TEMP_SAMPLED_FOR_MAGIKA"
+
+        TOTAL_FILES_FOR_MAGIKA=$(grep -zc $'\0' "$TEMP_SAMPLED_FOR_MAGIKA")
+        debug "Created sampled list for Magika: $TOTAL_FILES_FOR_MAGIKA files in $TEMP_SAMPLED_FOR_MAGIKA"
+        MAGIKA_INPUT_LIST="$TEMP_SAMPLED_FOR_MAGIKA"
+    else
+        debug "Sampling disabled. Preparing to analyze all $TOTAL_FILES_RECURSIVE files with Magika."
+    fi
+
+    vdebug "Starting xargs magika command on $TOTAL_FILES_FOR_MAGIKA files (this might take a while)..."
+    xargs -0 -I {} magika --json {} < "$MAGIKA_INPUT_LIST" > "$TEMP_MAGIKA_OUTPUT" 2>>"$DEBUG_LOG"
+    local magika_rc=$? # Store return code (local is valid inside functions)
     debug "Magika xargs process completed with rc=$magika_rc. Output in $TEMP_MAGIKA_OUTPUT"
     vdebug "Finished xargs magika command."
+
+    # Cleanup sampled list file if it was created
+    [ -n "$TEMP_SAMPLED_FOR_MAGIKA" ] && rm -f "$TEMP_SAMPLED_FOR_MAGIKA"
 
     # Process Magika JSON output (one object per line)
     FILE_COUNT=0
     while IFS= read -r line; do
         FILE_COUNT=$((FILE_COUNT + 1))
          if (( FILE_COUNT % 100 == 0 )); then # Update status periodically
-            vdebug "Processing Magika output line $FILE_COUNT/$TOTAL_FILES_RECURSIVE..."
-            show_status "Processing Magika types ($FILE_COUNT/$TOTAL_FILES_RECURSIVE)..."
+            vdebug "Processing Magika output line $FILE_COUNT/$TOTAL_FILES_FOR_MAGIKA..."
+            show_status "Processing Magika types ($FILE_COUNT/$TOTAL_FILES_FOR_MAGIKA)..."
         fi
         # Extract path, type (label), and group using jq or fallback
         if command -v jq &> /dev/null; then
@@ -253,6 +294,9 @@ debug "Starting aggregation of recursive file types."
         echo "Using Magika (AI-powered identification)"
     else
         echo "Using file command (Magika not available)"
+    fi
+    if [ "$SAMPLE_PER_DIR" -gt 0 ]; then
+        echo "(Sampled: Max $SAMPLE_PER_DIR files per directory analyzed for types)"
     fi
     echo "--------------------------------------------------"
     printf "%-40s | %8s | %12s\n" "Type" "Count" "Total Size"
