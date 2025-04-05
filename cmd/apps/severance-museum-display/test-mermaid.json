@@ -1,0 +1,152 @@
+{
+  "microplanner_museum_display": {
+    "title": "Test Display with Mermaid Diagrams",
+    "theme": "dark",
+    "navigation": {
+      "type": "sidebar",
+      "persistent_menu": true,
+      "show_progress": true
+    },
+    "pages": [
+      {
+        "id": "intro",
+        "title": "Introduction",
+        "type": "slide_deck",
+        "slides": [
+          {
+            "title": "Welcome to Mermaid Test",
+            "content": "This is a test display to demonstrate mermaid diagram support."
+          },
+          {
+            "title": "Flowchart Example",
+            "mermaid": "graph TD;\n    A[Start] --> B{Decision};\n    B -->|Yes| C[Action 1];\n    B -->|No| D[Action 2];\n    C --> E[End];\n    D --> E;"
+          },
+          {
+            "title": "Sequence Diagram",
+            "mermaid": "sequenceDiagram\n    participant User\n    participant System\n    User->>System: Request Data\n    System->>Database: Query\n    Database-->>System: Return Results\n    System-->>User: Display Results"
+          }
+        ]
+      },
+      {
+        "id": "tutorial",
+        "title": "Tutorial with Diagrams",
+        "type": "tutorial",
+        "steps": [
+          {
+            "title": "Step 1: Introduction",
+            "description": "This is the first step of the tutorial."
+          },
+          {
+            "title": "Step 2: Class Diagram",
+            "description": "Here's a class diagram showing the structure:",
+            "mermaid": "classDiagram\n    class Animal {\n        +name: string\n        +eat(): void\n    }\n    class Dog {\n        +bark(): void\n    }\n    class Cat {\n        +meow(): void\n    }\n    Animal <|-- Dog\n    Animal <|-- Cat"
+          },
+          {
+            "title": "Step 3: State Diagram",
+            "description": "This state diagram shows the process flow:",
+            "mermaid": "stateDiagram-v2\n    [*] --> Idle\n    Idle --> Processing: Start\n    Processing --> Complete: Finish\n    Processing --> Error: Fail\n    Complete --> [*]\n    Error --> Idle: Retry"
+          }
+        ]
+      },
+      {
+        "id": "code_examples",
+        "title": "Code with Diagrams",
+        "type": "interactive_code",
+        "language": "javascript",
+        "examples": [
+          {
+            "id": "example1",
+            "title": "Basic Function",
+            "description": "A simple JavaScript function",
+            "code": "function greet(name) {\n  return `Hello, ${name}!`;\n}"
+          },
+          {
+            "id": "example2",
+            "title": "Function with Diagram",
+            "description": "A function with a flowchart showing its logic",
+            "code": "function processData(data) {\n  if (!data) return null;\n  \n  const result = data.map(item => {\n    return item.value * 2;\n  });\n  \n  return result.filter(value => value > 10);\n}",
+            "mermaid": "graph TD;\n    A[Start] --> B[Check data];\n    B --> C{Data exists?};\n    C -->|No| D[Return null];\n    C -->|Yes| E[Map: Double values];\n    E --> F[Filter: > 10];\n    F --> G[Return result];\n    D --> H[End];\n    G --> H;"
+          }
+        ]
+      },
+      {
+        "id": "diagram_page",
+        "title": "Dedicated Diagrams",
+        "type": "diagram",
+        "diagrams": [
+          {
+            "title": "Entity Relationship Diagram",
+            "description": "Database schema for the application",
+            "mermaid": "erDiagram\n    CUSTOMER ||--o{ ORDER : places\n    ORDER ||--|{ LINE-ITEM : contains\n    CUSTOMER }|..|{ DELIVERY-ADDRESS : uses"
+          },
+          {
+            "title": "Gantt Chart",
+            "description": "Project timeline",
+            "mermaid": "gantt\n    title Project Schedule\n    dateFormat  YYYY-MM-DD\n    section Planning\n    Requirements    :a1, 2025-01-01, 10d\n    Design          :a2, after a1, 15d\n    section Development\n    Implementation  :a3, after a2, 20d\n    Testing         :a4, after a3, 10d"
+          },
+          {
+            "title": "Pie Chart",
+            "description": "Resource allocation",
+            "mermaid": "pie title Resource Allocation\n    \"Development\" : 45\n    \"Testing\" : 30\n    \"Documentation\" : 15\n    \"Management\" : 10"
+          }
+        ]
+      },
+      {
+        "id": "hardware",
+        "title": "Hardware with Diagrams",
+        "type": "hardware_visual",
+        "panels": [
+          {
+            "name": "Main System",
+            "image": "https://via.placeholder.com/400x300",
+            "description": "The main system hardware components."
+          },
+          {
+            "name": "System Architecture",
+            "mermaid": "graph LR;\n    A[CPU] --> B[Memory Controller];\n    B --> C[RAM];\n    A --> D[I/O Controller];\n    D --> E[Storage];\n    D --> F[Network];\n    D --> G[Peripherals];",
+            "description": "Diagram showing the system architecture and component relationships.",
+            "interactions": [
+              {
+                "label": "CPU Details",
+                "action": "Show CPU specifications"
+              },
+              {
+                "label": "Memory Details",
+                "action": "Show memory specifications"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "searchable_content",
+        "title": "Searchable Content",
+        "type": "slide_deck",
+        "slides": [
+          {
+            "title": "Search Test",
+            "content": "This page contains various terms to test the search functionality. Try searching for keywords like 'microprocessor', 'algorithm', or 'database'."
+          },
+          {
+            "title": "Microprocessors",
+            "content": "A microprocessor is a computer processor where the data processing logic and control is included on a single integrated circuit (IC), or a small number of ICs. The microprocessor is a multipurpose, clock-driven, register-based, digital integrated circuit that accepts binary data as input, processes it according to instructions stored in its memory, and provides results (also in binary form) as output."
+          },
+          {
+            "title": "Algorithms",
+            "content": "In mathematics and computer science, an algorithm is a finite sequence of rigorous instructions, typically used to solve a class of specific problems or to perform a computation. Algorithms are used as specifications for performing calculations and data processing. By making use of artificial intelligence, algorithms can perform automated deductions and use mathematical and logical tests to divert the code execution through different routes."
+          },
+          {
+            "title": "Databases",
+            "content": "A database is an organized collection of data stored and accessed electronically. Small databases can be stored on a file system, while large databases are hosted on computer clusters or cloud storage. The design of databases spans formal techniques and practical considerations, including data modeling, efficient data representation and storage, query languages, security and privacy of sensitive data, and distributed computing issues."
+          }
+        ]
+      }
+    ],
+    "footer": {
+      "text": "Test Museum Display - Created for testing new features",
+      "logos": [
+        "https://via.placeholder.com/100x30"
+      ]
+    }
+  }
+}

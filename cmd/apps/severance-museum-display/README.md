@@ -1,60 +1,120 @@
-# Severance-Inspired Museum Display Webapp
+# Severance-Inspired Museum Display Webapp - Enhanced Version
 
-A self-contained frontend application for creating interactive museum displays with a Severance-inspired aesthetic. This webapp allows you to upload and switch between multiple JSON files containing museum display content.
+## Overview
+
+This enhanced version of the Severance-inspired museum display webapp includes three major new features:
+
+1. **Mermaid Diagram Support** - Render diagrams using the mermaid.js syntax
+2. **Search Functionality** - Search across all loaded museum displays
+3. **Print View** - Optimized view for printing content
+
+The webapp remains a self-contained frontend application with no backend requirements, allowing you to upload and display JSON files with museum content in a Severance-inspired interface.
 
 ## Features
 
-- **Severance-inspired UI**: Blue/whitish text on black background with terminal-like aesthetics
-- **No backend required**: Completely client-side, runs in any modern browser
-- **Multiple file support**: Upload and switch between different museum displays
-- **Responsive design**: Works on desktop and mobile devices
-- **Support for various content types**:
+### Core Features
+
+- Upload and parse JSON files containing museum display content
+- Switch between multiple loaded displays
+- Navigate through different pages and content types
+- Severance-inspired retro terminal aesthetic with blue/whitish text on black background
+
+### New Features
+
+#### Mermaid Diagram Support
+
+- Integrated mermaid.js library for rendering diagrams
+- Support for various diagram types:
+  - Flowcharts
+  - Sequence diagrams
+  - Class diagrams
+  - State diagrams
+  - Entity relationship diagrams
+  - Gantt charts
+  - Pie charts
+- Diagrams can be included in:
   - Slide decks
-  - Step-by-step tutorials
+  - Tutorials
   - Interactive code examples
-  - Hardware visualizations
-  - Bio galleries
-  - Resource lists
-  - Interactive quizzes
+  - Hardware visuals
+  - Dedicated diagram pages
+
+#### Search Functionality
+
+- Search across all loaded museum displays
+- Content indexing when JSON files are loaded
+- Search results with context highlighting
+- Navigation to search results
+- Keyboard shortcut support (Ctrl+F/Cmd+F)
+
+#### Print View
+
+- Toggle between display and print views
+- Print-optimized styling with improved readability
+- Removal of interactive elements in print view
+- Automatic page breaks at appropriate locations
+- Keyboard shortcut support (Ctrl+P/Cmd+P)
 
 ## Getting Started
 
-1. Extract the `severance-museum-display.zip` file to a location of your choice
-2. Open the `index.html` file in a web browser
-3. Click "SELECT FILE" to upload a JSON file in the specified format
-4. Navigate through the museum display using the sidebar navigation
+1. Extract the zip file to a local directory
+2. Open `index.html` in any modern web browser
+3. Click "SELECT FILE" to upload a JSON file
+4. Navigate through your museum display using the sidebar
 
-## JSON File Format
+## Using the New Features
 
-The webapp accepts JSON files in a specific format. See the included `museum-display-json-specification.md` for detailed documentation on the JSON structure.
+### Mermaid Diagrams
 
-Two example JSON files are included:
-- `micro-planner.json`: The full example with all page types
-- `test-json.json`: A simplified example with just slide decks
+To include mermaid diagrams in your JSON files, add a `mermaid` property to the appropriate content element with the mermaid syntax as its value. For example:
 
-## Creating Your Own Displays
+```json
+{
+  "title": "Flowchart Example",
+  "mermaid": "graph TD;\n    A[Start] --> B{Decision};\n    B -->|Yes| C[Action 1];\n    B -->|No| D[Action 2];\n    C --> E[End];\n    D --> E;"
+}
+```
 
-To create your own museum displays:
+See the included `test-mermaid.json` for examples of different diagram types and how to include them in various page types.
 
-1. Use the JSON specification document as a reference
-2. Create a new JSON file following the required structure
-3. Include all required fields for each page type
-4. For images, use absolute URLs or relative paths to publicly accessible images
-5. Upload your JSON file to the webapp
+### Search
+
+1. Use the search bar in the top-right corner of the interface
+2. Enter your search term and press Enter or click the search icon
+3. Results will show matching content with context
+4. Click "GO TO" to navigate to a specific result
+5. Click "CLOSE" to return to your previous view
+
+### Print View
+
+1. Click the "PRINT" button in the top-right corner
+2. The interface will switch to a print-optimized view
+3. Use your browser's print function (Ctrl+P/Cmd+P) to print the content
+4. Click "EXIT PRINT" to return to the normal view
+
+## JSON Specification
+
+The JSON specification has been updated to include support for mermaid diagrams. See the included `museum-display-json-specification.md` for detailed documentation on the JSON format.
 
 ## Browser Compatibility
 
-This webapp is compatible with all modern browsers including:
+The webapp is compatible with all modern browsers:
 - Chrome/Edge (latest versions)
-- Firefox (latest versions)
-- Safari (latest versions)
-- Mobile browsers (iOS Safari, Android Chrome)
+- Firefox (latest version)
+- Safari (latest version)
+
+## Known Limitations
+
+- Large or complex mermaid diagrams may take longer to render
+- Print view may vary slightly between browsers
+- Very large JSON files may cause performance issues with search indexing
+
+## Troubleshooting
+
+- If diagrams don't render, check your mermaid syntax for errors
+- If search doesn't find expected results, try using different keywords
+- If print view doesn't display correctly, try using Chrome for best results
 
 ## License
 
-This project is provided for your use without restrictions.
-
-## Acknowledgments
-
-- Inspired by the aesthetic of the TV show "Severance"
-- Created as a self-contained museum display solution
+This project is provided for educational and demonstration purposes.

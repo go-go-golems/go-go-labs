@@ -1,7 +1,17 @@
 /**
  * Severance-inspired Museum Display Webapp
  * A self-contained frontend application for displaying museum content from JSON files
+ * Enhanced with mermaid diagram support, search functionality, and print view
  */
+
+// Initialize mermaid
+mermaid.initialize({
+    startOnLoad: false,
+    theme: 'dark',
+    securityLevel: 'loose',
+    fontFamily: 'JetBrains Mono',
+    fontSize: 14
+});
 
 // Global state
 const state = {
@@ -11,8 +21,13 @@ const state = {
     currentSlideIndices: {},
     currentExampleIndices: {},
     currentQuestionIndices: {},
+    currentDiagramIndices: {},
     quizAnswers: {},
-    navigationVisible: true
+    navigationVisible: true,
+    searchIndex: {},
+    searchResults: [],
+    isPrintView: false,
+    mermaidDiagramsRendered: new Set()
 };
 
 // DOM Elements
@@ -35,7 +50,10 @@ const elements = {
     contentContainer: document.getElementById('contentContainer'),
     footerText: document.getElementById('footerText'),
     footerLogos: document.getElementById('footerLogos'),
-    loadingOverlay: document.getElementById('loadingOverlay')
+    loadingOverlay: document.getElementById('loadingOverlay'),
+    searchInput: document.getElementById('searchInput'),
+    searchButton: document.getElementById('searchButton'),
+    printViewButton: document.getElementById('printViewButton')
 };
 
 // Templates
@@ -51,7 +69,11 @@ const templates = {
     resourceList: document.getElementById('resourceListTemplate'),
     resourceItem: document.getElementById('resourceItemTemplate'),
     quiz: document.getElementById('quizTemplate'),
-    option: document.getElementById('optionTemplate')
+    option: document.getElementById('optionTemplate'),
+    diagram: document.getElementById('diagramTemplate'),
+    diagramItem: document.getElementById('diagramItemTemplate'),
+    searchResults: document.getElementById('searchResultsTemplate'),
+    searchResultItem: document.getElementById('searchResultItemTemplate')
 };
 
 // Initialize the application
@@ -94,6 +116,31 @@ function setupEventListeners() {
     elements.navList.addEventListener('click', (e) => {
         if (e.target.tagName === 'A') {
             elements.navigation.classList.remove('active');
+        }
+    });
+
+    // Search functionality
+    elements.searchButton.addEventListener('click', performSearch);
+    elements.searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            performSearch();
+        }
+    });
+
+    // Print view toggle
+    elements.printViewButton.addEventListener('click', togglePrintView);
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        // Ctrl+F or Cmd+F for search
+        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+            e.preventDefault();
+            elements.searchInput.focus();
+        }
+        // Ctrl+P or Cmd+P for print view
+        if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+            e.preventDefault();
+            togglePrintView();
         }
     });
 }
@@ -273,6 +320,9 @@ function loadFile(index) {
         // Set up footer
         setupFooter(displayData);
         
+        // Build search index
+        buildSearchIndex(displayData, index);
+        
         // Show main interface
         showMainInterface();
         
@@ -286,6 +336,320 @@ function loadFile(index) {
     } finally {
         toggleLoading(false);
     }
+}
+
+// Build search index for the loaded display
+function buildSearchIndex(displayData, fileIndex) {
+    // Initialize search index for this file
+    state.searchIndex[fileIndex] = {
+        title: displayData.title,
+        pages: []
+    };
+    
+    // Index each page
+    displayData.pages.forEach((page, pageIndex) => {
+        const pageIndexData = {
+            id: page.id,
+            title: page.title,
+            type: page.type,
+            content: [],
+            pageIndex: pageIndex
+        };
+        
+        // Index content based on page type
+        switch (page.type) {
+            case 'slide_deck':
+                if (page.slides && Array.isArray(page.slides)) {
+                    page.slides.forEach((slide, slideIndex) => {
+                        const slideContent = [];
+                        if (slide.title) slideContent.push(slide.title);
+                        if (slide.content) slideContent.push(slide.content);
+                        if (slide.code) slideContent.push(slide.code);
+                        if (slide.mermaid) slideContent.push(`Diagram: ${slide.title}`);
+                        
+                        pageIndexData.content.push({
+                            text: slideContent.join(' '),
+                            location: { slideIndex }
+                        });
+                    });
+                }
+                break;
+                
+            case 'tutorial':
+                if (page.steps && Array.isArray(page.steps)) {
+                    page.steps.forEach((step, stepIndex) => {
+                        const stepContent = [];
+                        if (step.title) stepContent.push(step.title);
+                        if (step.description) stepContent.push(step.description);
+                        if (step.mermaid) stepContent.push(`Diagram: ${step.title}`);
+                        
+                        pageIndexData.content.push({
+                            text: stepContent.join(' '),
+                            location: { stepIndex }
+                        });
+                    });
+                }
+                break;
+                
+            case 'interactive_code':
+                if (page.examples && Array.isArray(page.examples)) {
+                    page.examples.forEach((example, exampleIndex) => {
+                        const exampleContent = [];
+                        if (example.title) exampleContent.push(example.title);
+                        if (example.description) exampleContent.push(example.description);
+                        if (example.code) exampleContent.push(example.code);
+                        if (example.mermaid) exampleContent.push(`Diagram: ${example.title}`);
+                        
+                        pageIndexData.content.push({
+                            text: exampleContent.join(' '),
+                            location: { exampleIndex }
+                        });
+                    });
+                }
+                break;
+                
+            case 'hardware_visual':
+                if (page.panels && Array.isArray(page.panels)) {
+                    page.panels.forEach((panel, panelIndex) => {
+                        const panelContent = [];
+                        if (panel.name) panelContent.push(panel.name);
+                        if (panel.description) panelContent.push(panel.description);
+                        if (panel.mermaid) panelContent.push(`Diagram: ${panel.name}`);
+                        
+                        pageIndexData.content.push({
+                            text: panelContent.join(' '),
+                            location: { panelIndex }
+                        });
+                    });
+                }
+                break;
+                
+            case 'bio_gallery':
+                if (page.bios && Array.isArray(page.bios)) {
+                    page.bios.forEach((bio, bioIndex) => {
+                        const bioContent = [];
+                        if (bio.name) bioContent.push(bio.name);
+                        if (bio.role) bioContent.push(bio.role);
+                        if (bio.quote) bioContent.push(bio.quote);
+                        
+                        pageIndexData.content.push({
+                            text: bioContent.join(' '),
+                            location: { bioIndex }
+                        });
+                    });
+                }
+                break;
+                
+            case 'resource_list':
+                if (page.resources && Array.isArray(page.resources)) {
+                    page.resources.forEach((resource, resourceIndex) => {
+                        const resourceContent = [];
+                        if (resource.title) resourceContent.push(resource.title);
+                        
+                        pageIndexData.content.push({
+                            text: resourceContent.join(' '),
+                            location: { resourceIndex }
+                        });
+                    });
+                }
+                break;
+                
+            case 'quiz':
+                if (page.questions && Array.isArray(page.questions)) {
+                    page.questions.forEach((question, questionIndex) => {
+                        const questionContent = [];
+                        if (question.question) questionContent.push(question.question);
+                        if (question.options && Array.isArray(question.options)) {
+                            questionContent.push(question.options.join(' '));
+                        }
+                        
+                        pageIndexData.content.push({
+                            text: questionContent.join(' '),
+                            location: { questionIndex }
+                        });
+                    });
+                }
+                break;
+                
+            case 'diagram':
+                if (page.diagrams && Array.isArray(page.diagrams)) {
+                    page.diagrams.forEach((diagram, diagramIndex) => {
+                        const diagramContent = [];
+                        if (diagram.title) diagramContent.push(diagram.title);
+                        if (diagram.description) diagramContent.push(diagram.description);
+                        
+                        pageIndexData.content.push({
+                            text: diagramContent.join(' '),
+                            location: { diagramIndex }
+                        });
+                    });
+                }
+                break;
+        }
+        
+        // Add page to search index
+        state.searchIndex[fileIndex].pages.push(pageIndexData);
+    });
+}
+
+// Perform search across all loaded displays
+function performSearch() {
+    const searchTerm = elements.searchInput.value.trim().toLowerCase();
+    if (!searchTerm) return;
+    
+    state.searchResults = [];
+    
+    // Search across all loaded files
+    Object.keys(state.searchIndex).forEach(fileIndex => {
+        const fileData = state.searchIndex[fileIndex];
+        
+        fileData.pages.forEach(page => {
+            page.content.forEach(contentItem => {
+                const text = contentItem.text.toLowerCase();
+                if (text.includes(searchTerm)) {
+                    // Extract context around the match
+                    const startIndex = Math.max(0, text.indexOf(searchTerm) - 50);
+                    const endIndex = Math.min(text.length, text.indexOf(searchTerm) + searchTerm.length + 50);
+                    let context = text.substring(startIndex, endIndex);
+                    
+                    // Add ellipsis if needed
+                    if (startIndex > 0) context = '...' + context;
+                    if (endIndex < text.length) context = context + '...';
+                    
+                    // Highlight the search term
+                    const highlightedContext = context.replace(
+                        new RegExp(searchTerm, 'gi'),
+                        match => `<span class="search-highlight">${match}</span>`
+                    );
+                    
+                    state.searchResults.push({
+                        fileIndex: parseInt(fileIndex),
+                        fileTitle: fileData.title,
+                        pageIndex: page.pageIndex,
+                        pageTitle: page.title,
+                        pageType: page.type,
+                        location: contentItem.location,
+                        context: highlightedContext
+                    });
+                }
+            });
+        });
+    });
+    
+    // Display search results
+    displaySearchResults(searchTerm);
+}
+
+// Display search results
+function displaySearchResults(searchTerm) {
+    // Clear current content
+    elements.contentContainer.innerHTML = '';
+    
+    // Clone search results template
+    const template = templates.searchResults.content.cloneNode(true);
+    
+    // Set search results title
+    const searchResultsTitle = template.querySelector('.search-results-title');
+    searchResultsTitle.textContent = `SEARCH RESULTS FOR "${searchTerm}"`;
+    
+    // Set search stats
+    const searchStats = template.querySelector('.search-stats');
+    searchStats.textContent = `Found ${state.searchResults.length} results`;
+    
+    // Get results container
+    const resultsContainer = template.querySelector('.search-results-container');
+    
+    // Add results
+    if (state.searchResults.length > 0) {
+        state.searchResults.forEach((result, index) => {
+            // Clone result item template
+            const resultTemplate = templates.searchResultItem.content.cloneNode(true);
+            
+            // Set result page title
+            const resultPageTitle = resultTemplate.querySelector('.result-page-title');
+            resultPageTitle.textContent = `${result.fileTitle} > ${result.pageTitle}`;
+            
+            // Set result context
+            const resultContext = resultTemplate.querySelector('.result-context');
+            resultContext.innerHTML = result.context;
+            
+            // Set up go to button
+            const goToButton = resultTemplate.querySelector('.go-to-result');
+            goToButton.addEventListener('click', () => {
+                // Switch to file if needed
+                if (result.fileIndex !== state.currentFileIndex) {
+                    loadFile(result.fileIndex);
+                }
+                
+                // Load the page
+                loadPage(result.pageIndex);
+                
+                // Set the appropriate index based on page type
+                switch (result.pageType) {
+                    case 'slide_deck':
+                        if (result.location.slideIndex !== undefined) {
+                            state.currentSlideIndices[state.loadedFiles[result.fileIndex].data[0][Object.keys(state.loadedFiles[result.fileIndex].data[0])[0]].pages[result.pageIndex].id] = result.location.slideIndex;
+                        }
+                        break;
+                        
+                    case 'interactive_code':
+                        if (result.location.exampleIndex !== undefined) {
+                            state.currentExampleIndices[state.loadedFiles[result.fileIndex].data[0][Object.keys(state.loadedFiles[result.fileIndex].data[0])[0]].pages[result.pageIndex].id] = result.location.exampleIndex;
+                        }
+                        break;
+                        
+                    case 'quiz':
+                        if (result.location.questionIndex !== undefined) {
+                            state.currentQuestionIndices[state.loadedFiles[result.fileIndex].data[0][Object.keys(state.loadedFiles[result.fileIndex].data[0])[0]].pages[result.pageIndex].id] = result.location.questionIndex;
+                        }
+                        break;
+                        
+                    case 'diagram':
+                        if (result.location.diagramIndex !== undefined) {
+                            state.currentDiagramIndices[state.loadedFiles[result.fileIndex].data[0][Object.keys(state.loadedFiles[result.fileIndex].data[0])[0]].pages[result.pageIndex].id] = result.location.diagramIndex;
+                        }
+                        break;
+                }
+            });
+            
+            // Add to results container
+            resultsContainer.appendChild(resultTemplate);
+        });
+    } else {
+        // No results
+        const noResults = document.createElement('div');
+        noResults.className = 'no-results';
+        noResults.textContent = 'No results found';
+        resultsContainer.appendChild(noResults);
+    }
+    
+    // Set up close button
+    const closeButton = template.querySelector('.close-search-results');
+    closeButton.addEventListener('click', () => {
+        // Reload current page
+        loadPage(state.currentPageIndex);
+    });
+    
+    // Add to content container
+    elements.contentContainer.appendChild(template);
+}
+
+// Toggle print view
+function togglePrintView() {
+    state.isPrintView = !state.isPrintView;
+    
+    if (state.isPrintView) {
+        // Add print view class to body
+        document.body.classList.add('print-view');
+        elements.printViewButton.textContent = 'EXIT PRINT';
+    } else {
+        // Remove print view class from body
+        document.body.classList.remove('print-view');
+        elements.printViewButton.textContent = 'PRINT';
+    }
+    
+    // Reload current page to apply print view
+    loadPage(state.currentPageIndex);
 }
 
 // Set up navigation
@@ -386,6 +750,9 @@ function loadPage(index) {
         // Clear content container
         elements.contentContainer.innerHTML = '';
         
+        // Reset mermaid diagrams rendered set
+        state.mermaidDiagramsRendered = new Set();
+        
         // Render page based on type
         switch (pageData.type) {
             case 'slide_deck':
@@ -408,6 +775,9 @@ function loadPage(index) {
                 break;
             case 'quiz':
                 renderQuiz(pageData);
+                break;
+            case 'diagram':
+                renderDiagramPage(pageData);
                 break;
             default:
                 elements.contentContainer.innerHTML = `<div class="error">Unknown page type: ${pageData.type}</div>`;
@@ -463,16 +833,49 @@ function renderSlideDeck(pageData) {
         const slideContentDiv = document.createElement('div');
         slideContentDiv.className = 'markdown';
         
+        // Check if slide has mermaid diagram
+        if (slide.mermaid) {
+            // Create mermaid container
+            const mermaidContainer = document.createElement('div');
+            mermaidContainer.className = 'mermaid-container';
+            const mermaidDiv = document.createElement('div');
+            mermaidDiv.className = 'mermaid';
+            mermaidDiv.textContent = slide.mermaid;
+            mermaidContainer.appendChild(mermaidDiv);
+            slideContentDiv.appendChild(mermaidContainer);
+            
+            // Add to list of diagrams to render
+            const diagramId = `slide-${pageData.id}-${currentIndex}`;
+            state.mermaidDiagramsRendered.add(diagramId);
+            
+            // Render mermaid diagram after a short delay
+            setTimeout(() => {
+                try {
+                    mermaid.render(diagramId, slide.mermaid)
+                        .then(result => {
+                            mermaidContainer.innerHTML = result.svg;
+                        })
+                        .catch(error => {
+                            console.error('Error rendering mermaid diagram:', error);
+                            mermaidContainer.innerHTML = `<div class="error">Error rendering diagram: ${error.message}</div>`;
+                        });
+                } catch (error) {
+                    console.error('Error rendering mermaid diagram:', error);
+                    mermaidContainer.innerHTML = `<div class="error">Error rendering diagram: ${error.message}</div>`;
+                }
+            }, 100);
+        } 
         // Check if slide has code property
-        if (slide.code) {
+        else if (slide.code) {
             // Create code block
             const codeBlock = document.createElement('pre');
             const code = document.createElement('code');
             code.textContent = slide.code;
             codeBlock.appendChild(code);
             slideContentDiv.appendChild(codeBlock);
-        } else if (slide.content) {
-            // Regular content
+        } 
+        // Regular content
+        else if (slide.content) {
             slideContentDiv.innerHTML = formatMarkdown(slide.content);
         }
         
@@ -520,7 +923,7 @@ function renderTutorial(pageData) {
     const stepsContainer = template.querySelector('.steps-container');
     
     // Add steps
-    pageData.steps.forEach(step => {
+    pageData.steps.forEach((step, index) => {
         // Clone step template
         const stepTemplate = templates.tutorialStep.content.cloneNode(true);
         
@@ -529,6 +932,36 @@ function renderTutorial(pageData) {
         
         // Set step description
         stepTemplate.querySelector('.step-description').innerHTML = formatMarkdown(step.description);
+        
+        // Check if step has mermaid diagram
+        if (step.mermaid) {
+            const mermaidContainer = stepTemplate.querySelector('.step-mermaid');
+            const mermaidDiv = document.createElement('div');
+            mermaidDiv.className = 'mermaid';
+            mermaidDiv.textContent = step.mermaid;
+            mermaidContainer.appendChild(mermaidDiv);
+            
+            // Add to list of diagrams to render
+            const diagramId = `tutorial-${pageData.id}-${index}`;
+            state.mermaidDiagramsRendered.add(diagramId);
+            
+            // Render mermaid diagram after a short delay
+            setTimeout(() => {
+                try {
+                    mermaid.render(diagramId, step.mermaid)
+                        .then(result => {
+                            mermaidContainer.innerHTML = result.svg;
+                        })
+                        .catch(error => {
+                            console.error('Error rendering mermaid diagram:', error);
+                            mermaidContainer.innerHTML = `<div class="error">Error rendering diagram: ${error.message}</div>`;
+                        });
+                } catch (error) {
+                    console.error('Error rendering mermaid diagram:', error);
+                    mermaidContainer.innerHTML = `<div class="error">Error rendering diagram: ${error.message}</div>`;
+                }
+            }, 100);
+        }
         
         // Add to steps container
         stepsContainer.appendChild(stepTemplate);
@@ -554,6 +987,7 @@ function renderInteractiveCode(pageData) {
     const exampleDescription = template.querySelector('.example-description');
     const codeElement = template.querySelector('code');
     const copyButton = template.querySelector('.copy-code');
+    const exampleMermaid = template.querySelector('.example-mermaid');
     
     // Initialize example index
     if (!state.currentExampleIndices[pageData.id]) {
@@ -588,6 +1022,36 @@ function renderInteractiveCode(pageData) {
         // Set language class if specified
         if (pageData.language) {
             codeElement.className = `language-${pageData.language}`;
+        }
+        
+        // Check if example has mermaid diagram
+        exampleMermaid.innerHTML = '';
+        if (example.mermaid) {
+            const mermaidDiv = document.createElement('div');
+            mermaidDiv.className = 'mermaid';
+            mermaidDiv.textContent = example.mermaid;
+            exampleMermaid.appendChild(mermaidDiv);
+            
+            // Add to list of diagrams to render
+            const diagramId = `code-${pageData.id}-${currentIndex}`;
+            state.mermaidDiagramsRendered.add(diagramId);
+            
+            // Render mermaid diagram after a short delay
+            setTimeout(() => {
+                try {
+                    mermaid.render(diagramId, example.mermaid)
+                        .then(result => {
+                            exampleMermaid.innerHTML = result.svg;
+                        })
+                        .catch(error => {
+                            console.error('Error rendering mermaid diagram:', error);
+                            exampleMermaid.innerHTML = `<div class="error">Error rendering diagram: ${error.message}</div>`;
+                        });
+                } catch (error) {
+                    console.error('Error rendering mermaid diagram:', error);
+                    exampleMermaid.innerHTML = `<div class="error">Error rendering diagram: ${error.message}</div>`;
+                }
+            }, 100);
         }
     };
     
@@ -634,17 +1098,53 @@ function renderHardwareVisual(pageData) {
     const panelsContainer = template.querySelector('.panels-container');
     
     // Add panels
-    pageData.panels.forEach(panel => {
+    pageData.panels.forEach((panel, index) => {
         // Clone panel template
         const panelTemplate = templates.hardwarePanel.content.cloneNode(true);
         
         // Set panel name
         panelTemplate.querySelector('.panel-name').textContent = panel.name;
         
-        // Set panel image
+        // Set panel image if available
+        const panelImageContainer = panelTemplate.querySelector('.panel-image-container');
         const panelImage = panelTemplate.querySelector('.panel-image');
-        panelImage.src = panel.image;
-        panelImage.alt = panel.name;
+        
+        if (panel.image) {
+            panelImage.src = panel.image;
+            panelImage.alt = panel.name;
+        } else {
+            panelImageContainer.style.display = 'none';
+        }
+        
+        // Check if panel has mermaid diagram
+        const panelMermaid = panelTemplate.querySelector('.panel-mermaid');
+        if (panel.mermaid) {
+            const mermaidDiv = document.createElement('div');
+            mermaidDiv.className = 'mermaid';
+            mermaidDiv.textContent = panel.mermaid;
+            panelMermaid.appendChild(mermaidDiv);
+            
+            // Add to list of diagrams to render
+            const diagramId = `hardware-${pageData.id}-${index}`;
+            state.mermaidDiagramsRendered.add(diagramId);
+            
+            // Render mermaid diagram after a short delay
+            setTimeout(() => {
+                try {
+                    mermaid.render(diagramId, panel.mermaid)
+                        .then(result => {
+                            panelMermaid.innerHTML = result.svg;
+                        })
+                        .catch(error => {
+                            console.error('Error rendering mermaid diagram:', error);
+                            panelMermaid.innerHTML = `<div class="error">Error rendering diagram: ${error.message}</div>`;
+                        });
+                } catch (error) {
+                    console.error('Error rendering mermaid diagram:', error);
+                    panelMermaid.innerHTML = `<div class="error">Error rendering diagram: ${error.message}</div>`;
+                }
+            }, 100);
+        }
         
         // Set panel description
         panelTemplate.querySelector('.panel-description').innerHTML = formatMarkdown(panel.description);
@@ -904,6 +1404,64 @@ function renderQuiz(pageData) {
     
     // Render initial question
     renderQuestion();
+    
+    // Add to content container
+    elements.contentContainer.appendChild(template);
+}
+
+// Render diagram page
+function renderDiagramPage(pageData) {
+    // Clone template
+    const template = templates.diagram.content.cloneNode(true);
+    
+    // Set page title
+    template.querySelector('.page-title').textContent = pageData.title;
+    
+    // Get diagrams container
+    const diagramsContainer = template.querySelector('.diagrams-container');
+    
+    // Add diagrams
+    pageData.diagrams.forEach((diagram, index) => {
+        // Clone diagram item template
+        const diagramTemplate = templates.diagramItem.content.cloneNode(true);
+        
+        // Set diagram title
+        diagramTemplate.querySelector('.diagram-title').textContent = diagram.title;
+        
+        // Set diagram description
+        diagramTemplate.querySelector('.diagram-description').innerHTML = formatMarkdown(diagram.description);
+        
+        // Set up mermaid diagram
+        const diagramContainer = diagramTemplate.querySelector('.diagram-container');
+        const mermaidDiv = document.createElement('div');
+        mermaidDiv.className = 'mermaid';
+        mermaidDiv.textContent = diagram.mermaid;
+        diagramContainer.appendChild(mermaidDiv);
+        
+        // Add to list of diagrams to render
+        const diagramId = `diagram-${pageData.id}-${index}`;
+        state.mermaidDiagramsRendered.add(diagramId);
+        
+        // Render mermaid diagram after a short delay
+        setTimeout(() => {
+            try {
+                mermaid.render(diagramId, diagram.mermaid)
+                    .then(result => {
+                        diagramContainer.innerHTML = result.svg;
+                    })
+                    .catch(error => {
+                        console.error('Error rendering mermaid diagram:', error);
+                        diagramContainer.innerHTML = `<div class="error">Error rendering diagram: ${error.message}</div>`;
+                    });
+            } catch (error) {
+                console.error('Error rendering mermaid diagram:', error);
+                diagramContainer.innerHTML = `<div class="error">Error rendering diagram: ${error.message}</div>`;
+            }
+        }, 100);
+        
+        // Add to diagrams container
+        diagramsContainer.appendChild(diagramTemplate);
+    });
     
     // Add to content container
     elements.contentContainer.appendChild(template);
