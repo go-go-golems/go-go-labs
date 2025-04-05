@@ -11,11 +11,18 @@ export const apiSlice = createApi({
       transformResponse: (response) => {
         // Extract the data from the response
         if (response.success && response.data) {
+          // The API response has completedSteps (lowercase), not CompletedSteps (uppercase)
           return {
-            ...response.data.StreamInfo,
-            completedSteps: response.data.CompletedSteps.map(step => step.content),
-            activeStep: response.data.ActiveStep ? response.data.ActiveStep.content : "",
-            upcomingSteps: response.data.UpcomingSteps.map(step => step.content),
+            id: response.data.id,
+            title: response.data.title,
+            description: response.data.description,
+            startTime: response.data.startTime,
+            language: response.data.language,
+            githubRepo: response.data.githubRepo,
+            viewerCount: response.data.viewerCount,
+            completedSteps: response.data.completedSteps.map(step => step.content),
+            activeStep: response.data.activeStep ? response.data.activeStep.content : "",
+            upcomingSteps: response.data.upcomingSteps.map(step => step.content),
           };
         }
         return null;

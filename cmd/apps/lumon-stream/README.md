@@ -95,7 +95,7 @@ Before you begin, ensure you have the following installed:
 ### Clone the Repository
 
 ```bash
-git clone https://github.com/go-go-golems/go-go-labs/cmd/apps/lumon-stream.git
+git clone https://github.com/yourusername/LumonStream.git
 cd LumonStream
 ```
 

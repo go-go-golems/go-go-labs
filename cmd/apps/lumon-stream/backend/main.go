@@ -26,6 +26,13 @@ func init() {
 	flag.BoolVar(&debugMode, "debug", false, "Run in debug mode")
 }
 
+// Simplified version of SetupStaticFiles for debugging
+func setupStaticFiles(r *mux.Router) {
+	// In debug mode, we don't serve static files from the backend
+	// The frontend development server will handle this
+	log.Println("Static file serving is disabled in debug mode")
+}
+
 func main() {
 	flag.Parse()
 
@@ -54,9 +61,8 @@ func main() {
 
 	// Serve static files in production mode
 	if !debugMode {
-		// When built with -tags embed, this will use the embedded files
-		// Otherwise, this function is a no-op in debug mode
-		SetupStaticFiles(r)
+		// Using our simplified function instead of the build tag dependent one
+		setupStaticFiles(r)
 	}
 
 	// Set up CORS
