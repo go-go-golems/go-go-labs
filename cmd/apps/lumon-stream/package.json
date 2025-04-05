@@ -1,0 +1,8 @@
+{
+  "name": "lumonstream-build",
+  "scripts": {
+    "dev": "cd frontend && bun run start",
+    "build": "cd frontend && bun run build",
+    "build:embed": "cd frontend && bun run build && cd ../backend && go build -o lumonstream -tags embed"
+  }
+}
