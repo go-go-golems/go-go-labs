@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -26,6 +27,28 @@ var (
 	initialMsg string
 )
 
+type keyMap struct {
+	ToggleHelp     key.Binding
+	ToggleMarkdown key.Binding
+	Quit           key.Binding
+}
+
+// Default key bindings
+var defaultKeyMap = keyMap{
+	ToggleHelp: key.NewBinding(
+		key.WithKeys("ctrl+h"),
+		key.WithHelp("ctrl+h", "toggle help"),
+	),
+	ToggleMarkdown: key.NewBinding(
+		key.WithKeys("ctrl+m"),
+		key.WithHelp("ctrl+m", "toggle markdown"),
+	),
+	Quit: key.NewBinding(
+		key.WithKeys("ctrl+c", "esc"),
+		key.WithHelp("ctrl+c/esc", "quit"),
+	),
+}
+
 type model struct {
 	viewport       viewport.Model
 	textarea       textarea.Model
@@ -35,6 +58,7 @@ type model struct {
 	err            error
 	renderMarkdown bool
 	showHelp       bool
+	keys           keyMap
 }
 
 func setupLogging(level string) error {
@@ -148,8 +172,9 @@ func initialModel() model {
 		renderer:       renderer,
 		width:          80,
 		height:         25,
-		renderMarkdown: renderMd, // Use the flag value
-		showHelp:       showHelp, // Use the flag value
+		renderMarkdown: renderMd,
+		showHelp:       showHelp,
+		keys:           defaultKeyMap,
 	}
 
 	// Initial render of content
@@ -242,11 +267,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			"key": keyStr,
 		})
 
-		switch keyStr {
-		case "ctrl+c", "esc":
+		switch {
+		case key.Matches(msg, m.keys.Quit):
 			logWithCaller(zerolog.InfoLevel, "Quitting application", nil)
 			return m, tea.Quit
-		case "ctrl+m":
+		case key.Matches(msg, m.keys.ToggleMarkdown):
 			// Toggle markdown rendering
 			m.renderMarkdown = !m.renderMarkdown
 			logWithCaller(zerolog.InfoLevel, "Toggled markdown rendering", map[string]interface{}{
@@ -254,7 +279,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			})
 			m.renderContent()
 			return m, nil
-		case "ctrl+h":
+		case key.Matches(msg, m.keys.ToggleHelp):
 			// Toggle help
 			m.showHelp = !m.showHelp
 			logWithCaller(zerolog.InfoLevel, "Toggled help display", map[string]interface{}{
@@ -262,13 +287,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			})
 			return m, nil
 		default:
-			// Handle textarea input
-			logWithCaller(zerolog.DebugLevel, "Updating textarea", nil)
-			m.textarea, cmd = m.textarea.Update(msg)
-			cmds = append(cmds, cmd)
-
-			// Re-render content
-			m.renderContent()
+			// Handle textarea input only if not matching other keys
+			// Check if the textarea is focused before updating
+			if m.textarea.Focused() {
+				logWithCaller(zerolog.DebugLevel, "Updating textarea", nil)
+				m.textarea, cmd = m.textarea.Update(msg)
+				cmds = append(cmds, cmd)
+				// Re-render content after textarea update
+				m.renderContent()
+			} else {
+				// If textarea isn't focused, keys might be for viewport scrolling
+				// We handle viewport updates later anyway
+			}
 		}
 
 	case tea.WindowSizeMsg:
@@ -300,23 +330,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.Width = m.width
 		m.viewport.Height = viewportHeight
 
-		// Create new renderer with updated width for word wrap
-		logWithCaller(zerolog.DebugLevel, "Creating new renderer for new width", map[string]interface{}{
-			"width": m.width,
-		})
-		renderer, err := glamour.NewTermRenderer(
-			glamour.WithAutoStyle(),
-			glamour.WithWordWrap(m.width),
-		)
-		if err != nil {
-			logWithCaller(zerolog.ErrorLevel, "Failed to create new renderer", map[string]interface{}{
-				"error": err.Error(),
-			})
-			m.err = err
-		} else {
-			m.renderer = renderer
-			m.renderContent()
-		}
+		// Renderer is initialized once, just re-render content if needed
+		// based on the new size affecting layout, but glamour handles wrap internally mostly.
+		m.renderContent() // Re-render in case width change affects layout
 
 		// Resize textarea
 		m.textarea.SetWidth(m.width)
@@ -366,7 +382,13 @@ func (m model) View() string {
 	if m.showHelp {
 		helpStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("241"))
-		help = helpStyle.Render("ctrl+h: toggle help | ctrl+m: toggle markdown mode | esc/ctrl+c: quit")
+
+		helpItems := []string{
+			m.keys.ToggleHelp.Help().Key + ": " + m.keys.ToggleHelp.Help().Desc,
+			m.keys.ToggleMarkdown.Help().Key + ": " + m.keys.ToggleMarkdown.Help().Desc,
+			m.keys.Quit.Help().Key + ": " + m.keys.Quit.Help().Desc,
+		}
+		help = helpStyle.Render(strings.Join(helpItems, " | "))
 		help = lipgloss.JoinVertical(lipgloss.Left, help, divider)
 	}
 
