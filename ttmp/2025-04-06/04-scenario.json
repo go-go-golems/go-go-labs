@@ -1,0 +1,264 @@
+{
+  "show": {
+    "arc": [
+      {
+        "act": 1,
+        "scenes": [
+          {
+            "scene_number": 1.1,
+            "shots": [
+              {
+                "audio": "**Client:** \"Trace? I've got a problem. This new Bubble Tea app... it's supposed to be interactive, fast. But it freezes on startup, and half the shortcuts are dead. Fix it.\" (Hangs up).\n**Trace (VO):** \"Another one. Young app, full of promise, already caught in the weeds. Startup hangs, dead keys... could be anything. Time to check the files.\"\n",
+                "shot_number": "1.1.1",
+                "visual": "Rain streaks down a digital window pane. Detective Trace sits at his desk, terminal glowing. A call comes in."
+              }
+            ],
+            "summary": "Introduction to Detective Trace and the case presentation by The Client.",
+            "title": "The Office (Night)"
+          },
+          {
+            "scene_number": 1.2,
+            "shots": [
+              {
+                "audio": "**Trace (VO):** \"Ambitious design. Text area, viewport, real-time rendering... using Glamour. Flashy.\"\n",
+                "shot_number": "1.2.1",
+                "visual": "Trace pulls up `01-markdown-test-rendering-app.md` (Blueprint). Text highlights key features."
+              },
+              {
+                "audio": "**Trace (VO):** \"Says here it *should* work. Describes the MVU flow – Model, View, Update. Like clockwork... usually.\"\n",
+                "shot_number": "1.2.2",
+                "visual": "Trace pulls up `02-technical-report...md` (Autopsy Report). Highlights MVU description."
+              }
+            ],
+            "summary": "Trace reviews the project documentation.",
+            "title": "The Dossier"
+          },
+          {
+            "scene_number": 1.3,
+            "shots": [
+              {
+                "audio": "**Trace (VO):** \"The timestamps... they don't lie. A five-second gap. Right after 'Creating new renderer for new width'. Glamour's `NewTermRenderer`... looked suspicious from the start.\"\n",
+                "shot_number": "1.3.1",
+                "visual": "Close-up on log file (`/tmp/external.log`). Timestamps highlighted showing a 5-second gap. Focus zooms to the line 'Creating new renderer for new width'."
+              },
+              {
+                "audio": "**Trace (VO):** (Internal thought) \"This looks like our prime suspect.\"\n",
+                "shot_number": "1.3.2",
+                "visual": "Code editor view (`main.go`), highlighting the `NewTermRenderer` call within the `WindowSizeMsg` handler."
+              }
+            ],
+            "summary": "Trace examines the logs and finds the suspicious delay.",
+            "title": "The First Clue"
+          },
+          {
+            "scene_number": 1.4,
+            "shots": [
+              {
+                "audio": "**Trace (VO):** \"Creating a renderer *every* time the window size changes? Even on the *initial* resize? Seems heavy. Maybe Glamour's not built for that kind of repeat performance.\"\n",
+                "shot_number": "1.4.1",
+                "visual": "Stylized graphic showing a renderer object being created repeatedly inside a loop labeled \"Window Resize\"."
+              }
+            ],
+            "summary": "Trace forms his initial theory about renderer recreation.",
+            "title": "The Hypothesis"
+          }
+        ],
+        "title": "The Setup - \"It Just... Hangs.\""
+      },
+      {
+        "act": 2,
+        "scenes": [
+          {
+            "scene_number": 2.1,
+            "shots": [
+              {
+                "audio": "**Trace (VO):** \"Can't trust confessions made under duress in the main loop. Gotta pull `NewTermRenderer` in for a one-on-one.\"\n",
+                "shot_number": "2.1.1",
+                "visual": "Detective Trace typing in the terminal, creating the `glamour-renderer-debugging` directory and `main.go` file. Code snippets shown briefly."
+              },
+              {
+                "audio": "(Sound of keyboard typing, compiling sounds)\n",
+                "shot_number": "2.1.2",
+                "visual": "Terminal showing `go build` and `./glamour-debug` commands being executed."
+              }
+            ],
+            "summary": "Trace creates a minimal app to test the renderer in isolation.",
+            "title": "The Isolation Room"
+          },
+          {
+            "scene_number": 2.2,
+            "shots": [
+              {
+                "audio": "**Trace (VO):** \"Four milliseconds. That's fast. Blazing fast. `NewTermRenderer` isn't slow on its own. So the hang wasn't the creation... it was the *re-creation*. Doing it in the `WindowSizeMsg` handler, in the main event loop... that was the choke point.\"\n",
+                "shot_number": "2.2.1",
+                "visual": "Close-up on the test app's log file (`/tmp/glamour-debug.log`), highlighting the 'duration_ms=4' line."
+              },
+              {
+                "audio": "**Trace (VO):** \"Easy fix. Snip snip.\"\n",
+                "shot_number": "2.2.2",
+                "visual": "Code editor view (`main.go`), showing the removal of the `NewTermRenderer` block from the `Update` function."
+              },
+              {
+                "audio": "**Trace (VO):** \"One down. But the shortcuts are still acting shady.\"\n",
+                "shot_number": "2.2.3",
+                "visual": "Main app restarts instantly, looking responsive."
+              }
+            ],
+            "summary": "The test app proves the renderer itself is fast, shifting suspicion. Trace fixes the main app's hang.",
+            "title": "The Alibi"
+          },
+          {
+            "scene_number": 2.3,
+            "shots": [
+              {
+                "audio": "**Trace (VO):** \"Startup's smooth now. But the client said shortcuts were dead. Let's try toggling markdown... `Ctrl+M`.\"\n",
+                "shot_number": "2.3.1",
+                "visual": "Close up on Detective Trace's hand pressing `Ctrl+M`. Screen shows the app running (plain text mode). The cursor in the `textarea` just moves to the next line."
+              },
+              {
+                "audio": "**Trace (VO):** \"Nothing happened in the app. Just a newline. But the logs... they always talk. Let's see what they picked up.\"\n",
+                "shot_number": "2.3.2",
+                "visual": "Split screen: - Left side shows app, right side shows the log file (`/tmp/external.log`) tailing in real-time. - As `Ctrl+M` is pressed, a new line appears in the logs.\n"
+              },
+              {
+                "audio": "**Trace (VO):** \"There. `Update called`, `tea.KeyMsg`... but `key=enter`? That's not right. I *know* I pressed `Ctrl+M`. The log's got the wrong guy.\"\n",
+                "shot_number": "2.3.3",
+                "visual": "Extreme close-up on the log file. Highlight the specific log line: `DBG ... Key pressed ... key=enter`\n"
+              }
+            ],
+            "summary": "Trace investigates the non-functional `Ctrl+M` shortcut, finding it registers as `Enter`.",
+            "title": "The Faulty Wiretap"
+          },
+          {
+            "scene_number": 2.4,
+            "shots": [
+              {
+                "audio": "**Trace (VO):** \"Comparing raw strings? Rookie mistake. Bubble Tea has proper bindings for this... (implements bindings) ... Still `key=enter`. The bindings are solid now... but `Ctrl+M` is still coming through as `Enter`. This isn't the app's fault anymore. It's the Terminal.\"\n",
+                "shot_number": "2.4.1",
+                "visual": "Transition to the code editor (`main.go`), showing the implementation of `key.Binding` and `key.Matches`. Then back to the logs, still showing `key=enter` on `Ctrl+M` press. Graphic overlay: A stylized question mark appears over an icon representing the Terminal.\n"
+              }
+            ],
+            "summary": "Trace implements proper key bindings but finds `Ctrl+M` still misidentified.",
+            "title": "The Upgrade"
+          }
+        ],
+        "title": "The Interrogation - \"Sing, Renderer, Sing!\""
+      },
+      {
+        "act": 3,
+        "scenes": [
+          {
+            "scene_number": 3.1,
+            "shots": [
+              {
+                "audio": "**Trace (VO):** \"`Ctrl+M`. Classic terminal behavior. Sends a Carriage Return, same as Enter. No wonder the binding was missing it. The Terminal was feeding us bad intel all along.\"\n",
+                "shot_number": "3.1.1",
+                "visual": "Simple graphic showing `Ctrl+M` keypress -\u003e Terminal Icon -\u003e Arrow labeled `\\\\r (Enter)` -\u003e App Icon receiving `Enter`."
+              }
+            ],
+            "summary": "Trace identifies the terminal's standard behavior as the culprit.",
+            "title": "The Twist"
+          },
+          {
+            "scene_number": 3.2,
+            "shots": [
+              {
+                "audio": "**Trace (VO):** \"Can't change the Terminal's nature. Gotta change the signal. `Ctrl+T`. Nobody messes with `Ctrl+T`.\"\n",
+                "shot_number": "3.2.1",
+                "visual": "Code editor view (`main.go`), highlighting the change from `key.WithKeys(\"ctrl+m\")` to `key.WithKeys(\"ctrl+t\")` in the `defaultKeyMap`."
+              }
+            ],
+            "summary": "Trace changes the keybinding to avoid the terminal conflict.",
+            "title": "The Workaround"
+          },
+          {
+            "scene_number": 3.3,
+            "shots": [
+              {
+                "audio": "**(Optional) Client (Voice):** \"Trace? It's working. Smooth as silk. Good job.\"\n",
+                "shot_number": "3.3.1",
+                "visual": "The final application running smoothly. User presses `Ctrl+H` (help toggles), `Ctrl+T` (markdown mode toggles correctly), `Esc` (app quits)."
+              },
+              {
+                "audio": "**Trace (VO):** \"Another case cracked. Started with a hang, ended with a terminal quirk. In this city of code, you follow the logs, trust the timings, and never assume a keypress tells the whole story. Until the next bug report...\"\n",
+                "shot_number": "3.3.2",
+                "visual": "Final shot. Detective Trace avatar/terminal view. Maybe a stylized \"Case Closed\" stamp appears. Fades to black."
+              }
+            ],
+            "summary": "Trace confirms the fix and concludes the investigation.",
+            "title": "Case Closed"
+          }
+        ],
+        "title": "The Reveal - \"The Terminal Did It.\""
+      }
+    ],
+    "characters": [
+      {
+        "description": "Our protagonist. A grizzled veteran programmer (maybe represented by a stylized avatar or just a voice-over). Sees code not just as text, but as a crime scene full of suspects and clues. Narrates the investigation with a cynical, tech-noir internal monologue.",
+        "name": "Detective Trace"
+      },
+      {
+        "description": "Represents the user/stakeholder. Presents the initial problem, demands results. Heard but not seen.",
+        "name": "The Client (Voice)"
+      },
+      {
+        "description": "List of potential culprits in the investigation.\n",
+        "list": [
+          {
+            "name": "Bubble Tea",
+            "role": "The framework, the complex city layout where the crime happened. Initially seems overwhelming."
+          },
+          {
+            "name": "Glamour",
+            "role": "The flashy renderer, the prime suspect for the slowdown. Looks expensive, might be hiding something."
+          },
+          {
+            "name": "TermRenderer",
+            "role": "Glamour's heavy-hitter function. Did it do the deed?"
+          },
+          {
+            "name": "Update Loop",
+            "role": "Bubble Tea's dispatcher. Could it be sending messages down the wrong path?"
+          },
+          {
+            "name": "Keybindings",
+            "role": "The informants. Are they relaying the right signals, or are they being intercepted?"
+          },
+          {
+            "name": "The Terminal",
+            "role": "The unreliable witness. Its quirky behavior might be twisting the facts."
+          }
+        ],
+        "name": "The Suspects (Personified Code/Libraries)"
+      }
+    ],
+    "key_concepts": [
+      {
+        "details": "MVU (Model-View-Update) architecture, event loop, messages (`tea.Msg`), `Update` function, `View` function.",
+        "name": "Bubble Tea"
+      },
+      {
+        "details": "Markdown rendering in the terminal.",
+        "name": "Glamour"
+      },
+      {
+        "details": "Importance of timestamps, structured logs (Zerolog), using logs as evidence.",
+        "name": "Logging"
+      },
+      {
+        "details": "Isolating components (minimal test app), examining logs, forming hypotheses, testing fixes.",
+        "name": "Debugging Techniques"
+      },
+      {
+        "details": "`key.Binding`, `key.Matches` vs. string comparison.",
+        "name": "Key Bindings"
+      },
+      {
+        "details": "How terminal behavior (`Ctrl+M` = `Enter`) can affect applications.",
+        "name": "Terminal Emulation"
+      }
+    ],
+    "logline": "In the neon-drenched alleys of the codebase, hardboiled Detective Trace takes on a baffling case: a slick new interface that hangs on launch and ignores its hotkeys. Armed only with logs, docs, and raw Go code, he must unravel a conspiracy of misbehaving routines and terminal trickery before the deadline hits.",
+    "title": "Debugging After Dark: The Case of the Lagging Listener"
+  }
+}
