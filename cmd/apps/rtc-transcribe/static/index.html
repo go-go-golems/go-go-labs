@@ -113,6 +113,32 @@
     let sessionId = null;
     let useIceServers = false; // Default to false to prioritize direct connections
 
+    // Function to display errors to the user
+    function showError(message) {
+      console.error(message);
+      connectionStatus.className = 'status disconnected';
+      connectionStatus.textContent = message;
+      startBtn.disabled = true; // Disable start if there's a critical error
+      stopBtn.disabled = true;
+    }
+
+    // Check for necessary browser features
+    function checkBrowserFeatures() {
+      if (!window.isSecureContext) {
+        showError("Error: Microphone access requires a secure connection (HTTPS).");
+        return false;
+      }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showError("Error: Your browser doesn't support microphone access (mediaDevices API missing).");
+        return false;
+      }
+      if (typeof RTCPeerConnection === 'undefined') {
+          showError("Error: Your browser doesn't support WebRTC (RTCPeerConnection missing).");
+          return false;
+      }
+      return true;
+    }
+
     // Check if the server supports ICE servers
     async function checkServerConfig() {
       try {
@@ -133,6 +159,13 @@
     (async function init() {
       // Generate a unique session ID
       sessionId = Math.random().toString(36).substring(2, 15);
+      
+      // Check browser features first
+      if (!checkBrowserFeatures()) {
+          // Errors are shown by checkBrowserFeatures
+          return; 
+      }
+      
       // Check server configuration
       await checkServerConfig();
     })();
@@ -143,6 +176,16 @@
     diagBtn.addEventListener('click', runDiagnostics);
 
     async function startTranscription() {
+      // Double-check features just in case
+      if (!checkBrowserFeatures()) {
+          return; 
+      }
+
+      startBtn.disabled = true; // Disable button immediately
+      output.textContent = 'Requesting microphone access...';
+      connectionStatus.className = 'status disconnected'; // Reset status
+      connectionStatus.textContent = 'Initializing...';
+
       try {
         // Request microphone access
         mediaStream = await navigator.mediaDevices.getUserMedia({ 
@@ -261,13 +304,32 @@
         connectSSE();
         
         // Update UI
-        startBtn.disabled = true;
+        // Check if features are still okay before re-enabling start
+        if (checkBrowserFeatures()) {
+            startBtn.disabled = false;
+        }
         stopBtn.disabled = false;
         output.textContent = 'Listening... Speak now.';
         
       } catch (error) {
         console.error('Error starting transcription:', error);
-        alert('Failed to start transcription: ' + error.message);
+        // Handle specific errors
+        if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+            showError('Error: Microphone permission denied. Please allow access in your browser settings.');
+        } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+            showError('Error: No microphone found. Please ensure a microphone is connected and enabled.');
+        } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+            showError('Error: Microphone is already in use or hardware error occurred.');
+        } else {
+            showError('Failed to start transcription: ' + error.message);
+        }
+        // Ensure UI is reset if start fails
+        // Check if features are still okay before re-enabling start
+        if (checkBrowserFeatures()) { 
+             startBtn.disabled = false; // Re-enable start button on error only if features are ok
+        }
+        stopBtn.disabled = true;
+        output.textContent = ''; // Clear any intermediate text
       }
     }
 
@@ -291,10 +353,13 @@
       }
       
       // Update UI
-      startBtn.disabled = false;
+      // Check if features are still okay before re-enabling start
+      if (checkBrowserFeatures()) {
+          startBtn.disabled = false;
+      }
       stopBtn.disabled = true;
+      // Don't reset connection status text on manual stop, just the class
       connectionStatus.className = 'status disconnected';
-      connectionStatus.textContent = 'Disconnected from server';
     }
 
     function connectSSE() {
