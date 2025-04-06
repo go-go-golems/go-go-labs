@@ -112,6 +112,9 @@
     let eventSource = null;
     let sessionId = null;
     let useIceServers = false; // Default to false to prioritize direct connections
+    let wsConnection = null; // WebSocket connection instance
+    let candidateBuffer = []; // Buffer for early candidates from server
+    let isRemoteDescriptionSet = false; // Flag to track if remote description is set
 
     // Function to display errors to the user
     function showError(message) {
@@ -157,8 +160,9 @@
 
     // Initialize
     (async function init() {
-      // Generate a unique session ID
-      sessionId = Math.random().toString(36).substring(2, 15);
+      // Generate a more robust UUID if possible, but random string is ok for demo
+      sessionId = 'rtc-' + Math.random().toString(36).substring(2, 12); // Shorter, prefixed
+      console.log(`Generated Session ID: ${sessionId}`);
       
       // Check browser features first
       if (!checkBrowserFeatures()) {
@@ -180,6 +184,11 @@
       if (!checkBrowserFeatures()) {
           return; 
       }
+
+      // Reset state from previous attempts
+      stopTranscription(); // Clean up any existing state first
+      candidateBuffer = [];
+      isRemoteDescriptionSet = false;
 
       startBtn.disabled = true; // Disable button immediately
       output.textContent = 'Requesting microphone access...';
@@ -246,11 +255,24 @@
         // Log ICE candidate events
         peerConnection.onicecandidate = (event) => {
           if (event.candidate) {
-            console.log('New ICE candidate gathered:', {
+            console.log('Browser gathered ICE candidate:', {
               candidate: event.candidate.candidate,
               sdpMid: event.candidate.sdpMid,
               sdpMLineIndex: event.candidate.sdpMLineIndex
             });
+            // Send the candidate to the server via WebSocket
+            if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+                const message = {
+                    type: "candidate",
+                    // Pass the candidate object directly, server expects ToJSON format
+                    payload: event.candidate.toJSON() 
+                };
+                console.log("Sending candidate to server:", message);
+                wsConnection.send(JSON.stringify(message));
+            } else {
+                console.warn('WebSocket not open or not initialized. Cannot send candidate.');
+                // TODO: Optionally buffer candidates here too if WS connects late
+            }
           } else {
             console.log('ICE candidate gathering completed');
           }
@@ -276,8 +298,10 @@
         const offer = await peerConnection.createOffer();
         await peerConnection.setLocalDescription(offer);
         
-        // Send the offer to the server
-        const response = await fetch('/offer', {
+        // Pass sessionId in the query parameter
+        const offerUrl = `/offer?id=${sessionId}`;
+        console.log(`Sending offer to: ${offerUrl}`);
+        const response = await fetch(offerUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -299,6 +323,14 @@
         
         // Set the remote description (answer)
         await peerConnection.setRemoteDescription(answer);
+        
+        // Now that the offer/answer is done, establish the WebSocket for candidates
+        connectWebSocket();
+        
+        // Mark remote description as set and process any buffered candidates
+        console.log("Remote description set successfully.");
+        isRemoteDescriptionSet = true;
+        processCandidateBuffer();
         
         // Connect to the server-sent events endpoint
         connectSSE();
@@ -330,6 +362,11 @@
         }
         stopBtn.disabled = true;
         output.textContent = ''; // Clear any intermediate text
+        // Ensure WebSocket is closed if start fails after it was opened
+        if (wsConnection) {
+          wsConnection.close();
+          wsConnection = null;
+        }
       }
     }
 
@@ -352,6 +389,17 @@
         eventSource = null;
       }
       
+      // Close the WebSocket connection
+      if (wsConnection) {
+        console.log("Closing WebSocket connection.");
+        wsConnection.close(); // This triggers the onclose event
+        wsConnection = null;
+      }
+      
+      // Reset state variables
+      candidateBuffer = [];
+      isRemoteDescriptionSet = false;
+
       // Update UI
       // Check if features are still okay before re-enabling start
       if (checkBrowserFeatures()) {
@@ -401,6 +449,139 @@
       eventSource.onmessage = function(e) {
         console.log('Message received:', e.data);
       };
+    }
+
+    // Connect to WebSocket for ICE candidate exchange
+    function connectWebSocket() {
+      // Close any existing connection
+      if (wsConnection) {
+        console.log("Closing existing WebSocket before reconnecting.");
+        wsConnection.close();
+      }
+
+      // Construct WebSocket URL
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${wsProtocol}//${window.location.host}/ws?id=${sessionId}`;
+      console.log(`Connecting WebSocket to: ${wsUrl}`);
+
+      try {
+        wsConnection = new WebSocket(wsUrl);
+      } catch (error) {
+        showError(`Failed to create WebSocket: ${error.message}`);
+        return;
+      }
+
+      // Handle WebSocket open event
+      wsConnection.onopen = () => {
+        console.log('WebSocket connection established for signaling');
+        connectionStatus.className = 'status connected'; // Indicate general connectivity
+        connectionStatus.textContent = 'Signaling connected. Listening...'; // More specific status
+        // TODO: Send any buffered client candidates if implemented
+      };
+
+      // Handle WebSocket messages (ICE candidates from server)
+      wsConnection.onmessage = async (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          console.log('WebSocket message received:', message);
+
+          switch (message.type) {
+            case 'candidate':
+              if (message.payload) {
+                handleRemoteCandidate(message.payload);
+              } else {
+                console.warn("Received candidate message with null payload");
+              }
+              break;
+            // Handle other message types from server if needed (e.g., errors)
+            default:
+              console.log("Received unhandled message type:", message.type);
+          }
+        } catch (error) {
+          console.error('Failed to parse WebSocket message or handle it:', error);
+        }
+      };
+
+      // Handle WebSocket errors
+      wsConnection.onerror = (event) => {
+        console.error('WebSocket error:', event);
+        // Use a more specific error if available, otherwise generic
+        const errorMsg = event.message || 'WebSocket connection error.';
+        showError(`Signaling Error: ${errorMsg}. Please refresh.`);
+        // Consider attempting reconnection here with backoff
+      };
+
+      // Handle WebSocket close
+      wsConnection.onclose = (event) => {
+        console.log('WebSocket connection closed:', event.code, event.reason, `wasClean=${event.wasClean}`);
+        wsConnection = null;
+        // Only show error if the connection wasn't closed cleanly or manually by stopTranscription
+        if (!event.wasClean && !stopBtn.disabled) {
+           showError('Signaling connection lost. Please refresh.');
+        }
+        // If closed unexpectedly during active transcription, update status
+        else if (!stopBtn.disabled) {
+            connectionStatus.className = 'status disconnected';
+            connectionStatus.textContent = 'Signaling connection closed.';
+        }
+        // else: closed normally or during stop, no error needed
+      };
+    }
+
+    // Handle ICE candidates received from the server via WebSocket
+    async function handleRemoteCandidate(candidatePayload) {
+        if (!peerConnection) {
+            console.warn("Received remote candidate but PeerConnection is not initialized.");
+            return;
+        }
+        try {
+            // Construct RTCIceCandidate from payload
+            // Server sends the ToJSON() format which can be directly used
+            const candidate = new RTCIceCandidate(candidatePayload);
+            console.log("Received remote candidate from server:", candidate.candidate);
+
+            if (!isRemoteDescriptionSet) {
+                console.log("Remote description not set yet, buffering candidate.");
+                candidateBuffer.push(candidate);
+                return;
+            }
+
+            // Add the candidate to the PeerConnection
+            await peerConnection.addIceCandidate(candidate);
+            console.log("Successfully added remote ICE candidate.");
+        } catch (error) {
+            // Ignore benign errors like adding duplicates or candidates for closed connections
+            if (error.name === 'InvalidStateError' && (peerConnection.signalingState === 'closed' || peerConnection.iceConnectionState === 'closed')) {
+                 console.warn("Ignoring addIceCandidate error on closed connection:", error.message);
+            } else {
+                 console.error('Error adding received ICE candidate:', error);
+            }
+        }
+    }
+
+    // Process candidates buffered before remote description was set
+    async function processCandidateBuffer() {
+        if (!peerConnection || !isRemoteDescriptionSet) {
+            console.warn("Cannot process candidate buffer: PC not ready or remote description not set.");
+            return;
+        }
+        console.log(`Processing ${candidateBuffer.length} buffered remote candidates...`);
+        while(candidateBuffer.length > 0) {
+            const candidate = candidateBuffer.shift();
+            console.log("Processing buffered remote candidate:", candidate.candidate);
+            try {
+                 await peerConnection.addIceCandidate(candidate);
+                 console.log("Successfully added buffered remote ICE candidate.");
+            } catch (error) {
+                // Ignore benign errors like adding duplicates or candidates for closed connections
+                if (error.name === 'InvalidStateError' && (peerConnection.signalingState === 'closed' || peerConnection.iceConnectionState === 'closed')) {
+                    console.warn("Ignoring addIceCandidate error on closed connection (buffered):", error.message);
+                } else {
+                    console.error('Error adding buffered ICE candidate:', error);
+                }
+            }
+        }
+        console.log("Finished processing candidate buffer.");
     }
 
     // Run network diagnostics to identify WebRTC connectivity issues

@@ -98,27 +98,30 @@ func CreatePeerConnection(useIceServers bool) (*webrtc.PeerConnection, error) {
 	})
 
 	// Add handler for ICE candidate events
-	peerConnection.OnICECandidate(func(candidate *webrtc.ICECandidate) {
-		if candidate == nil {
-			logger.Debug().Msg("ICE candidate gathering completed")
-			return
-		}
+	// REMOVED: This is now handled dynamically in websocket.go after WS connection
+	/*
+		peerConnection.OnICECandidate(func(candidate *webrtc.ICECandidate) {
+			if candidate == nil {
+				logger.Debug().Msg("ICE candidate gathering completed")
+				return
+			}
 
-		candLogger := logger.With().
-			Str("type", "iceCandidate").
-			Logger()
+			candLogger := logger.With().
+				Str("type", "iceCandidate").
+				Logger()
 
-		if candidate.Address != "" {
-			candLogger.Info().
-				Str("candidateType", string(candidate.Typ)).
-				Str("candidateProtocol", string(candidate.Protocol)).
-				Str("candidateAddress", candidate.Address).
-				Int("candidatePort", int(candidate.Port)).
-				Int("candidatePriority", int(candidate.Priority)).
-				Int("candidateComponent", int(candidate.Component)).
-				Msg("Gathered ICE candidate")
-		}
-	})
+			if candidate.Address != "" {
+				candLogger.Info().
+					Str("candidateType", string(candidate.Typ)).
+					Str("candidateProtocol", string(candidate.Protocol)).
+					Str("candidateAddress", candidate.Address).
+					Int("candidatePort", int(candidate.Port)).
+					Int("candidatePriority", int(candidate.Priority)).
+					Int("candidateComponent", int(candidate.Component)).
+					Msg("Gathered ICE candidate")
+			}
+		})
+	*/
 
 	// Set ICE gathering state handler
 	peerConnection.OnICEGatheringStateChange(func(state webrtc.ICEGathererState) {

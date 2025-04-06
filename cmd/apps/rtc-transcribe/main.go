@@ -92,6 +92,7 @@ func run(cmd *cobra.Command, args []string) {
 
 	// Define routes
 	mux.HandleFunc("/offer", webrtc_handlers.HandleOffer)
+	mux.HandleFunc("/ws", webrtc_handlers.HandleWebSocket)
 	mux.HandleFunc("/transcribe", sse.HandleSSE)
 	mux.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
