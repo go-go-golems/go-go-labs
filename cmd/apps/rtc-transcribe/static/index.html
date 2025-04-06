@@ -56,6 +56,14 @@
       background-color: #ffebee;
       color: #c62828;
     }
+    #audiogram {
+      width: 100%;
+      height: 100px;
+      background-color: #f0f0f0;
+      border: 1px solid #ccc;
+      margin-bottom: 20px;
+      border-radius: 4px;
+    }
     .transcription {
       border: 1px solid #ddd;
       padding: 20px;
@@ -87,6 +95,8 @@
     <button id="diagBtn" type="button">Run Diagnostics</button>
   </div>
   
+  <canvas id="audiogram"></canvas>
+  
   <div class="transcription" id="output"></div>
   
   <div id="diagnostics" style="margin-top: 20px; padding: 10px; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 4px; display: none;">
@@ -106,6 +116,8 @@
     const connectionStatus = document.getElementById('connectionStatus');
     const diagnosticsPanel = document.getElementById('diagnostics');
     const diagOutput = document.getElementById('diagOutput');
+    const audiogramCanvas = document.getElementById('audiogram');
+    const canvasCtx = audiogramCanvas.getContext('2d');
     
     let peerConnection = null;
     let mediaStream = null;
@@ -115,6 +127,14 @@
     let wsConnection = null; // WebSocket connection instance
     let candidateBuffer = []; // Buffer for early candidates from server
     let isRemoteDescriptionSet = false; // Flag to track if remote description is set
+
+    // --- Audio Visualization ---
+    let audioContext = null;
+    let analyserNode = null;
+    let audioSource = null;
+    let drawVisual; // Animation frame request ID
+    let dataArray; // Buffer for waveform data
+    // -------------------------
 
     // Function to display errors to the user
     function showError(message) {
@@ -204,6 +224,26 @@
             autoGainControl: true
           } 
         });
+        console.log("Microphone access granted.");
+
+        // --- Initialize Audio Visualization ---
+        try {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            analyserNode = audioContext.createAnalyser();
+            analyserNode.fftSize = 2048; // Adjust for desired detail/performance
+            const bufferLength = analyserNode.frequencyBinCount;
+            dataArray = new Uint8Array(bufferLength);
+
+            audioSource = audioContext.createMediaStreamSource(mediaStream);
+            audioSource.connect(analyserNode);
+            // We don't connect analyserNode to destination, to avoid echo.
+            console.log("AudioContext and AnalyserNode initialized for visualization.");
+            drawWaveform(); // Start the visualization loop
+        } catch (audioError) {
+             console.error("Error initializing audio visualization:", audioError);
+             // Don't fail the whole transcription for this, just log it.
+        }
+        // -------------------------------------
         
         // Configure WebRTC options
         const rtcConfig = {
@@ -367,6 +407,26 @@
           wsConnection.close();
           wsConnection = null;
         }
+        // --- Stop Audio Visualization ---
+        if (drawVisual) {
+            cancelAnimationFrame(drawVisual);
+            drawVisual = null;
+            console.log("Stopped visualization animation frame.");
+        }
+        if (audioContext) {
+            audioContext.close().then(() => {
+                 console.log("AudioContext closed.");
+                 audioContext = null;
+                 analyserNode = null; // Should be garbage collected
+                 audioSource = null;  // Should be garbage collected
+                 // Clear the canvas
+                 canvasCtx.fillStyle = '#f0f0f0'; // Background color
+                 canvasCtx.fillRect(0, 0, audiogramCanvas.width, audiogramCanvas.height);
+                 canvasCtx.strokeStyle = '#ccc'; // Border color
+                 canvasCtx.strokeRect(0, 0, audiogramCanvas.width, audiogramCanvas.height);
+            }).catch(err => console.error("Error closing AudioContext:", err));
+        }
+        // ------------------------------
       }
     }
 
@@ -631,6 +691,49 @@
         diagOutput.innerHTML += `Diagnostic error: ${error.message}\n`;
       }
     }
+
+    // --- Audio Visualization Drawing ---
+    function drawWaveform() {
+        if (!analyserNode || !canvasCtx || !dataArray) {
+            console.warn("Visualization components not ready, skipping draw frame.");
+            // Try again next frame? Or maybe stop requesting if context is gone.
+            if (audioContext && audioContext.state !== 'closed') {
+                 drawVisual = requestAnimationFrame(drawWaveform);
+            }
+            return;
+        }
+
+        drawVisual = requestAnimationFrame(drawWaveform); // Request next frame
+
+        analyserNode.getByteTimeDomainData(dataArray); // Fill dataArray with waveform data
+
+        canvasCtx.fillStyle = '#f0f0f0'; // Background color
+        canvasCtx.fillRect(0, 0, audiogramCanvas.width, audiogramCanvas.height);
+
+        canvasCtx.lineWidth = 2;
+        canvasCtx.strokeStyle = '#4CAF50'; // Waveform color (match start button)
+        canvasCtx.beginPath();
+
+        const sliceWidth = audiogramCanvas.width * 1.0 / analyserNode.frequencyBinCount;
+        let x = 0;
+
+        for (let i = 0; i < analyserNode.frequencyBinCount; i++) {
+            const v = dataArray[i] / 128.0; // Normalize data (0-255 -> 0.0-2.0)
+            const y = v * audiogramCanvas.height / 2;
+
+            if (i === 0) {
+                canvasCtx.moveTo(x, y);
+            } else {
+                canvasCtx.lineTo(x, y);
+            }
+
+            x += sliceWidth;
+        }
+
+        canvasCtx.lineTo(audiogramCanvas.width, audiogramCanvas.height / 2); // Line to center-right
+        canvasCtx.stroke(); // Draw the line
+    }
+    // -------------------------------------
 
     // Cleanup on page unload
     window.addEventListener('beforeunload', stopTranscription);
