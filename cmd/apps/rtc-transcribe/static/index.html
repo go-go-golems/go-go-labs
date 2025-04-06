@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhisperStream - Real-time Transcription</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    h1 {
+      color: #333;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 10px;
+    }
+    .controls {
+      margin: 20px 0;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    button {
+      background-color: #4CAF50;
+      border: none;
+      color: white;
+      padding: 10px 20px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 16px;
+      margin: 4px 2px;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+    button.stop {
+      background-color: #f44336;
+    }
+    .status {
+      padding: 10px;
+      border-radius: 4px;
+      margin-bottom: 10px;
+    }
+    .status.connected {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+    }
+    .status.disconnected {
+      background-color: #ffebee;
+      color: #c62828;
+    }
+    .transcription {
+      border: 1px solid #ddd;
+      padding: 20px;
+      min-height: 300px;
+      max-height: 500px;
+      overflow-y: auto;
+      border-radius: 4px;
+      white-space: pre-wrap;
+      margin-top: 20px;
+    }
+    footer {
+      margin-top: 30px;
+      font-size: 12px;
+      color: #777;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>WhisperStream - Real-time Transcription</h1>
+  
+  <div class="status disconnected" id="connectionStatus">
+    Not connected to server
+  </div>
+
+  <div class="controls">
+    <button id="startBtn">Start Transcription</button>
+    <button id="stopBtn" class="stop" disabled>Stop</button>
+    <button id="diagBtn" type="button">Run Diagnostics</button>
+  </div>
+  
+  <div class="transcription" id="output"></div>
+  
+  <div id="diagnostics" style="margin-top: 20px; padding: 10px; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 4px; display: none;">
+    <h3>Network Diagnostics</h3>
+    <pre id="diagOutput" style="white-space: pre-wrap; max-height: 200px; overflow-y: auto;"></pre>
+  </div>
+
+  <footer>
+    <p>WhisperStream uses WebRTC and OpenAI's Whisper API for real-time audio transcription.</p>
+  </footer>
+
+  <script>
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const diagBtn = document.getElementById('diagBtn');
+    const output = document.getElementById('output');
+    const connectionStatus = document.getElementById('connectionStatus');
+    const diagnosticsPanel = document.getElementById('diagnostics');
+    const diagOutput = document.getElementById('diagOutput');
+    
+    let peerConnection = null;
+    let mediaStream = null;
+    let eventSource = null;
+    let sessionId = null;
+    let useIceServers = false; // Default to false to prioritize direct connections
+
+    // Check if the server supports ICE servers
+    async function checkServerConfig() {
+      try {
+        const response = await fetch('/ping');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.useIceServers !== undefined) {
+            useIceServers = data.useIceServers;
+            console.log(`Server configuration: useIceServers=${useIceServers}`);
+          }
+        }
+      } catch (error) {
+        console.warn("Could not fetch server configuration, using default settings:", error);
+      }
+    }
+
+    // Initialize
+    (async function init() {
+      // Generate a unique session ID
+      sessionId = Math.random().toString(36).substring(2, 15);
+      // Check server configuration
+      await checkServerConfig();
+    })();
+
+    // Event handlers
+    startBtn.addEventListener('click', startTranscription);
+    stopBtn.addEventListener('click', stopTranscription);
+    diagBtn.addEventListener('click', runDiagnostics);
+
+    async function startTranscription() {
+      try {
+        // Request microphone access
+        mediaStream = await navigator.mediaDevices.getUserMedia({ 
+          audio: { 
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          } 
+        });
+        
+        // Configure WebRTC options
+        const rtcConfig = {
+          iceCandidatePoolSize: 5
+        };
+        
+        // Only add ICE servers if enabled
+        if (useIceServers) {
+          rtcConfig.iceServers = [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
+            { urls: 'stun:stun4.l.google.com:19302' }
+          ];
+          console.log("Using ICE servers for WebRTC connection");
+        } else {
+          console.log("ICE servers disabled, using direct connections only");
+        }
+        
+        // Create WebRTC peer connection
+        peerConnection = new RTCPeerConnection(rtcConfig);
+        
+        // Add WebRTC connection event listeners for debugging
+        peerConnection.addEventListener('icegatheringstatechange', () => {
+          console.log(`ICE gathering state changed: ${peerConnection.iceGatheringState}`);
+        });
+
+        peerConnection.addEventListener('connectionstatechange', () => {
+          console.log(`Connection state changed: ${peerConnection.connectionState}`);
+          switch(peerConnection.connectionState) {
+            case 'connected':
+              console.log('WebRTC connection established successfully');
+              break;
+            case 'disconnected':
+              console.log('WebRTC connection disconnected');
+              break;
+            case 'failed':
+              console.error('WebRTC connection failed');
+              console.log('Please check browser console and run: about:webrtc for more details');
+              break;
+          }
+        });
+
+        peerConnection.addEventListener('signalingstatechange', () => {
+          console.log(`Signaling state changed: ${peerConnection.signalingState}`);
+        });
+
+        // Log ICE candidate events
+        peerConnection.onicecandidate = (event) => {
+          if (event.candidate) {
+            console.log('New ICE candidate gathered:', {
+              candidate: event.candidate.candidate,
+              sdpMid: event.candidate.sdpMid,
+              sdpMLineIndex: event.candidate.sdpMLineIndex
+            });
+          } else {
+            console.log('ICE candidate gathering completed');
+          }
+        };
+
+        // Log ICE candidate errors
+        peerConnection.onicecandidateerror = (event) => {
+          console.error('ICE candidate error:', {
+            errorCode: event.errorCode,
+            errorText: event.errorText,
+            url: event.url,
+            address: event.address,
+            port: event.port
+          });
+        };
+
+        // Add the audio track to the peer connection
+        mediaStream.getAudioTracks().forEach(track => {
+          peerConnection.addTrack(track, mediaStream);
+        });
+        
+        // Create and set the local description (offer)
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        
+        // Send the offer to the server
+        const response = await fetch('/offer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sdp: peerConnection.localDescription.sdp,
+            type: peerConnection.localDescription.type
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to send offer to server');
+        }
+        
+        // Get the answer from the server
+        const answerData = await response.json();
+        const answer = new RTCSessionDescription({
+          type: 'answer',
+          sdp: answerData.sdp
+        });
+        
+        // Set the remote description (answer)
+        await peerConnection.setRemoteDescription(answer);
+        
+        // Connect to the server-sent events endpoint
+        connectSSE();
+        
+        // Update UI
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        output.textContent = 'Listening... Speak now.';
+        
+      } catch (error) {
+        console.error('Error starting transcription:', error);
+        alert('Failed to start transcription: ' + error.message);
+      }
+    }
+
+    function stopTranscription() {
+      // Stop the media stream
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(track => track.stop());
+        mediaStream = null;
+      }
+      
+      // Close the peer connection
+      if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+      }
+      
+      // Close the event source
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+      }
+      
+      // Update UI
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+      connectionStatus.className = 'status disconnected';
+      connectionStatus.textContent = 'Disconnected from server';
+    }
+
+    function connectSSE() {
+      // Close existing connection
+      if (eventSource) {
+        eventSource.close();
+      }
+      
+      // Connect to SSE endpoint
+      eventSource = new EventSource(`/transcribe?id=${sessionId}`);
+      
+      // Handle connection open
+      eventSource.onopen = function() {
+        connectionStatus.className = 'status connected';
+        connectionStatus.textContent = 'Connected to transcription server';
+      };
+      
+      // Handle connection error
+      eventSource.onerror = function() {
+        connectionStatus.className = 'status disconnected';
+        connectionStatus.textContent = 'Error connecting to server';
+        eventSource.close();
+      };
+      
+      // Handle 'connected' event
+      eventSource.addEventListener('connected', function(e) {
+        console.log('SSE connected:', e.data);
+        connectionStatus.className = 'status connected';
+        connectionStatus.textContent = e.data;
+      });
+      
+      // Handle 'transcription' event
+      eventSource.addEventListener('transcription', function(e) {
+        console.log('Transcription received:', e.data);
+        output.textContent = e.data;
+      });
+      
+      // Handle default message event
+      eventSource.onmessage = function(e) {
+        console.log('Message received:', e.data);
+      };
+    }
+
+    // Run network diagnostics to identify WebRTC connectivity issues
+    async function runDiagnostics() {
+      diagnosticsPanel.style.display = 'block';
+      diagOutput.innerHTML = 'Running network diagnostics...\n';
+      
+      try {
+        // Check basic connectivity
+        diagOutput.innerHTML += 'Checking internet connectivity...\n';
+        const pingResponse = await fetch('/ping', { method: 'GET' });
+        if (pingResponse.ok) {
+          diagOutput.innerHTML += '✅ Connected to server\n';
+        } else {
+          diagOutput.innerHTML += '❌ Server connectivity issue\n';
+        }
+        
+        // Get local IP addresses
+        diagOutput.innerHTML += '\nLocal network interfaces:\n';
+        try {
+          const rtcPeerConn = new RTCPeerConnection({iceServers: []});
+          rtcPeerConn.createDataChannel('');
+          
+          rtcPeerConn.onicecandidate = (e) => {
+            if (!e.candidate) return;
+            
+            if (e.candidate.candidate) {
+              const candidateStr = e.candidate.candidate;
+              const ipMatch = /([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})/;
+              const ipAddress = candidateStr.match(ipMatch)?.[1];
+              
+              if (ipAddress && !diagOutput.innerHTML.includes(ipAddress)) {
+                diagOutput.innerHTML += `Found local IP: ${ipAddress}\n`;
+              }
+            }
+          };
+          
+          await rtcPeerConn.createOffer();
+          setTimeout(() => {
+            rtcPeerConn.close();
+            diagOutput.innerHTML += 'Diagnostics complete.\n';
+          }, 1000);
+        } catch (error) {
+          diagOutput.innerHTML += `Error getting local IPs: ${error.message}\n`;
+        }
+      } catch (error) {
+        diagOutput.innerHTML += `Diagnostic error: ${error.message}\n`;
+      }
+    }
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', stopTranscription);
+  </script>
+</body>
+</html>
