@@ -40,8 +40,8 @@ var defaultKeyMap = keyMap{
 		key.WithHelp("ctrl+h", "toggle help"),
 	),
 	ToggleMarkdown: key.NewBinding(
-		key.WithKeys("ctrl+m"),
-		key.WithHelp("ctrl+m", "toggle markdown"),
+		key.WithKeys("ctrl+t"),
+		key.WithHelp("ctrl+t", "toggle markdown"),
 	),
 	Quit: key.NewBinding(
 		key.WithKeys("ctrl+c", "esc"),
