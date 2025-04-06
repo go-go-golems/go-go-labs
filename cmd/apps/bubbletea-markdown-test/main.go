@@ -2,15 +2,28 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
+	"runtime"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+	"github.com/spf13/cobra"
+)
+
+var (
+	logger     zerolog.Logger
+	logFile    *os.File
+	logLevel   string
+	renderMd   bool
+	showHelp   bool
+	initialMsg string
 )
 
 type model struct {
@@ -24,7 +37,80 @@ type model struct {
 	showHelp       bool
 }
 
+func setupLogging(level string) error {
+	// Create log file
+	var err error
+	logFile, err = os.OpenFile("/tmp/external.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		return fmt.Errorf("failed to open log file: %w", err)
+	}
+
+	// Parse log level
+	lvl, err := zerolog.ParseLevel(level)
+	if err != nil {
+		return fmt.Errorf("invalid log level: %w", err)
+	}
+
+	// Configure zerolog
+	zerolog.TimeFieldFormat = time.RFC3339
+	consoleWriter := zerolog.ConsoleWriter{Out: logFile, TimeFormat: time.RFC3339}
+	logger = zerolog.New(consoleWriter).
+		Level(lvl).
+		With().
+		Timestamp().
+		Caller().
+		Logger()
+
+	log.Logger = logger
+
+	logger.Info().Str("level", level).Msg("Logging initialized")
+	return nil
+}
+
+func logWithCaller(level zerolog.Level, msg string, fields map[string]interface{}) {
+	// Get caller information
+	_, file, line, ok := runtime.Caller(1)
+	if !ok {
+		file = "unknown"
+		line = 0
+	}
+
+	// Create log event based on level
+	var event *zerolog.Event
+	switch level {
+	case zerolog.DebugLevel:
+		event = logger.Debug()
+	case zerolog.InfoLevel:
+		event = logger.Info()
+	case zerolog.WarnLevel:
+		event = logger.Warn()
+	case zerolog.ErrorLevel:
+		event = logger.Error()
+	default:
+		event = logger.Info()
+	}
+
+	// Add fields
+	event.Str("file", file).Int("line", line)
+	for k, v := range fields {
+		switch val := v.(type) {
+		case string:
+			event.Str(k, val)
+		case int:
+			event.Int(k, val)
+		case bool:
+			event.Bool(k, val)
+		default:
+			event.Interface(k, v)
+		}
+	}
+
+	event.Msg(msg)
+}
+
 func initialModel() model {
+	logWithCaller(zerolog.InfoLevel, "Initializing model", nil)
+
 	// Create and configure textarea
 	ta := textarea.New()
 	ta.Placeholder = "Enter markdown here..."
@@ -32,17 +118,28 @@ func initialModel() model {
 	ta.SetHeight(5)
 	ta.Focus()
 
+	if initialMsg != "" {
+		ta.SetValue(initialMsg)
+		logWithCaller(zerolog.InfoLevel, "Set initial textarea value", map[string]interface{}{
+			"value": initialMsg,
+		})
+	}
+
 	// Initial viewport with empty content
 	vp := viewport.New(80, 20)
 	vp.SetContent("")
 
 	// Create glamour renderer
+	logWithCaller(zerolog.InfoLevel, "Creating glamour renderer", nil)
 	renderer, err := glamour.NewTermRenderer(
 		glamour.WithAutoStyle(),
 		glamour.WithWordWrap(80),
 	)
 	if err != nil {
-		log.Fatal(err)
+		logWithCaller(zerolog.ErrorLevel, "Failed to create glamour renderer", map[string]interface{}{
+			"error": err.Error(),
+		})
+		os.Exit(1)
 	}
 
 	m := model{
@@ -51,17 +148,21 @@ func initialModel() model {
 		renderer:       renderer,
 		width:          80,
 		height:         25,
-		renderMarkdown: false, // Start with markdown rendering disabled
-		showHelp:       true,  // Start with help visible
+		renderMarkdown: renderMd, // Use the flag value
+		showHelp:       showHelp, // Use the flag value
 	}
 
-	// Initial render of empty content (as plain text)
+	// Initial render of content
+	logWithCaller(zerolog.InfoLevel, "Performing initial render", map[string]interface{}{
+		"renderMarkdown": m.renderMarkdown,
+	})
 	m.renderContent()
 
 	return m
 }
 
 func (m model) Init() tea.Cmd {
+	logWithCaller(zerolog.InfoLevel, "Initializing tea model", nil)
 	return textarea.Blink
 }
 
@@ -70,14 +171,27 @@ func (m model) saveRenderedContent() {
 	if content := m.viewport.View(); content != "" {
 		err := os.WriteFile("/tmp/rendered.md", []byte(content), 0644)
 		if err != nil {
+			logWithCaller(zerolog.ErrorLevel, "Failed to save rendered content", map[string]interface{}{
+				"error": err.Error(),
+			})
 			m.err = err
+		} else {
+			logWithCaller(zerolog.DebugLevel, "Saved rendered content", map[string]interface{}{
+				"size": len(content),
+			})
 		}
 	}
 }
 
 // Render content based on current mode
 func (m *model) renderContent() {
+	logWithCaller(zerolog.DebugLevel, "Rendering content", map[string]interface{}{
+		"renderMarkdown": m.renderMarkdown,
+		"textLength":     len(m.textarea.Value()),
+	})
+
 	if strings.TrimSpace(m.textarea.Value()) == "" {
+		logWithCaller(zerolog.DebugLevel, "Empty content, setting viewport to empty", nil)
 		m.viewport.SetContent("")
 		return
 	}
@@ -85,16 +199,24 @@ func (m *model) renderContent() {
 	var content string
 	if m.renderMarkdown {
 		// Render as markdown
+		logWithCaller(zerolog.DebugLevel, "Rendering markdown", nil)
 		renderedContent, err := m.renderer.Render(m.textarea.Value())
 		if err != nil {
+			logWithCaller(zerolog.ErrorLevel, "Error rendering markdown", map[string]interface{}{
+				"error": err.Error(),
+			})
 			m.err = err
 			content = fmt.Sprintf("Render Error:\n%s\n\n%s", err.Error(), m.textarea.Value())
 		} else {
+			logWithCaller(zerolog.DebugLevel, "Markdown rendered successfully", map[string]interface{}{
+				"renderedLength": len(renderedContent),
+			})
 			m.err = nil
 			content = renderedContent
 		}
 	} else {
 		// Show as plain text
+		logWithCaller(zerolog.DebugLevel, "Using plain text mode", nil)
 		m.err = nil
 		content = m.textarea.Value()
 	}
@@ -109,22 +231,39 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds []tea.Cmd
 	)
 
+	logWithCaller(zerolog.DebugLevel, "Update called", map[string]interface{}{
+		"msgType": fmt.Sprintf("%T", msg),
+	})
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
+		keyStr := msg.String()
+		logWithCaller(zerolog.DebugLevel, "Key pressed", map[string]interface{}{
+			"key": keyStr,
+		})
+
+		switch keyStr {
 		case "ctrl+c", "esc":
+			logWithCaller(zerolog.InfoLevel, "Quitting application", nil)
 			return m, tea.Quit
 		case "ctrl+m":
 			// Toggle markdown rendering
 			m.renderMarkdown = !m.renderMarkdown
+			logWithCaller(zerolog.InfoLevel, "Toggled markdown rendering", map[string]interface{}{
+				"renderMarkdown": m.renderMarkdown,
+			})
 			m.renderContent()
 			return m, nil
 		case "ctrl+h":
 			// Toggle help
 			m.showHelp = !m.showHelp
+			logWithCaller(zerolog.InfoLevel, "Toggled help display", map[string]interface{}{
+				"showHelp": m.showHelp,
+			})
 			return m, nil
 		default:
 			// Handle textarea input
+			logWithCaller(zerolog.DebugLevel, "Updating textarea", nil)
 			m.textarea, cmd = m.textarea.Update(msg)
 			cmds = append(cmds, cmd)
 
@@ -133,6 +272,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.WindowSizeMsg:
+		logWithCaller(zerolog.DebugLevel, "Window size changed", map[string]interface{}{
+			"width":  msg.Width,
+			"height": msg.Height,
+		})
 		m.width = msg.Width
 		m.height = msg.Height
 
@@ -145,16 +288,30 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		textAreaHeight := 6                                                         // 5 lines + 1 for border
 		viewportHeight := m.height - textAreaHeight - helpHeight - statusHeight - 2 // 2 for margins and dividers
 
+		logWithCaller(zerolog.DebugLevel, "Calculated component heights", map[string]interface{}{
+			"helpHeight":     helpHeight,
+			"statusHeight":   statusHeight,
+			"textAreaHeight": textAreaHeight,
+			"viewportHeight": viewportHeight,
+			"showHelp":       m.showHelp,
+		})
+
 		// Resize viewport
 		m.viewport.Width = m.width
 		m.viewport.Height = viewportHeight
 
 		// Create new renderer with updated width for word wrap
+		logWithCaller(zerolog.DebugLevel, "Creating new renderer for new width", map[string]interface{}{
+			"width": m.width,
+		})
 		renderer, err := glamour.NewTermRenderer(
 			glamour.WithAutoStyle(),
 			glamour.WithWordWrap(m.width),
 		)
 		if err != nil {
+			logWithCaller(zerolog.ErrorLevel, "Failed to create new renderer", map[string]interface{}{
+				"error": err.Error(),
+			})
 			m.err = err
 		} else {
 			m.renderer = renderer
@@ -167,6 +324,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	// Also update viewport for scrolling
+	logWithCaller(zerolog.DebugLevel, "Updating viewport", nil)
 	m.viewport, cmd = m.viewport.Update(msg)
 	cmds = append(cmds, cmd)
 
@@ -174,6 +332,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
+	logWithCaller(zerolog.DebugLevel, "View called", nil)
+
 	// Define styles
 	viewportStyle := lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
@@ -229,13 +389,50 @@ func (m model) View() string {
 	)
 }
 
-func main() {
+func runApp(cmd *cobra.Command, args []string) error {
+	if err := setupLogging(logLevel); err != nil {
+		return err
+	}
+	defer logFile.Close()
+
+	logWithCaller(zerolog.InfoLevel, "Starting application", map[string]interface{}{
+		"renderMarkdown": renderMd,
+		"showHelp":       showHelp,
+		"initialMsg":     initialMsg,
+	})
+
 	p := tea.NewProgram(
 		initialModel(),
 		tea.WithAltScreen(),
 	)
 
+	logWithCaller(zerolog.InfoLevel, "Running tea program", nil)
 	if _, err := p.Run(); err != nil {
-		log.Fatalf("Error running program: %v", err)
+		logWithCaller(zerolog.ErrorLevel, "Error running program", map[string]interface{}{
+			"error": err.Error(),
+		})
+		return err
+	}
+
+	logWithCaller(zerolog.InfoLevel, "Application exiting normally", nil)
+	return nil
+}
+
+func main() {
+	rootCmd := &cobra.Command{
+		Use:   "markdown-test",
+		Short: "A TUI markdown renderer test application",
+		RunE:  runApp,
+	}
+
+	// Flags
+	rootCmd.Flags().StringVar(&logLevel, "log-level", "info", "Log level (debug, info, warn, error)")
+	rootCmd.Flags().BoolVar(&renderMd, "render-markdown", false, "Start with markdown rendering enabled")
+	rootCmd.Flags().BoolVar(&showHelp, "show-help", true, "Start with help visible")
+	rootCmd.Flags().StringVar(&initialMsg, "initial-text", "", "Initial text to show in editor")
+
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
 	}
 }
