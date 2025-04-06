@@ -18,12 +18,14 @@ const (
 
 // WebRTCSession represents a WebRTC session with its peer connection and related state
 type WebRTCSession struct {
-	ID             string
-	PeerConnection *webrtc.PeerConnection
-	WebSocket      *websocket.Conn
-	wsMutex        sync.Mutex // Mutex to protect concurrent writes to the WebSocket
-	CreatedAt      time.Time
-	LastActivity   time.Time
+	ID              string
+	PeerConnection  *webrtc.PeerConnection
+	WebSocket       *websocket.Conn
+	wsMutex         sync.Mutex // Mutex to protect concurrent writes to the WebSocket
+	CreatedAt       time.Time
+	LastActivity    time.Time
+	candidateBuffer []webrtc.ICECandidateInit
+	bufferMutex     sync.Mutex // Mutex to protect candidateBuffer
 }
 
 // SessionManager handles tracking and cleanup of WebRTC sessions

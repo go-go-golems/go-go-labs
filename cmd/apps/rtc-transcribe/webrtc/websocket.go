@@ -77,13 +77,45 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	wsLogger.Info().Msg("WebSocket connection upgraded successfully")
 
-	// Associate WebSocket with session - critical step
-	if !GlobalSessionManager.SetWebSocket(sessionID, ws) {
-		wsLogger.Error().Msg("Failed to associate WebSocket with session (race condition?)")
-		_ = ws.Close() // Attempt to close the established WS connection
-		http.Error(w, "Failed to associate session", http.StatusInternalServerError)
+	// Associate WebSocket with session
+	associated := GlobalSessionManager.SetWebSocket(sessionID, ws)
+	if !associated {
+		wsLogger.Error().Msg("Failed to associate WebSocket with session (session likely removed)")
+		_ = ws.Close()
 		return
 	}
+
+	// --- Send Buffered Server Candidates --- //
+	session.bufferMutex.Lock()
+	bufferedCandidates := make([]webrtc.ICECandidateInit, len(session.candidateBuffer))
+	copy(bufferedCandidates, session.candidateBuffer)
+	session.candidateBuffer = session.candidateBuffer[:0] // Clear buffer after copying
+	session.bufferMutex.Unlock()
+
+	if len(bufferedCandidates) > 0 {
+		wsLogger.Info().Int("count", len(bufferedCandidates)).Msg("Sending buffered server ICE candidates")
+		for _, candidateInit := range bufferedCandidates {
+			session.wsMutex.Lock() // Lock for writing to WS
+			candidateJSON, err := json.Marshal(candidateInit)
+			if err != nil {
+				wsLogger.Error().Err(err).Msg("Failed to marshal buffered server ICE candidate")
+				session.wsMutex.Unlock()
+				continue
+			}
+			msg := WebSocketMessage{
+				Type:    MessageTypeCandidate,
+				Payload: candidateJSON,
+			}
+			if err := ws.WriteJSON(msg); err != nil {
+				wsLogger.Error().Err(err).Msg("Failed to send buffered server ICE candidate via WebSocket")
+				// Consider closing if write fails repeatedly
+				session.wsMutex.Unlock()
+				continue // Or break?
+			}
+			session.wsMutex.Unlock()
+		}
+	}
+	// ---------------------------------- //
 
 	// --- Setup Sending ICE Candidates ---
 	// This must be set *after* the WS connection is associated with the session.

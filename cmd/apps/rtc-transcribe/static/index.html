@@ -127,6 +127,7 @@
     let wsConnection = null; // WebSocket connection instance
     let candidateBuffer = []; // Buffer for early candidates from server
     let isRemoteDescriptionSet = false; // Flag to track if remote description is set
+    let localCandidateBuffer = []; // Buffer for early LOCAL candidates to send
 
     // --- Audio Visualization ---
     let audioContext = null;
@@ -208,6 +209,7 @@
       // Reset state from previous attempts
       stopTranscription(); // Clean up any existing state first
       candidateBuffer = [];
+      localCandidateBuffer = [];
       isRemoteDescriptionSet = false;
 
       startBtn.disabled = true; // Disable button immediately
@@ -300,18 +302,19 @@
               sdpMid: event.candidate.sdpMid,
               sdpMLineIndex: event.candidate.sdpMLineIndex
             });
+            const candidateMsg = {
+                type: "candidate",
+                // Pass the candidate object directly, server expects ToJSON format
+                payload: event.candidate.toJSON()
+            };
+
             // Send the candidate to the server via WebSocket
             if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
-                const message = {
-                    type: "candidate",
-                    // Pass the candidate object directly, server expects ToJSON format
-                    payload: event.candidate.toJSON() 
-                };
-                console.log("Sending candidate to server:", message);
-                wsConnection.send(JSON.stringify(message));
+                console.log("WebSocket open, sending candidate immediately:", candidateMsg);
+                wsConnection.send(JSON.stringify(candidateMsg));
             } else {
-                console.warn('WebSocket not open or not initialized. Cannot send candidate.');
-                // TODO: Optionally buffer candidates here too if WS connects late
+                console.warn('WebSocket not ready, buffering local candidate.');
+                localCandidateBuffer.push(candidateMsg);
             }
           } else {
             console.log('ICE candidate gathering completed');
@@ -458,6 +461,7 @@
       
       // Reset state variables
       candidateBuffer = [];
+      localCandidateBuffer = [];
       isRemoteDescriptionSet = false;
 
       // Update UI
@@ -536,7 +540,14 @@
         console.log('WebSocket connection established for signaling');
         connectionStatus.className = 'status connected'; // Indicate general connectivity
         connectionStatus.textContent = 'Signaling connected. Listening...'; // More specific status
-        // TODO: Send any buffered client candidates if implemented
+
+        // Send any buffered local candidates now that WebSocket is open
+        console.log(`WebSocket opened, sending ${localCandidateBuffer.length} buffered local candidates.`);
+        while(localCandidateBuffer.length > 0) {
+            const candidateMsg = localCandidateBuffer.shift();
+            console.log("Sending buffered local candidate:", candidateMsg);
+            wsConnection.send(JSON.stringify(candidateMsg));
+        }
       };
 
       // Handle WebSocket messages (ICE candidates from server)

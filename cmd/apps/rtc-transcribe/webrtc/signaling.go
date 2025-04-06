@@ -94,7 +94,50 @@ func HandleOffer(w http.ResponseWriter, r *http.Request) {
 		Dur("duration", time.Since(remoteDescStartTime)).
 		Msg("Set remote description")
 
+	// --- Setup ICE Candidate Handling (Early) ---
+	session.PeerConnection.OnICECandidate(func(candidate *webrtc.ICECandidate) {
+		if candidate == nil {
+			logger.Debug().Msg("Server ICE candidate gathering complete")
+			return
+		}
+
+		candidateInit := candidate.ToJSON()
+		logger.Debug().
+			Str("candidateType", string(candidate.Typ)).
+			Str("candidateAddress", candidate.Address). // Add candidate details
+			Int("candidatePort", int(candidate.Port)).
+			Msg("Server gathered ICE candidate")
+
+		// Lock the session's wsMutex to safely check WebSocket and send/buffer
+		session.wsMutex.Lock()
+		defer session.wsMutex.Unlock()
+
+		// If WebSocket is ready, send immediately
+		if session.WebSocket != nil {
+			candidateJSON, err := json.Marshal(candidateInit)
+			if err != nil {
+				logger.Error().Err(err).Msg("Failed to marshal server ICE candidate")
+				return
+			}
+			msg := WebSocketMessage{
+				Type:    MessageTypeCandidate,
+				Payload: candidateJSON,
+			}
+			if err := session.WebSocket.WriteJSON(msg); err != nil {
+				logger.Error().Err(err).Msg("Failed to send server ICE candidate via WebSocket")
+			}
+		} else {
+			// If WebSocket is not ready, buffer the candidate
+			logger.Warn().Msg("WebSocket not ready, buffering server ICE candidate")
+			session.bufferMutex.Lock()
+			session.candidateBuffer = append(session.candidateBuffer, candidateInit)
+			session.bufferMutex.Unlock()
+		}
+	})
+	// ------------------------------------------
+
 	// Set up audio track handler with enhanced logging
+	// Pass sessionID for correlation in audio processing
 	handlerStartTime := time.Now()
 	SetupAudioTrackHandler(peerConn)
 	logger.Debug().

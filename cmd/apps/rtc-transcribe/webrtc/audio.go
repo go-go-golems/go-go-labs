@@ -211,7 +211,9 @@ func processOpusTrack(track *webrtc.TrackRemote) {
 
 	packetCount := 0
 	bytesReceived := 0
-	lastLogTime := time.Now()
+	// lastLogTime := time.Now()
+	decodeSuccessCount := 0
+	decodeFailCount := 0
 
 	trackLogger.Info().Msg("Entering RTP packet reading loop")
 	for {
@@ -229,22 +231,28 @@ func processOpusTrack(track *webrtc.TrackRemote) {
 		packetCount++
 		bytesReceived += n
 
-		// Simple logging for the first few packets and periodically thereafter
-		if packetCount <= 5 || time.Since(lastLogTime) > 5*time.Second {
-			trackLogger.Debug().
-				Int("packetNumber", packetCount).
-				Int("bytesRead", n).
-				Int("totalBytes", bytesReceived).
-				Msg("Read RTP packet from track")
-			lastLogTime = time.Now()
-		}
+		// Debug log every packet read
+		trackLogger.Debug().
+			Int("packetNumber", packetCount).
+			Int("bytesRead", n).
+			Msg("Successfully read RTP packet from track")
 
 		// Decode Opus packet to PCM
 		pcmSamplesDecoded, err := decoder.Decode(opusPacket[:n], pcmBuffer)
 		if err != nil {
+			decodeFailCount++
 			trackLogger.Error().Err(err).Int("packetSize", n).Msg("Failed to decode Opus packet")
 			continue // Skip this packet
 		}
+
+		decodeSuccessCount++
+		// Debug log every successful decode
+		trackLogger.Debug().
+			Int("packetNumber", packetCount).
+			Int("pcmSamplesDecoded", pcmSamplesDecoded).
+			Int("channels", AudioChannels).
+			Int("expectedPcmBufferSize", len(pcmBuffer)).
+			Msg("Successfully decoded Opus packet to PCM")
 
 		// Append decoded PCM samples to the transcription buffer
 		if pcmSamplesDecoded > 0 {
@@ -257,6 +265,14 @@ func processOpusTrack(track *webrtc.TrackRemote) {
 				Int("bufferSizeSamples", len(transcriptionBuffer)).
 				Float64("bufferDurationSec", float64(len(transcriptionBuffer))/float64(AudioSampleRate*AudioChannels)).
 				Msg("Buffer full, sending for transcription")
+
+			// Debug log decode statistics
+			trackLogger.Debug().
+				Int("successfulDecodes", decodeSuccessCount).
+				Int("failedDecodes", decodeFailCount).
+				Msg("Decode statistics for this buffer")
+			decodeSuccessCount = 0 // Reset counters for next buffer
+			decodeFailCount = 0
 
 			// Send buffer for transcription (copy to avoid race conditions)
 			bufferToSend := make([]int16, len(transcriptionBuffer))
