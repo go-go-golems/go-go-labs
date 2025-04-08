@@ -1,0 +1,264 @@
+package ui
+
+import (
+	"fmt"
+
+	"github.com/go-go-golems/go-go-labs/cmd/apps/prompt-middleware/internal/middleware"
+)
+
+templ Layout(data PageData) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>LLM Middleware Demo (Go + Templ)</title>
+			<!-- Basic Styling (can replace/extend with Tailwind/Bootstrap) -->
+			<style>
+				body {
+					font-family: sans-serif;
+					line-height: 1.6;
+					padding: 20px;
+					background-color: #f9fafb;
+					color: #374151;
+				}
+				.container {
+					max-width: 1200px;
+					margin: 0 auto;
+					display: grid;
+					grid-template-columns: 1fr 1fr;
+					gap: 20px;
+				}
+				.panel {
+					background-color: #fff;
+					padding: 20px;
+					border-radius: 8px;
+					box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+				}
+				h1, h2, h3 {
+					color: #1f2937;
+				}
+				pre {
+					background-color: #f3f4f6;
+					padding: 10px;
+					border-radius: 4px;
+					overflow-x: auto;
+					white-space: pre-wrap; /* Allow wrapping */
+					word-wrap: break-word; /* Break long words */
+				}
+				textarea {
+					width: 95%; /* Adjust width */
+					padding: 8px;
+					border: 1px solid #d1d5db;
+					border-radius: 4px;
+					margin-bottom: 10px;
+				}
+				button {
+					background-color: #3b82f6;
+					color: white;
+					padding: 8px 15px;
+					border: none;
+					border-radius: 4px;
+					cursor: pointer;
+				}
+				button:hover {
+					background-color: #2563eb;
+				}
+				.middleware-item {
+					border: 1px solid #e5e7eb;
+					padding: 15px;
+					margin-bottom: 10px;
+					border-radius: 6px;
+				}
+				.middleware-header {
+					display: flex;
+					justify-content: space-between;
+					align-items: center;
+				}
+				.middleware-name {
+					font-weight: bold;
+				}
+				.middleware-desc {
+					font-size: 0.9em;
+					color: #6b7280;
+					margin-top: 5px;
+				}
+				/* Basic Switch styling */
+				.switch {
+					position: relative;
+					display: inline-block;
+					width: 40px;
+					height: 20px;
+				}
+				.switch input { 
+					opacity: 0;
+					width: 0;
+					height: 0;
+				}
+				.slider {
+					position: absolute;
+					cursor: pointer;
+					top: 0;
+					left: 0;
+					right: 0;
+					bottom: 0;
+					background-color: #ccc;
+					transition: .4s;
+					border-radius: 20px;
+				}
+				.slider:before {
+					position: absolute;
+					content: "";
+					height: 16px;
+					width: 16px;
+					left: 2px;
+					bottom: 2px;
+					background-color: white;
+					transition: .4s;
+					border-radius: 50%;
+				}
+				input:checked + .slider {
+					background-color: #2563eb;
+				}
+				input:checked + .slider:before {
+					transform: translateX(20px);
+				}
+				.context-viewer {
+					background-color: #f3f4f6;
+					padding: 10px;
+					border-radius: 4px;
+					max-height: 200px;
+					overflow-y: auto;
+					font-size: 0.9em;
+					margin-bottom: 10px;
+				}
+				.context-key {
+					font-weight: bold;
+					color: #1d4ed8;
+				}
+			</style>
+			<!-- HTMX -->
+			<script src="https://unpkg.com/htmx.org@1.9.12" integrity="sha384-ujbTJMwYqHBPQRqaZZAu9MXYsRLjko_tvXVdZvUPZLzGtTRvyBptLmLM1VBVEAL+ " crossorigin="anonymous"></script>
+		</head>
+		<body>
+			<h1>LLM Middleware Demo (Go + Templ)</h1>
+			<div class="container">
+				<!-- Left Panel: Configuration -->
+				<div class="panel" id="config-panel">
+					@ConfigPanel(data)
+				</div>
+				<!-- Right Panel: Results -->
+				<div class="panel" id="results-panel">
+					@ResultsPanel(data)
+				</div>
+			</div>
+		</body>
+	</html>
+}
+
+// ConfigPanel renders the left side (middleware list, context, query).
+templ ConfigPanel(data PageData) {
+	<h2>Middleware Pipeline</h2>
+	<p>Configure the pipeline. Order matters for execution.</p>
+	<div id="middleware-list">
+		for _, mw := range data.Middlewares {
+			@MiddlewareItem(mw)
+		}
+	</div>
+	<h3>Initial Context</h3>
+	@ContextViewer(data.InitialContext)
+	<div>
+		<label>
+			<input
+				type="checkbox"
+				name="thinkingMode"
+				hx-post="/process"
+				hx-target="#results-panel"
+				hx-include="#config-panel input, #config-panel textarea"
+				if checked, ok := data.InitialContext[middleware.ThinkingModeContextKey].(bool); ok && checked {
+					checked
+				}
+			/>
+			Enable Thinking Mode
+		</label>
+	</div>
+	<h3>User Query</h3>
+	<textarea
+		name="userQuery"
+		rows="3"
+		hx-post="/updateQuery"
+		hx-trigger="keyup changed delay:500ms"
+		hx-target="#results-panel"
+		hx-swap="innerHTML"
+	>{ data.UserQuery }</textarea>
+	<button
+		hx-post="/process"
+		hx-target="#results-panel"
+		hx-include="#config-panel input, #config-panel textarea"
+		hx-swap="innerHTML"
+	>Process Manually</button>
+}
+
+// MiddlewareItem renders a single middleware control.
+templ MiddlewareItem(mw MiddlewareData) {
+	<div class="middleware-item">
+		<div class="middleware-header">
+			<span class="middleware-name">{ mw.Name }</span>
+			<label class="switch">
+				<input
+					type="checkbox"
+					name="enabled"
+					value={ mw.ID }
+					hx-post="/toggleMiddleware"
+					hx-target="#config-panel"
+					hx-swap="outerHTML"
+					hx-vals={ fmt.Sprintf(`{"id": "%s"}`, mw.ID) }
+					if mw.Enabled {
+						checked
+					}
+				/>
+				<span class="slider"></span>
+			</label>
+		</div>
+		<p class="middleware-desc">{ mw.Description }</p>
+		<!-- TODO: Add up/down buttons for reordering -->
+	</div>
+}
+
+// ResultsPanel renders the right side (final prompt, responses, final context).
+templ ResultsPanel(data PageData) {
+	<h2>Pipeline Results</h2>
+	if data.FinalPrompt != "" {
+		<h3>Final Prompt</h3>
+		<pre>{ data.FinalPrompt }</pre>
+	}
+	<!-- TODO: Add Fragment Visualization Here -->
+	if data.LLMResponse != "" {
+		<h3>LLM Response (Mock)</h3>
+		<pre>{ data.LLMResponse }</pre>
+	}
+	if data.ProcessedResponse != "" {
+		<h3>Processed Response</h3>
+		<pre>{ data.ProcessedResponse }</pre>
+	}
+	if len(data.FinalContext) > 0 {
+		<h3>Final Context</h3>
+		@ContextViewer(data.FinalContext)
+	}
+}
+
+// ContextViewer displays the context map.
+templ ContextViewer(ctx_ middleware.Context) {
+	<div class="context-viewer">
+		if len(ctx_) == 0 {
+			<i>No context data.</i>
+		} else {
+			for key, value := range ctx_ {
+				<div>
+					<span class="context-key">{ key }:</span>
+					<span>{ fmt.Sprintf("%v", value) }</span>
+				</div>
+			}
+		}
+	</div>
+}
