@@ -7,11 +7,11 @@ import (
 	"sync" // Added for mutex
 	"time" // Added for zerolog timestamp
 
-	"github.com/a-h/templ"
 	"github.com/go-go-golems/go-go-labs/cmd/apps/prompt-middleware/internal/middleware"
 	"github.com/go-go-golems/go-go-labs/cmd/apps/prompt-middleware/internal/ui"
 	"github.com/rs/zerolog"     // Added for logging
 	"github.com/rs/zerolog/log" // Added for logging
+	orderedmap "github.com/wk8/go-ordered-map/v2"
 )
 
 // MiddlewareState holds the actual middleware instance and its enabled status.
@@ -79,12 +79,16 @@ func main() {
 	log.Info().Strs("middlewareOrder", order).Msg("Initial middleware order")
 
 	// Initial state
+	initialCtx := orderedmap.New[string, interface{}]()
+	initialCtx.Set(middleware.ThinkingModeContextKey, true) // Start with thinking mode enabled
+
 	appState := &AppState{
 		ConfiguredMiddlewares: configuredMiddlewares,
 		Order:                 order,
-		CurrentContext:        middleware.Context{middleware.ThinkingModeContextKey: true}, // Start with thinking mode enabled
+		CurrentContext:        initialCtx,
 		UserQuery:             "Explain Go interfaces.",
 		InitialFragments:      []middleware.PromptFragment{},
+		FinalContext:          orderedmap.New[string, interface{}](), // Initialize FinalContext
 	}
 
 	log.Debug().Msg("Initial state created")
@@ -94,7 +98,8 @@ func main() {
 	appState.processPipeline()
 	log.Info().Msg("Initial pipeline processing complete")
 
-	http.Handle("/", templ.Handler(ui.Layout(appState.createPageData()))) // Pass PageData
+	// --- HTTP Handlers ---
+	http.HandleFunc("/", appState.handleIndex)                            // Use the dynamic handler method
 	http.HandleFunc("/process", appState.handleProcess)                   // Endpoint to trigger processing
 	http.HandleFunc("/toggleMiddleware", appState.handleToggleMiddleware) // Endpoint to toggle middleware
 	http.HandleFunc("/updateQuery", appState.handleUpdateQuery)           // Endpoint to update user query
@@ -103,6 +108,15 @@ func main() {
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal().Err(err).Msg("ListenAndServe failed") // Use zerolog fatal
 	}
+}
+
+// handleIndex renders the main layout dynamically.
+func (s *AppState) handleIndex(w http.ResponseWriter, r *http.Request) {
+	log.Debug().Str("method", r.Method).Str("path", r.URL.Path).Msg("Handling index request")
+	// Render the full layout dynamically on each request
+	pageData := s.createPageData() // Get current state using the receiver 's'
+	component := ui.Layout(pageData)
+	component.Render(r.Context(), w)
 }
 
 // buildActivePipelineLocked creates a MiddlewarePipeline containing only the currently enabled middlewares.
@@ -157,14 +171,8 @@ func (s *AppState) createPageData() ui.PageData {
 	}
 
 	// Make copies of context maps to avoid race conditions if UI renders concurrently
-	initialCtxCopy := make(middleware.Context)
-	for k, v := range s.CurrentContext {
-		initialCtxCopy[k] = v
-	}
-	finalCtxCopy := make(middleware.Context)
-	for k, v := range s.FinalContext {
-		finalCtxCopy[k] = v
-	}
+	initialCtxCopy := middleware.CloneContext(s.CurrentContext)
+	finalCtxCopy := middleware.CloneContext(s.FinalContext)
 
 	log.Debug().Msg("Page data created successfully")
 	return ui.PageData{
@@ -247,7 +255,7 @@ func (s *AppState) handleProcess(w http.ResponseWriter, r *http.Request) {
 	}
 	s.UserQuery = r.FormValue("userQuery")
 	thinkingMode := r.FormValue("thinkingMode") == "on"
-	s.CurrentContext[middleware.ThinkingModeContextKey] = thinkingMode
+	s.CurrentContext.Set(middleware.ThinkingModeContextKey, thinkingMode) // Use Set for orderedmap
 	log.Info().Str("userQuery", s.UserQuery).Bool("thinkingMode", thinkingMode).Msg("Updated state from process request")
 	s.mu.Unlock()
 
@@ -257,7 +265,7 @@ func (s *AppState) handleProcess(w http.ResponseWriter, r *http.Request) {
 
 	// Render only the results part of the page using templ
 	log.Debug().Msg("Rendering results panel component")
-	component := ui.ResultsPanel(s.createPageData()) // Acquires RLock internally
+	component := ui.ResultsPanel(s.createPageData())
 	err = component.Render(r.Context(), w)
 	if err != nil {
 		log.Error().Err(err).Msg("Error rendering results panel component")
@@ -297,15 +305,20 @@ func (s *AppState) handleToggleMiddleware(w http.ResponseWriter, r *http.Request
 	log.Info().Msg("Triggering pipeline processing after toggle")
 	s.processPipeline()
 
-	// Re-render the config panel as its state (checkboxes) has changed
-	log.Debug().Msg("Rendering middleware list component after toggle")
-	pageData := s.createPageData()                       // Get the full page data
-	component := ui.MiddlewareList(pageData.Middlewares) // Pass only the Middlewares slice
-	err = component.Render(r.Context(), w)
+	// Get the updated page data
+	pageData := s.createPageData()
+
+	// Render both components with OOB swaps
+	err = ui.MiddlewareList(pageData.Middlewares).Render(r.Context(), w)
 	if err != nil {
 		log.Error().Err(err).Msg("Error rendering middleware list component")
-	} else {
-		log.Debug().Msg("Successfully rendered middleware list component")
+		return
+	}
+
+	err = ui.ResultsPanelOOB(pageData).Render(r.Context(), w)
+	if err != nil {
+		log.Error().Err(err).Msg("Error rendering results panel component")
+		return
 	}
 }
 

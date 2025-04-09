@@ -76,7 +76,7 @@ const ExtractedThinkingContextKey = "extractedThinking"
 
 func (m *ThinkingModeMiddleware) Prompt(ctx Context, fragments []PromptFragment) (Context, []PromptFragment) {
 	thinkingEnabled := false
-	if enabled, ok := ctx[ThinkingModeContextKey].(bool); ok && enabled {
+	if enabled, ok := ctx.Get(ThinkingModeContextKey); ok && enabled.(bool) {
 		thinkingEnabled = true
 	}
 
@@ -107,19 +107,14 @@ func (m *ThinkingModeMiddleware) Parse(ctx Context, response string) (Context, s
 	log.Debug().Str("middlewareId", m.ID()).Msg("Parsing response for <thinking> tags")
 	match := thinkingRegex.FindStringSubmatch(response)
 
-	newCtx := ctx
-	// Deep copy context map if necessary, but Parse often modifies it in place
-	// or creates a new one selectively.
-	newCtx = make(Context)
-	for k, v := range ctx {
-		newCtx[k] = v
-	}
+	// Create a mutable copy of the context
+	newCtx := CloneContext(ctx)
 
 	cleanedResponse := response
 
 	if len(match) > 1 {
 		thinkingContent := strings.TrimSpace(match[1])
-		newCtx[ExtractedThinkingContextKey] = thinkingContent
+		newCtx.Set(ExtractedThinkingContextKey, thinkingContent)
 		// Remove the thinking block from the response
 		cleanedResponse = strings.TrimSpace(thinkingRegex.ReplaceAllString(response, ""))
 		log.Debug().Str("middlewareId", m.ID()).Str("extractedThinking", thinkingContent).Msg("Extracted thinking content and updated context")
@@ -160,13 +155,11 @@ func (m *TokenCounterMiddleware) Prompt(ctx Context, fragments []PromptFragment)
 		combinedText.WriteString(" ") // Add space between fragments
 	}
 	estimatedTokens := estimateTokens(combinedText.String())
-	newCtx := ctx
-	// Ensure context is mutable if needed
-	newCtx = make(Context)
-	for k, v := range ctx {
-		newCtx[k] = v
-	}
-	newCtx[PromptTokensContextKey] = estimatedTokens
+
+	// Create a mutable copy of the context
+	newCtx := CloneContext(ctx)
+
+	newCtx.Set(PromptTokensContextKey, estimatedTokens)
 	log.Debug().Str("middlewareId", m.ID()).Int("estimatedPromptTokens", estimatedTokens).Msg("Estimated prompt tokens and updated context")
 	return newCtx, fragments
 }
@@ -174,19 +167,20 @@ func (m *TokenCounterMiddleware) Prompt(ctx Context, fragments []PromptFragment)
 func (m *TokenCounterMiddleware) Parse(ctx Context, response string) (Context, string) {
 	responseTokens := estimateTokens(response)
 	promptTokens := 0
-	if pt, ok := ctx[PromptTokensContextKey].(int); ok {
-		promptTokens = pt
+	if pt, ok := ctx.Get(PromptTokensContextKey); ok {
+		if ptInt, ok := pt.(int); ok {
+			promptTokens = ptInt
+		} else {
+			log.Error().Str("middlewareId", m.ID()).Interface("promptTokens", pt).Msg("Prompt tokens are not an int")
+		}
 	}
 	totalTokens := promptTokens + responseTokens
 
-	newCtx := ctx
-	// Ensure context is mutable
-	newCtx = make(Context)
-	for k, v := range ctx {
-		newCtx[k] = v
-	}
-	newCtx[ResponseTokensContextKey] = responseTokens
-	newCtx[TotalTokensContextKey] = totalTokens
+	// Create a mutable copy of the context
+	newCtx := CloneContext(ctx)
+
+	newCtx.Set(ResponseTokensContextKey, responseTokens)
+	newCtx.Set(TotalTokensContextKey, totalTokens)
 
 	log.Debug().Str("middlewareId", m.ID()).Int("estimatedResponseTokens", responseTokens).Int("estimatedTotalTokens", totalTokens).Msg("Estimated response/total tokens and updated context")
 	log.Trace().Str("middlewareId", m.ID()).Interface("contextAfter", newCtx).Msg("TokenCounterMiddleware parse complete")
@@ -211,9 +205,9 @@ func MockLLM(ctx Context, prompt string, userQuery string) string {
 	baseResponse := fmt.Sprintf("I have processed your request regarding '%s'.", userQuery)
 	thinkingBlock := ""
 
-	if _, ok := ctx[ExtractedThinkingContextKey].(string); ok {
+	if _, ok := ctx.Get(ExtractedThinkingContextKey); ok {
 		// Thinking was extracted during parse phase, so don't add it again in mock response
-	} else if enabled, ok := ctx[ThinkingModeContextKey].(bool); ok && enabled {
+	} else if enabled, ok := ctx.Get(ThinkingModeContextKey); ok && enabled.(bool) {
 		// Add thinking block if ThinkingMode was enabled in context passed to LLM
 		thinkingBlock = fmt.Sprintf(`
 

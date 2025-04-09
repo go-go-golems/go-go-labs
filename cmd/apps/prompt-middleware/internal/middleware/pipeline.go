@@ -41,17 +41,8 @@ func (p *MiddlewarePipeline) ExecutePromptPhase(
 	initialFragments []PromptFragment,
 ) (Context, []PromptFragment, string) {
 	log.Debug().Msg("Executing prompt phase")
-	currentContext := initialContext
 	// Deep copy context map to avoid modification issues
-	if currentContext == nil {
-		currentContext = make(Context)
-	} else {
-		newCtx := make(Context)
-		for k, v := range currentContext {
-			newCtx[k] = v
-		}
-		currentContext = newCtx
-	}
+	currentContext := CloneContext(initialContext)
 
 	currentFragments := make([]PromptFragment, len(initialFragments))
 	copy(currentFragments, initialFragments)
@@ -71,6 +62,7 @@ func (p *MiddlewarePipeline) ExecutePromptPhase(
 				Interface("contextAfter", currentContext).
 				Interface("fragmentsAfter", currentFragments).
 				Msg("Middleware prompt function state change")
+
 	}
 
 	// Sort fragments by position and priority
@@ -91,17 +83,9 @@ func (p *MiddlewarePipeline) ExecuteParsePhase(
 	llmResponse string,
 ) (Context, string) {
 	log.Debug().Msg("Executing parse phase")
-	currentContext := context
 	// Deep copy context map
-	if currentContext == nil {
-		currentContext = make(Context)
-	} else {
-		newCtx := make(Context)
-		for k, v := range currentContext {
-			newCtx[k] = v
-		}
-		currentContext = newCtx
-	}
+	currentContext := CloneContext(context)
+
 	currentResponse := llmResponse
 	log.Debug().Str("initialResponse", currentResponse).Interface("initialContext", currentContext).Msg("Parse phase start")
 

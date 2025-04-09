@@ -1,7 +1,23 @@
 package middleware
 
-// Context is a flexible, extensible state object that flows through the middleware pipeline.
-type Context map[string]interface{}
+import orderedmap "github.com/wk8/go-ordered-map/v2"
+
+// Context is a flexible, extensible state object that flows through the middleware pipeline,
+// preserving insertion order of keys.
+type Context = *orderedmap.OrderedMap[string, interface{}]
+
+// CloneContext creates a deep copy of the context map itself, but a shallow copy
+// of the values.
+func CloneContext(ctx Context) Context {
+	if ctx == nil {
+		return orderedmap.New[string, interface{}]()
+	}
+	newCtx := orderedmap.New[string, interface{}]()
+	for pair := ctx.Oldest(); pair != nil; pair = pair.Next() {
+		newCtx.Set(pair.Key, pair.Value)
+	}
+	return newCtx
+}
 
 // PromptFragmentMetadata holds metadata associated with a PromptFragment.
 type PromptFragmentMetadata struct {

@@ -119,9 +119,18 @@ templ Layout(data PageData) {
 				}
 				input:checked + .slider {
 					background-color: #2563eb;
+					transition: background-color 0.4s ease;
 				}
 				input:checked + .slider:before {
 					transform: translateX(20px);
+					transition: transform 0.4s ease;
+				}
+				input:focus + .slider {
+					box-shadow: 0 0 1px #2563eb;
+				}
+				input:disabled + .slider {
+					opacity: 0.6;
+					cursor: not-allowed;
 				}
 				.context-viewer {
 					background-color: #f3f4f6;
@@ -161,7 +170,9 @@ templ Layout(data PageData) {
 				</div>
 				<!-- Right Panel: Results -->
 				<div class="panel" id="results-panel">
-					@ResultsPanel(data)
+					<div id="results-panel-content">
+						@ResultsPanel(data)
+					</div>
 				</div>
 			</div>
 		</body>
@@ -186,8 +197,10 @@ templ ConfigPanel(data PageData) {
 				hx-target="#results-panel"
 				hx-include="[name='userQuery'], [name='thinkingMode']"
 				hx-indicator="#processing-indicator-cb"
-				if checked, ok := data.InitialContext[middleware.ThinkingModeContextKey].(bool); ok && checked {
-					checked
+				if val, ok := data.InitialContext.Get(middleware.ThinkingModeContextKey); ok {
+					if checked, isBool := val.(bool); isBool && checked {
+						checked
+					}
 				}
 			/>
 			Enable Thinking Mode
@@ -207,8 +220,8 @@ templ ConfigPanel(data PageData) {
 	<span id="query-indicator" class="htmx-indicator">Updating...</span>
 	<button
 		hx-post="/process"
-		hx-target="#results-panel"
 		hx-include="[name='userQuery'], [name='thinkingMode']"
+		hx-target="#results-panel"
 		hx-swap="innerHTML"
 		hx-indicator="#processing-indicator-btn"
 	>Process Manually</button>
@@ -217,9 +230,11 @@ templ ConfigPanel(data PageData) {
 
 // MiddlewareList renders the list of middleware items.
 templ MiddlewareList(middlewares []MiddlewareData) {
-	for _, mw := range middlewares {
-		@MiddlewareItem(mw)
-	}
+	<div id="middleware-list-content">
+		for _, mw := range middlewares {
+			@MiddlewareItem(mw)
+		}
+	</div>
 }
 
 // MiddlewareItem renders a single middleware control.
@@ -236,14 +251,12 @@ templ MiddlewareItem(mw MiddlewareData) {
 					hx-target="#middleware-list"
 					hx-swap="innerHTML"
 					hx-vals={ fmt.Sprintf(`{"id": "%s"}`, mw.ID) }
-					hx-indicator="#toggle-indicator-{ mw.ID }"
 					if mw.Enabled {
 						checked
 					}
 				/>
 				<span class="slider"></span>
 			</label>
-			<span id={ "toggle-indicator-" + mw.ID } class="htmx-indicator">Updating...</span>
 		</div>
 		<p class="middleware-desc">{ mw.Description }</p>
 		<!-- TODO: Add up/down buttons for reordering -->
@@ -252,36 +265,61 @@ templ MiddlewareItem(mw MiddlewareData) {
 
 // ResultsPanel renders the right side (final prompt, responses, final context).
 templ ResultsPanel(data PageData) {
-	<h2>Pipeline Results</h2>
-	if data.FinalPrompt != "" {
-		<h3>Final Prompt</h3>
-		<pre>{ data.FinalPrompt }</pre>
-	}
-	<!-- TODO: Add Fragment Visualization Here -->
-	if data.LLMResponse != "" {
-		<h3>LLM Response (Mock)</h3>
-		<pre>{ data.LLMResponse }</pre>
-	}
-	if data.ProcessedResponse != "" {
-		<h3>Processed Response</h3>
-		<pre>{ data.ProcessedResponse }</pre>
-	}
-	if len(data.FinalContext) > 0 {
-		<h3>Final Context</h3>
-		@ContextViewer(data.FinalContext)
-	}
+	<div id="results-panel-content">
+		<h2>Pipeline Results</h2>
+		if data.FinalPrompt != "" {
+			<h3>Final Prompt</h3>
+			<pre>{ data.FinalPrompt }</pre>
+		}
+		<!-- TODO: Add Fragment Visualization Here -->
+		if data.LLMResponse != "" {
+			<h3>LLM Response (Mock)</h3>
+			<pre>{ data.LLMResponse }</pre>
+		}
+		if data.ProcessedResponse != "" {
+			<h3>Processed Response</h3>
+			<pre>{ data.ProcessedResponse }</pre>
+		}
+		if data.FinalContext.Len() > 0 {
+			<h3>Final Context</h3>
+			@ContextViewer(data.FinalContext)
+		}
+	</div>
+}
+
+templ ResultsPanelOOB(data PageData) {
+	<div id="results-panel-content" hx-swap-oob="true">
+		<h2>Pipeline Results</h2>
+		if data.FinalPrompt != "" {
+			<h3>Final Prompt</h3>
+			<pre>{ data.FinalPrompt }</pre>
+		}
+		<!-- TODO: Add Fragment Visualization Here -->
+		if data.LLMResponse != "" {
+			<h3>LLM Response (Mock)</h3>
+			<pre>{ data.LLMResponse }</pre>
+		}
+		if data.ProcessedResponse != "" {
+			<h3>Processed Response</h3>
+			<pre>{ data.ProcessedResponse }</pre>
+		}
+		if data.FinalContext.Len() > 0 {
+			<h3>Final Context</h3>
+			@ContextViewer(data.FinalContext)
+		}
+	</div>
 }
 
 // ContextViewer displays the context map.
 templ ContextViewer(ctx_ middleware.Context) {
 	<div class="context-viewer">
-		if len(ctx_) == 0 {
+		if ctx_.Len() == 0 {
 			<i>No context data.</i>
 		} else {
-			for key, value := range ctx_ {
+			for pair := ctx_.Oldest(); pair != nil; pair = pair.Next() {
 				<div>
-					<span class="context-key">{ key }:</span>
-					<span>{ fmt.Sprintf("%v", value) }</span>
+					<span class="context-key">{ pair.Key }:</span>
+					<span>{ fmt.Sprintf("%v", pair.Value) }</span>
 				</div>
 			}
 		}
