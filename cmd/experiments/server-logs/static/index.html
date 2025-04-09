@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>{{.Title}}</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+    <header>
+        <h1>Log Server Dashboard</h1>
+        <p>Server Time: {{.ServerTime}}</p>
+    </header>
+    <main>
+        <section class="stats">
+            <h2>System Statistics</h2>
+            <ul>
+                <li>Total Logs: {{.LogCount}}</li>
+                <li>Users: {{.UserCount}}</li>
+                <li>API Requests: {{index .Metrics "requests"}}</li>
+                <li>Errors: {{index .Metrics "errors"}}</li>
+                <li>Active Users: {{index .Metrics "active_users"}}</li>
+            </ul>
+        </section>
+
+        <section class="recent-logs">
+            <h2>Recent Logs</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Timestamp</th>
+                        <th>Level</th>
+                        <th>Message</th>
+                        <th>Source</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .RecentLogs}}
+                    <tr class="log-level-{{.Level}}">
+                        <td>{{.Id}}</td>
+                        <td>{{.Timestamp.Format "2006-01-02 15:04:05"}}</td>
+                        <td>{{.Level}}</td>
+                        <td>{{.Message}}</td>
+                        <td>{{.Source}}</td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </section>
+
+        <section class="api-test">
+            <h2>API Test Console</h2>
+            <div class="api-form">
+                <div class="form-group">
+                    <label for="endpoint">Endpoint:</label>
+                    <select id="endpoint">
+                        <option value="/api/logs">GET /api/logs</option>
+                        <option value="/api/logs/1">GET /api/logs/1</option>
+                        <option value="/api/users">GET /api/users</option>
+                        <option value="/api/metrics">GET /api/metrics</option>
+                    </select>
+                </div>
+                <button id="send-request">Send Request</button>
+            </div>
+            <div class="response">
+                <h3>Response:</h3>
+                <pre id="response-data"></pre>
+            </div>
+        </section>
+    </main>
+    <footer>
+        <p>Messy Log Server Example © 2023</p>
+    </footer>
+    <script src="/static/script.js"></script>
+</body>
+
+</html>
