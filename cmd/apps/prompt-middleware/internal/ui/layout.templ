@@ -136,9 +136,21 @@ templ Layout(data PageData) {
 					font-weight: bold;
 					color: #1d4ed8;
 				}
+				.htmx-indicator {
+					display: none; /* Hidden by default */
+					margin-left: 10px;
+					color: #6b7280;
+					font-style: italic;
+				}
+				.htmx-request .htmx-indicator {
+					display: inline; /* Show during request */
+				}
+				.htmx-request.htmx-indicator {
+					display: inline; /* Show during request (alternative for self-indicating) */
+				}
 			</style>
 			<!-- HTMX -->
-			<script src="https://unpkg.com/htmx.org@1.9.12" integrity="sha384-ujbTJMwYqHBPQRqaZZAu9MXYsRLjko_tvXVdZvUPZLzGtTRvyBptLmLM1VBVEAL+ " crossorigin="anonymous"></script>
+			<script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
 		</head>
 		<body>
 			<h1>LLM Middleware Demo (Go + Templ)</h1>
@@ -161,9 +173,7 @@ templ ConfigPanel(data PageData) {
 	<h2>Middleware Pipeline</h2>
 	<p>Configure the pipeline. Order matters for execution.</p>
 	<div id="middleware-list">
-		for _, mw := range data.Middlewares {
-			@MiddlewareItem(mw)
-		}
+		@MiddlewareList(data.Middlewares)
 	</div>
 	<h3>Initial Context</h3>
 	@ContextViewer(data.InitialContext)
@@ -174,13 +184,15 @@ templ ConfigPanel(data PageData) {
 				name="thinkingMode"
 				hx-post="/process"
 				hx-target="#results-panel"
-				hx-include="#config-panel input, #config-panel textarea"
+				hx-include="[name='userQuery'], [name='thinkingMode']"
+				hx-indicator="#processing-indicator-cb"
 				if checked, ok := data.InitialContext[middleware.ThinkingModeContextKey].(bool); ok && checked {
 					checked
 				}
 			/>
 			Enable Thinking Mode
 		</label>
+		<span id="processing-indicator-cb" class="htmx-indicator">Processing...</span>
 	</div>
 	<h3>User Query</h3>
 	<textarea
@@ -190,13 +202,24 @@ templ ConfigPanel(data PageData) {
 		hx-trigger="keyup changed delay:500ms"
 		hx-target="#results-panel"
 		hx-swap="innerHTML"
+		hx-indicator="#query-indicator"
 	>{ data.UserQuery }</textarea>
+	<span id="query-indicator" class="htmx-indicator">Updating...</span>
 	<button
 		hx-post="/process"
 		hx-target="#results-panel"
-		hx-include="#config-panel input, #config-panel textarea"
+		hx-include="[name='userQuery'], [name='thinkingMode']"
 		hx-swap="innerHTML"
+		hx-indicator="#processing-indicator-btn"
 	>Process Manually</button>
+	<span id="processing-indicator-btn" class="htmx-indicator">Processing...</span>
+}
+
+// MiddlewareList renders the list of middleware items.
+templ MiddlewareList(middlewares []MiddlewareData) {
+	for _, mw := range middlewares {
+		@MiddlewareItem(mw)
+	}
 }
 
 // MiddlewareItem renders a single middleware control.
@@ -210,15 +233,17 @@ templ MiddlewareItem(mw MiddlewareData) {
 					name="enabled"
 					value={ mw.ID }
 					hx-post="/toggleMiddleware"
-					hx-target="#config-panel"
-					hx-swap="outerHTML"
+					hx-target="#middleware-list"
+					hx-swap="innerHTML"
 					hx-vals={ fmt.Sprintf(`{"id": "%s"}`, mw.ID) }
+					hx-indicator="#toggle-indicator-{ mw.ID }"
 					if mw.Enabled {
 						checked
 					}
 				/>
 				<span class="slider"></span>
 			</label>
+			<span id={ "toggle-indicator-" + mw.ID } class="htmx-indicator">Updating...</span>
 		</div>
 		<p class="middleware-desc">{ mw.Description }</p>
 		<!-- TODO: Add up/down buttons for reordering -->

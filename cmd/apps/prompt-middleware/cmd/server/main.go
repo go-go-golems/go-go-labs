@@ -105,25 +105,36 @@ func main() {
 	}
 }
 
-// buildActivePipeline creates a MiddlewarePipeline containing only the currently enabled middlewares.
-func (s *AppState) buildActivePipeline() *middleware.MiddlewarePipeline {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
+// buildActivePipelineLocked creates a MiddlewarePipeline containing only the currently enabled middlewares.
+// It assumes the caller holds the necessary lock (read or write).
+func (s *AppState) buildActivePipelineLocked() *middleware.MiddlewarePipeline {
 	pipeline := middleware.NewMiddlewarePipeline()
 	activeIDs := []string{}
-	log.Debug().Msg("Building active middleware pipeline")
+	log.Debug().Msg("Building active middleware pipeline (lock already held)")
 	for _, id := range s.Order {
 		if state, exists := s.ConfiguredMiddlewares[id]; exists && state.Enabled {
 			log.Debug().Str("middlewareId", id).Msg("Adding enabled middleware to active pipeline")
 			pipeline.Use(state.Instance)
 			activeIDs = append(activeIDs, id)
 		} else {
-			log.Debug().Str("middlewareId", id).Bool("exists", exists).Bool("enabled", state != nil && state.Enabled).Msg("Skipping disabled or non-existent middleware")
+			// Check if state exists before accessing Enabled field
+			enabled := false
+			if state != nil {
+				enabled = state.Enabled
+			}
+			log.Debug().Str("middlewareId", id).Bool("exists", exists).Bool("enabled", enabled).Msg("Skipping disabled or non-existent middleware")
 		}
 	}
 	log.Info().Strs("activeMiddlewares", activeIDs).Msg("Active pipeline built")
 	return pipeline
+}
+
+// buildActivePipeline acquires the read lock and then builds the pipeline.
+// Use this when the lock is not already held.
+func (s *AppState) buildActivePipeline() *middleware.MiddlewarePipeline {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.buildActivePipelineLocked()
 }
 
 // createPageData generates the data needed by the main page template.
@@ -171,11 +182,13 @@ func (s *AppState) createPageData() ui.PageData {
 func (s *AppState) processPipeline() {
 	log.Info().Msg("Starting pipeline processing")
 	s.mu.Lock() // Use full lock as we are modifying state
-	defer s.mu.Unlock()
-	defer log.Info().Msg("Finished pipeline processing")
+	defer func() {
+		log.Info().Msg("Finished pipeline processing")
+		s.mu.Unlock()
+	}()
 
 	// Build pipeline with currently enabled middlewares
-	activePipeline := s.buildActivePipeline() // Logging happens inside this function
+	activePipeline := s.buildActivePipelineLocked() // Logging happens inside this function
 
 	// Create initial fragment from user query
 	queryFragment := middleware.PromptFragment{
@@ -224,7 +237,6 @@ func (s *AppState) handleProcess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Lock before modifying state
 	s.mu.Lock()
 	err := r.ParseForm()
 	if err != nil {
@@ -249,8 +261,6 @@ func (s *AppState) handleProcess(w http.ResponseWriter, r *http.Request) {
 	err = component.Render(r.Context(), w)
 	if err != nil {
 		log.Error().Err(err).Msg("Error rendering results panel component")
-		// Avoid writing header again if already written by http.Error
-		// http.Error(w, fmt.Sprintf("Error rendering results panel: %v", err), http.StatusInternalServerError)
 	} else {
 		log.Debug().Msg("Successfully rendered results panel component")
 	}
@@ -264,16 +274,17 @@ func (s *AppState) handleToggleMiddleware(w http.ResponseWriter, r *http.Request
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	s.mu.Lock()
 	err := r.ParseForm()
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to parse form")
+		s.mu.Unlock()
 		http.Error(w, "Failed to parse form", http.StatusBadRequest)
 		return
 	}
 	middlewareID := r.FormValue("id")
 	log.Debug().Str("middlewareId", middlewareID).Msg("Received toggle request")
 
-	s.mu.Lock()
 	if state, exists := s.ConfiguredMiddlewares[middlewareID]; exists {
 		state.Enabled = !state.Enabled
 		log.Info().Str("middlewareId", middlewareID).Bool("enabled", state.Enabled).Msg("Toggled middleware state")
@@ -287,15 +298,14 @@ func (s *AppState) handleToggleMiddleware(w http.ResponseWriter, r *http.Request
 	s.processPipeline()
 
 	// Re-render the config panel as its state (checkboxes) has changed
-	log.Debug().Msg("Rendering config panel component after toggle")
-	component := ui.ConfigPanel(s.createPageData()) // Use ConfigPanel for re-render target
+	log.Debug().Msg("Rendering middleware list component after toggle")
+	pageData := s.createPageData()                       // Get the full page data
+	component := ui.MiddlewareList(pageData.Middlewares) // Pass only the Middlewares slice
 	err = component.Render(r.Context(), w)
 	if err != nil {
-		log.Error().Err(err).Msg("Error rendering config panel component")
-		// Avoid writing header again if already written by http.Error
-		// http.Error(w, fmt.Sprintf("Error rendering config panel: %v", err), http.StatusInternalServerError)
+		log.Error().Err(err).Msg("Error rendering middleware list component")
 	} else {
-		log.Debug().Msg("Successfully rendered config panel component")
+		log.Debug().Msg("Successfully rendered middleware list component")
 	}
 }
 
@@ -329,8 +339,6 @@ func (s *AppState) handleUpdateQuery(w http.ResponseWriter, r *http.Request) {
 	err = component.Render(r.Context(), w)
 	if err != nil {
 		log.Error().Err(err).Msg("Error rendering results panel component")
-		// Avoid writing header again if already written by http.Error
-		// http.Error(w, fmt.Sprintf("Error rendering results panel: %v", err), http.StatusInternalServerError)
 	} else {
 		log.Debug().Msg("Successfully rendered results panel component")
 	}
