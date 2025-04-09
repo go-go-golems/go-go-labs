@@ -13,19 +13,60 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rs/zerolog"
 	"gopkg.in/yaml.v2"
 )
 
+// Helper function to log request details
+func logRequest(r *http.Request) *zerolog.Event {
+	return logger.Info().
+		Str("method", r.Method).
+		Str("path", r.URL.Path).
+		Str("remote_addr", r.RemoteAddr).
+		Str("user_agent", r.UserAgent())
+}
+
+// Helper function to log response details
+func logResponse(status int, method string, path string) *zerolog.Event {
+	return logger.Info().
+		Int("status", status).
+		Str("method", method).
+		Str("path", path)
+}
+
 // Handle all logs
 func handleLogs(w http.ResponseWriter, r *http.Request) {
+	reqLog := logRequest(r).
+		Str("handler", "handleLogs")
+
+	// Create a wrapper for http.ResponseWriter to capture status code
+	wrapped := newResponseWriter(w)
+
+	// Defer logging the response
+	defer func() {
+		logResponse(wrapped.status, r.Method, r.URL.Path).
+			Str("handler", "handleLogs").
+			Int("content_length", wrapped.contentLength).
+			Str("content_type", wrapped.Header().Get("Content-Type")).
+			Msg("API response sent")
+	}()
+
 	// Handle different HTTP methods in a single function - messy approach
 	if r.Method == "GET" {
+		// Log query parameters
+		if queryParams := r.URL.Query(); len(queryParams) > 0 {
+			reqLog.Interface("query_params", queryParams).Msg("GET logs request received")
+		} else {
+			reqLog.Msg("GET logs request received")
+		}
+
 		mutex.Lock()
 		logsData := logs
 		mutex.Unlock()
 
 		// Lots of duplicated code and poorly managed filtering
 		if levelFilter := r.URL.Query().Get("level"); levelFilter != "" {
+			logger.Debug().Str("level_filter", levelFilter).Msg("Filtering logs by level")
 			filteredLogs := []LogEntry{}
 			for _, log := range logsData {
 				if log.Level == levelFilter {
@@ -36,6 +77,7 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if sourceFilter := r.URL.Query().Get("source"); sourceFilter != "" {
+			logger.Debug().Str("source_filter", sourceFilter).Msg("Filtering logs by source")
 			filteredLogs := []LogEntry{}
 			for _, log := range logsData {
 				if log.Source == sourceFilter {
@@ -45,9 +87,11 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 			logsData = filteredLogs
 		}
 
+		logger.Debug().Int("result_count", len(logsData)).Msg("Logs filtered")
+
 		// Messy: Randomly choose output format (JSON or CSV)
 		if rand.Intn(2) == 0 {
-			w.Header().Set("Content-Type", "application/json")
+			wrapped.Header().Set("Content-Type", "application/json")
 			// Messy: Add extraneous field
 			response := map[string]interface{}{
 				"success":           true,
@@ -55,13 +99,15 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 				"request_timestamp": time.Now().Unix(),
 				"server_node":       "node-" + strconv.Itoa(rand.Intn(10)), // Another extraneous field
 			}
-			json.NewEncoder(w).Encode(response)
+			logger.Debug().Str("format", "json").Int("log_count", len(logsData)).Msg("Responding with JSON logs")
+			json.NewEncoder(wrapped).Encode(response)
 		} else {
-			w.Header().Set("Content-Type", "text/plain")
+			wrapped.Header().Set("Content-Type", "text/plain")
 			// Messy: Output as CSV
-			fmt.Fprintln(w, "id,timestamp,level,message,source")
+			logger.Debug().Str("format", "csv").Int("log_count", len(logsData)).Msg("Responding with CSV logs")
+			fmt.Fprintln(wrapped, "id,timestamp,level,message,source")
 			for _, log := range logsData {
-				fmt.Fprintf(w, "%d,%s,%s,%s,%s",
+				fmt.Fprintf(wrapped, "%d,%s,%s,%s,%s",
 					log.Id, log.Timestamp.Format(time.RFC3339), log.Level, log.Message, log.Source)
 			}
 		}
@@ -73,47 +119,60 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 			priority = "normal" // Default messy priority
 		}
 
+		reqLog.Str("priority", priority).Msg("POST logs request received")
+
 		// Read request body directly
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			http.Error(w, "Failed to read request body", http.StatusBadRequest)
+			logger.Error().Err(err).Msg("Failed to read request body")
+			http.Error(wrapped, "Failed to read request body", http.StatusBadRequest)
 			return
 		}
 		defer r.Body.Close()
+
+		logger.Debug().Int("body_size", len(body)).Msg("Request body read")
 
 		// Parse as a log entry
 		var newLog LogEntry
 		err = json.Unmarshal(body, &newLog)
 		if err != nil {
+			logger.Error().Err(err).Str("body", string(body)).Msg("Failed to parse JSON body")
 			// Messy: Sometimes return error as plain text
 			if rand.Intn(2) == 0 {
-				http.Error(w, "Invalid log entry format: "+err.Error(), http.StatusBadRequest)
+				http.Error(wrapped, "Invalid log entry format: "+err.Error(), http.StatusBadRequest)
 			} else {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(ApiResponse{Success: false, Error: "Invalid log entry format"})
+				wrapped.Header().Set("Content-Type", "application/json")
+				wrapped.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(wrapped).Encode(ApiResponse{Success: false, Error: "Invalid log entry format"})
 			}
 			return
 		}
 
+		logger.Debug().Interface("new_log", newLog).Msg("New log entry parsed")
+
 		// Validate with messy inline checks
 		if newLog.Message == "" {
-			http.Error(w, "Log message is required", http.StatusBadRequest)
+			logger.Warn().Msg("Log message is empty")
+			http.Error(wrapped, "Log message is required", http.StatusBadRequest)
 			return
 		}
 
 		if newLog.Level == "" {
+			logger.Debug().Msg("Log level not specified, defaulting to 'info'")
 			newLog.Level = "info" // Default level
 		}
 
 		if !isValidLogLevel(newLog.Level) {
-			http.Error(w, "Invalid log level", http.StatusBadRequest)
+			logger.Warn().Str("level", newLog.Level).Msg("Invalid log level")
+			http.Error(wrapped, "Invalid log level", http.StatusBadRequest)
 			return
 		}
 
 		// Generate random ID - not checking for collisions
 		newLog.Id = rand.Intn(10000) + 1000
 		newLog.Timestamp = time.Now()
+
+		logger.Debug().Int("id", newLog.Id).Time("timestamp", newLog.Timestamp).Msg("Assigned ID and timestamp to new log")
 
 		// Messy: Add extraneous data not part of the struct before saving (won't actually be saved)
 		messyInternalData := map[string]interface{}{
@@ -127,25 +186,37 @@ func handleLogs(w http.ResponseWriter, r *http.Request) {
 		// Add to logs with mutex lock
 		mutex.Lock()
 		logs = append(logs, newLog)
+		logCount := len(logs)
 		mutex.Unlock()
+
+		logger.Info().
+			Int("id", newLog.Id).
+			Str("level", newLog.Level).
+			Str("message", newLog.Message).
+			Str("source", newLog.Source).
+			Int("total_logs", logCount).
+			Msg("New log entry created")
 
 		// Messy: Randomly return JSON or plain text confirmation
 		if rand.Intn(2) == 0 {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(ApiResponse{
+			wrapped.Header().Set("Content-Type", "application/json")
+			wrapped.WriteHeader(http.StatusCreated)
+			logger.Debug().Str("response_format", "json").Msg("Sending JSON response")
+			json.NewEncoder(wrapped).Encode(ApiResponse{
 				Success: true,
 				Data:    newLog,
 			})
 		} else {
-			w.Header().Set("Content-Type", "text/plain")
-			w.WriteHeader(http.StatusCreated)
-			fmt.Fprintf(w, "Log entry %d created successfully with priority %s", newLog.Id, priority)
+			wrapped.Header().Set("Content-Type", "text/plain")
+			wrapped.WriteHeader(http.StatusCreated)
+			logger.Debug().Str("response_format", "plain_text").Msg("Sending plain text response")
+			fmt.Fprintf(wrapped, "Log entry %d created successfully with priority %s", newLog.Id, priority)
 		}
 		return
 	} else {
 		// Method not allowed
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		logger.Warn().Str("method", r.Method).Msg("Method not allowed")
+		http.Error(wrapped, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 }
@@ -163,10 +234,14 @@ func isValidLogLevel(level string) bool {
 
 // Handle logs by ID
 func handleLogById(w http.ResponseWriter, r *http.Request) {
+	// Create wrapped response writer
+	wrapped := newResponseWriter(w)
+
 	// Extract ID from path - fragile parsing
 	parts := strings.Split(r.URL.Path, "/")
 	if len(parts) != 4 {
-		http.Error(w, "Invalid URL format", http.StatusBadRequest)
+		logger.Warn().Strs("path_parts", parts).Msg("Invalid URL format in handleLogById")
+		http.Error(wrapped, "Invalid URL format", http.StatusBadRequest)
 		return
 	}
 
@@ -174,9 +249,26 @@ func handleLogById(w http.ResponseWriter, r *http.Request) {
 	idStr := parts[3]
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		http.Error(w, "Invalid log ID", http.StatusBadRequest)
+		logger.Warn().Str("id", idStr).Err(err).Msg("Invalid log ID format")
+		http.Error(wrapped, "Invalid log ID", http.StatusBadRequest)
 		return
 	}
+
+	// Log request
+	reqLog := logRequest(r).
+		Str("handler", "handleLogById").
+		Int("log_id", id)
+
+	// Defer logging response
+	defer func() {
+		logResponse(wrapped.status, r.Method, r.URL.Path).
+			Str("handler", "handleLogById").
+			Int("log_id", id).
+			Int("content_length", wrapped.contentLength).
+			Msg("API response sent")
+	}()
+
+	reqLog.Msg("Request received")
 
 	// Find log by ID
 	mutex.Lock()
@@ -194,38 +286,49 @@ func handleLogById(w http.ResponseWriter, r *http.Request) {
 	mutex.Unlock()
 
 	if foundLog == nil {
+		logger.Warn().Int("log_id", id).Msg("Log entry not found")
 		// Messy: Randomly return 404 as JSON or plain text
 		if rand.Intn(2) == 0 {
-			http.Error(w, "Log not found", http.StatusNotFound)
+			http.Error(wrapped, "Log not found", http.StatusNotFound)
 		} else {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(ApiResponse{Success: false, Error: "Log not found"})
+			wrapped.Header().Set("Content-Type", "application/json")
+			wrapped.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(wrapped).Encode(ApiResponse{Success: false, Error: "Log not found"})
 		}
 		return
 	}
+
+	logger.Debug().Int("log_id", id).Str("level", foundLog.Level).Msg("Log entry found")
 
 	// Handle different HTTP methods
 	if r.Method == "GET" {
 		// Messy: Randomly return full JSON or just the message as text
 		if rand.Intn(2) == 0 {
-			w.Header().Set("Content-Type", "application/json")
+			wrapped.Header().Set("Content-Type", "application/json")
 			// Messy: Add random correlation ID
+			correlationId := fmt.Sprintf("corr-%d", rand.Int63())
+			logger.Debug().Str("correlation_id", correlationId).Msg("Generating JSON response")
+
 			response := map[string]interface{}{
 				"success":        true,
 				"data":           foundLog,
-				"correlation_id": fmt.Sprintf("corr-%d", rand.Int63()),
+				"correlation_id": correlationId,
 			}
-			json.NewEncoder(w).Encode(response)
+			json.NewEncoder(wrapped).Encode(response)
 		} else {
-			w.Header().Set("Content-Type", "text/plain")
-			fmt.Fprintln(w, foundLog.Message)
+			wrapped.Header().Set("Content-Type", "text/plain")
+			logger.Debug().Msg("Generating plain text response")
+			fmt.Fprintln(wrapped, foundLog.Message)
 		}
 		return
 	} else if r.Method == "DELETE" {
 		// Messy: Require confirmation via query param
-		if r.URL.Query().Get("confirm") != "true" {
-			http.Error(w, "Missing confirmation parameter 'confirm=true'", http.StatusBadRequest)
+		confirmation := r.URL.Query().Get("confirm")
+		logger.Debug().Str("confirmation", confirmation).Msg("Delete confirmation parameter")
+
+		if confirmation != "true" {
+			logger.Warn().Msg("Missing confirmation parameter for delete operation")
+			http.Error(wrapped, "Missing confirmation parameter 'confirm=true'", http.StatusBadRequest)
 			return
 		}
 
@@ -234,42 +337,52 @@ func handleLogById(w http.ResponseWriter, r *http.Request) {
 		if foundIndex != -1 && foundIndex < len(logs) && logs[foundIndex].Id == id { // Double check index validity
 			// Inefficient way to remove an element from a slice
 			logs = append(logs[:foundIndex], logs[foundIndex+1:]...)
+			logger.Info().Int("log_id", id).Int("logs_remaining", len(logs)).Msg("Log entry deleted")
 		} else {
 			// Log might have been deleted between find and delete lock, handle messily
 			mutex.Unlock()
-			http.Error(w, "Log possibly deleted concurrently", http.StatusConflict)
+			logger.Warn().Int("log_id", id).Msg("Log possibly deleted concurrently")
+			http.Error(wrapped, "Log possibly deleted concurrently", http.StatusConflict)
 			return
 		}
 		mutex.Unlock()
 
 		// Messy: Randomly return JSON or plain text
 		if rand.Intn(2) == 0 {
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(ApiResponse{
+			wrapped.Header().Set("Content-Type", "application/json")
+			logger.Debug().Str("response_format", "json").Msg("Sending JSON delete confirmation")
+			json.NewEncoder(wrapped).Encode(ApiResponse{
 				Success: true,
 				Data:    "Log deleted successfully",
 			})
 		} else {
-			w.Header().Set("Content-Type", "text/plain")
-			fmt.Fprintln(w, "DELETED")
+			wrapped.Header().Set("Content-Type", "text/plain")
+			logger.Debug().Str("response_format", "plain_text").Msg("Sending plain text delete confirmation")
+			fmt.Fprintln(wrapped, "DELETED")
 		}
 		return
 	} else if r.Method == "PUT" {
 		// Update log
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
-			http.Error(w, "Failed to read request body", http.StatusBadRequest)
+			logger.Error().Err(err).Msg("Failed to read request body")
+			http.Error(wrapped, "Failed to read request body", http.StatusBadRequest)
 			return
 		}
 		defer r.Body.Close()
+
+		logger.Debug().Int("body_size", len(body)).Msg("Request body read")
 
 		// Parse as a log entry
 		var updatedLog LogEntry
 		err = json.Unmarshal(body, &updatedLog)
 		if err != nil {
-			http.Error(w, "Invalid log entry format", http.StatusBadRequest)
+			logger.Error().Err(err).Str("body", string(body)).Msg("Failed to parse JSON body")
+			http.Error(wrapped, "Invalid log entry format", http.StatusBadRequest)
 			return
 		}
+
+		logger.Debug().Interface("updated_log", updatedLog).Msg("Updated log parsed from request")
 
 		// Keep original ID and timestamp (already messy)
 		updatedLog.Id = id
@@ -279,28 +392,61 @@ func handleLogById(w http.ResponseWriter, r *http.Request) {
 		mutex.Lock()
 		if foundIndex != -1 && foundIndex < len(logs) && logs[foundIndex].Id == id { // Double check index validity
 			logs[foundIndex] = updatedLog
+			logger.Info().
+				Int("log_id", id).
+				Str("level", updatedLog.Level).
+				Str("message", updatedLog.Message).
+				Str("source", updatedLog.Source).
+				Msg("Log entry updated")
 		} else {
 			// Log might have been deleted between find and update lock
 			mutex.Unlock()
-			http.Error(w, "Log possibly deleted concurrently", http.StatusConflict)
+			logger.Warn().Int("log_id", id).Msg("Log possibly deleted concurrently during update")
+			http.Error(wrapped, "Log possibly deleted concurrently", http.StatusConflict)
 			return
 		}
 		mutex.Unlock()
 
-		w.Header().Set("Content-Type", "application/json")
+		wrapped.Header().Set("Content-Type", "application/json")
 		// Messy: Add extraneous field on successful update
+		updateCycle := rand.Intn(100)
+		logger.Debug().Int("update_cycle", updateCycle).Msg("Generating update response")
+
 		response := map[string]interface{}{
 			"success":      true,
 			"data":         updatedLog,
-			"update_cycle": rand.Intn(100),
+			"update_cycle": updateCycle,
 		}
-		json.NewEncoder(w).Encode(response)
+		json.NewEncoder(wrapped).Encode(response)
 		return
 	} else {
 		// Method not allowed
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		logger.Warn().Str("method", r.Method).Int("log_id", id).Msg("Method not allowed")
+		http.Error(wrapped, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+}
+
+// ResponseWriter wrapper to capture status code and content length
+type responseWriter struct {
+	http.ResponseWriter
+	status        int
+	contentLength int
+}
+
+func newResponseWriter(w http.ResponseWriter) *responseWriter {
+	return &responseWriter{w, http.StatusOK, 0}
+}
+
+func (rw *responseWriter) WriteHeader(code int) {
+	rw.status = code
+	rw.ResponseWriter.WriteHeader(code)
+}
+
+func (rw *responseWriter) Write(b []byte) (int, error) {
+	n, err := rw.ResponseWriter.Write(b)
+	rw.contentLength += n
+	return n, err
 }
 
 // Handle users - similar pattern to logs but with different structure
