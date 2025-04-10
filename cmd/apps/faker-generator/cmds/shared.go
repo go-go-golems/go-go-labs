@@ -79,13 +79,12 @@ func parseStringListArgument(node *yaml.Node, key string) ([]string, bool) {
 }
 
 func handleFakerName(ei *emrichen.Interpreter, node *yaml.Node) (*yaml.Node, error) {
-	// Allow !FakerName or !FakerName {} but ignore args for now
+	// TODO: Add locale handling if specified
 	name := faker.Name()
 	return emrichen.ValueToNode(name)
 }
 
 func handleFakerEmail(ei *emrichen.Interpreter, node *yaml.Node) (*yaml.Node, error) {
-	// Allow !FakerEmail or !FakerEmail {} but ignore args for now
 	email := faker.Email()
 	return emrichen.ValueToNode(email)
 }
@@ -370,6 +369,93 @@ func findMappingKey(node *yaml.Node, key string) (*yaml.Node, bool) {
 	return nil, false
 }
 
+// Add new handlers here
+
+func handleFakerUUID(ei *emrichen.Interpreter, node *yaml.Node) (*yaml.Node, error) {
+	uuid := faker.UUIDHyphenated()
+	return emrichen.ValueToNode(uuid)
+}
+
+func handleFakerPhoneNumber(ei *emrichen.Interpreter, node *yaml.Node) (*yaml.Node, error) {
+	// TODO: Add locale handling/formatting options
+	phone := faker.Phonenumber()
+	return emrichen.ValueToNode(phone)
+}
+
+func handleFakerUsername(ei *emrichen.Interpreter, node *yaml.Node) (*yaml.Node, error) {
+	username := faker.Username()
+	return emrichen.ValueToNode(username)
+}
+
+// func handleFakerCountry(ei *emrichen.Interpreter, node *yaml.Node) (*yaml.Node, error) {
+// 	// TODO: Add locale handling
+// 	country := faker.Country()
+// 	return emrichen.ValueToNode(country)
+// }
+
+// func handleFakerCity(ei *emrichen.Interpreter, node *yaml.Node) (*yaml.Node, error) {
+// 	// TODO: Add locale handling
+// 	city := faker.City()
+// 	return emrichen.ValueToNode(city)
+// }
+
+// func handleFakerStreetAddress(ei *emrichen.Interpreter, node *yaml.Node) (*yaml.Node, error) {
+// 	// TODO: Add locale handling
+// 	street := faker.StreetAddress()
+// 	return emrichen.ValueToNode(street)
+// }
+
+// func handleFakerZip(ei *emrichen.Interpreter, node *yaml.Node) (*yaml.Node, error) {
+// 	// TODO: Add locale handling
+// 	zip := faker.Postcode()
+// 	return emrichen.ValueToNode(zip)
+// }
+
+func handleFakerIPv4(ei *emrichen.Interpreter, node *yaml.Node) (*yaml.Node, error) {
+	ip := faker.IPv4()
+	return emrichen.ValueToNode(ip)
+}
+
+func handleFakerIPv6(ei *emrichen.Interpreter, node *yaml.Node) (*yaml.Node, error) {
+	ip := faker.IPv6()
+	return emrichen.ValueToNode(ip)
+}
+
+func handleFakerWord(ei *emrichen.Interpreter, node *yaml.Node) (*yaml.Node, error) {
+	word := faker.Word()
+	return emrichen.ValueToNode(word)
+}
+
+func handleFakerSentence(ei *emrichen.Interpreter, node *yaml.Node) (*yaml.Node, error) {
+	// faker.Sentence() doesn't exist directly, let's use faker.Paragraph(1)
+	sentence := faker.Paragraph() // Generates a single sentence paragraph
+	return emrichen.ValueToNode(sentence)
+}
+
+func handleFakerParagraph(ei *emrichen.Interpreter, node *yaml.Node) (*yaml.Node, error) {
+	count := 3 // Default number of paragraphs
+	if node.Kind == yaml.MappingNode {
+		parsedCount, ok, err := parseIntArgument(node, "count")
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			count = parsedCount
+		}
+		if count <= 0 {
+			return nil, errors.New("count must be positive for !FakerParagraph")
+		}
+	} else if node.Kind != yaml.ScalarNode {
+		return nil, errors.New("!FakerParagraph must be a scalar or a mapping node")
+	}
+
+	ret := ""
+	for i := 0; i < count; i++ {
+		ret += faker.Paragraph() + "\n"
+	}
+	return emrichen.ValueToNode(ret)
+}
+
 // --- Interpreter Factory ---
 
 // NewFakerInterpreter creates a new Emrichen interpreter with the standard Faker tags registered.
@@ -379,14 +465,27 @@ func NewFakerInterpreter() (*emrichen.Interpreter, error) {
 	// No explicit seeding needed for math/rand starting Go 1.20
 
 	fakerTags := emrichen.TagFuncMap{
-		"!FakerName":     handleFakerName,
-		"!FakerEmail":    handleFakerEmail,
-		"!FakerPassword": handleFakerPassword,
-		"!FakerInt":      handleFakerInt,
-		"!FakerFloat":    handleFakerFloat,
-		"!FakerLat":      handleFakerLat,
-		"!FakerLong":     handleFakerLong,
-		"!FakerChoice":   handleFakerChoice,
+		"!FakerName":        handleFakerName,
+		"!FakerEmail":       handleFakerEmail,
+		"!FakerPassword":    handleFakerPassword,
+		"!FakerInt":         handleFakerInt,
+		"!FakerFloat":       handleFakerFloat,
+		"!FakerLat":         handleFakerLat,
+		"!FakerLong":        handleFakerLong,
+		"!FakerChoice":      handleFakerChoice,
+		"!FakerUUID":        handleFakerUUID,
+		"!FakerPhoneNumber": handleFakerPhoneNumber,
+		"!FakerUsername":    handleFakerUsername,
+		// "!FakerCountry":       handleFakerCountry,
+		// "!FakerCity":          handleFakerCity,
+		// "!FakerStreetAddress": handleFakerStreetAddress,
+		// "!FakerZip":           handleFakerZip,
+		"!FakerIPv4":      handleFakerIPv4,
+		"!FakerIPv6":      handleFakerIPv6,
+		"!FakerWord":      handleFakerWord,
+		"!FakerSentence":  handleFakerSentence,
+		"!FakerParagraph": handleFakerParagraph,
+
 		// Add more tags here by copying the pattern
 	}
 
