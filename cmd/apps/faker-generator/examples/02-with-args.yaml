@@ -1,0 +1,20 @@
+# Example using tags with arguments
+
+security_details:
+  weak_password: !FakerPassword # Default length
+
+  strong_password: !FakerPassword
+    minLength: 12
+    maxLength: 20
+
+random_numbers:
+  default_int: !FakerInt # Default range 0-100
+
+  custom_int: !FakerInt
+    min: 1000
+    max: 2000
+  default_float: !FakerFloat # Default range 0.0-1.0
+
+  custom_float: !FakerFloat
+    min: -10.5
+    max: 10.5

@@ -1,0 +1,19 @@
+# Example demonstrating location generation
+
+random_locations:
+  anywhere:
+    latitude: !FakerLat
+    longitude: !FakerLong
+  near_equator:
+    latitude: !FakerLat
+      min: -10
+      max: 10
+    longitude: !FakerLong # Default longitude range
+
+  specific_region:
+    latitude: !FakerLat
+      min: 40.0
+      max: 45.0
+    longitude: !FakerLong
+      min: -80.0
+      max: -75.0

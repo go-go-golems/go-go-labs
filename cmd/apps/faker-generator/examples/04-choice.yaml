@@ -1,0 +1,18 @@
+# Example using !FakerChoice
+
+# Using mapping node syntax
+configuration:
+  environment: !FakerChoice
+    choices:
+      - development
+      - staging
+      - production
+  region: !FakerChoice
+    choices: ["us-east-1", "us-west-2", "eu-central-1"]
+
+# Using sequence node syntax
+random_status: !FakerChoice
+  - pending
+  - processing
+  - completed
+  - failed

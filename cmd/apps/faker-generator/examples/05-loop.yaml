@@ -1,0 +1,26 @@
+# Example combining faker tags with Emrichen !Loop
+
+!Defaults
+num_users: 3
+user_roles: ["admin", "editor", "viewer"]
+---
+users: !Loop
+  over: !Var user_roles
+  as: role
+  index_as: role_index
+  template:
+    id: !Op { a: !Var role_index, op: '+', b: 1000 }
+    name: !FakerName
+    email: !FakerEmail
+    password: !FakerPassword
+      minLength: 10
+      maxLength: 15
+    role: !FakerChoice
+      choices: !Var user_roles
+    profile:
+      score: !FakerInt
+        min: 0
+        max: 100
+      last_login_coordinates:
+        lat: !FakerLat
+        lon: !FakerLong

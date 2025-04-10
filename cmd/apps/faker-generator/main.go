@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	// Import your command package
-	"github.com/go-go-golems/go-go-labs/cmd/faker-generator/cmds"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/faker-generator/cmds"
 )
 
 var rootCmd = &cobra.Command{
