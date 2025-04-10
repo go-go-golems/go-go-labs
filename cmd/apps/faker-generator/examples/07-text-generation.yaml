@@ -1,0 +1,10 @@
+# Example for text generation
+
+document:
+  title_word: !FakerWord
+  short_summary: !FakerSentence
+  description:
+    section1: !FakerParagraph # Default 3 paragraphs
+
+    section2: !FakerParagraph
+      count: 2 # Specify 2 paragraphs

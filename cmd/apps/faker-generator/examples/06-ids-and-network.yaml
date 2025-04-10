@@ -1,0 +1,11 @@
+# Example for IDs, Username, Phone, and IP addresses
+
+user_info:
+  id: !FakerUUID
+  username: !FakerUsername
+  contact_phone: !FakerPhoneNumber
+
+server_details:
+  internal_ip: !FakerIPv4
+  external_ip: !FakerIPv6
+  access_key: !FakerUUID
