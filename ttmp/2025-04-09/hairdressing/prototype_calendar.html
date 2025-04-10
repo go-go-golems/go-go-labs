@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prototype 1: Calendar-Centric View</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Add FullCalendar CSS -->
+    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/main.min.css' rel='stylesheet' />
+    <style>
+        #calendar {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        /* Make calendar events look clickable */
+        .fc-event {
+            cursor: pointer;
+        }
+
+        /* Styling for available slots (example) */
+        .fc-timegrid-slot-available {
+            background-color: #c8e6c9;
+            /* Light green */
+            cursor: pointer;
+        }
+
+        .fc-timegrid-slot-available:hover {
+            background-color: #a5d6a7;
+            /* Darker green */
+        }
+
+        /* Adjust sidebar width */
+        .sidebar {
+            max-width: 280px;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">Salon Scheduler</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="#">View Bookings</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">My Account</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar for Filters -->
+            <div class="col-lg-2 col-md-3 sidebar border-end pe-3 mb-4">
+                <h4>Filters</h4>
+                <hr>
+                <div class="mb-3">
+                    <label for="filterHairdresser" class="form-label">Hairdresser</label>
+                    <select class="form-select" id="filterHairdresser">
+                        <option selected value="all">All Hairdressers</option>
+                        <option value="1">Alice</option>
+                        <option value="2">Bob</option>
+                        <option value="3">Charlie</option>
+                        <!-- Add more hairdressers -->
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="filterService" class="form-label">Service Type</label>
+                    <select class="form-select" id="filterService">
+                        <option selected value="all">All Services</option>
+                        <option value="haircut">Haircut</option>
+                        <option value="coloring">Coloring</option>
+                        <option value="styling">Styling</option>
+                        <option value="wash">Wash & Blowdry</option>
+                        <!-- Add more services -->
+                    </select>
+                </div>
+                <button class="btn btn-outline-primary w-100" onclick="applyFilters()">Apply Filters</button>
+            </div>
+
+            <!-- Main Content Area with Calendar -->
+            <div class="col-lg-10 col-md-9">
+                <div id='calendar'></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Booking Modal (Bootstrap) -->
+    <div class="modal fade" id="bookingModal" tabindex="-1" aria-labelledby="bookingModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="bookingModalLabel">Book Appointment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="bookingForm">
+                        <div class="mb-3">
+                            <label for="modalDateTime" class="form-label">Date & Time</label>
+                            <input type="text" class="form-control" id="modalDateTime" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="modalService" class="form-label">Service</label>
+                            <select class="form-select" id="modalService" required>
+                                <option value="" disabled selected>Select a service...</option>
+                                <option value="haircut">Haircut ($50)</option>
+                                <option value="coloring">Coloring ($120)</option>
+                                <option value="styling">Styling ($70)</option>
+                                <option value="wash">Wash & Blowdry ($40)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="modalHairdresser" class="form-label">Hairdresser</label>
+                            <select class="form-select" id="modalHairdresser" required>
+                                <option value="" disabled selected>Select a hairdresser...</option>
+                                <option value="1">Alice</option>
+                                <option value="2">Bob</option>
+                                <option value="3">Charlie</option>
+                                <!-- Should ideally be filtered/pre-selected based on calendar context -->
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="modalName" class="form-label">Your Name</label>
+                            <input type="text" class="form-control" id="modalName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="modalPhone" class="form-label">Your Phone</label>
+                            <input type="tel" class="form-control" id="modalPhone" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="submitBooking()">Confirm Booking</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Add FullCalendar JS -->
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/main.min.js'></script>
+    <script>
+        let bookingModal;
+        let calendar;
+
+        document.addEventListener('DOMContentLoaded', function () {
+            bookingModal = new bootstrap.Modal(document.getElementById('bookingModal'));
+            const calendarEl = document.getElementById('calendar');
+
+            // --- Mock Data --- 
+            // In a real app, fetch this via API based on filters
+            const mockEvents = [
+                {
+                    title: 'Booked - Alice', // Existing booking
+                    start: '2024-05-15T10:00:00',
+                    end: '2024-05-15T11:30:00',
+                    backgroundColor: '#dc3545', // Red for booked
+                    borderColor: '#dc3545',
+                    extendedProps: {
+                        hairdresserId: '1'
+                    }
+                },
+                {
+                    title: 'Booked - Bob',
+                    start: '2024-05-16T14:00:00',
+                    end: '2024-05-16T15:00:00',
+                    backgroundColor: '#dc3545',
+                    borderColor: '#dc3545',
+                    extendedProps: {
+                        hairdresserId: '2'
+                    }
+                },
+                // Example of how an available slot *could* be represented
+                // FullCalendar doesn't natively support clicking empty slots well for booking
+                // A common approach is to use background events or custom rendering
+                {
+                    start: '2024-05-15T13:00:00', // Available slot
+                    end: '2024-05-15T14:00:00',
+                    display: 'background',
+                    backgroundColor: '#d1e7dd', // Light green for available
+                    extendedProps: {
+                        available: true,
+                        hairdresserId: '1' // Alice is available
+                    }
+                },
+                {
+                    start: '2024-05-16T09:00:00', // Available slot
+                    end: '2024-05-16T10:30:00',
+                    display: 'background',
+                    backgroundColor: '#d1e7dd',
+                    extendedProps: {
+                        available: true,
+                        hairdresserId: '3' // Charlie is available
+                    }
+                }
+            ];
+
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'timeGridWeek', // Common view for scheduling
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                },
+                events: mockEvents, // Load mock events
+                editable: false, // Don't allow dragging/resizing events in this prototype
+                selectable: true, // Allow selecting time ranges
+                selectMirror: true,
+                slotMinTime: "08:00:00", // Salon opening hours
+                slotMaxTime: "19:00:00",
+                allDaySlot: false, // Usually not needed for appointment booking
+                businessHours: { // Highlight typical working hours
+                    daysOfWeek: [1, 2, 3, 4, 5, 6], // Monday - Saturday
+                    startTime: '09:00',
+                    endTime: '18:00',
+                },
+                dateClick: function (info) {
+                    // Handle clicking on an empty time slot
+                    console.log('Clicked on: ' + info.dateStr);
+                    console.log('Coordinates: ' + info.jsEvent.pageX + ',' + info.jsEvent.pageY);
+                    console.log('Current view: ' + info.view.type);
+
+                    // Populate and show the modal
+                    document.getElementById('modalDateTime').value = formatDateTimeForInput(info.date);
+                    // Reset other form fields
+                    document.getElementById('bookingForm').reset();
+                    // TODO: Potentially pre-select hairdresser/service based on filters or context
+                    bookingModal.show();
+                },
+                eventClick: function (info) {
+                    // Handle clicking on an existing event (e.g., a booked slot)
+                    alert('Appointment Details:\n' + info.event.title + '\nStart: ' + info.event.start.toLocaleString());
+                    // Prevent the default browser action (usually following a URL if set)
+                    info.jsEvent.preventDefault();
+                    // Could potentially open a details modal here instead of an alert
+                },
+                // // Example of trying to style available slots (might need more complex logic)
+                // slotLaneClassNames: function(arg) {
+                //     // This is hypothetical - FullCalendar API might differ
+                //     // Need to check if this slot overlaps with an 'available' background event
+                //     console.log("Checking slot", arg.date);
+                //     // Logic to determine if this slot is available based on mockEvents...
+                //     return ['fc-timegrid-slot-available'];
+                // }
+            });
+
+            calendar.render();
+        });
+
+        function formatDateTimeForInput(dateObj) {
+            // Formats JS Date object into a readable string for the modal input
+            const options = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true };
+            return dateObj.toLocaleString('en-US', options);
+        }
+
+        function applyFilters() {
+            const hairdresserId = document.getElementById('filterHairdresser').value;
+            const serviceType = document.getElementById('filterService').value;
+            console.log("Applying filters:", { hairdresserId, serviceType });
+
+            // --- Filter Mock Data --- 
+            // In a real app, you'd refetch events from the server with these filters
+            let filteredEvents = mockEvents.filter(event => {
+                const hairdresserMatch = (hairdresserId === 'all') || (event.extendedProps && event.extendedProps.hairdresserId === hairdresserId);
+                // Service filtering is harder with this mock data structure - needs refinement
+                // For now, only filtering by hairdresser
+                return hairdresserMatch;
+            });
+
+            console.log("Filtered events:", filteredEvents);
+            // Update the calendar with filtered events
+            calendar.removeAllEvents();
+            calendar.addEventSource(filteredEvents);
+        }
+
+        function submitBooking() {
+            const form = document.getElementById('bookingForm');
+            if (!form.checkValidity()) {
+                // Trigger Bootstrap's native validation UI
+                form.classList.add('was-validated');
+                alert('Please fill in all required fields.');
+                return;
+            }
+
+            const bookingDetails = {
+                dateTime: document.getElementById('modalDateTime').value,
+                service: document.getElementById('modalService').value,
+                hairdresser: document.getElementById('modalHairdresser').options[document.getElementById('modalHairdresser').selectedIndex].text,
+                name: document.getElementById('modalName').value,
+                phone: document.getElementById('modalPhone').value,
+            };
+
+            console.log("Booking Submitted (Prototype):", bookingDetails);
+            alert(`Booking confirmed for ${bookingDetails.name} with ${bookingDetails.hairdresser} for a ${bookingDetails.service} on ${bookingDetails.dateTime}.`);
+
+            // Close modal and potentially add the new event to the calendar visually
+            bookingModal.hide();
+            form.classList.remove('was-validated');
+            form.reset();
+
+            // // Optional: Add event to calendar visually (crude example)
+            // calendar.addEvent({
+            //     title: `Booked - ${bookingDetails.name}`,
+            //     start: // Need to parse modalDateTime back to a Date object or ISO string
+            //     // end: // Calculate end time based on service duration
+            //     backgroundColor: '#ffc107', // Yellow for newly booked by user
+            //     borderColor: '#ffc107',
+            // });
+        }
+
+    </script>
+</body>
+
+</html>

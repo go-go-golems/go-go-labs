@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prototype 1: Simple Poll</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding: 20px;
+        }
+
+        .poll-option {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .poll-time {
+            font-weight: 500;
+        }
+
+        .results-summary {
+            margin-top: 30px;
+        }
+
+        .results-item {
+            background-color: #f8f9fa;
+            border-radius: .25rem;
+            padding: .5rem .75rem;
+            margin-bottom: .5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .results-bar {
+            height: 10px;
+            background-color: #ccc;
+            border-radius: 5px;
+            overflow: hidden;
+            width: 100px;
+            /* Adjust as needed */
+            margin: 0 10px;
+        }
+
+        .results-progress {
+            height: 100%;
+            background-color: #28a745;
+        }
+
+        .results-count {
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1 class="mb-4">Meeting Time Poll</h1>
+        <p>Please indicate your availability for the proposed 1-hour meeting slots next week.</p>
+
+        <form id="poll-form">
+            <!-- Poll Option 1 -->
+            <div class="poll-option">
+                <div class="poll-time">Tuesday, April 16th, 10:00 AM - 11:00 AM PST</div>
+                <div class="btn-group" role="group" aria-label="Availability for slot 1">
+                    <input type="radio" class="btn-check" name="slot1" id="slot1-yes" autocomplete="off" value="yes">
+                    <label class="btn btn-outline-success" for="slot1-yes">Yes</label>
+
+                    <input type="radio" class="btn-check" name="slot1" id="slot1-maybe" autocomplete="off"
+                        value="maybe">
+                    <label class="btn btn-outline-warning" for="slot1-maybe">Maybe</label>
+
+                    <input type="radio" class="btn-check" name="slot1" id="slot1-no" autocomplete="off" value="no">
+                    <label class="btn btn-outline-danger" for="slot1-no">No</label>
+                </div>
+            </div>
+
+            <!-- Poll Option 2 -->
+            <div class="poll-option">
+                <div class="poll-time">Tuesday, April 16th, 2:00 PM - 3:00 PM PST</div>
+                <div class="btn-group" role="group" aria-label="Availability for slot 2">
+                    <input type="radio" class="btn-check" name="slot2" id="slot2-yes" autocomplete="off" value="yes">
+                    <label class="btn btn-outline-success" for="slot2-yes">Yes</label>
+
+                    <input type="radio" class="btn-check" name="slot2" id="slot2-maybe" autocomplete="off"
+                        value="maybe">
+                    <label class="btn btn-outline-warning" for="slot2-maybe">Maybe</label>
+
+                    <input type="radio" class="btn-check" name="slot2" id="slot2-no" autocomplete="off" value="no">
+                    <label class="btn btn-outline-danger" for="slot2-no">No</label>
+                </div>
+            </div>
+
+            <!-- Poll Option 3 -->
+            <div class="poll-option">
+                <div class="poll-time">Wednesday, April 17th, 10:00 AM - 11:00 AM PST</div>
+                <div class="btn-group" role="group" aria-label="Availability for slot 3">
+                    <input type="radio" class="btn-check" name="slot3" id="slot3-yes" autocomplete="off" value="yes">
+                    <label class="btn btn-outline-success" for="slot3-yes">Yes</label>
+
+                    <input type="radio" class="btn-check" name="slot3" id="slot3-maybe" autocomplete="off"
+                        value="maybe">
+                    <label class="btn btn-outline-warning" for="slot3-maybe">Maybe</label>
+
+                    <input type="radio" class="btn-check" name="slot3" id="slot3-no" autocomplete="off" value="no">
+                    <label class="btn btn-outline-danger" for="slot3-no">No</label>
+                </div>
+            </div>
+
+            <!-- Add more poll options as needed -->
+
+            <button type="submit" class="btn btn-primary mt-3">Submit Votes</button>
+        </form>
+
+        <div class="results-summary">
+            <h4 class="mb-3">Current Results (Example - 5 Participants)</h4>
+
+            <!-- Result Item 1 -->
+            <div class="results-item">
+                <span>Tue, Apr 16, 10:00 AM</span>
+                <div style="display: flex; align-items: center;">
+                    <span class="results-count me-2">Yes: 4</span>
+                    <div class="results-bar">
+                        <div class="results-progress" style="width: 80%;"></div>
+                    </div>
+                    <span class="results-count ms-2 me-2">Maybe: 1</span>
+                    <span class="results-count ms-2">No: 0</span>
+                </div>
+                <span class="badge bg-success">Best Bet!</span>
+            </div>
+
+            <!-- Result Item 2 -->
+            <div class="results-item">
+                <span>Tue, Apr 16, 2:00 PM</span>
+                <div style="display: flex; align-items: center;">
+                    <span class="results-count me-2">Yes: 2</span>
+                    <div class="results-bar">
+                        <div class="results-progress" style="width: 40%;"></div>
+                    </div>
+                    <span class="results-count ms-2 me-2">Maybe: 2</span>
+                    <span class="results-count ms-2">No: 1</span>
+                </div>
+                <span></span> <!-- Placeholder for alignment -->
+            </div>
+
+            <!-- Result Item 3 -->
+            <div class="results-item">
+                <span>Wed, Apr 17, 10:00 AM</span>
+                <div style="display: flex; align-items: center;">
+                    <span class="results-count me-2">Yes: 3</span>
+                    <div class="results-bar">
+                        <div class="results-progress" style="width: 60%;"></div>
+                    </div>
+                    <span class="results-count ms-2 me-2">Maybe: 0</span>
+                    <span class="results-count ms-2">No: 2</span>
+                </div>
+                <span></span> <!-- Placeholder for alignment -->
+            </div>
+
+            <!-- More results items -->
+        </div>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('poll-form').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const votes = {};
+            for (let [key, value] of formData.entries()) {
+                votes[key] = value;
+            }
+            console.log("Votes Submitted:", votes);
+            alert('Votes submitted (prototype only). See console for data.');
+            // In a real app, this would send data to the server and update the results section
+        });
+    </script>
+</body>
+
+</html>

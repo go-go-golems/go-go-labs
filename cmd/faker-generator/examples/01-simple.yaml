@@ -1,0 +1,9 @@
+# input.yaml
+user_profile:
+  name: !FakerName
+  email: !FakerEmail
+  active: true
+---
+# A list of names
+- !FakerName
+- !FakerName

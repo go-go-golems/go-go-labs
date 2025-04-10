@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prototype 2: Service-First Flow</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        .step-indicator {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 2rem;
+        }
+
+        .step {
+            text-align: center;
+            flex-grow: 1;
+        }
+
+        .step .circle {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background-color: #e9ecef;
+            color: #495057;
+            display: inline-flex;
+            /* Changed from inline-block */
+            align-items: center;
+            /* Added for vertical centering */
+            justify-content: center;
+            /* Added for horizontal centering */
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+            border: 2px solid #dee2e6;
+        }
+
+        .step.active .circle {
+            background-color: #0d6efd;
+            color: white;
+            border-color: #0a58ca;
+        }
+
+        .step.completed .circle {
+            background-color: #198754;
+            color: white;
+            border-color: #146c43;
+        }
+
+        .step-content {
+            border: 1px solid #dee2e6;
+            padding: 1.5rem;
+            border-radius: 0.375rem;
+            background-color: #fff;
+            min-height: 300px;
+            /* Ensure steps have some height */
+        }
+
+        .step-content .form-check-label {
+            width: 100%;
+            /* Make label clickable area wider */
+        }
+
+        .step-content .list-group-item {
+            cursor: pointer;
+        }
+
+        .time-slot {
+            margin: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="#">Booking Flow</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="step-indicator">
+            <div class="step active" id="step-indicator-1">
+                <div class="circle">1</div>
+                <div>Select Service</div>
+            </div>
+            <div class="step" id="step-indicator-2">
+                <div class="circle">2</div>
+                <div>Select Hairdresser</div>
+            </div>
+            <div class="step" id="step-indicator-3">
+                <div class="circle">3</div>
+                <div>Select Date & Time</div>
+            </div>
+            <div class="step" id="step-indicator-4">
+                <div class="circle">4</div>
+                <div>Confirm Details</div>
+            </div>
+        </div>
+
+        <!-- Step 1: Select Service -->
+        <div class="step-content" id="step-1">
+            <h4>Step 1: Choose Your Service(s)</h4>
+            <p>Select one or more services you'd like to book.</p>
+            <div class="mb-3">
+                <div class="form-check mb-2 p-3 border rounded">
+                    <input class="form-check-input" type="checkbox" value="haircut" id="serviceHaircut">
+                    <label class="form-check-label d-flex justify-content-between" for="serviceHaircut">
+                        <span><i class="bi bi-scissors me-2"></i>Haircut</span>
+                        <span class="fw-bold">$50</span>
+                    </label>
+                </div>
+                <div class="form-check mb-2 p-3 border rounded">
+                    <input class="form-check-input" type="checkbox" value="coloring" id="serviceColoring">
+                    <label class="form-check-label d-flex justify-content-between" for="serviceColoring">
+                        <span><i class="bi bi-palette me-2"></i>Coloring</span>
+                        <span class="fw-bold">$120</span>
+                    </label>
+                </div>
+                <div class="form-check mb-2 p-3 border rounded">
+                    <input class="form-check-input" type="checkbox" value="styling" id="serviceStyling">
+                    <label class="form-check-label d-flex justify-content-between" for="serviceStyling">
+                        <span><i class="bi bi-person-bounding-box me-2"></i>Styling / Updo</span>
+                        <span class="fw-bold">$70</span>
+                    </label>
+                </div>
+                <div class="form-check mb-2 p-3 border rounded">
+                    <input class="form-check-input" type="checkbox" value="wash" id="serviceWash">
+                    <label class="form-check-label d-flex justify-content-between" for="serviceWash">
+                        <span><i class="bi bi-droplet me-2"></i>Wash & Blowdry</span>
+                        <span class="fw-bold">$40</span>
+                    </label>
+                </div>
+            </div>
+            <button class="btn btn-primary float-end" onclick="goToStep(2)">Next: Select Hairdresser <i
+                    class="bi bi-arrow-right"></i></button>
+        </div>
+
+        <!-- Step 2: Select Hairdresser (Initially Hidden) -->
+        <div class="step-content d-none" id="step-2">
+            <h4>Step 2: Choose Your Hairdresser</h4>
+            <p>Based on your selected service(s), here are the available stylists. You can also choose 'Any Available'.
+            </p>
+            <div class="list-group">
+                <a href="#"
+                    class="list-group-item list-group-item-action d-flex justify-content-between align-items-center active"
+                    onclick="selectHairdresser(this, 'any')">
+                    <div>
+                        <h5 class="mb-1">Any Available</h5>
+                        <small>We'll find the best match for your time.</small>
+                    </div>
+                    <i class="bi bi-check-circle-fill fs-4"></i>
+                </a>
+                <a href="#"
+                    class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+                    onclick="selectHairdresser(this, 'Alice')">
+                    <div>
+                        <h5 class="mb-1">Alice</h5>
+                        <small>Specializes in: Coloring, Highlights</small>
+                    </div>
+                    <i class="bi bi-circle fs-4"></i>
+                </a>
+                <a href="#"
+                    class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+                    onclick="selectHairdresser(this, 'Bob')">
+                    <div>
+                        <h5 class="mb-1">Bob</h5>
+                        <small>Specializes in: Haircuts (Men & Women), Short Styles</small>
+                    </div>
+                    <i class="bi bi-circle fs-4"></i>
+                </a>
+                <a href="#"
+                    class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+                    onclick="selectHairdresser(this, 'Charlie')">
+                    <div>
+                        <h5 class="mb-1">Charlie</h5>
+                        <small>Specializes in: Styling, Updos, Blowouts</small>
+                    </div>
+                    <i class="bi bi-circle fs-4"></i>
+                </a>
+                <!-- Add more hairdressers, potentially filtering based on service selected in Step 1 -->
+            </div>
+            <div class="d-flex justify-content-between mt-4">
+                <button class="btn btn-secondary" onclick="goToStep(1)"><i class="bi bi-arrow-left"></i> Back</button>
+                <button class="btn btn-primary" onclick="goToStep(3)">Next: Select Date & Time <i
+                        class="bi bi-arrow-right"></i></button>
+            </div>
+        </div>
+
+        <!-- Step 3: Select Date & Time (Initially Hidden) -->
+        <div class="step-content d-none" id="step-3">
+            <h4>Step 3: Choose Date and Time</h4>
+            <p>Select your preferred date, then choose an available time slot.</p>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="appointmentDate" class="form-label">Select Date:</label>
+                    <input type="date" class="form-control" id="appointmentDate"
+                        onchange="showAvailableTimes(this.value)">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Available Times:</label>
+                    <div id="timeSlots" class="border p-2 rounded bg-light" style="min-height: 100px;">
+                        <small class="text-muted">Please select a date first.</small>
+                        <!-- Time slots will be populated dynamically -->
+                    </div>
+                </div>
+            </div>
+            <div class="d-flex justify-content-between mt-4">
+                <button class="btn btn-secondary" onclick="goToStep(2)"><i class="bi bi-arrow-left"></i> Back</button>
+                <button class="btn btn-primary" onclick="goToStep(4)">Next: Confirm Details <i
+                        class="bi bi-arrow-right"></i></button>
+            </div>
+        </div>
+
+        <!-- Step 4: Confirm Details (Initially Hidden) -->
+        <div class="step-content d-none" id="step-4">
+            <h4>Step 4: Confirm Your Booking</h4>
+            <p>Please review your appointment details below.</p>
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Appointment Summary</h5>
+                    <p><strong>Service(s):</strong> <span id="summaryServices">[Selected Services]</span></p>
+                    <p><strong>Hairdresser:</strong> <span id="summaryHairdresser">[Selected Hairdresser]</span></p>
+                    <p><strong>Date & Time:</strong> <span id="summaryDateTime">[Selected Date & Time]</span></p>
+                    <p><strong>Estimated Cost:</strong> <span id="summaryCost">[Calculated Cost]</span></p>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label for="confirmName" class="form-label">Your Name</label>
+                <input type="text" class="form-control" id="confirmName" placeholder="Enter your full name" required>
+            </div>
+            <div class="mb-3">
+                <label for="confirmPhone" class="form-label">Your Phone</label>
+                <input type="tel" class="form-control" id="confirmPhone" placeholder="Enter your phone number" required>
+            </div>
+            <div class="mb-3">
+                <label for="confirmNotes" class="form-label">Optional Notes</label>
+                <textarea class="form-control" id="confirmNotes" rows="2"
+                    placeholder="Any specific requests?"></textarea>
+            </div>
+            <div class="d-flex justify-content-between mt-4">
+                <button class="btn btn-secondary" onclick="goToStep(3)"><i class="bi bi-arrow-left"></i> Back</button>
+                <button class="btn btn-success" onclick="submitBooking()"><i class="bi bi-check-lg"></i> Confirm
+                    Booking</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentStep = 1;
+        const MAX_STEPS = 4;
+        let selectedServices = [];
+        let selectedHairdresser = 'any';
+        let selectedDateTime = null;
+
+        function updateStepIndicators() {
+            for (let i = 1; i <= MAX_STEPS; i++) {
+                const indicator = document.getElementById(`step-indicator-${i}`);
+                const circle = indicator.querySelector('.circle');
+                indicator.classList.remove('active', 'completed');
+                circle.innerHTML = i; // Reset in case it was a checkmark
+
+                if (i < currentStep) {
+                    indicator.classList.add('completed');
+                    circle.innerHTML = '<i class="bi bi-check-lg"></i>'; // Checkmark for completed
+                } else if (i === currentStep) {
+                    indicator.classList.add('active');
+                }
+            }
+        }
+
+        function goToStep(stepNumber) {
+            if (stepNumber < 1 || stepNumber > MAX_STEPS) return;
+
+            // Basic validation before proceeding (example for step 1)
+            if (currentStep === 1 && stepNumber > 1) {
+                selectedServices = Array.from(document.querySelectorAll('#step-1 input[type=checkbox]:checked')).map(cb => cb.value);
+                if (selectedServices.length === 0) {
+                    alert('Please select at least one service.');
+                    return;
+                }
+                // TODO: Update hairdresser list based on service in a real app
+            }
+            // TODO: Add validation for other steps
+
+            // Hide current step
+            document.getElementById(`step-${currentStep}`).classList.add('d-none');
+
+            // Show new step
+            currentStep = stepNumber;
+            const nextStepElement = document.getElementById(`step-${currentStep}`);
+            if (nextStepElement) {
+                nextStepElement.classList.remove('d-none');
+            } else {
+                console.error(`Step element step-${currentStep} not found`);
+                return; // Stop if the next step element doesn't exist
+            }
+
+            updateStepIndicators();
+
+            // Update confirmation details if moving to step 4
+            if (currentStep === 4) {
+                updateConfirmationSummary();
+            }
+        }
+
+        function selectHairdresser(element, hairdresserName) {
+            // Remove active class and check from all items
+            document.querySelectorAll('#step-2 .list-group-item').forEach(item => {
+                item.classList.remove('active');
+                item.querySelector('i').classList.remove('bi-check-circle-fill');
+                item.querySelector('i').classList.add('bi-circle');
+            });
+
+            // Add active class and check to the selected item
+            element.classList.add('active');
+            element.querySelector('i').classList.remove('bi-circle');
+            element.querySelector('i').classList.add('bi-check-circle-fill');
+
+            selectedHairdresser = hairdresserName;
+            console.log("Selected Hairdresser:", selectedHairdresser);
+        }
+
+        function showAvailableTimes(selectedDate) {
+            console.log("Date selected:", selectedDate);
+            const timeSlotsDiv = document.getElementById('timeSlots');
+            if (!selectedDate) {
+                timeSlotsDiv.innerHTML = '<small class="text-muted">Please select a date first.</small>';
+                return;
+            }
+
+            // --- Mock Availability --- Find available slots
+            // In a real app, this would fetch data based on selectedDate, selectedServices, and selectedHairdresser
+            const availableTimes = ['09:00 AM', '10:30 AM', '02:00 PM', '03:30 PM', '04:00 PM']; // Example times
+            const today = new Date().toISOString().split('T')[0];
+            const isToday = selectedDate === today;
+            const now = new Date();
+            const currentHour = now.getHours();
+            const currentMinute = now.getMinutes();
+
+            timeSlotsDiv.innerHTML = ''; // Clear previous slots
+            if (availableTimes.length === 0) {
+                timeSlotsDiv.innerHTML = '<small class="text-muted">No available slots for this date.</small>';
+            } else {
+                availableTimes.forEach(time => {
+                    // Simple check to disable past times for today
+                    let disabled = false;
+                    if (isToday) {
+                        const [hourStr, minuteStr] = time.split(/[:\s]/);
+                        const hour = parseInt(hourStr) + (time.includes('PM') && hourStr !== '12' ? 12 : 0) - (time.includes('AM') && hourStr === '12' ? 12 : 0);
+                        const minute = parseInt(minuteStr);
+                        if (hour < currentHour || (hour === currentHour && minute <= currentMinute)) {
+                            disabled = true;
+                        }
+                    }
+
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = `btn btn-sm time-slot ${disabled ? 'btn-outline-secondary disabled' : 'btn-outline-primary'}`;
+                    button.textContent = time;
+                    button.disabled = disabled;
+                    button.onclick = () => selectTimeSlot(button, selectedDate, time);
+                    timeSlotsDiv.appendChild(button);
+                });
+            }
+        }
+
+        function selectTimeSlot(buttonElement, date, time) {
+            // Deselect any previously selected time slot
+            document.querySelectorAll('#timeSlots .btn-primary').forEach(btn => {
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-outline-primary');
+            });
+
+            // Select the new time slot
+            buttonElement.classList.remove('btn-outline-primary');
+            buttonElement.classList.add('btn-primary');
+
+            selectedDateTime = `${date} @ ${time}`;
+            console.log("Selected DateTime:", selectedDateTime);
+        }
+
+        function calculateCost() {
+            let totalCost = 0;
+            // Example costs - map service values to prices
+            const costs = { haircut: 50, coloring: 120, styling: 70, wash: 40 };
+            selectedServices.forEach(service => {
+                totalCost += costs[service] || 0;
+            });
+            return totalCost;
+        }
+
+        function updateConfirmationSummary() {
+            document.getElementById('summaryServices').textContent = selectedServices.join(', ') || 'None';
+            document.getElementById('summaryHairdresser').textContent = selectedHairdresser || 'Any Available';
+            document.getElementById('summaryDateTime').textContent = selectedDateTime || 'Not Selected';
+            document.getElementById('summaryCost').textContent = `$${calculateCost()}`;
+        }
+
+        function submitBooking() {
+            // Basic validation for confirmation step
+            const name = document.getElementById('confirmName').value;
+            const phone = document.getElementById('confirmPhone').value;
+            if (!name || !phone || !selectedDateTime || selectedServices.length === 0) {
+                alert('Please ensure all details are selected and filled in (Service, Hairdresser, Time, Name, Phone).');
+                return;
+            }
+
+            // In a real app, send data to the server here
+            console.log('Submitting booking:', {
+                services: selectedServices,
+                hairdresser: selectedHairdresser,
+                dateTime: selectedDateTime,
+                name: name,
+                phone: phone,
+                notes: document.getElementById('confirmNotes').value,
+                cost: calculateCost()
+            });
+
+            alert('Booking Confirmed (Prototype)! Thank you, ' + name + '. We look forward to seeing you on ' + selectedDateTime + '.');
+            // Optionally reset the flow or redirect
+            // window.location.reload(); // Example: Reload to start over
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            goToStep(1);
+        });
+    </script>
+</body>
+
+</html>

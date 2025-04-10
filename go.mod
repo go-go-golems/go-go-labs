@@ -35,6 +35,7 @@ require (
 	github.com/getkin/kin-openapi v0.120.0
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-chi/chi/v5 v5.1.0
+	github.com/go-faker/faker/v4 v4.6.0
 	github.com/go-git/go-git/v5 v5.12.0
 	github.com/go-go-golems/clay v0.1.34
 	github.com/go-go-golems/geppetto v0.4.44
@@ -60,6 +61,7 @@ require (
 	github.com/milosgajdos/go-embeddings v0.3.2
 	github.com/mmcdole/gofeed v1.2.1
 	github.com/muesli/reflow v0.3.0
+	github.com/neo4j/neo4j-go-driver/v5 v5.28.0
 	github.com/philippgille/chromem-go v0.5.0
 	github.com/pion/webrtc/v3 v3.3.5
 	github.com/pkg/errors v0.9.1
@@ -135,7 +137,6 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/labstack/gommon v0.4.2 // indirect
 	github.com/lib/pq v1.10.9 // indirect
-	github.com/neo4j/neo4j-go-driver/v5 v5.28.0 // indirect
 	github.com/pion/datachannel v1.5.8 // indirect
 	github.com/pion/dtls/v2 v2.2.12 // indirect
 	github.com/pion/ice/v2 v2.3.36 // indirect

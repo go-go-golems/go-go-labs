@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prototype 3: Hairdresser Profiles</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        .profile-card img {
+            height: 200px;
+            object-fit: cover;
+        }
+
+        .specialties span {
+            margin-right: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="#"><i class="bi bi-scissors me-1"></i>HairSalon Profiles</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="#">Home</a></li>
+                    <li class="nav-item"><a class="nav-link active" aria-current="page" href="#">Our Stylists</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">Services</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">Book Now</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h1 class="text-center mb-4">Meet Our Talented Stylists</h1>
+        <p class="text-center text-muted mb-5">Choose your preferred stylist to view their availability and book an
+            appointment.</p>
+
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+            <!-- Profile Card 1: Alice -->
+            <div class="col">
+                <div class="card h-100 profile-card">
+                    <img src="https://via.placeholder.com/400x200/FFC0CB/000000?text=Alice" class="card-img-top"
+                        alt="Alice - Hair Stylist">
+                    <div class="card-body">
+                        <h5 class="card-title">Alice</h5>
+                        <p class="card-text">Alice is our master colorist, transforming hair with vibrant hues and
+                            subtle highlights. With 10 years of experience, she loves creating personalized looks.</p>
+                        <div class="specialties mb-2">
+                            <span class="badge bg-primary">Coloring</span>
+                            <span class="badge bg-info">Highlights</span>
+                            <span class="badge bg-secondary">Balayage</span>
+                        </div>
+                        <p class="card-text"><small class="text-muted">Next Available: Tomorrow 2 PM</small></p>
+                    </div>
+                    <div class="card-footer text-center">
+                        <a href="#" class="btn btn-primary w-100">View Availability & Book</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile Card 2: Bob -->
+            <div class="col">
+                <div class="card h-100 profile-card">
+                    <img src="https://via.placeholder.com/400x200/ADD8E6/000000?text=Bob" class="card-img-top"
+                        alt="Bob - Hair Stylist">
+                    <div class="card-body">
+                        <h5 class="card-title">Bob</h5>
+                        <p class="card-text">Bob specializes in precision cuts for men and women. He believes a great
+                            haircut is the foundation of style. Loves short styles and sharp lines.</p>
+                        <div class="specialties mb-2">
+                            <span class="badge bg-success">Haircuts</span>
+                            <span class="badge bg-warning text-dark">Men's Grooming</span>
+                            <span class="badge bg-secondary">Short Styles</span>
+                        </div>
+                        <p class="card-text"><small class="text-muted">Next Available: Today 4 PM</small></p>
+                    </div>
+                    <div class="card-footer text-center">
+                        <a href="#" class="btn btn-primary w-100">View Availability & Book</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile Card 3: Charlie -->
+            <div class="col">
+                <div class="card h-100 profile-card">
+                    <img src="https://via.placeholder.com/400x200/90EE90/000000?text=Charlie" class="card-img-top"
+                        alt="Charlie - Hair Stylist">
+                    <div class="card-body">
+                        <h5 class="card-title">Charlie</h5>
+                        <p class="card-text">Charlie is the go-to for stunning updos, event styling, and beautiful
+                            blowouts. Let Charlie make you shine for your next special occasion.</p>
+                        <div class="specialties mb-2">
+                            <span class="badge bg-danger">Styling</span>
+                            <span class="badge bg-info">Updos</span>
+                            <span class="badge bg-secondary">Blowouts</span>
+                            <span class="badge bg-light text-dark">Weddings</span>
+                        </div>
+                        <p class="card-text"><small class="text-muted">Next Available: Friday 11 AM</small></p>
+                    </div>
+                    <div class="card-footer text-center">
+                        <a href="#" class="btn btn-primary w-100">View Availability & Book</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add more profile cards as needed -->
+
+        </div>
+    </div>
+
+    <footer class="text-center mt-5 mb-4">
+        <p>&copy; 2024 HairSalon Co. All rights reserved.</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Add JS for potential filtering or interaction if needed
+        console.log("Hairdresser profiles loaded.");
+        document.querySelectorAll('.profile-card .btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                const card = e.target.closest('.profile-card');
+                const stylistName = card.querySelector('.card-title').textContent;
+                alert(`Navigating to booking page for ${stylistName}...`);
+                // In a real app, this would link to a specific booking page or open a modal
+                // pre-filtered for this stylist.
+            });
+        });
+    </script>
+</body>
+
+</html>

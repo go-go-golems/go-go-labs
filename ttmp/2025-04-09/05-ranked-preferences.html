@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prototype 5: Ranked Preferences</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding: 20px;
+        }
+
+        .slot-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #fff;
+        }
+
+        .slot-time {
+            flex-grow: 1;
+            margin-right: 20px;
+        }
+
+        .ranking-control {
+            width: 150px;
+            /* Adjust as needed */
+        }
+
+        .results-section {
+            margin-top: 40px;
+        }
+
+        .handle {
+            cursor: grab;
+            margin-right: 15px;
+            color: #aaa;
+        }
+
+        .dragging {
+            opacity: 0.5;
+            background-color: #e0e0e0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1 class="mb-4">Meeting Scheduler: Rank Your Preferences</h1>
+        <p>Please rank the following proposed 1-hour time slots. Drag and drop to order them (1st is best), or select a
+            preference level. The system will find the slot with the highest overall preference score.</p>
+
+        <form id="ranking-form">
+            <div id="sortable-list">
+                <div class="slot-item" draggable="true">
+                    <span class="handle bi bi-grip-vertical">☰</span>
+                    <div class="slot-time">
+                        <h5>Tuesday, April 16th, 2:00 PM - 3:00 PM PST</h5>
+                        <small class="text-muted">Potential Score: 18</small>
+                    </div>
+                    <select class="form-select ranking-control" aria-label="Preference Level">
+                        <option selected>Select Preference...</option>
+                        <option value="3">⭐⭐⭐ Best</option>
+                        <option value="2">⭐⭐ Good</option>
+                        <option value="1">⭐ Okay</option>
+                        <option value="0">❌ Cannot Attend</option>
+                    </select>
+                </div>
+
+                <div class="slot-item" draggable="true">
+                    <span class="handle bi bi-grip-vertical">☰</span>
+                    <div class="slot-time">
+                        <h5>Wednesday, April 17th, 10:00 AM - 11:00 AM PST</h5>
+                        <small class="text-muted">Potential Score: 25</small> <span class="badge bg-primary">Highest
+                            Score</span>
+                    </div>
+                    <select class="form-select ranking-control" aria-label="Preference Level">
+                        <option>Select Preference...</option>
+                        <option value="3">⭐⭐⭐ Best</option>
+                        <option value="2">⭐⭐ Good</option>
+                        <option value="1">⭐ Okay</option>
+                        <option value="0">❌ Cannot Attend</option>
+                    </select>
+                </div>
+
+                <div class="slot-item" draggable="true">
+                    <span class="handle bi bi-grip-vertical">☰</span>
+                    <div class="slot-time">
+                        <h5>Tuesday, April 16th, 10:00 AM - 11:00 AM PST</h5>
+                        <small class="text-muted">Potential Score: 12</small>
+                    </div>
+                    <select class="form-select ranking-control" aria-label="Preference Level">
+                        <option>Select Preference...</option>
+                        <option value="3">⭐⭐⭐ Best</option>
+                        <option value="2">⭐⭐ Good</option>
+                        <option value="1">⭐ Okay</option>
+                        <option value="0">❌ Cannot Attend</option>
+                    </select>
+                </div>
+
+                <div class="slot-item" draggable="true">
+                    <span class="handle bi bi-grip-vertical">☰</span>
+                    <div class="slot-time">
+                        <h5>Thursday, April 18th, 1:00 PM - 2:00 PM PST</h5>
+                        <small class="text-muted">Potential Score: 9</small>
+                    </div>
+                    <select class="form-select ranking-control" aria-label="Preference Level">
+                        <option>Select Preference...</option>
+                        <option value="3">⭐⭐⭐ Best</option>
+                        <option value="2">⭐⭐ Good</option>
+                        <option value="1">⭐ Okay</option>
+                        <option value="0">❌ Cannot Attend</option>
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary mt-3">Submit Rankings</button>
+        </form>
+
+        <div class="results-section">
+            <h4>Overall Preference Results</h4>
+            <p>Based on combined rankings from all participants:</p>
+            <ul class="list-group">
+                <li class="list-group-item d-flex justify-content-between align-items-center list-group-item-success">
+                    1. Wed, Apr 17, 10:00 AM - 11:00 AM
+                    <span class="badge bg-primary rounded-pill">Score: 25</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    2. Tue, Apr 16, 2:00 PM - 3:00 PM
+                    <span class="badge bg-primary rounded-pill">Score: 18</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    3. Tue, Apr 16, 10:00 AM - 11:00 AM
+                    <span class="badge bg-primary rounded-pill">Score: 12</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    4. Thu, Apr 18, 1:00 PM - 2:00 PM
+                    <span class="badge bg-primary rounded-pill">Score: 9</span>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Basic drag and drop sorting placeholder
+        const sortableList = document.getElementById('sortable-list');
+        let draggedItem = null;
+
+        sortableList.addEventListener('dragstart', (e) => {
+            if (e.target.classList.contains('slot-item')) {
+                draggedItem = e.target;
+                setTimeout(() => e.target.classList.add('dragging'), 0); // Timeout to allow drag image creation
+                e.dataTransfer.effectAllowed = 'move';
+            }
+        });
+
+        sortableList.addEventListener('dragend', (e) => {
+            if (draggedItem) {
+                setTimeout(() => { // Allow time for drop processing
+                    if (draggedItem) { // Check if drop hasn't cleared it
+                        draggedItem.classList.remove('dragging');
+                        draggedItem = null;
+                    }
+                }, 0);
+            }
+        });
+
+        sortableList.addEventListener('dragover', (e) => {
+            e.preventDefault(); // Necessary to allow dropping
+            const target = e.target.closest('.slot-item');
+            if (target && draggedItem && target !== draggedItem) {
+                const rect = target.getBoundingClientRect();
+                // Determine if dragging above or below the target item
+                const nextSibling = (e.clientY < rect.top + rect.height / 2) ? target : target.nextElementSibling;
+                // Insert dragged item before the next sibling (or at the end if no next sibling)
+                sortableList.insertBefore(draggedItem, nextSibling);
+            }
+            return false;
+        });
+
+        sortableList.addEventListener('drop', (e) => {
+            e.preventDefault();
+            if (draggedItem) {
+                draggedItem.classList.remove('dragging');
+                draggedItem = null;
+                // Ranking logic would update here based on new order
+                console.log("New order saved (prototype only)");
+                alert("List reordered (prototype functionality). In a real app, this order would update rankings.");
+            }
+        });
+
+
+        // Form submission placeholder
+        document.getElementById('ranking-form').addEventListener('submit', function (e) {
+            e.preventDefault();
+            // Collect data from selects and order
+            const rankings = [];
+            sortableList.querySelectorAll('.slot-item').forEach((item, index) => {
+                const time = item.querySelector('.slot-time h5').textContent;
+                const select = item.querySelector('select');
+                const preference = select.value; // Could be '3', '2', '1', '0' or default
+                const rank = index + 1; // Based on final position
+                rankings.push({ time, rank, preference });
+            });
+            console.log("Submitted Rankings:", rankings);
+            alert('Rankings submitted (prototype only). See console for data.');
+        });
+    </script>
+</body>
+
+</html>
