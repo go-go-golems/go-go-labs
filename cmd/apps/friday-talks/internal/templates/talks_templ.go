@@ -74,7 +74,7 @@ func TalksList(user *models.User, talks []*models.Talk, status string) templ.Com
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var3).String())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 1, Col: 0}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 1, Col: 0}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
@@ -96,7 +96,7 @@ func TalksList(user *models.User, talks []*models.Talk, status string) templ.Com
 			var templ_7745c5c3_Var6 string
 			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var5).String())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 1, Col: 0}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 1, Col: 0}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
 			if templ_7745c5c3_Err != nil {
@@ -118,7 +118,7 @@ func TalksList(user *models.User, talks []*models.Talk, status string) templ.Com
 			var templ_7745c5c3_Var8 string
 			templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var7).String())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 1, Col: 0}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 1, Col: 0}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 			if templ_7745c5c3_Err != nil {
@@ -140,7 +140,7 @@ func TalksList(user *models.User, talks []*models.Talk, status string) templ.Com
 			var templ_7745c5c3_Var10 string
 			templ_7745c5c3_Var10, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var9).String())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 1, Col: 0}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 1, Col: 0}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var10))
 			if templ_7745c5c3_Err != nil {
@@ -256,7 +256,7 @@ func TalkDetail(
 			var templ_7745c5c3_Var13 string
 			templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(talk.Title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 75, Col: 41}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 75, Col: 41}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 			if templ_7745c5c3_Err != nil {
@@ -278,7 +278,7 @@ func TalkDetail(
 			var templ_7745c5c3_Var15 string
 			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var14).String())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 1, Col: 0}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 1, Col: 0}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 			if templ_7745c5c3_Err != nil {
@@ -291,7 +291,7 @@ func TalkDetail(
 			var templ_7745c5c3_Var16 string
 			templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(string(talk.Status))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 77, Col: 94}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 77, Col: 94}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 			if templ_7745c5c3_Err != nil {
@@ -309,7 +309,7 @@ func TalkDetail(
 				var templ_7745c5c3_Var17 string
 				templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(talk.Speaker.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 79, Col: 53}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 79, Col: 53}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 				if templ_7745c5c3_Err != nil {
@@ -332,7 +332,7 @@ func TalkDetail(
 				var templ_7745c5c3_Var18 string
 				templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(formatDate(*talk.ScheduledDate))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 85, Col: 73}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 85, Col: 73}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 				if templ_7745c5c3_Err != nil {
@@ -350,7 +350,7 @@ func TalkDetail(
 			var templ_7745c5c3_Var19 string
 			templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(talk.Description)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 90, Col: 45}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 90, Col: 45}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 			if templ_7745c5c3_Err != nil {
@@ -383,7 +383,7 @@ func TalkDetail(
 						var templ_7745c5c3_Var21 string
 						templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs("availability_" + date)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 129, Col: 92}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 129, Col: 92}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 						if templ_7745c5c3_Err != nil {
@@ -396,7 +396,7 @@ func TalkDetail(
 						var templ_7745c5c3_Var22 string
 						templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs("avail_" + date)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 129, Col: 115}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 129, Col: 115}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 						if templ_7745c5c3_Err != nil {
@@ -409,7 +409,7 @@ func TalkDetail(
 						var templ_7745c5c3_Var23 string
 						templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs("avail_" + date)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 130, Col: 68}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 130, Col: 68}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 						if templ_7745c5c3_Err != nil {
@@ -422,7 +422,7 @@ func TalkDetail(
 						var templ_7745c5c3_Var24 string
 						templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(formatShortDate(date))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 131, Col: 39}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 131, Col: 39}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 						if templ_7745c5c3_Err != nil {
@@ -535,7 +535,7 @@ func TalkDetail(
 					var templ_7745c5c3_Var30 string
 					templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var29).String())
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 1, Col: 0}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 1, Col: 0}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 					if templ_7745c5c3_Err != nil {
@@ -548,7 +548,7 @@ func TalkDetail(
 					var templ_7745c5c3_Var31 string
 					templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(string(resource.Type))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 200, Col: 101}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 200, Col: 101}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 					if templ_7745c5c3_Err != nil {
@@ -570,7 +570,7 @@ func TalkDetail(
 					var templ_7745c5c3_Var33 string
 					templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(resource.Title)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 201, Col: 83}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 201, Col: 83}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 					if templ_7745c5c3_Err != nil {
@@ -711,7 +711,7 @@ func TalkDetail(
 					var templ_7745c5c3_Var41 string
 					templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinStringErrs(formatDate(*talk.ScheduledDate))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 283, Col: 67}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 283, Col: 67}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
 					if templ_7745c5c3_Err != nil {
@@ -735,7 +735,7 @@ func TalkDetail(
 				var templ_7745c5c3_Var42 string
 				templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(talk.Speaker.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 297, Col: 30}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 297, Col: 30}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var42))
 				if templ_7745c5c3_Err != nil {
@@ -748,7 +748,7 @@ func TalkDetail(
 				var templ_7745c5c3_Var43 string
 				templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(talk.Speaker.Email)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 298, Col: 30}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 298, Col: 30}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
 				if templ_7745c5c3_Err != nil {
@@ -766,7 +766,7 @@ func TalkDetail(
 			var templ_7745c5c3_Var44 string
 			templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinStringErrs(formatDate(talk.CreatedAt))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 308, Col: 64}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 308, Col: 64}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var44))
 			if templ_7745c5c3_Err != nil {
@@ -789,7 +789,7 @@ func TalkDetail(
 					var templ_7745c5c3_Var45 string
 					templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(formatShortDate(date))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 313, Col: 36}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 313, Col: 36}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
 					if templ_7745c5c3_Err != nil {
@@ -874,7 +874,7 @@ func ProposeTalk(user *models.User, errorString string, fridays []time.Time) tem
 				var templ_7745c5c3_Var48 string
 				templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.JoinStringErrs("date_" + friday.Format("2006-01-02"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 353, Col: 127}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 353, Col: 127}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var48))
 				if templ_7745c5c3_Err != nil {
@@ -887,7 +887,7 @@ func ProposeTalk(user *models.User, errorString string, fridays []time.Time) tem
 				var templ_7745c5c3_Var49 string
 				templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.JoinStringErrs(friday.Format("2006-01-02"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 353, Col: 165}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 353, Col: 165}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var49))
 				if templ_7745c5c3_Err != nil {
@@ -900,7 +900,7 @@ func ProposeTalk(user *models.User, errorString string, fridays []time.Time) tem
 				var templ_7745c5c3_Var50 string
 				templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs("date_" + friday.Format("2006-01-02"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 354, Col: 87}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 354, Col: 87}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
 				if templ_7745c5c3_Err != nil {
@@ -913,7 +913,7 @@ func ProposeTalk(user *models.User, errorString string, fridays []time.Time) tem
 				var templ_7745c5c3_Var51 string
 				templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(friday.Format("Jan 2, 2006"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 355, Col: 43}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 355, Col: 43}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
 				if templ_7745c5c3_Err != nil {
@@ -997,7 +997,7 @@ func EditTalk(user *models.User, talk *models.Talk, errorString string, fridays 
 			var templ_7745c5c3_Var55 string
 			templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinStringErrs(talk.Title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 388, Col: 90}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 388, Col: 90}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var55))
 			if templ_7745c5c3_Err != nil {
@@ -1010,7 +1010,7 @@ func EditTalk(user *models.User, talk *models.Talk, errorString string, fridays 
 			var templ_7745c5c3_Var56 string
 			templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.JoinStringErrs(talk.Description)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 392, Col: 111}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 392, Col: 111}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var56))
 			if templ_7745c5c3_Err != nil {
@@ -1028,7 +1028,7 @@ func EditTalk(user *models.User, talk *models.Talk, errorString string, fridays 
 				var templ_7745c5c3_Var57 string
 				templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.JoinStringErrs("date_" + friday.Format("2006-01-02"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 405, Col: 55}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 405, Col: 55}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var57))
 				if templ_7745c5c3_Err != nil {
@@ -1041,7 +1041,7 @@ func EditTalk(user *models.User, talk *models.Talk, errorString string, fridays 
 				var templ_7745c5c3_Var58 string
 				templ_7745c5c3_Var58, templ_7745c5c3_Err = templ.JoinStringErrs(friday.Format("2006-01-02"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 406, Col: 48}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 406, Col: 48}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var58))
 				if templ_7745c5c3_Err != nil {
@@ -1064,7 +1064,7 @@ func EditTalk(user *models.User, talk *models.Talk, errorString string, fridays 
 				var templ_7745c5c3_Var59 string
 				templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.JoinStringErrs("date_" + friday.Format("2006-01-02"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 409, Col: 87}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 409, Col: 87}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var59))
 				if templ_7745c5c3_Err != nil {
@@ -1077,7 +1077,7 @@ func EditTalk(user *models.User, talk *models.Talk, errorString string, fridays 
 				var templ_7745c5c3_Var60 string
 				templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.JoinStringErrs(friday.Format("Jan 2, 2006"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 410, Col: 43}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 410, Col: 43}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var60))
 				if templ_7745c5c3_Err != nil {
@@ -1151,7 +1151,7 @@ func ScheduleTalk(user *models.User, talk *models.Talk, rankings []*services.Tal
 			var templ_7745c5c3_Var64 string
 			templ_7745c5c3_Var64, templ_7745c5c3_Err = templ.JoinStringErrs(talk.Title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 435, Col: 50}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 435, Col: 50}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var64))
 			if templ_7745c5c3_Err != nil {
@@ -1164,7 +1164,7 @@ func ScheduleTalk(user *models.User, talk *models.Talk, rankings []*services.Tal
 			var templ_7745c5c3_Var65 string
 			templ_7745c5c3_Var65, templ_7745c5c3_Err = templ.JoinStringErrs(talk.Speaker.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 438, Col: 45}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 438, Col: 45}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var65))
 			if templ_7745c5c3_Err != nil {
@@ -1191,7 +1191,7 @@ func ScheduleTalk(user *models.User, talk *models.Talk, rankings []*services.Tal
 				var templ_7745c5c3_Var67 string
 				templ_7745c5c3_Var67, templ_7745c5c3_Err = templ.JoinStringErrs(friday.Format("2006-01-02"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 446, Col: 46}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 446, Col: 46}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var67))
 				if templ_7745c5c3_Err != nil {
@@ -1214,7 +1214,7 @@ func ScheduleTalk(user *models.User, talk *models.Talk, rankings []*services.Tal
 				var templ_7745c5c3_Var68 string
 				templ_7745c5c3_Var68, templ_7745c5c3_Err = templ.JoinStringErrs(friday.Format("January 2, 2006"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 449, Col: 45}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 449, Col: 45}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var68))
 				if templ_7745c5c3_Err != nil {
@@ -1260,7 +1260,7 @@ func ScheduleTalk(user *models.User, talk *models.Talk, rankings []*services.Tal
 					var templ_7745c5c3_Var71 string
 					templ_7745c5c3_Var71, templ_7745c5c3_Err = templ.JoinStringErrs(rank.Talk.Title)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 483, Col: 30}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 483, Col: 30}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var71))
 					if templ_7745c5c3_Err != nil {
@@ -1273,7 +1273,7 @@ func ScheduleTalk(user *models.User, talk *models.Talk, rankings []*services.Tal
 					var templ_7745c5c3_Var72 string
 					templ_7745c5c3_Var72, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", rank.InterestScore))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 486, Col: 54}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 486, Col: 54}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var72))
 					if templ_7745c5c3_Err != nil {
@@ -1286,7 +1286,7 @@ func ScheduleTalk(user *models.User, talk *models.Talk, rankings []*services.Tal
 					var templ_7745c5c3_Var73 string
 					templ_7745c5c3_Var73, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", rank.AvailableUsers))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 487, Col: 55}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 487, Col: 55}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var73))
 					if templ_7745c5c3_Err != nil {
@@ -1299,7 +1299,7 @@ func ScheduleTalk(user *models.User, talk *models.Talk, rankings []*services.Tal
 					var templ_7745c5c3_Var74 string
 					templ_7745c5c3_Var74, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.1f", rank.FinalScore))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/talks.templ`, Line: 488, Col: 53}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/talks.templ`, Line: 488, Col: 53}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var74))
 					if templ_7745c5c3_Err != nil {

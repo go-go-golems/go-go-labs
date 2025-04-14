@@ -1,0 +1,113 @@
+title: Test YAML for shortener
+description: >
+  This is a long description that should be truncated when the shortener is run with
+  its default settings because it exceeds 50 characters. YAML multiline strings
+  should also be handled properly by the shortener.
+numbers:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  - 6
+  - 7
+  - 8
+  - 9
+  - 10
+  - 11
+  - 12
+  - 13
+  - 14
+  - 15
+nested:
+  level1:
+    level2:
+      level3:
+        level4:
+          level5:
+            level6:
+              level7:
+                level8:
+                  level9:
+                    level10:
+                      level11: This is too deep!
+longString: |
+  Lorem ipsum dolor sit amet, consectetur adipiscing elit. 
+  Donec a diam lectus. Sed sit amet ipsum mauris. 
+  Maecenas congue ligula ac quam viverra nec consectetur ante hendrerit. 
+  Donec et mollis dolor. 
+  Praesent et diam eget libero egestas mattis sit amet vitae augue.
+urls:
+  - https://example.com/1
+  - https://example.com/2
+  - https://example.com/3
+  - https://example.com/4
+  - https://example.com/5
+  - https://example.com/6
+  - https://example.com/7
+  - https://example.com/8
+  - https://example.com/9
+  - https://example.com/10
+  - https://example.com/11
+  - https://example.com/12
+complexArray:
+  - name: Item 1
+    description: Description for item 1
+    tags:
+      - tag1
+      - tag2
+  - name: Item 2
+    description: Description for item 2
+    tags:
+      - tag3
+      - tag4
+  - name: Item 3
+    description: Description for item 3
+    tags:
+      - tag5
+      - tag6
+  - name: Item 4
+    description: Description for item 4
+    tags:
+      - tag7
+      - tag8
+  - name: Item 5
+    description: Description for item 5
+    tags:
+      - tag9
+      - tag10
+  - name: Item 6
+    description: Description for item 6
+    tags:
+      - tag11
+      - tag12
+  - name: Item 7
+    description: Description for item 7
+    tags:
+      - tag13
+      - tag14
+  - name: Item 8
+    description: Description for item 8
+    tags:
+      - tag15
+      - tag16
+  - name: Item 9
+    description: Description for item 9
+    tags:
+      - tag17
+      - tag18
+  - name: Item 10
+    description: Description for item 10
+    tags:
+      - tag19
+      - tag20
+  - name: Item 11
+    description: Description for item 11
+    tags:
+      - tag21
+      - tag22
+  - name: Item 12
+    description: Description for item 12
+    tags:
+      - tag23
+      - tag24

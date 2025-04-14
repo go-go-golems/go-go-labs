@@ -1,0 +1,43 @@
+{
+  "title": "Test JSON for shortener",
+  "description": "This is a long description that should be truncated when the shortener is run with its default settings because it exceeds 50 characters.",
+  "numbers": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20],
+  "nested": {
+    "level1": {
+      "level2": {
+        "level3": {
+          "level4": {
+            "level5": {
+              "level6": {
+                "level7": {
+                  "level8": {
+                    "level9": {
+                      "level10": {
+                        "level11": "This is too deep!"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "longString": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec a diam lectus. Sed sit amet ipsum mauris. Maecenas congue ligula ac quam viverra nec consectetur ante hendrerit. Donec et mollis dolor. Praesent et diam eget libero egestas mattis sit amet vitae augue.",
+  "urls": [
+    "https://example.com/1",
+    "https://example.com/2",
+    "https://example.com/3",
+    "https://example.com/4",
+    "https://example.com/5",
+    "https://example.com/6",
+    "https://example.com/7",
+    "https://example.com/8",
+    "https://example.com/9",
+    "https://example.com/10",
+    "https://example.com/11",
+    "https://example.com/12"
+  ]
+} 

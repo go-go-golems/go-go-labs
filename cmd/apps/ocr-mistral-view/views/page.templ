@@ -1,0 +1,103 @@
+package views
+
+import (
+	"bytes"
+	"github.com/yuin/goldmark"
+	"strconv"
+)
+
+// renderMarkdown converts markdown to HTML
+func renderMarkdown(markdown string) (string, error) {
+	var buf bytes.Buffer
+	if err := goldmark.Convert([]byte(markdown), &buf); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}
+
+// Page renders a single page view
+templ Page(data OCRData, pageIndex int) {
+	@Layout("OCR Mistral View - Page "+strconv.Itoa(pageIndex+1), pageIndex, len(data.Pages)) {
+		<div class="row">
+			<div class="col-12">
+				<div class="card mb-4">
+					<div class="card-header d-flex justify-content-between align-items-center">
+						<h5 class="mb-0">Page { strconv.Itoa(pageIndex + 1) }</h5>
+						<div>
+							<span class="badge bg-secondary">
+								Dimensions: { strconv.Itoa(data.Pages[pageIndex].Dimensions.Width) }x{ strconv.Itoa(data.Pages[pageIndex].Dimensions.Height) } "@" { strconv.Itoa(data.Pages[pageIndex].Dimensions.DPI) } DPI
+							</span>
+							if len(data.Pages[pageIndex].Images) > 0 {
+								<span class="badge bg-info ml-2">
+									{ strconv.Itoa(len(data.Pages[pageIndex].Images)) } image(s)
+								</span>
+							}
+						</div>
+					</div>
+					<div class="card-body">
+						<div class="markdown-body">
+							@Markdown(data.Pages[pageIndex].Markdown)
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	}
+}
+
+// AllPages renders all pages in a single view
+templ AllPages(data OCRData) {
+	@Layout("OCR Mistral View - All Pages", 0, 0) {
+		<div class="row">
+			<div class="col-12">
+				<div class="card mb-4">
+					<div class="card-header">
+						<h5 class="mb-0">All Pages</h5>
+						<p class="mb-0">Model: { data.Model }</p>
+						<p class="mb-0">
+							Pages Processed: { strconv.Itoa(data.UsageInfo.PagesProcessed) }
+							| Document Size: { strconv.Itoa(data.UsageInfo.DocSizeBytes / 1024) } KB
+						</p>
+					</div>
+					<div class="card-body">
+						for i, page := range data.Pages {
+							<div class="card mb-4" id={ "page-" + strconv.Itoa(i) }>
+								<div class="card-header d-flex justify-content-between align-items-center">
+									<h5 class="mb-0">
+										<a href={ templ.SafeURL("/page/" + strconv.Itoa(i)) }>
+											Page { strconv.Itoa(i + 1) }
+										</a>
+									</h5>
+									<div>
+										<span class="badge bg-secondary">
+											Dimensions: { strconv.Itoa(page.Dimensions.Width) }x{ strconv.Itoa(page.Dimensions.Height) } "@" { strconv.Itoa(page.Dimensions.DPI) } DPI
+										</span>
+										if len(page.Images) > 0 {
+											<span class="badge bg-info ml-2">
+												{ strconv.Itoa(len(page.Images)) } image(s)
+											</span>
+										}
+									</div>
+								</div>
+								<div class="card-body">
+									<div class="markdown-body">
+										@Markdown(page.Markdown)
+									</div>
+								</div>
+							</div>
+						}
+					</div>
+				</div>
+			</div>
+		</div>
+	}
+}
+
+// Markdown renders markdown content
+templ Markdown(content string) {
+	if html, err := renderMarkdown(content); err == nil {
+		@templ.Raw(html)
+	} else {
+		<pre>{ content }</pre>
+	}
+}

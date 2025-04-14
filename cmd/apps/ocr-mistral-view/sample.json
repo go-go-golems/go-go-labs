@@ -1,0 +1,58 @@
+{
+  "model": "mistral-ocr-2503-completion",
+  "pages": [
+    {
+      "dimensions": {
+        "dpi": 200,
+        "height": 2200,
+        "width": 1700
+      },
+      "images": [],
+      "index": 0,
+      "markdown": "# LEVERAGING UNLABELED DATA TO PREDICT OUT-OF-DISTRIBUTION PERFORMANCE\n\nThis paper presents a novel approach to detecting out-of-distribution (OOD) samples using unlabeled data, without requiring explicit OOD examples during training."
+    },
+    {
+      "dimensions": {
+        "dpi": 200,
+        "height": 2200,
+        "width": 1700
+      },
+      "images": [
+        {
+          "bottom_right_x": 1394,
+          "bottom_right_y": 649,
+          "id": "img-0.jpeg",
+          "image_base64": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD",
+          "top_left_x": 292,
+          "top_left_y": 217
+        }
+      ],
+      "index": 1,
+      "markdown": "![img-0.jpeg](img-0.jpeg)\n\nFigure 1: Illustration of the proposed method for OOD detection using unlabeled data."
+    },
+    {
+      "dimensions": {
+        "dpi": 200,
+        "height": 2200,
+        "width": 1700
+      },
+      "images": [],
+      "index": 2,
+      "markdown": "## Method\n\nATC is simple to implement with existing frameworks and demonstrates significant improvements over current state-of-the-art methods across multiple datasets and network architectures.\n\n```python\ndef calculate_confidence(model, x):\n    logits = model(x)\n    probs = softmax(logits, dim=1)\n    confidence = torch.max(probs, dim=1)[0]\n    return confidence\n```"
+    },
+    {
+      "dimensions": {
+        "dpi": 200,
+        "height": 2200,
+        "width": 1700
+      },
+      "images": [],
+      "index": 3,
+      "markdown": "Moreover, unlike the parallel work of Deng et al. (2021), our method does not require specific architectures or pre-training schemes and can be applied to any trained classifier.\n\n| Method | CIFAR-10 | CIFAR-100 | ImageNet |\n|--------|----------|-----------|----------|\n| MSP    | 0.782    | 0.652     | 0.753    |\n| ODIN   | 0.804    | 0.693     | 0.775    |\n| Ours   | **0.897**| **0.812** | **0.891**|"
+    }
+  ],
+  "usage_info": {
+    "doc_size_bytes": 3002783,
+    "pages_processed": 4
+  }
+} 

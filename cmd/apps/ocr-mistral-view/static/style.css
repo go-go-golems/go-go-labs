@@ -1,0 +1,71 @@
+/* Custom styles for OCR Mistral View */
+
+body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Liberation Sans", Arial, sans-serif;
+    line-height: 1.5;
+    color: #212529;
+}
+
+.container {
+    max-width: 1200px;
+}
+
+/* Markdown image adjustments */
+.markdown-body img {
+    max-width: 100%;
+    height: auto;
+    margin: 1rem 0;
+    border: 1px solid #e1e4e8;
+    border-radius: 6px;
+}
+
+/* Table styling */
+.markdown-body table {
+    width: 100%;
+    margin-bottom: 1rem;
+    border-collapse: collapse;
+    overflow-x: auto;
+    display: block;
+}
+
+.markdown-body table th,
+.markdown-body table td {
+    padding: 0.5rem;
+    border: 1px solid #e1e4e8;
+}
+
+.markdown-body table th {
+    background-color: #f6f8fa;
+    font-weight: 600;
+}
+
+/* Card styling */
+.card {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: none;
+    margin-bottom: 2rem;
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+/* Badge spacing */
+.badge {
+    margin-right: 0.5rem;
+}
+
+/* Navigation */
+.page-navigation {
+    padding: 1rem 0;
+    border-top: 1px solid #dee2e6;
+    margin-top: 2rem;
+}
+
+/* Footer */
+footer {
+    padding-top: 1rem;
+    border-top: 1px solid #dee2e6;
+    margin-top: 2rem;
+} 

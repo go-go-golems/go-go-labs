@@ -50,7 +50,7 @@ func Error(user *models.User, statusCode int, title string, message string) temp
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/error.templ`, Line: 8, Col: 32}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/error.templ`, Line: 8, Col: 32}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -63,7 +63,7 @@ func Error(user *models.User, statusCode int, title string, message string) temp
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/error.templ`, Line: 9, Col: 28}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `cmd/apps/friday-talks/internal/templates/error.templ`, Line: 9, Col: 28}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
