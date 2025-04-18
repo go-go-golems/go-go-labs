@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { Canvas, Node, Edge, NodeChildProps } from 'reaflow';
+import React, { useState, useRef } from 'react';
+import { Canvas, Node, Edge, NodeChildProps, ElkCanvasLayoutOptions } from 'reaflow';
 import './App.css';
+import { CustomNode } from './CustomNode'; // Import the new component
 
-// Define an interface for our custom node data
-interface MyNodeData {
+// Define an interface for our custom node data (Ensure it's exported)
+export interface MyNodeData {
   id: string;
   text: string;
   parent?: string;
@@ -14,30 +15,71 @@ interface MyNodeData {
 const NODE_WIDTH = 260;
 const NODE_HEIGHT = 100;
 
+// Define Layout Options
+const layoutOptions: ElkCanvasLayoutOptions = {
+  'elk.algorithm': 'layered',
+  'elk.direction': 'DOWN',
+  'elk.spacing.nodeNode': '80',
+  'elk.portAlignment.default': 'CENTER',
+  'elk.layered.spacing.nodeNodeBetweenLayers': '80',
+};
+
 const App: React.FC = () => {
-  // Let ELK determine parent sizes; define leaf node sizes
-  const [nodes] = useState<MyNodeData[]>([
-    { id: 'goal', text: 'Make Tea' }, // No explicit size
-    { id: 'boil', text: 'Boil Water', parent: 'goal' }, // No explicit size
+  // Use state setters for nodes and edges
+  const [nodes, setNodes] = useState<MyNodeData[]>([
+    { id: 'goal', text: 'Make Tea' },
+    { id: 'boil', text: 'Boil Water', parent: 'goal' },
     { id: 'fill', text: 'Fill Kettle', parent: 'boil', width: NODE_WIDTH, height: NODE_HEIGHT },
     { id: 'heat', text: 'Heat Kettle', parent: 'boil', width: NODE_WIDTH, height: NODE_HEIGHT },
-    { id: 'steep', text: 'Steep Tea', parent: 'goal' }, // No explicit size
+    { id: 'steep', text: 'Steep Tea', parent: 'goal' },
     { id: 'place', text: 'Place Teabag', parent: 'steep', width: NODE_WIDTH, height: NODE_HEIGHT },
     { id: 'pour', text: 'Pour Water', parent: 'steep', width: NODE_WIDTH, height: NODE_HEIGHT }
   ]);
-
-  // Define edges between the nodes
-  const [edges] = useState([
-    // sequence within Boil Water:
-    { id: 'fill-heat', from: 'fill', to: 'heat' },
-    // sequence within Steep Tea:
-    { id: 'place-pour', from: 'place', to: 'pour' },
-    // dependency between Boil Water and Steep Tea:
+  const [edges, setEdges] = useState([
+    { id: 'fill-heat', from: 'fill', to: 'heat', parent: 'boil' },
+    { id: 'place-pour', from: 'place', to: 'pour', parent: 'steep' },
     { id: 'heat-pour', from: 'heat', to: 'pour' }
   ]);
 
-  // Track the selected node
+  // Track selected node
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
+
+  // Counter for generating unique IDs
+  const nodeIdCounter = useRef(nodes.length + 1);
+
+  // Function to add a new node
+  const handleAddNode = (parentNode: MyNodeData) => {
+    const newNodeId = `node-${nodeIdCounter.current++}`;
+    const newEdgeId = `${parentNode.id}-${newNodeId}`;
+
+    // Create a new leaf node
+    const newNode: MyNodeData = {
+      id: newNodeId,
+      text: 'New Task',
+      parent: parentNode.id,
+      width: NODE_WIDTH, 
+      height: NODE_HEIGHT
+    };
+
+    // Create the edge connecting to it
+    const newEdge = {
+      id: newEdgeId,
+      from: parentNode.id,
+      to: newNodeId,
+      parent: newNode.parent
+    };
+
+    // Update state
+    setNodes(prevNodes => [...prevNodes, newNode]);
+    setEdges(prevEdges => [...prevEdges, newEdge]);
+
+    console.log(`Added node ${newNodeId} branching from ${parentNode.id}`);
+  };
+
+  // Function to handle node selection (extracted for clarity)
+  const handleNodeClick = (id: string) => {
+    setSelectedNode(id);
+  };
 
   return (
     <div className="app-container">
@@ -52,59 +94,21 @@ const App: React.FC = () => {
           maxWidth={1000}
           maxHeight={750}
           direction="DOWN"
+          layoutOptions={layoutOptions}
           node={
             <Node
-              style={(n: MyNodeData) => ({
-                // Style nodes based on their level in the hierarchy
-                fill: n.parent === undefined ? '#e3f2fd' :  // Top level
-                      n.parent === 'goal' ? '#bbdefb' :  // Second level
-                      '#fff8e1',  // Leaf nodes (actions)
-                stroke: selectedNode === n.id ? '#f44336' : '#2196f3',
-                strokeWidth: selectedNode === n.id ? 2 : 1,
-                rx: 8,
-                ry: 8
-              })}
+              // Removed the style prop here, as styling is handled inside CustomNode based on selection/level
             >
-              {(nodeProps: NodeChildProps) => { // Use NodeChildProps without generics for now
-                const nodeData = nodeProps.node as MyNodeData; // Cast to our type
-                // Use nodeData size if available (leaf), otherwise default (parent - will be overridden by ELK)
-                const nodeWidth = nodeData.width || NODE_WIDTH;
-                const nodeHeight = nodeData.height || NODE_HEIGHT;
-                const isSelected = selectedNode === nodeData.id;
-                
-                // Determine node level for styling
-                let nodeLevelClass = 'node-level-leaf';
-                if (nodeData.parent === undefined) {
-                  nodeLevelClass = 'node-level-root';
-                } else if (nodeData.parent === 'goal') {
-                  nodeLevelClass = 'node-level-subtask';
-                }
-
-                return (
-                  <foreignObject x={0} y={0} width={nodeWidth} height={nodeHeight}>
-                    <div 
-                      className={`node-wrapper ${nodeLevelClass}`}
-                      aria-selected={isSelected}
-                      onClick={(e) => {
-                        // Prevent click from propagating if it's inside the foreignObject
-                        e.stopPropagation();
-                        setSelectedNode(nodeData.id);
-                        console.log(`Clicked on node: ${nodeData.text} (ID: ${nodeData.id})`);
-                      }}
-                    >
-                      <div className="node-content">
-                        <div className="node-details">
-                          <h1>{nodeData.text}</h1>
-                          <p>ID: {nodeData.id}{nodeData.parent ? ` (Parent: ${nodeData.parent})` : ''}</p>
-                        </div>
-                        {/* Icon placeholder can go here */}
-                      </div>
-                      {/* Tooltip using SVG title */}
-                      <title>{`${nodeData.text} (ID: ${nodeData.id})`}</title>
-                    </div>
-                  </foreignObject>
-                );
-              }}
+              {(nodeProps: NodeChildProps) => (
+                // Use the CustomNode component
+                <CustomNode
+                  nodeProps={nodeProps}
+                  selectedNode={selectedNode}
+                  nodes={nodes} // Pass the full nodes array
+                  onNodeClick={handleNodeClick} // Pass the click handler
+                  onAddClick={handleAddNode}    // Pass the add handler
+                />
+              )}
             </Node>
           }
           edge={
