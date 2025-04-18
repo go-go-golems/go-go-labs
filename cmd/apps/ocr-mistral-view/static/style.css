@@ -26,17 +26,47 @@ body {
     border-collapse: collapse;
     overflow-x: auto;
     display: block;
+    margin: 20px 0;
+    font-size: 0.9em;
 }
 
 .markdown-body table th,
 .markdown-body table td {
-    padding: 0.5rem;
-    border: 1px solid #e1e4e8;
+    padding: 0.75rem;
+    border: 1px solid #dfe2e5;
+    text-align: left;
 }
 
 .markdown-body table th {
     background-color: #f6f8fa;
     font-weight: 600;
+    border-bottom: 2px solid #dfe2e5;
+}
+
+.markdown-body table tr:nth-child(even) {
+    background-color: #f8f9fa;
+}
+
+.markdown-body table tr:hover {
+    background-color: #f1f4f7;
+}
+
+/* Add horizontal scrolling for wide tables */
+.markdown-body .table-wrapper {
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+/* Support for responsive tables on small screens */
+@media (max-width: 767px) {
+    .markdown-body table {
+        font-size: 0.8em;
+    }
+    
+    .markdown-body table th,
+    .markdown-body table td {
+        padding: 0.5rem;
+    }
 }
 
 /* Card styling */

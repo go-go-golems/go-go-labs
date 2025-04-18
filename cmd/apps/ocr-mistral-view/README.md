@@ -8,7 +8,12 @@ A web application to view OCR results from Mistral in a user-friendly, browsable
 - Navigate through pages with a page browser
 - Option to view all pages at once
 - Automatic extraction and rendering of images from the OCR results
-- Markdown rendering for text content
+- Markdown rendering for text content with support for:
+  - Tables (responsive with horizontal scrolling)
+  - Code blocks with syntax highlighting
+  - Images with proper sizing
+  - Links and formatting
+  - Lists and headings
 
 ## Installation
 

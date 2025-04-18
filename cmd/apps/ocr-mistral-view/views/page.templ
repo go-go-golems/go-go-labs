@@ -3,13 +3,30 @@ package views
 import (
 	"bytes"
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/parser"
+	"github.com/yuin/goldmark/renderer/html"
 	"strconv"
+	"strings"
 )
 
 // renderMarkdown converts markdown to HTML
 func renderMarkdown(markdown string) (string, error) {
+	// Create a Goldmark instance with the GFM extension for tables
+	md := goldmark.New(
+		goldmark.WithExtensions(extension.GFM),
+		goldmark.WithParserOptions(
+			parser.WithAutoHeadingID(),
+		),
+		goldmark.WithRendererOptions(
+			html.WithHardWraps(),
+			html.WithXHTML(),
+			html.WithUnsafe(), // Allow raw HTML
+		),
+	)
+
 	var buf bytes.Buffer
-	if err := goldmark.Convert([]byte(markdown), &buf); err != nil {
+	if err := md.Convert([]byte(markdown), &buf); err != nil {
 		return "", err
 	}
 	return buf.String(), nil
@@ -95,9 +112,18 @@ templ AllPages(data OCRData) {
 
 // Markdown renders markdown content
 templ Markdown(content string) {
-	if html, err := renderMarkdown(content); err == nil {
-		@templ.Raw(html)
-	} else {
-		<pre>{ content }</pre>
+	@templ.Raw(processMarkdown(content))
+}
+
+func processMarkdown(content string) string {
+	html, err := renderMarkdown(content)
+	if err != nil {
+		return "<pre>" + content + "</pre>"
 	}
+	// Add a wrapper for tables to make them horizontally scrollable
+	// Replace <table> with <div class="table-wrapper"><table>
+	// and </table> with </table></div>
+	htmlWithWrappedTables := strings.ReplaceAll(html, "<table>", `<div class="table-wrapper"><table>`)
+	htmlWithWrappedTables = strings.ReplaceAll(htmlWithWrappedTables, "</table>", "</table></div>")
+	return htmlWithWrappedTables
 }
