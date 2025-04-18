@@ -1,0 +1,157 @@
+.app-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+  font-family: 'Arial', sans-serif;
+}
+
+h1 {
+  margin-bottom: 0.5rem;
+  color: #1976d2;
+}
+
+.canvas-container {
+  width: 100%;
+  height: 600px;
+  margin: 2rem 0;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #fafafa;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+}
+
+.info-panel {
+  margin: 2rem auto;
+  padding: 1rem;
+  max-width: 400px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background-color: #fff;
+  text-align: left;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.info-panel h3 {
+  margin-top: 0;
+  color: #1976d2;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 0.5rem;
+}
+
+.legend {
+  margin: 2rem auto;
+  padding: 1rem;
+  max-width: 400px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background-color: #fff;
+  text-align: left;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.legend h3 {
+  margin-top: 0;
+  color: #1976d2;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 0.5rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  margin: 0.5rem 0;
+}
+
+.legend-color {
+  width: 20px;
+  height: 20px;
+  margin-right: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+/* Node specific styles adapted from @Diagram */
+.node-wrapper {
+  position: relative; /* Needed for potential absolute positioning inside */
+  width: 100%;
+  height: 100%;
+  background-color: #fff; /* Default background */
+  border: 1px solid #ccc; /* Default border */
+  border-radius: 4px;
+  border-left-width: 4px;
+  transition: border-color 0.3s, box-shadow 0.3s;
+  cursor: pointer;
+  overflow: hidden; /* Prevent content overflow */
+}
+
+.node-wrapper[aria-selected='true'] {
+  border-color: #f44336; /* Use selection color for the whole border */
+  box-shadow: 0 0 8px rgba(244, 67, 54, 0.5); /* Add a shadow for selection */
+}
+
+/* Style based on node level */
+.node-wrapper.node-level-root {
+  border-left-color: #2196f3; /* Blue for root */
+  background-color: #e3f2fd;
+}
+.node-wrapper.node-level-subtask {
+  border-left-color: #4caf50; /* Green for subtasks */
+  background-color: #e8f5e9;
+}
+.node-wrapper.node-level-leaf {
+  border-left-color: #ffc107; /* Amber for leaves */
+  background-color: #fff8e1;
+}
+
+.node-content {
+  display: flex; /* Use flexbox for simpler layout */
+  padding: 10px;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.node-details {
+  flex-grow: 1; /* Allow details to take available space */
+  color: #333;
+  overflow: hidden; /* Hide overflow */
+}
+
+.node-details h1 {
+  margin: 0 0 5px 0;
+  font-size: 14px;
+  color: #111; /* Darker heading */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.node-details p {
+  margin: 0;
+  font-size: 12px;
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Remove default reaflow node fill/stroke when using foreignObject */
+.reaflow-node {
+  fill: transparent !important;
+  stroke: transparent !important;
+}
+
+/* Legend update to match new node styles */
+.legend-color.node-level-root {
+  background-color: #e3f2fd;
+  border-left: 4px solid #2196f3;
+}
+.legend-color.node-level-subtask {
+  background-color: #e8f5e9;
+  border-left: 4px solid #4caf50;
+}
+.legend-color.node-level-leaf {
+  background-color: #fff8e1;
+  border-left: 4px solid #ffc107;
+}

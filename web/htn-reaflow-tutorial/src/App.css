@@ -1,0 +1,44 @@
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.controls {
+  margin-bottom: 20px;
+}
+
+.example-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.example-buttons button {
+  padding: 8px 16px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: #fff;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.example-buttons button:hover {
+  background-color: #f0f0f0;
+}
+
+.graph-container {
+  flex: 1;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  overflow: hidden;
+  background-color: #fafafa;
+}
+
+h1 {
+  margin: 0 0 16px 0;
+  font-size: 24px;
+  color: #333;
+} 
