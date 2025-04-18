@@ -1,3 +1,4 @@
 @tailwind base;
 @tailwind components;
+@import "reachat/index.css";
 @tailwind utilities; 

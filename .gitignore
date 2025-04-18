@@ -35,3 +35,5 @@ __debug*
 
 cmd/apps/textractor/outputs
 .specstory
+
+node_modules
