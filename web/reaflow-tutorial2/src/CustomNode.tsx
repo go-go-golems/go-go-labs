@@ -1,110 +1,132 @@
 import React from 'react';
 import { NodeChildProps } from 'reaflow';
-import { MyNodeData } from './App'; // Assuming MyNodeData is exported from App.tsx or moved elsewhere
+import { MyNodeData } from './App';
+import { nodeConfig } from './nodeConfig';
 
-// Define constants or import them
+// Define node dimensions directly here or import if needed elsewhere
 const NODE_WIDTH = 260;
-const NODE_HEIGHT = 100;
+const NODE_HEIGHT = 164; // Matches reachat-codesandbox including button space
+const NODE_BUTTON_SIZE = 32; // From reachat style
 
-interface CustomNodeProps {
-  nodeProps: NodeChildProps<MyNodeData>; // Pass the nodeProps from Reaflow
-  selectedNode: string | null;
-  nodes: MyNodeData[]; // Needed to check if a node is a parent
-  onNodeClick: (id: string) => void; // Callback for selection
-  onAddClick: (node: MyNodeData) => void; // Callback for adding node
+// --- Helper Components (can remain as they are type/data driven) ---
+
+interface NodeStatsProps {
+  showStats?: boolean;
+  stats?: Record<string, number>;
 }
 
-export const CustomNode: React.FC<CustomNodeProps> = ({ 
+const NodeStats: React.FC<NodeStatsProps> = ({ showStats, stats }) =>
+  showStats && stats ? (
+    <ul className="node-stats">
+      {Object.entries(stats).map(([label, count]) => (
+        <li key={label}>
+          <span>{label}</span>
+          <strong>{count}</strong>
+        </li>
+      ))}
+    </ul>
+  ) : null;
+
+interface NodeContentProps {
+  node: MyNodeData;
+  selected?: boolean;
+  onClick?: () => void;
+}
+
+const NodeContent: React.FC<NodeContentProps> = ({ node, selected, onClick }) => {
+  const nodeData = node.data || { type: 'default', title: 'Default Title' }; // Fallback
+  const type = nodeData.type || 'default';
+  const title = nodeData.title || 'Node Title';
+  const description = nodeData.description || 'Node Description';
+  const showError = nodeData.showError;
+
+  const { color, icon, backgroundColor } = nodeConfig(type);
+
+  // Use inline styles derived from nodeConfig for simplicity
+  const nodeContentStyle: React.CSSProperties = {
+    borderLeft: `4px solid ${color}`,
+    backgroundColor: backgroundColor,
+    color: '#333' // Default text color
+  };
+
+  const nodeIconStyle: React.CSSProperties = {
+    color: color // Use the node's primary color for the icon
+  };
+
+  return (
+    <div
+      className="node-content"
+      style={nodeContentStyle}
+      onClick={onClick}
+      aria-selected={selected}
+    >
+      {showError && <div className="node-error-badge"></div>}
+      <div className="node-icon" style={nodeIconStyle}>{icon}</div>
+      <div className="node-details">
+        <h1>{title} (ID: {node.id})</h1>
+        <p>{description}</p>
+      </div>
+      <NodeStats stats={nodeData.stats} showStats={nodeData.showStats} />
+    </div>
+  );
+};
+
+// --- Main CustomNode Component ---
+
+export interface CustomNodeProps {
+  nodeProps: NodeChildProps; // Use generic type
+  selectedNode: string | null;
+  // nodes: MyNodeData[]; // No longer needed for parent check
+  onNodeClick: (id: string) => void;
+  onAddClick: (node: MyNodeData) => void;
+}
+
+export const CustomNode: React.FC<CustomNodeProps> = ({
   nodeProps,
   selectedNode,
-  nodes,
   onNodeClick,
   onAddClick
 }) => {
-  // --- Start of moved logic from App.tsx --- 
-  const nodeData = nodeProps.node;
-  // Size calculations remain the same
-  const nodeWidth = nodeData.width || NODE_WIDTH;
-  const nodeHeight = nodeData.height || NODE_HEIGHT;
-  const isSelected = selectedNode === nodeData.id;
-  // Check if it has children or is root
-  const isParent = nodeData.parent === undefined || nodes.some(n => n.parent === nodeData.id); 
+  const { node, x, y } = nodeProps;
+  const width = node.width || NODE_WIDTH;
+  const height = node.height || NODE_HEIGHT;
+  const isSelected = selectedNode === node.id;
+  const isDisabled = false; // Add logic if needed
 
-  // Style calculations remain the same
-  const fill = nodeData.parent === undefined ? '#e3f2fd' :
-               nodeData.parent === 'goal' ? '#bbdefb' :
-               '#fff8e1';
-  const stroke = isSelected ? '#f44336' : '#2196f3';
-  const strokeWidth = isSelected ? 2 : 1;
-  const textY = isParent ? 20 : nodeHeight / 2;
-  const textAnchor = isParent ? "start" : "middle";
-  const textX = isParent ? 15 : nodeWidth / 2;
-
-  // Determine if add button should be shown (e.g., not on the root)
-  const showAddButton = nodeData.id !== 'goal'; 
+  // Determine if add button should be shown (e.g., hide for 'end' type)
+  const showAddButton = node.data?.type !== 'end';
 
   return (
-    <g 
-      onClick={(e) => {
-        e.stopPropagation();
-        onNodeClick(nodeData.id); // Use callback
-        console.log(`Clicked on node: ${nodeData.text} (ID: ${nodeData.id})`);
-      }}
-      style={{ cursor: 'pointer' }}
-    >
-      {/* Node rectangle */}
-      <rect 
-        width={nodeWidth}
-        height={nodeHeight}
-        fill={fill}
-        stroke={stroke}
-        strokeWidth={strokeWidth}
-        rx={8} 
-        ry={8}
-      />
-      {/* Node text */}
-      <text 
-        x={textX} 
-        y={textY} 
-        textAnchor={textAnchor}
-        dominantBaseline="middle"
-        fill="#333"
-        fontSize="14px"
-        fontWeight={isParent ? 'bold' : 'normal'}
-      >
-        {nodeData.text}
-      </text>
-      
-      {/* Add Node Button (+) - positioned bottom-right */}
-      {showAddButton && (
-        <g 
-          transform={`translate(${nodeWidth - 25}, ${nodeHeight - 25})`} 
-          onClick={(e) => {
-            e.stopPropagation(); 
-            onAddClick(nodeData); // Use callback
-          }}
-          style={{ cursor: 'pointer' }}
-        >
-          <circle cx="0" cy="0" r="10" fill="#4caf50" stroke="#fff" strokeWidth="1" />
-          <text 
-            x="0"
-            y="0"
-            textAnchor="middle"
-            dominantBaseline="central" 
-            fill="white"
-            fontSize="14px"
-            fontWeight="bold"
-            style={{ pointerEvents: 'none' }} 
-          >
-            +
-          </text>
-          <title>Add child node</title>
-        </g>
-      )}
+    <foreignObject x={0} y={0}
+     width={width} height={height}
+     >
+      {/* Apply CSS reset/base styles via className */}
+      <div className="node-style-reset node-wrapper">
+        <NodeContent
+          node={node}
+          selected={isSelected}
+          onClick={onNodeClick ? () => onNodeClick(node.id) : undefined}
+        />
 
-      {/* Existing Tooltip */}
-      <title>{`${nodeData.text} (ID: ${nodeData.id})`}</title>
-    </g>
+        {/* Add Button - similar structure to reachat */}
+        {showAddButton && (
+          <div className="add-button">
+            {/* Basic button for now, can enhance with icons later */}
+            <button
+              disabled={isDisabled}
+              // size="middle"
+              // shape="circle"
+              // icon={<PlusOutlined />}
+              onClick={(e) => {
+                e.stopPropagation(); // Prevent node click
+                if (onAddClick) onAddClick(node);
+              }}
+            >
+              +
+            </button>
+          </div>
+        )}
+      </div>
+    </foreignObject>
   );
-  // --- End of moved logic --- 
 }; 

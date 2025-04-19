@@ -2,18 +2,30 @@ import React, { useState, useRef } from 'react';
 import { Canvas, Node, Edge, NodeChildProps, ElkCanvasLayoutOptions } from 'reaflow';
 import './App.css';
 import { CustomNode } from './CustomNode'; // Import the new component
+import { nodeConfig } from './nodeConfig'; // Import node config
 
-// Define an interface for our custom node data (Ensure it's exported)
+// Define an interface for our custom node data
 export interface MyNodeData {
   id: string;
-  text: string;
-  parent?: string;
+  // parent?: string; // No longer needed for flat structure
+  text?: string; // Keep text for compatibility or specific uses if needed
   width?: number;
   height?: number;
+  // Add fields inspired by reachat-codesandbox
+  data?: {
+    type: string; // e.g., 'goal', 'subtask', 'action', 'source', 'email', 'wait', 'sms', 'end'
+    title: string;
+    description?: string;
+    icon?: string; // Placeholder for icon representation (e.g., emoji, text)
+    stats?: Record<string, number>;
+    showStats?: boolean;
+    showError?: boolean; // For badge
+  };
 }
 
-const NODE_WIDTH = 260;
-const NODE_HEIGHT = 100;
+// Define node dimensions based on reachat-codesandbox/style.ts
+const NODE_WIDTH = 260; // From example
+const NODE_HEIGHT = 164; // From example (includes button space)
 
 // Define Layout Options
 const layoutOptions: ElkCanvasLayoutOptions = {
@@ -24,22 +36,67 @@ const layoutOptions: ElkCanvasLayoutOptions = {
   'elk.layered.spacing.nodeNodeBetweenLayers': '80',
 };
 
+// Initial Data - Flat structure
+const initialNodes: MyNodeData[] = [
+  {
+    id: 'goal',
+    width: NODE_WIDTH, height: NODE_HEIGHT, // Give all nodes a size now
+    data: { type: 'goal', title: 'Make Tea', description: "Top-level objective" }
+  },
+  {
+    id: 'boil',
+    width: NODE_WIDTH, height: NODE_HEIGHT,
+    data: { type: 'subtask', title: 'Boil Water', description: "Heat water to boiling point" }
+  },
+  {
+    id: 'fill',
+    width: NODE_WIDTH, height: NODE_HEIGHT,
+    data: { type: 'action', title: 'Fill Kettle', description: "Add water to the kettle", icon: '💧', stats: { 'Time': 5, 'Units': 1 }, showStats: true }
+  },
+  {
+    id: 'heat',
+    width: NODE_WIDTH, height: NODE_HEIGHT,
+    data: { type: 'action', title: 'Heat Kettle', description: "Activate heating element", icon: '🔥', showError: true } // Example error
+  },
+  {
+    id: 'steep',
+    width: NODE_WIDTH, height: NODE_HEIGHT,
+    data: { type: 'subtask', title: 'Steep Tea', description: "Infuse tea leaves in hot water" }
+  },
+  {
+    id: 'place',
+    width: NODE_WIDTH, height: NODE_HEIGHT,
+    data: { type: 'action', title: 'Place Teabag', description: "Put teabag in cup", icon: '🍵' }
+  },
+  {
+    id: 'pour',
+    width: NODE_WIDTH, height: NODE_HEIGHT,
+    data: { type: 'action', title: 'Pour Water', description: "Add hot water to cup", icon: '➡️', stats: { 'Volume': 200, 'Temp': 95 }, showStats: true }
+  }
+];
+
+// Edges: Represent hierarchy and dependencies
+const initialEdges = [
+  // Hierarchy Edges
+  { id: 'goal-boil', from: 'goal', to: 'boil', className: 'edge-hierarchy' },
+  { id: 'goal-steep', from: 'goal', to: 'steep', className: 'edge-hierarchy' },
+  { id: 'boil-fill', from: 'boil', to: 'fill', className: 'edge-hierarchy' },
+  { id: 'boil-heat', from: 'boil', to: 'heat', className: 'edge-hierarchy' },
+  { id: 'steep-place', from: 'steep', to: 'place', className: 'edge-hierarchy' },
+  { id: 'steep-pour', from: 'steep', to: 'pour', className: 'edge-hierarchy' },
+
+  // Dependency/Sequence Edges (within original hierarchy levels)
+  { id: 'fill-heat', from: 'fill', to: 'heat' }, // Removed parent: 'boil'
+  { id: 'place-pour', from: 'place', to: 'pour' },// Removed parent: 'steep'
+
+  // Dependency/Sequence Edges (across original hierarchy levels)
+  { id: 'heat-pour', from: 'heat', to: 'pour' } // Cross-subtask dependency
+];
+
 const App: React.FC = () => {
-  // Use state setters for nodes and edges
-  const [nodes, setNodes] = useState<MyNodeData[]>([
-    { id: 'goal', text: 'Make Tea' },
-    { id: 'boil', text: 'Boil Water', parent: 'goal' },
-    { id: 'fill', text: 'Fill Kettle', parent: 'boil', width: NODE_WIDTH, height: NODE_HEIGHT },
-    { id: 'heat', text: 'Heat Kettle', parent: 'boil', width: NODE_WIDTH, height: NODE_HEIGHT },
-    { id: 'steep', text: 'Steep Tea', parent: 'goal' },
-    { id: 'place', text: 'Place Teabag', parent: 'steep', width: NODE_WIDTH, height: NODE_HEIGHT },
-    { id: 'pour', text: 'Pour Water', parent: 'steep', width: NODE_WIDTH, height: NODE_HEIGHT }
-  ]);
-  const [edges, setEdges] = useState([
-    { id: 'fill-heat', from: 'fill', to: 'heat', parent: 'boil' },
-    { id: 'place-pour', from: 'place', to: 'pour', parent: 'steep' },
-    { id: 'heat-pour', from: 'heat', to: 'pour' }
-  ]);
+  // Use state setters for nodes and edges with initial data
+  const [nodes, setNodes] = useState<MyNodeData[]>(initialNodes);
+  const [edges, setEdges] = useState(initialEdges);
 
   // Track selected node
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
@@ -52,13 +109,17 @@ const App: React.FC = () => {
     const newNodeId = `node-${nodeIdCounter.current++}`;
     const newEdgeId = `${parentNode.id}-${newNodeId}`;
 
-    // Create a new leaf node
+    // Create a new leaf node with default data structure
     const newNode: MyNodeData = {
       id: newNodeId,
-      text: 'New Task',
-      parent: parentNode.id,
-      width: NODE_WIDTH, 
-      height: NODE_HEIGHT
+      width: NODE_WIDTH, // Use standard dimensions
+      height: NODE_HEIGHT,
+      data: {
+        type: 'action', // Default type
+        title: 'New Task',
+        description: 'Specify details',
+        icon: '🆕'
+      }
     };
 
     // Create the edge connecting to it
@@ -66,7 +127,7 @@ const App: React.FC = () => {
       id: newEdgeId,
       from: parentNode.id,
       to: newNodeId,
-      parent: newNode.parent
+      className: 'edge-hierarchy' 
     };
 
     // Update state
@@ -91,22 +152,25 @@ const App: React.FC = () => {
           nodes={nodes}
           edges={edges}
           fit={true}
-          maxWidth={1000}
-          maxHeight={750}
+          // maxWidth={1200} // Increase size maybe
+          // maxHeight={800}
           direction="DOWN"
           layoutOptions={layoutOptions}
+          zoomable={true} // Enable zoom
+          pannable={true} // Enable pan
           node={
             <Node
-              // Removed the style prop here, as styling is handled inside CustomNode based on selection/level
+              // Removed the style prop here, as styling is handled inside CustomNode
+              // Ensure the node size is passed if not using layout defaults
             >
               {(nodeProps: NodeChildProps) => (
                 // Use the CustomNode component
                 <CustomNode
                   nodeProps={nodeProps}
                   selectedNode={selectedNode}
-                  nodes={nodes} // Pass the full nodes array
-                  onNodeClick={handleNodeClick} // Pass the click handler
-                  onAddClick={handleAddNode}    // Pass the add handler
+                  // nodes={nodes}
+                  onNodeClick={handleNodeClick}
+                  onAddClick={handleAddNode}
                 />
               )}
             </Node>
@@ -114,7 +178,7 @@ const App: React.FC = () => {
           edge={
             <Edge
               style={{
-                stroke: '#78909c',
+                stroke: '#78909c', // Keep edge style simple for now
                 strokeWidth: 1.5,
               }}
             />
@@ -122,40 +186,73 @@ const App: React.FC = () => {
         />
       </div>
 
+      {/* Info Panel - Update to show new data fields */}
       <div className="info-panel">
         <h3>Selected Node</h3>
         {selectedNode ? (
-          <div>
-            <p>
-              <strong>ID:</strong> {selectedNode}
-            </p>
-            <p>
-              <strong>Text:</strong> {nodes.find(n => n.id === selectedNode)?.text || ''}
-            </p>
-            <p>
-              <strong>Parent:</strong> {nodes.find(n => n.id === selectedNode)?.parent || 'None'}
-            </p>
-          </div>
+          (() => {
+            const node = nodes.find(n => n.id === selectedNode);
+            const nodeData = node?.data;
+            return node ? (
+              <div>
+                <p><strong>ID:</strong> {node.id}</p>
+                <p><strong>Type:</strong> {nodeData?.type || 'N/A'}</p>
+                <p><strong>Title:</strong> {nodeData?.title || node.text || 'N/A'}</p>
+                <p><strong>Description:</strong> {nodeData?.description || 'N/A'}</p>
+                {nodeData?.stats && (
+                  <p><strong>Stats:</strong> {JSON.stringify(nodeData.stats)}</p>
+                )}
+              </div>
+            ) : <p>Node not found</p>;
+          })()
         ) : (
           <p>Click on a node to see its details</p>
         )}
       </div>
 
+      {/* Legend - Update to reflect new node types/styles */}
       <div className="legend">
         <h3>Legend</h3>
+        {/* Example legend items - map nodeConfig or define manually */}
         <div className="legend-item">
-          <div className="legend-color node-level-root"></div>
-          <span>Goal (Top Level)</span>
+           <div className="legend-color" style={{ backgroundColor: nodeConfig('goal').backgroundColor, borderLeft: `4px solid ${nodeConfig('goal').color}` }}></div>
+          <span>Goal</span>
+        </div>
+         <div className="legend-item">
+           <div className="legend-color" style={{ backgroundColor: nodeConfig('subtask').backgroundColor, borderLeft: `4px solid ${nodeConfig('subtask').color}` }}></div>
+          <span>Subtask</span>
         </div>
         <div className="legend-item">
-          <div className="legend-color node-level-subtask"></div>
-          <span>Subtasks (Second Level)</span>
+           <div className="legend-color" style={{ backgroundColor: nodeConfig('action').backgroundColor, borderLeft: `4px solid ${nodeConfig('action').color}` }}></div>
+          <span>Action</span>
         </div>
-        <div className="legend-item">
-          <div className="legend-color node-level-leaf"></div>
-          <span>Actions (Leaf Nodes)</span>
-        </div>
+         {/* Add more based on nodeConfig */}
       </div>
+
+      {/* Add specific styles for hierarchy edges */}
+      <Edge
+        id="edge-hierarchy-style" // Placeholder ID for potential global style reference
+        style={{
+          stroke: '#adb5bd', // Lighter grey for hierarchy
+          strokeDasharray: '5 2', // Dashed line
+          strokeWidth: 1,
+        }}
+        // markerEnd='url(#arrow-hierarchy)'
+      />
+
+      <defs>
+        <marker
+          id="arrow-hierarchy"
+          viewBox="0 0 10 10"
+          refX="8"
+          refY="5"
+          markerWidth="6"
+          markerHeight="6"
+          orient="auto-start-reverse"
+        >
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#adb5bd" />
+        </marker>
+      </defs>
     </div>
   );
 };

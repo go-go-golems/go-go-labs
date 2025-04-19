@@ -1,5 +1,5 @@
 .app-container {
-  max-width: 1200px;
+  max-width: 2000px;
   margin: 0 auto;
   padding: 2rem;
   text-align: center;
@@ -13,7 +13,7 @@ h1 {
 
 .canvas-container {
   width: 100%;
-  height: 600px;
+  height: 1200px;
   margin: 2rem 0;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
@@ -154,4 +154,235 @@ h1 {
 .legend-color.node-level-leaf {
   background-color: #fff8e1;
   border-left: 4px solid #ffc107;
+}
+
+/* General App Styles */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: sans-serif;
+  padding: 20px;
+  background-color: #f0f0f0; /* Light grey background */
+}
+
+.canvas-container {
+  border: 1px solid #ccc;
+  margin-bottom: 20px;
+  background-color: white;
+  /* Dotted background like reachat */
+  background-image: radial-gradient(circle, #d7d7d7 1px, rgba(0, 0, 0, 0) 1px);
+  background-size: 20px 20px;
+}
+
+.info-panel,
+.legend {
+  border: 1px solid #ccc;
+  padding: 15px;
+  margin-top: 15px;
+  background-color: white;
+  width: 80%;
+  max-width: 600px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.legend-color {
+  width: 20px;
+  height: 20px;
+  margin-right: 10px;
+  border: 1px solid #eee;
+  /* border-left will be set inline */
+}
+
+/* Reaflow Node Styles adapted from reachat-codesandbox */
+
+/* Constants (reference only, actual values used below) */
+/* 
+--mc-automation-node-icon-size: 24px;
+--mc-automation-node-stroke: #e0e0e0;
+--mc-automation-node-background: white;
+--mc-automation-node-foreground: #333;
+--elevation-z2: 0px 3px 1px -2px rgba(0,0,0,0.2), 0px 2px 2px 0px rgba(0,0,0,0.14), 0px 1px 5px 0px rgba(0,0,0,0.12);
+NODE_WIDTH = 260px;
+NODE_HEIGHT = 164px;
+NODE_BUTTON_SIZE = 32px; 
+*/
+
+/* Reset default Reaflow styles */
+.node-style-reset {
+  /* These styles are applied to the <foreignObject> container via className */
+  /* No fill/stroke needed here as we use HTML background/border */
+}
+
+.node-wrapper {
+  position: relative;
+  /* Ensure wrapper fills the foreignObject */
+  width: 100%;
+  height: 100%;
+}
+
+.node-content {
+  box-sizing: border-box; /* Include padding and border in element's total width and height */
+  display: grid;
+  grid-template-columns: 1fr 24px; /* Adapted icon size */
+  grid-template-rows: auto 1fr; /* Title/Desc row, Stats row */
+  gap: 16px 8px; /* Row gap, Column gap */
+  width: 260px; /* Fixed width */
+  height: calc(164px - (32px / 2)); /* Fixed height minus half button overlap */
+  padding: 16px;
+  border: 1px solid #e0e0e0; /* --mc-automation-node-stroke */
+  /* border-left set inline based on nodeConfig */
+  border-radius: 2px;
+  /* background-color set inline based on nodeConfig */
+  transition: border-color 0.3s, box-shadow 0.3s;
+  cursor: pointer;
+  position: relative; /* For error badge positioning */
+}
+
+.node-content[aria-selected='true'] {
+  border-color: currentColor; /* Uses the node's specific color (from inline style) */
+  /* Approximation of --elevation-z2 */
+  box-shadow: 0px 3px 1px -2px rgba(0,0,0,0.2), 0px 2px 2px 0px rgba(0,0,0,0.14), 0px 1px 5px 0px rgba(0,0,0,0.12);
+}
+
+/* Simple red dot for error badge */
+.node-error-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px; /* Position near the colored border */
+  width: 8px;
+  height: 8px;
+  background-color: red;
+  border-radius: 50%;
+  border: 1px solid white;
+}
+
+.node-details {
+  grid-row: 1 / span 1;
+  grid-column: 1 / span 1;
+  display: grid;
+  grid-template-rows: min-content minmax(auto, 38px);
+  gap: 8px;
+  color: #333; /* --mc-automation-node-foreground */
+  overflow: hidden; /* Prevent details from overflowing */
+}
+
+.node-details > h1,
+.node-details > p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0; /* Reset default margins */
+}
+
+.node-details > h1 {
+  font-size: 14px;
+  white-space: nowrap;
+  font-weight: bold;
+}
+
+.node-details > p {
+  font-size: 12px;
+  line-height: 1.4;
+  /* Allow wrapping for description */
+  white-space: normal; 
+  /* Basic multi-line truncation */
+  display: -webkit-box;
+  -webkit-line-clamp: 2; /* Limit to 2 lines */
+  -webkit-box-orient: vertical;  
+}
+
+.node-icon {
+  grid-row: 1 / span 1;
+  grid-column: 2 / span 1;
+  font-size: 24px; /* --mc-automation-node-icon-size */
+  line-height: 1;
+  text-align: center; /* Center icon */
+  align-self: start; /* Align icon to the top */
+}
+
+.node-stats {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  grid-row: 2 / span 1;
+  grid-column: 1 / span 2;
+  align-self: end; /* Place stats at the bottom */
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-columns: repeat(auto-fit, minmax(60px, 1fr)); /* Flexible columns */
+  gap: 8px;
+  font-size: 12px;
+  color: #555; /* Slightly muted color for stats */
+}
+
+.node-stats > li > span {
+  display: block;
+  text-transform: capitalize;
+  font-size: 10px; /* Smaller label */
+  color: #777;
+}
+.node-stats > li > strong {
+  font-size: 13px;
+}
+
+.add-button {
+  position: absolute;
+  left: 50%;
+  /* Adjust vertical position to match reachat */
+  bottom: 0;
+  transform: translate(-50%, 50%); /* Center horizontally, move down half height */
+  z-index: 10; /* Ensure button is clickable above node content */
+}
+
+/* Basic button styling - can be enhanced */
+.add-button button {
+  width: 32px; /* NODE_BUTTON_SIZE */
+  height: 32px; /* NODE_BUTTON_SIZE */
+  border-radius: 50%;
+  border: 1px solid #ccc;
+  background-color: white;
+  color: #333;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0px 1px 3px rgba(0,0,0,0.2);
+  transition: background-color 0.2s, box-shadow 0.2s;
+}
+
+.add-button button:hover {
+  background-color: #f0f0f0;
+  box-shadow: 0px 2px 4px rgba(0,0,0,0.3);
+}
+
+.add-button button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Edge Styles */
+.reaflow-edge path {
+  /* Default edge style (can be overridden by inline style) */
+  stroke: #78909c;
+  stroke-width: 1.5px;
+  fill: none;
+}
+
+/* Style for hierarchy edges */
+.reaflow-edge.edge-hierarchy path {
+  stroke: #adb5bd; /* Lighter grey */
+  stroke-dasharray: 5 2; /* Dashed line */
+  stroke-width: 1px;
+}
+
+/* Style for hierarchy edge arrowhead (if using class-based markers) */
+.reaflow-edge.edge-hierarchy .reaflow-marker path {
+  fill: #adb5bd;
 }

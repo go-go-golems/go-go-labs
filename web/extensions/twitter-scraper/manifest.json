@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "Scroll Tweet Saver",
+  "version": "0.1.0",
+  "description": "Automatically saves every tweet you scroll past.",
+
+  "permissions": ["storage", "downloads"],
+  "host_permissions": [
+    "https://twitter.com/*",
+    "https://x.com/*",
+    "https://mobile.twitter.com/*"
+  ],
+
+  "background": {
+    "scripts": ["background.js"],
+    "type": "module"
+  },
+
+  "content_scripts": [
+    {
+      "matches": [
+        "https://twitter.com/*",
+        "https://x.com/*",
+        "https://mobile.twitter.com/*"
+      ],
+      "js": ["content-script.js"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "action": {
+    "default_popup": "popup/popup.html"
+  },
+
+  "icons": {
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+} 
