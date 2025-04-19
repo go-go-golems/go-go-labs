@@ -22,6 +22,18 @@ async function saveTweet(tweet) {
   }
 }
 
+async function resetTweets() {
+  console.log("[Background Script] Resetting all tweets...");
+  try {
+    await browser.storage.local.set({ tweets: [] });
+    console.log("[Background Script] All tweets reset successfully");
+    return { success: true };
+  } catch (error) {
+    console.error("[Background Script] Error resetting tweets:", error);
+    return { success: false, error: error.message };
+  }
+}
+
 browser.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   console.log(
     "[Background Script] Message received:",
@@ -58,6 +70,19 @@ browser.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       .catch((err) => {
         console.error("[Background Script] Error getting tweets:", err);
         sendResponse([]); // Send empty array on error
+      });
+    return true; // Indicates async response
+  }
+  if (msg.type === "RESET_TWEETS") {
+    console.log("[Background Script] Received RESET_TWEETS request");
+    resetTweets()
+      .then((result) => {
+        console.log("[Background Script] Reset result:", result);
+        sendResponse(result);
+      })
+      .catch((err) => {
+        console.error("[Background Script] Error in reset handler:", err);
+        sendResponse({ success: false, error: err.message });
       });
     return true; // Indicates async response
   }

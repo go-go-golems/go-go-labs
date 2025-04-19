@@ -4,10 +4,34 @@
 <head>
     <meta charset="utf-8" />
     <title>Tweet Saver</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            width: 300px;
+            padding: 10px;
+        }
+
+        .button-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        #reset {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+    </style>
 </head>
 
 <body>
-    <button id="export">Export JSON</button>
+    <div class="button-container">
+        <button id="export">Export JSON</button>
+        <button id="reset">Reset All Tweets</button>
+    </div>
     <details id="export-stats">
         <summary>Export Stats</summary>
         <div id="stats-details"></div>

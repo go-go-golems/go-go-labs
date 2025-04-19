@@ -9,14 +9,18 @@ async function updateUI() {
 
     // Update tweet list
     list.innerHTML = "";
-    tweets
-      .slice()
-      .reverse()
-      .forEach((t) => {
-        const li = document.createElement("li");
-        li.textContent = `${t.author}: ${t.text.slice(0, 80)}`;
-        list.appendChild(li);
-      });
+    if (tweets.length === 0) {
+      list.innerHTML = "<li>No tweets saved yet. Scroll on Twitter/X!</li>";
+    } else {
+      tweets
+        .slice()
+        .reverse()
+        .forEach((t) => {
+          const li = document.createElement("li");
+          li.textContent = `${t.author}: ${t.text.slice(0, 80)}`;
+          list.appendChild(li);
+        });
+    }
 
     // Prepare export stats
     const jsonStr = JSON.stringify(tweets, null, 2);
@@ -69,4 +73,32 @@ document.getElementById("export").addEventListener("click", () => {
       );
       alert(`Failed to initiate export: ${err.message}`); // Inform user if message fails
     });
+});
+
+// Reset functionality
+document.getElementById("reset").addEventListener("click", () => {
+  if (confirm("Are you sure you want to delete all saved tweets?")) {
+    console.log(
+      "[Popup Script] Reset button clicked, sending RESET_TWEETS message."
+    );
+    browser.runtime
+      .sendMessage({ type: "RESET_TWEETS" })
+      .then((response) => {
+        console.log(
+          "[Popup Script] RESET_TWEETS message sent successfully. Response:",
+          response
+        );
+        if (response && response.success) {
+          alert("All tweets have been reset successfully!");
+          updateUI(); // Refresh UI to show empty state
+        }
+      })
+      .catch((err) => {
+        console.error(
+          "[Popup Script] Failed to send RESET_TWEETS message:",
+          err
+        );
+        alert(`Failed to reset tweets: ${err.message}`);
+      });
+  }
 });
