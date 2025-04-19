@@ -17,7 +17,23 @@ async function updateUI() {
         .reverse()
         .forEach((t) => {
           const li = document.createElement("li");
-          li.textContent = `${t.author}: ${t.text.slice(0, 80)}`;
+
+          // Create author span with proper styling
+          const authorSpan = document.createElement("span");
+          authorSpan.className = "tweet-author";
+          authorSpan.textContent = t.author || "Unknown";
+
+          // Create text span with proper styling
+          const textSpan = document.createElement("span");
+          textSpan.className = "tweet-text";
+          textSpan.textContent = `: ${t.text.slice(0, 120)}${
+            t.text.length > 120 ? "..." : ""
+          }`;
+
+          // Append both spans to the list item
+          li.appendChild(authorSpan);
+          li.appendChild(textSpan);
+
           list.appendChild(li);
         });
     }
@@ -26,15 +42,20 @@ async function updateUI() {
     const jsonStr = JSON.stringify(tweets, null, 2);
     const totalTweets = tweets.length;
     const sizeKB = (jsonStr.length / 1024).toFixed(2);
+    const sizeMB = (jsonStr.length / (1024 * 1024)).toFixed(2);
+
+    const sizeDisplay = sizeKB > 1000 ? `${sizeMB} MB` : `${sizeKB} KB`;
+
     const sample =
       totalTweets > 0
-        ? `${tweets[0].author}: ${tweets[0].text.slice(0, 80)}...`
+        ? `${tweets[0].author || "Unknown"}: ${tweets[0].text.slice(0, 80)}...`
         : "No tweets available";
 
     statsDiv.innerHTML =
-      `<p>Total tweets: ${totalTweets}</p>` +
-      `<p>Estimated export size: ${jsonStr.length} characters (~${sizeKB} KB)</p>` +
-      `<p>Sample tweet: ${sample}</p>`;
+      `<p><strong>Total tweets:</strong> ${totalTweets}</p>` +
+      `<p><strong>Export size:</strong> ~${sizeDisplay}</p>` +
+      `<p><strong>Oldest tweet:</strong> ${sample}</p>`;
+
     console.log("[Popup Script] UI Updated successfully.");
   } catch (err) {
     console.error("[Popup Script] Failed to update UI with tweets:", err);

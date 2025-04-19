@@ -5,37 +5,153 @@
     <meta charset="utf-8" />
     <title>Tweet Saver</title>
     <style>
+        :root {
+            --primary: #1DA1F2;
+            --danger: #e0245e;
+            --light: #f5f8fa;
+            --dark: #14171a;
+            --secondary: #657786;
+            --border: #e1e8ed;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
         body {
-            font-family: sans-serif;
-            width: 300px;
-            padding: 10px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            width: 400px;
+            padding: 16px;
+            background-color: var(--light);
+            color: var(--dark);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header h1 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary);
         }
 
         .button-container {
             display: flex;
-            gap: 10px;
-            margin-bottom: 10px;
+            gap: 12px;
+            margin-bottom: 16px;
+            justify-content: space-between;
+        }
+
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            flex: 1;
+        }
+
+        #export {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        #export:hover {
+            background-color: #0c8ed9;
         }
 
         #reset {
-            background-color: #f44336;
+            background-color: white;
+            color: var(--danger);
+            border: 1px solid var(--danger);
+        }
+
+        #reset:hover {
+            background-color: var(--danger);
             color: white;
-            border: none;
-            padding: 5px 10px;
+        }
+
+        details {
+            background-color: white;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        summary {
             cursor: pointer;
+            font-weight: 600;
+            color: var(--secondary);
+            user-select: none;
+        }
+
+        summary:hover {
+            color: var(--primary);
+        }
+
+        #stats-details p {
+            margin: 8px 0;
+            font-size: 0.9em;
+            color: var(--dark);
+        }
+
+        ul {
+            list-style-type: none;
+            max-height: 300px;
+            overflow-y: auto;
+            background-color: white;
+            border-radius: 8px;
+            padding: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        li {
+            margin-bottom: 12px;
+            padding: 10px;
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        li:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .tweet-author {
+            font-weight: 700;
+            color: var(--dark);
+        }
+
+        .tweet-text {
+            color: var(--secondary);
         }
     </style>
 </head>
 
 <body>
+    <div class="header">
+        <h1>Scroll Tweet Saver</h1>
+    </div>
+
     <div class="button-container">
         <button id="export">Export JSON</button>
         <button id="reset">Reset All Tweets</button>
     </div>
+
     <details id="export-stats">
         <summary>Export Stats</summary>
         <div id="stats-details"></div>
     </details>
+
     <ul id="tweet-list"></ul>
     <script src="popup.js"></script>
 </body>
