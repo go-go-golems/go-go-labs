@@ -3,6 +3,7 @@
 
 <head>
     <meta charset="utf-8" />
+    <title>Tweet Collector - Desktop View</title>
     <style>
         :root {
             --primary-color: #1da1f2;
@@ -18,15 +19,16 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            width: 350px;
-            min-height: 300px;
-            padding: 16px;
+            width: 900px;
+            max-width: 95%;
+            margin: 0 auto;
+            padding: 20px;
             background-color: var(--bg-color);
             color: var(--text-color);
         }
 
         h1 {
-            font-size: 18px;
+            font-size: 24px;
             font-weight: 600;
             margin-top: 0;
             margin-bottom: 16px;
@@ -38,31 +40,27 @@
         h1::before {
             content: '';
             display: inline-block;
-            width: 24px;
-            height: 24px;
+            width: 30px;
+            height: 30px;
             margin-right: 8px;
             background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%231da1f2"><path d="M23.643 4.937c-.835.37-1.732.62-2.675.733.962-.576 1.7-1.49 2.048-2.578-.9.534-1.897.922-2.958 1.13-.85-.904-2.06-1.47-3.4-1.47-2.572 0-4.658 2.086-4.658 4.66 0 .364.042.718.12 1.06-3.873-.195-7.304-2.05-9.602-4.868-.4.69-.63 1.49-.63 2.342 0 1.616.823 3.043 2.072 3.878-.764-.025-1.482-.234-2.11-.583v.06c0 2.257 1.605 4.14 3.737 4.568-.392.106-.803.162-1.227.162-.3 0-.593-.028-.877-.082.593 1.85 2.313 3.198 4.352 3.234-1.595 1.25-3.604 1.995-5.786 1.995-.376 0-.747-.022-1.112-.065 2.062 1.323 4.51 2.093 7.14 2.093 8.57 0 13.255-7.098 13.255-13.254 0-.2-.005-.402-.014-.602.91-.658 1.7-1.477 2.323-2.41z"></path></svg>');
             background-size: contain;
-            animation: bounce 2s infinite;
         }
 
-        @keyframes bounce {
+        /* Desktop Layout - Two column grid */
+        .desktop-layout {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 20px;
+        }
 
-            0%,
-            20%,
-            50%,
-            80%,
-            100% {
-                transform: translateY(0);
-            }
+        .sidebar {
+            grid-column: 1;
+        }
 
-            40% {
-                transform: translateY(-5px);
-            }
-
-            60% {
-                transform: translateY(-3px);
-            }
+        .main-content {
+            grid-column: 2;
+            grid-row: 1 / span 2;
         }
 
         .tab-bar {
@@ -77,12 +75,13 @@
         .tab {
             flex: 1;
             text-align: center;
-            padding: 10px;
+            padding: 12px;
             cursor: pointer;
             background-color: var(--card-bg);
             color: var(--text-color);
             transition: all 0.2s;
             border-bottom: 2px solid transparent;
+            font-size: 16px;
         }
 
         .tab.active {
@@ -107,8 +106,8 @@
         .stats {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 16px;
-            padding: 12px;
+            margin-bottom: 20px;
+            padding: 20px;
             background-color: var(--card-bg);
             border-radius: 8px;
             box-shadow: var(--shadow);
@@ -116,14 +115,14 @@
         }
 
         .count {
-            font-size: 14px;
+            font-size: 16px;
             font-weight: 500;
             text-align: center;
             position: relative;
         }
 
         .count-number {
-            font-size: 24px;
+            font-size: 36px;
             font-weight: 700;
             display: block;
             color: var(--primary-color);
@@ -151,7 +150,7 @@
 
         .search-bar {
             display: flex;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
             background-color: var(--card-bg);
             border-radius: 8px;
             box-shadow: var(--shadow);
@@ -160,11 +159,11 @@
 
         .search-input {
             flex: 1;
-            padding: 10px 12px;
+            padding: 12px 15px;
             border: none;
             background-color: var(--card-bg);
             color: var(--text-color);
-            font-size: 14px;
+            font-size: 16px;
         }
 
         .search-input:focus {
@@ -176,9 +175,9 @@
         }
 
         .tweet-list {
-            max-height: 350px;
+            max-height: calc(100vh - 150px);
             overflow-y: auto;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
             border-radius: 8px;
             background-color: var(--card-bg);
             box-shadow: var(--shadow);
@@ -187,7 +186,7 @@
         }
 
         .tweet-list::-webkit-scrollbar {
-            width: 8px;
+            width: 10px;
         }
 
         .tweet-list::-webkit-scrollbar-track {
@@ -200,7 +199,7 @@
         }
 
         .tweet {
-            padding: 12px;
+            padding: 16px;
             border-bottom: 1px solid var(--border-color);
             transition: background-color 0.2s;
             animation: slideIn 0.3s;
@@ -241,14 +240,15 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 4px;
+            margin-bottom: 6px;
         }
 
         .author {
             font-weight: 700;
-            margin-bottom: 4px;
+            margin-bottom: 6px;
             display: flex;
             align-items: center;
+            font-size: 16px;
         }
 
         .author::before {
@@ -258,27 +258,27 @@
         }
 
         .tweet-time {
-            font-size: 12px;
+            font-size: 14px;
             color: var(--text-secondary);
         }
 
         .text {
-            font-size: 14px;
+            font-size: 16px;
             margin: 0;
             color: var(--text-color);
-            line-height: 1.4;
+            line-height: 1.5;
         }
 
         .export-container {
             background-color: var(--card-bg);
             border-radius: 8px;
             box-shadow: var(--shadow);
-            padding: 16px;
-            margin-bottom: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
         }
 
         .export-title {
-            font-size: 16px;
+            font-size: 18px;
             font-weight: 600;
             margin-top: 0;
             margin-bottom: 16px;
@@ -287,13 +287,13 @@
 
         .export-options {
             display: flex;
-            gap: 8px;
-            margin-bottom: 16px;
+            gap: 10px;
+            margin-bottom: 20px;
         }
 
         .export-button {
             flex: 1;
-            padding: 10px;
+            padding: 12px;
             background-color: var(--card-bg);
             color: var(--primary-color);
             border: 1px solid var(--border-color);
@@ -301,6 +301,7 @@
             font-weight: bold;
             cursor: pointer;
             transition: all 0.2s;
+            font-size: 15px;
         }
 
         .export-button:hover {
@@ -309,29 +310,30 @@
         }
 
         .export-scope {
-            margin-top: 16px;
+            margin-top: 20px;
         }
 
         .scope-label {
-            font-size: 14px;
+            font-size: 16px;
             font-weight: 500;
-            margin-bottom: 4px;
+            margin-bottom: 6px;
             color: var(--text-color);
         }
 
         .scope-select {
-            padding: 6px 10px;
+            padding: 10px 15px;
             border-radius: 4px;
             border: 1px solid var(--border-color);
             background-color: var(--card-bg);
             color: var(--text-color);
             width: 100%;
+            font-size: 15px;
         }
 
         button {
             display: block;
             width: 100%;
-            padding: 12px;
+            padding: 14px;
             background-color: var(--primary-color);
             color: white;
             border: none;
@@ -341,6 +343,7 @@
             transition: background-color 0.2s, transform 0.2s;
             position: relative;
             overflow: hidden;
+            font-size: 16px;
         }
 
         button:hover {
@@ -352,46 +355,12 @@
             transform: translateY(0);
         }
 
-        button::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 5px;
-            height: 5px;
-            background: rgba(255, 255, 255, 0.5);
-            opacity: 0;
-            border-radius: 100%;
-            transform: scale(1, 1) translate(-50%);
-            transform-origin: 50% 50%;
-        }
-
-        @keyframes ripple {
-            0% {
-                transform: scale(0, 0);
-                opacity: 1;
-            }
-
-            20% {
-                transform: scale(25, 25);
-                opacity: 1;
-            }
-
-            100% {
-                opacity: 0;
-                transform: scale(40, 40);
-            }
-        }
-
-        button:focus:not(:active)::after {
-            animation: ripple 1s ease-out;
-        }
-
         .empty-state {
             text-align: center;
-            padding: 24px 16px;
+            padding: 30px 20px;
             color: var(--text-secondary);
             font-style: italic;
+            font-size: 16px;
         }
 
         .funky-badge {
@@ -400,9 +369,9 @@
             top: 10px;
             background-color: var(--primary-color);
             color: white;
-            font-size: 10px;
-            padding: 3px 6px;
-            border-radius: 10px;
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 12px;
             animation: pulse 2s infinite;
         }
 
@@ -419,75 +388,17 @@
         }
 
         .tweet-stats {
-            margin-top: 6px;
-            font-size: 13px;
+            margin-top: 10px;
+            font-size: 14px;
             color: #888;
             letter-spacing: 1px;
             display: block;
         }
 
-        /* Styles for when popped out in a tab */
-        body.popped-out {
-            width: 800px;
-            margin: 0 auto;
-            max-width: 90%;
-        }
-
-        body.popped-out .tweet-list {
-            max-height: 600px;
-        }
-
-        body.popped-out .stats {
-            padding: 20px;
-        }
-
-        body.popped-out .count-number {
-            font-size: 32px;
-        }
-
-        body.popped-out .tweet {
-            padding: 16px;
-        }
-
-        body.popped-out .author {
-            font-size: 16px;
-        }
-
-        body.popped-out .text {
-            font-size: 16px;
-            line-height: 1.5;
-        }
-
-        body.popped-out .tweet-stats {
-            font-size: 14px;
-            margin-top: 10px;
-        }
-
-        /* Multi-column layout for popped-out view */
-        @media (min-width: 700px) {
-            body.popped-out #tweets-tab {
-                display: grid;
-                grid-template-columns: 250px 1fr;
-                gap: 16px;
-            }
-
-            body.popped-out .stats,
-            body.popped-out .search-bar {
-                grid-column: 1;
-            }
-
-            body.popped-out .tweet-list {
-                grid-column: 2;
-                grid-row: 1 / 3;
-                margin-top: 0;
-                max-height: calc(100vh - 120px);
-            }
-        }
-
         .tweet-link {
             display: inline-block;
-            margin-top: 8px;
-            font-size: 13px;
+            margin-top: 10px;
+            font-size: 14px;
             color: var(--primary-color);
             text-decoration: none;
         }
@@ -499,12 +410,7 @@
 </head>
 
 <body>
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-        <h1 style="margin-bottom: 0;">Tweet Collector</h1>
-        <button id="popout-btn" title="Open in new tab"
-            style="margin-left: 8px; padding: 4px 10px; font-size: 13px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--primary-color); cursor: pointer;">Pop
-            out</button>
-    </div>
+    <h1>Tweet Collector - Desktop View</h1>
 
     <div class="tab-bar">
         <div class="tab active" data-tab="tweets">Tweets</div>
@@ -512,24 +418,28 @@
     </div>
 
     <!-- Tweets Tab -->
-    <div class="tab-content active" id="tweets-tab">
-        <div class="stats">
-            <div class="count">
-                <span class="count-number" id="tweet-count">0</span>
-                Tweets collected
+    <div class="tab-content active desktop-layout" id="tweets-tab">
+        <div class="sidebar">
+            <div class="stats">
+                <div class="count">
+                    <span class="count-number" id="tweet-count">0</span>
+                    Tweets collected
+                </div>
+                <div class="count">
+                    <span class="count-number" id="author-count">0</span>
+                    Unique authors
+                </div>
             </div>
-            <div class="count">
-                <span class="count-number" id="author-count">0</span>
-                Unique authors
+
+            <div class="search-bar">
+                <input type="text" id="search-input" class="search-input" placeholder="Search tweets...">
             </div>
         </div>
 
-        <div class="search-bar">
-            <input type="text" id="search-input" class="search-input" placeholder="Search tweets...">
-        </div>
-
-        <div class="tweet-list" id="tweet-list">
-            <div class="empty-state">No tweets collected yet. Scroll through Twitter to collect tweets.</div>
+        <div class="main-content">
+            <div class="tweet-list" id="tweet-list">
+                <div class="empty-state">No tweets collected yet. Scroll through Twitter to collect tweets.</div>
+            </div>
         </div>
     </div>
 

@@ -3,7 +3,7 @@
   "name": "Tweet Collector",
   "description": "Collect tweets while you scroll and export them.",
   "version": "1.0.0",
-  "permissions": ["storage", "downloads"],
+  "permissions": ["storage", "downloads", "tabs"],
   "host_permissions": ["https://twitter.com/*", "https://x.com/*"],
   "background": {
     "service_worker": "background.js",

@@ -23,6 +23,9 @@ function processArticle(articleElement) {
     return;
   }
 
+  // Store the full URL to the tweet
+  const tweetUrl = idHref;
+
   // 2. Check if we've already seen this tweet
   if (SEEN.has(id)) {
     // console.log(`Tweet ID ${id} already seen.`); // Reduce noise, uncomment if needed
@@ -48,11 +51,56 @@ function processArticle(articleElement) {
   const author = authorLink?.textContent?.trim() || "Unknown Author";
   console.log(`Extracted author: ${author}, text: ${text.substring(0, 50)}...`);
 
-  // 5. Mark this tweet ID as seen and prepare data
-  SEEN.add(id);
-  const tweetData = { id, author, text, timestamp: Date.now() };
+  // 5. Extract engagement stats
+  let replies = null,
+    reposts = null,
+    likes = null,
+    views = null,
+    bookmarks = null;
+  try {
+    // Find the metrics container (role="group")
+    const metrics = Array.from(
+      articleElement.querySelectorAll(
+        '[role="group"] [data-testid="app-text-transition-container"] span span'
+      )
+    ).map((el) => el.textContent.replace(/\D/g, "") || "0");
+    replies = metrics[0] || "0";
+    reposts = metrics[1] || "0";
+    likes = metrics[2] || "0";
+    views = metrics[3] || "0";
+    // Bookmarks (may not always be present)
+    const bookmarkEl = articleElement.querySelector(
+      '[data-testid="bookmark"] [data-testid="app-text-transition-container"] span span'
+    );
+    bookmarks = bookmarkEl
+      ? bookmarkEl.textContent.replace(/\D/g, "") || "0"
+      : "0";
+  } catch (e) {
+    console.warn("Failed to extract tweet stats:", e);
+  }
 
-  // 6. Send data to the background script
+  // 6. Mark this tweet ID as seen and prepare data
+  SEEN.add(id);
+
+  // Create a formatted date string (YYYY-MM-DD HH:MM:SS)
+  const now = new Date();
+  const formattedDate = now.toISOString().replace("T", " ").substring(0, 19);
+
+  const tweetData = {
+    id,
+    author,
+    text,
+    timestamp: Date.now(),
+    date: formattedDate,
+    url: tweetUrl,
+    replies,
+    reposts,
+    likes,
+    views,
+    bookmarks,
+  };
+
+  // 7. Send data to the background script
   console.log("Sending tweet to background:", tweetData);
   try {
     browser.runtime.sendMessage({ type: "SAVE_TWEET", tweet: tweetData });

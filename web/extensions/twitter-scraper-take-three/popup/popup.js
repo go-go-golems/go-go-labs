@@ -74,58 +74,6 @@ function addNewBadge(tweetElement, isRecent) {
   }
 }
 
-// Create fun confetti effect when new tweets are added
-function createConfetti() {
-  const confettiContainer = document.createElement("div");
-  confettiContainer.style.position = "absolute";
-  confettiContainer.style.top = "0";
-  confettiContainer.style.left = "0";
-  confettiContainer.style.width = "100%";
-  confettiContainer.style.height = "100%";
-  confettiContainer.style.pointerEvents = "none";
-  confettiContainer.style.zIndex = "1000";
-  document.body.appendChild(confettiContainer);
-
-  const colors = ["#1da1f2", "#ffad1f", "#e0245e", "#17bf63"];
-
-  // Create 30 confetti particles
-  for (let i = 0; i < 30; i++) {
-    const confetti = document.createElement("div");
-    confetti.style.position = "absolute";
-    confetti.style.width = Math.random() * 10 + 5 + "px";
-    confetti.style.height = Math.random() * 6 + 3 + "px";
-    confetti.style.backgroundColor =
-      colors[Math.floor(Math.random() * colors.length)];
-    confetti.style.borderRadius = Math.random() > 0.5 ? "50%" : "0";
-    confetti.style.top = "-10px";
-    confetti.style.left = Math.random() * 100 + "%";
-    confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
-    confetti.style.opacity = "1";
-    confetti.style.transition = `top ${Math.random() * 2 + 1}s, left ${
-      Math.random() * 2 + 1
-    }s, opacity 0.5s`;
-
-    confettiContainer.appendChild(confetti);
-
-    // Animate confetti falling
-    setTimeout(() => {
-      confetti.style.top = 100 + Math.random() * 20 + "%";
-      confetti.style.left =
-        parseFloat(confetti.style.left) + (Math.random() * 40 - 20) + "%";
-      confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
-
-      // Remove after animation
-      setTimeout(() => {
-        confetti.style.opacity = "0";
-        setTimeout(() => confetti.remove(), 500);
-      }, 1000);
-    }, 10);
-  }
-
-  // Remove container after all confetti are gone
-  setTimeout(() => confettiContainer.remove(), 3000);
-}
-
 // Format timestamp
 function formatTime(timestamp) {
   if (!timestamp) return "";
@@ -156,15 +104,34 @@ function formatTime(timestamp) {
 
 // Convert tweets to CSV format
 function tweetsToCSV(tweets) {
-  const headers = ["id", "author", "text", "timestamp"];
+  const headers = [
+    "id",
+    "author",
+    "text",
+    "timestamp",
+    "date",
+    "url",
+    "replies",
+    "reposts",
+    "likes",
+    "views",
+    "bookmarks",
+  ];
   let csv = headers.join(",") + "\n";
 
   tweets.forEach((tweet) => {
     const row = [
       tweet.id,
-      `"${tweet.author.replace(/"/g, '""')}"`,
-      `"${tweet.text.replace(/"/g, '""')}"`,
+      `"${tweet.author?.replace(/"/g, '""') || ""}"`,
+      `"${tweet.text?.replace(/"/g, '""') || ""}"`,
       tweet.timestamp || "",
+      `"${tweet.date || ""}"`,
+      `"${tweet.url || ""}"`,
+      tweet.replies || "0",
+      tweet.reposts || "0",
+      tweet.likes || "0",
+      tweet.views || "0",
+      tweet.bookmarks || "0",
     ];
     csv += row.join(",") + "\n";
   });
@@ -177,11 +144,25 @@ function tweetsToText(tweets) {
   let text = `Total Tweets: ${tweets.length}\n\n`;
 
   tweets.forEach((tweet) => {
-    text += `Author: @${tweet.author}\n`;
-    text += `Tweet: ${tweet.text}\n`;
-    if (tweet.timestamp) {
-      const date = new Date(tweet.timestamp);
-      text += `Time: ${date.toLocaleString()}\n`;
+    text += `Author: @${tweet.author || "Unknown"}\n`;
+    text += `Tweet: ${tweet.text || ""}\n`;
+    if (tweet.date) {
+      text += `Date: ${tweet.date}\n`;
+    }
+    if (tweet.url) {
+      text += `URL: ${tweet.url}\n`;
+    }
+    if (tweet.replies || tweet.reposts || tweet.likes) {
+      text += `Stats: ${tweet.replies || 0} replies, ${
+        tweet.reposts || 0
+      } reposts, ${tweet.likes || 0} likes`;
+      if (tweet.views) {
+        text += `, ${tweet.views} views`;
+      }
+      if (tweet.bookmarks) {
+        text += `, ${tweet.bookmarks} bookmarks`;
+      }
+      text += "\n";
     }
     text += "--------------------\n\n";
   });
@@ -286,13 +267,13 @@ async function displayTweets() {
     animateCountChange(authorCount, prevAuthorCount, uniqueAuthors);
   }
 
-  // If new tweets were added, show confetti
-  if (tweets.length > prevTweetCount && prevTweetCount > 0) {
-    createConfetti();
-  }
-
   // Create a document fragment to build the new list (improves performance)
   const fragment = document.createDocumentFragment();
+
+  // Check if we're in desktop mode - show more tweets in that case
+  const isDesktopView =
+    document.title.includes("Desktop") ||
+    document.querySelector(".desktop-layout") !== null;
 
   if (filteredTweets.length === 0) {
     // Show empty state message
@@ -314,53 +295,83 @@ async function displayTweets() {
     const viewedTweetIds = new Set();
 
     // Add each tweet to the fragment (most recent first)
-    filteredTweets
-      .slice()
-      .reverse()
-      .forEach((tweet, index) => {
-        const tweetElement = document.createElement("div");
-        tweetElement.className = "tweet";
+    // In desktop mode, show more tweets
+    const tweetsToShow = filteredTweets.slice().reverse();
+    // For desktop view, we show all tweets, for popup we limit to latest 50
+    const limitedTweets = isDesktopView
+      ? tweetsToShow
+      : tweetsToShow.slice(0, 50);
 
-        // Create tweet header with author and time
-        const tweetHeader = document.createElement("div");
-        tweetHeader.className = "tweet-header";
+    limitedTweets.forEach((tweet, index) => {
+      const tweetElement = document.createElement("div");
+      tweetElement.className = "tweet";
 
-        const authorElement = document.createElement("div");
-        authorElement.className = "author";
-        authorElement.textContent = tweet.author;
+      // Create tweet header with author and time
+      const tweetHeader = document.createElement("div");
+      tweetHeader.className = "tweet-header";
 
-        // Add time if available
-        const timeElement = document.createElement("div");
-        timeElement.className = "tweet-time";
-        timeElement.textContent = formatTime(tweet.timestamp);
+      const authorElement = document.createElement("div");
+      authorElement.className = "author";
+      authorElement.textContent = tweet.author;
 
-        tweetHeader.appendChild(authorElement);
-        tweetHeader.appendChild(timeElement);
+      // Add time if available
+      const timeElement = document.createElement("div");
+      timeElement.className = "tweet-time";
+      timeElement.textContent = formatTime(tweet.timestamp);
+      if (tweet.date) {
+        timeElement.title = tweet.date; // Show full date on hover
+      }
 
-        const textElement = document.createElement("p");
-        textElement.className = "text";
-        textElement.textContent = tweet.text;
+      tweetHeader.appendChild(authorElement);
+      tweetHeader.appendChild(timeElement);
 
-        tweetElement.appendChild(tweetHeader);
-        tweetElement.appendChild(textElement);
+      const textElement = document.createElement("p");
+      textElement.className = "text";
+      textElement.textContent = tweet.text;
 
-        // Check if this is a new tweet (recently seen)
-        const isNewTweet =
-          !viewedTweetIds.has(tweet.id) &&
-          tweet.timestamp &&
-          tweet.timestamp > recentTimestamp;
+      // Add source link if available
+      if (tweet.url) {
+        const linkElement = document.createElement("a");
+        linkElement.href = tweet.url;
+        linkElement.className = "tweet-link";
+        linkElement.textContent = "View on Twitter";
+        linkElement.target = "_blank";
+        linkElement.rel = "noopener noreferrer";
+        textElement.appendChild(document.createElement("br"));
+        textElement.appendChild(linkElement);
+      }
 
-        // Add badge for recent tweets
-        addNewBadge(
-          tweetElement,
-          isNewTweet || (!tweet.timestamp && index < 3)
-        );
+      // Add stats if available
+      const statsElement = document.createElement("div");
+      statsElement.className = "tweet-stats";
+      const stats = [];
+      if (tweet.replies) stats.push(`💬 ${tweet.replies}`);
+      if (tweet.reposts) stats.push(`🔁 ${tweet.reposts}`);
+      if (tweet.likes) stats.push(`❤️ ${tweet.likes}`);
+      if (tweet.views) stats.push(`👁️ ${tweet.views}`);
+      if (tweet.bookmarks) stats.push(`🔖 ${tweet.bookmarks}`);
+      if (stats.length > 0) {
+        statsElement.textContent = stats.join("  ");
+        textElement.appendChild(statsElement);
+      }
 
-        // Mark as viewed
-        viewedTweetIds.add(tweet.id);
+      tweetElement.appendChild(tweetHeader);
+      tweetElement.appendChild(textElement);
 
-        fragment.appendChild(tweetElement);
-      });
+      // Check if this is a new tweet (recently seen)
+      const isNewTweet =
+        !viewedTweetIds.has(tweet.id) &&
+        tweet.timestamp &&
+        tweet.timestamp > recentTimestamp;
+
+      // Add badge for recent tweets
+      addNewBadge(tweetElement, isNewTweet || (!tweet.timestamp && index < 3));
+
+      // Mark as viewed
+      viewedTweetIds.add(tweet.id);
+
+      fragment.appendChild(tweetElement);
+    });
   }
 
   // Only clear and update the DOM once
@@ -368,11 +379,25 @@ async function displayTweets() {
   tweetList.appendChild(fragment);
 }
 
+// Add a pop out button to the popup
+function setupPopoutButton() {
+  const popoutBtn = document.getElementById("popout-btn");
+  if (popoutBtn) {
+    popoutBtn.addEventListener("click", () => {
+      browser.tabs.create({
+        url: browser.runtime.getURL("popup/desktop.html"),
+      });
+    });
+  }
+}
+
 // Initial setup when popup opens
 document.addEventListener("DOMContentLoaded", () => {
+  // Remove the detection logic since we'll use separate HTML files
   setupTabs();
   setupSearch();
   setupExportButtons();
+  setupPopoutButton();
   displayTweets();
 });
 
