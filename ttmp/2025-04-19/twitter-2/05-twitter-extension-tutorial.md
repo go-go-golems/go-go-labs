@@ -8,7 +8,7 @@ This tutorial will guide you step by step through building a Firefox extension t
 
 ---
 
-### Step 1: What is a Firefox Extension?
+### Step 1: Understanding Firefox Extensions
 
 A Firefox extension (also called a WebExtension) is a small program that can modify and enhance the functionality of Firefox. These extensions are written in JavaScript, HTML, and CSS. They use a well-defined set of APIs provided by the browser to interact with web pages, browser tabs, storage, and more.
 
@@ -23,7 +23,7 @@ An extension typically consists of the following pieces:
 
 ### Step 2: Setting Up the Project Structure
 
-Let's create a folder for our extension. Call it `tweet-collector/` and inside it, create the following files:
+Create a folder for your extension, for example, `tweet-collector/`. Inside it, create the following files:
 
 ```
 tweet-collector/
@@ -89,6 +89,7 @@ Content scripts are the workhorses that interact directly with the web pages you
 First, let's set up some basics. We need a way to remember which tweets we've already processed to avoid duplicates. A JavaScript `Set` is perfect for this. We also define a constant holding the CSS selector that helps us identify the main text element within a tweet.
 
 ```js
+// Pseudocode for initial setup
 console.log("Content script loading...");
 
 const SEEN = new Set();
@@ -102,6 +103,7 @@ We also add a log message to confirm when our script starts loading.
 This is the core function responsible for pulling information out of a potential tweet element found on the page (`node`).
 
 ```js
+// Pseudocode for extractTweet function
 function extractTweet(node) {
   console.log("extractTweet called for node:", node);
   // 1. Find the parent <article> element
@@ -157,6 +159,7 @@ Here's a breakdown of the steps within `extractTweet`:
 This helper function takes a node, tries to extract tweet data from it using `extractTweet`, and if successful, sends the data to our background script.
 
 ```js
+// Pseudocode for handle function
 function handle(node) {
   console.log("Handling node:", node);
   const tweet = extractTweet(node);
@@ -177,6 +180,7 @@ We use `browser.runtime.sendMessage` to communicate with other parts of our exte
 Twitter loads new tweets dynamically as you scroll. How do we detect them? We use a `MutationObserver`, a powerful browser API that lets us watch for changes in the page's structure (the DOM).
 
 ```js
+// Pseudocode for MutationObserver setup
 console.log("Setting up MutationObserver...");
 const observer = new MutationObserver((muts) => {
   console.log(`MutationObserver triggered with ${muts.length} mutations.`);
@@ -218,6 +222,7 @@ Finally, we tell the observer to start watching the `document.body` and all its 
 The `MutationObserver` only catches tweets loaded _after_ our script runs. What about tweets already present when the page first loads? We need to scan for those too.
 
 ```js
+// Pseudocode for handling existing tweets
 console.log("Handling existing tweets on page load...");
 document.querySelectorAll(TEXT_SELECTOR).forEach(handle);
 console.log("Content script loaded and initial handling complete.");
@@ -234,6 +239,7 @@ The background script runs in a service worker and can persist data or respond t
 Create `background.js`:
 
 ```js
+// Pseudocode for background script
 console.log("Background script loading...");
 
 async function save(tweet) {
@@ -310,6 +316,7 @@ The HTML includes:
 Now create `popup/popup.js`:
 
 ```js
+// Pseudocode for popup.js
 // Function to display tweets in the popup UI
 async function displayTweets() {
   const { tweets = [] } = await browser.storage.local.get("tweets");
@@ -398,6 +405,7 @@ Popup windows are temporary. If the user clicks the download button and then cli
 Modify `background.js` to add the message listener and the download logic:
 
 ```js
+// Pseudocode for handling download requests
 // Existing save function from Step 5...
 console.log("Background script loading...");
 

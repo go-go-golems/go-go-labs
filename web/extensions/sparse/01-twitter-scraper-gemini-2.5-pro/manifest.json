@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "Twitter/X Data Collector (Sparse)",
+  "description": "Extracts tweet data while browsing Twitter/X and allows download.",
+  "version": "1.0.0",
+
+  "permissions": [
+    "storage",
+    "downloads"
+  ],
+
+  "host_permissions": [
+    "https://twitter.com/*",
+    "https://x.com/*"
+  ],
+
+  "background": {
+    // Firefox uses scripts for event pages in MV3
+    "scripts": ["background.js"]
+  },
+
+  "content_scripts": [
+    {
+      "matches": [
+        "https://twitter.com/*",
+        "https://x.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Show Collected Tweet Data"
+  }
+} 

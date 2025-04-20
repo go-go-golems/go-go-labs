@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { font-family: sans-serif; width: 300px; padding: 10px; }
+    .stats { display: flex; justify-content: space-between; margin-bottom: 10px; }
+    .count { text-align: center; }
+    #tweet-list { max-height: 300px; overflow-y: auto; border: 1px solid #ccc; padding: 5px; }
+    .tweet { border-bottom: 1px solid #eee; margin-bottom: 5px; padding-bottom: 5px; }
+    .author { font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Tweet Collector</h1>
+  <div class="stats">
+    <div class="count">
+      <span id="tweet-count">0</span><br/>Tweets
+    </div>
+    <div class="count">
+      <span id="author-count">0</span><br/>Authors
+    </div>
+  </div>
+  <div id="tweet-list">
+    <div class="empty-state">No tweets collected yet. Scroll Twitter to start.</div>
+  </div>
+  <button id="download">Download tweets JSON</button>
+  <script src="popup.js"></script>
+</body>
+</html> 

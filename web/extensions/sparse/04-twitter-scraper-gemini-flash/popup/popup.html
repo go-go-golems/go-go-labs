@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <style>
+        body {
+            font-family: sans-serif;
+            min-width: 300px;
+            padding: 10px;
+            background-color: #f7f9f9;
+            /* Twitter light background */
+            color: #1a1a1a;
+            /* Twitter dark text */
+        }
+
+        h1 {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+            color: #1da1f2;
+            /* Twitter blue */
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #e1e8ed;
+            /* Slightly lighter background for stats */
+            border-radius: 5px;
+        }
+
+        .count {
+            text-align: center;
+            font-size: 0.9em;
+        }
+
+        .count-number {
+            font-size: 1.4em;
+            font-weight: bold;
+            display: block;
+            color: #1da1f2;
+            /* Twitter blue */
+        }
+
+        .tweet-list {
+            max-height: 300px;
+            /* Limit height and make it scrollable */
+            overflow-y: auto;
+            border: 1px solid #ccd6dd;
+            /* Light border */
+            border-radius: 5px;
+            padding: 0 10px;
+            /* Add some horizontal padding */
+            margin-bottom: 15px;
+            background-color: #ffffff;
+            /* White background for list */
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 20px;
+            color: #657786;
+            /* Grey text */
+            font-style: italic;
+        }
+
+        .tweet {
+            border-bottom: 1px solid #e1e8ed;
+            /* Separator between tweets */
+            padding: 10px 0;
+        }
+
+        .tweet:last-child {
+            border-bottom: none;
+            /* No border for the last tweet */
+        }
+
+        .author {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #14171a;
+            /* Darker grey for author */
+        }
+
+        .text {
+            margin: 0;
+            font-size: 0.9em;
+            line-height: 1.4;
+            word-break: break-word;
+            /* Prevent long words from overflowing */
+        }
+
+        button {
+            display: block;
+            /* Make button take full width */
+            width: 100%;
+            padding: 10px;
+            background-color: #1da1f2;
+            /* Twitter blue */
+            color: white;
+            border: none;
+            border-radius: 20px;
+            /* Rounded button */
+            font-size: 1em;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        button:hover {
+            background-color: #0e71c8;
+            /* Darker blue on hover */
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Tweet Collector</h1>
+
+    <div class="stats">
+        <div class="count">
+            <span class="count-number" id="tweet-count">0</span>
+            Tweets collected
+        </div>
+        <div class="count">
+            <span class="count-number" id="author-count">0</span>
+            Unique authors
+        </div>
+    </div>
+
+    <div class="tweet-list" id="tweet-list">
+        <div class="empty-state">
+            No tweets collected yet. Scroll through Twitter to collect tweets.
+        </div>
+    </div>
+
+    <button id="download">Download tweets JSON</button>
+    <script src="popup.js"></script>
+</body>
+
+</html>

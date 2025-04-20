@@ -1,0 +1,98 @@
+/* Basic styling for the popup */
+body {
+    font-family: sans-serif;
+    padding: 15px;
+    min-width: 300px; /* Slightly wider */
+    max-width: 400px;
+    background-color: #f9f9f9;
+}
+
+h1 {
+    font-size: 1.2em;
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.stats {
+    margin-bottom: 15px;
+    font-size: 0.9em;
+    color: #555;
+}
+
+#item-count {
+    font-weight: bold;
+}
+
+#data-list {
+    max-height: 250px; /* Allow more items */
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    margin-bottom: 15px;
+    padding: 8px;
+    background-color: #fff;
+}
+
+#data-list p {
+    color: #777;
+    font-style: italic;
+}
+
+.data-item {
+    border-bottom: 1px solid #eee;
+    padding: 5px 2px;
+    font-size: 0.85em; /* Smaller font for list */
+    word-wrap: break-word; /* Prevent long text overflow */
+}
+
+.data-item:last-child {
+    border-bottom: none;
+}
+
+.data-item .item-id {
+    font-weight: bold;
+    color: #666;
+    margin-right: 5px;
+}
+
+.data-item .item-text {
+    color: #333;
+}
+
+button {
+    padding: 8px 15px;
+    cursor: pointer;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: #eee;
+    color: #333;
+    margin-right: 5px; /* Add spacing between buttons */
+}
+
+button:hover {
+    background-color: #ddd;
+}
+
+button:active {
+    background-color: #ccc;
+}
+
+#download-button {
+    background-color: #4CAF50; /* Green */
+    color: white;
+    border-color: #4CAF50;
+}
+
+#download-button:hover {
+    background-color: #45a049;
+}
+
+#clear-button {
+    background-color: #f44336; /* Red */
+    color: white;
+    border-color: #f44336;
+}
+
+#clear-button:hover {
+    background-color: #da190b;
+} 
