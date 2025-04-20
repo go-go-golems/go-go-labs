@@ -1,92 +1,105 @@
 console.log("Content script loading...");
 
 const SEEN = new Set();
+// Selector for the div containing the main text content of a tweet
 const TEXT_SELECTOR = 'div[data-testid="tweetText"]';
+// Selector for the main tweet container element
+const ARTICLE_SELECTOR = 'article[data-testid="tweet"]';
 
-function extractTweet(node) {
-  console.log("extractTweet called for node:", node);
-  // 1. Find the parent <article> element
-  const article = node.closest("article");
-  if (!article) {
-    console.log("No article found for node.");
-    return null; // Not a tweet structure we recognize
-  }
-  console.log("Found article:", article);
+// Extracts tweet data from a given article element
+function processArticle(articleElement) {
+  console.log("processArticle called for:", articleElement);
 
-  // 2. Find the tweet's unique ID from its timestamp link
-  const idHref = article.querySelector("time")?.parentElement?.href;
+  // 1. Find the tweet's unique ID from its timestamp link within the article
+  const timeElement = articleElement.querySelector("time");
+  const idHref = timeElement?.parentElement?.href;
   if (!idHref) {
-    console.log("No ID href found in article.");
-    return null; // Cannot find the ID link
+    console.log("No ID href found in article.", articleElement);
+    return; // Cannot find the ID link
   }
-  const id = idHref.split("/").pop(); // Extract ID from URL
+  const id = idHref.split("/").pop();
+  if (!id) {
+    console.log("Could not parse ID from href:", idHref);
+    return;
+  }
 
-  // 3. Check if we've already seen this tweet
+  // 2. Check if we've already seen this tweet
   if (SEEN.has(id)) {
-    console.log(`Tweet ID ${id} already seen.`);
-    return null; // Skip duplicates
+    // console.log(`Tweet ID ${id} already seen.`); // Reduce noise, uncomment if needed
+    return; // Skip duplicates
   }
   console.log(`New tweet ID found: ${id}`);
 
-  // 4. Extract the tweet text (joining spans within the text element)
-  const text = [...article.querySelectorAll(TEXT_SELECTOR + " span")]
-    .map((el) => el.textContent)
-    .join("");
+  // 3. Extract the tweet text from the dedicated div
+  // Use textContent which gets text from all descendants, including spans
+  const textElement = articleElement.querySelector(TEXT_SELECTOR);
+  const text = textElement?.textContent?.trim() || "";
+  if (!text) {
+    console.log(
+      `No text found for tweet ID ${id} using selector ${TEXT_SELECTOR}`
+    );
+  }
 
-  // 5. Extract the author's name
-  const author =
-    article.querySelector('a[role="link"] span')?.textContent || "";
+  // 4. Extract the author's name (find the first link in the header section)
+  // Look for the link within the div containing the user's name and handle
+  const authorLink = articleElement.querySelector(
+    'div[data-testid="User-Name"] a[role="link"]'
+  );
+  const author = authorLink?.textContent?.trim() || "Unknown Author";
   console.log(`Extracted author: ${author}, text: ${text.substring(0, 50)}...`);
 
-  // 6. Mark this tweet ID as seen and return the data
+  // 5. Mark this tweet ID as seen and prepare data
   SEEN.add(id);
-  return { id, author, text, timestamp: Date.now() };
-}
+  const tweetData = { id, author, text, timestamp: Date.now() };
 
-function handle(node) {
-  console.log("Handling node:", node);
-  const tweet = extractTweet(node);
-  if (tweet) {
-    // If extractTweet returned data, send it to the background script
-    console.log("Sending tweet to background:", tweet);
-    browser.runtime.sendMessage({ type: "SAVE_TWEET", tweet });
-  } else {
-    console.log("No tweet extracted from node or already seen.");
+  // 6. Send data to the background script
+  console.log("Sending tweet to background:", tweetData);
+  try {
+    browser.runtime.sendMessage({ type: "SAVE_TWEET", tweet: tweetData });
+  } catch (error) {
+    console.error("Failed to send message to background script:", error);
+    // Attempt to remove from SEEN if send failed? Might cause duplicates later.
+    // SEEN.delete(id);
   }
 }
 
 console.log("Setting up MutationObserver...");
-const observer = new MutationObserver((muts) => {
-  console.log(`MutationObserver triggered with ${muts.length} mutations.`);
-  // Loop through all changes that occurred
-  for (const m of muts) {
-    // Loop through all nodes added to the page
-    m.addedNodes.forEach((n) => {
-      // Only process element nodes (not text nodes, etc.)
-      if (n.nodeType === 1) {
-        console.log("Processing added node:", n);
-        // Check if the added node itself is a tweet text element
-        if (n.matches?.(TEXT_SELECTOR)) {
-          console.log("Node matches TEXT_SELECTOR, handling...");
-          handle(n);
+const observer = new MutationObserver((mutationsList) => {
+  // console.log(`MutationObserver triggered with ${mutationsList.length} mutations.`); // Reduce noise
+  for (const mutation of mutationsList) {
+    if (mutation.type === "childList") {
+      mutation.addedNodes.forEach((node) => {
+        // Check if the added node is an element node (nodeType 1)
+        if (node.nodeType === 1) {
+          // console.log("Processing added node:", node); // Reduce noise
+          // Check if the added node itself is a tweet article
+          if (node.matches?.(ARTICLE_SELECTOR)) {
+            console.log("Added node is an article, processing...");
+            processArticle(node);
+          }
+          // Check if the added node contains any tweet articles
+          const articles = node.querySelectorAll?.(ARTICLE_SELECTOR);
+          if (articles && articles.length > 0) {
+            console.log(
+              `Found ${articles.length} articles within added node, processing each...`
+            );
+            articles.forEach(processArticle);
+          }
         }
-        // Check if any children of the added node are tweet text elements
-        const children = n.querySelectorAll?.(TEXT_SELECTOR);
-        if (children && children.length > 0) {
-          console.log(
-            `Found ${children.length} matching children, handling each...`
-          );
-          children.forEach(handle);
-        }
-      }
-    });
+      });
+    }
   }
 });
 
-// Start observing the entire body of the page for added child elements
+// Start observing the entire body for added child elements and subtree modifications
 observer.observe(document.body, { childList: true, subtree: true });
 console.log("MutationObserver observing document.body.");
 
-console.log("Handling existing tweets on page load...");
-document.querySelectorAll(TEXT_SELECTOR).forEach(handle);
-console.log("Content script loaded and initial handling complete.");
+// --- Initial Scan ---
+// Use setTimeout to allow the page structure to potentially settle slightly after load
+console.log("Scheduling initial scan for existing tweets...");
+setTimeout(() => {
+  console.log("Running initial scan for existing tweets...");
+  document.querySelectorAll(ARTICLE_SELECTOR).forEach(processArticle);
+  console.log("Initial scan complete. Content script setup finished.");
+}, 1000); // Wait 1 second after script load before scanning

@@ -17,7 +17,6 @@ async function handleDownloadRequest() {
   const { tweets = [] } = await browser.storage.local.get("tweets");
   if (tweets.length === 0) {
     console.log("No tweets to download.");
-    // Optionally, provide feedback to the user in the popup?
     return;
   }
 
@@ -26,6 +25,8 @@ async function handleDownloadRequest() {
     type: "application/json",
   });
   const url = URL.createObjectURL(blob);
+  // Create a filename with a timestamp. We replace colons (:) from toISOString()
+  // because they are illegal characters in filenames on some operating systems.
   const filename = `tweets_${new Date().toISOString().replace(/:/g, "-")}.json`;
 
   try {
@@ -38,10 +39,10 @@ async function handleDownloadRequest() {
   } catch (err) {
     console.error("Download failed:", err);
   }
-  // Firefox manages revoking the object URL automatically for downloads
-  // URL.revokeObjectURL(url); // Not strictly necessary for browser.downloads
+  // Note: Firefox manages revoking the object URL automatically for downloads
 }
 
+// Function to handle custom download requests with specific data, mime type, and filename
 async function handleCustomDownload(data, mimeType, filename) {
   console.log(`Preparing custom download: ${filename} (${mimeType})`);
   const blob = new Blob([data], { type: mimeType });
@@ -57,23 +58,34 @@ async function handleCustomDownload(data, mimeType, filename) {
   } catch (err) {
     console.error("Download failed:", err);
   }
+  // Note: Firefox manages revoking the object URL automatically for downloads, but
+  // it's good practice to revoke it explicitly if needed in other contexts.
+  // URL.revokeObjectURL(url); // Usually not needed for browser.downloads
 }
 
 browser.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   console.log("Received message in background script:", msg);
   if (msg.type === "SAVE_TWEET") {
-    save(msg.tweet).catch(console.error); // Handle potential errors in save
+    // Using .catch for basic error handling on the promise returned by save
+    save(msg.tweet).catch((err) => console.error("Error saving tweet:", err));
   } else if (msg.type === "DOWNLOAD_TWEETS") {
-    handleDownloadRequest().catch(console.error); // Handle potential errors in download
+    // Kept for potential backward compatibility or specific JSON download needs
+    // Using .catch for basic error handling
+    handleDownloadRequest().catch((err) =>
+      console.error("Error handling JSON download request:", err)
+    );
   } else if (msg.type === "DOWNLOAD_DATA") {
-    handleCustomDownload(msg.data, msg.mimeType, msg.filename).catch(
-      console.error
+    // Handle the new message type for custom downloads
+    // Using .catch for basic error handling
+    handleCustomDownload(msg.data, msg.mimeType, msg.filename).catch((err) =>
+      console.error("Error handling custom download:", err)
     );
   } else {
     console.log("Unknown message type received:", msg.type);
   }
-  // Indicate async response if needed (not needed here)
-  // return true;
+
+  // If you needed to send an asynchronous response, you would return true.
+  // return true; // Uncomment if sendResponse will be called asynchronously
 });
 
 console.log("Background script loaded and message listener added.");
