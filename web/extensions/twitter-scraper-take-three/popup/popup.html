@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <style>
+        :root {
+            --primary-color: #1da1f2;
+            --primary-hover: #1a91da;
+            --bg-color: #f7f9fa;
+            --card-bg: white;
+            --text-color: #2f3336;
+            --text-secondary: #657786;
+            --border-color: #e6ecf0;
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            --animation-speed: 0.3s;
+            --positive-color: #17bf63;
+            --negative-color: #e0245e;
+            --neutral-color: #ffad1f;
+        }
+
+        [data-theme="dark"] {
+            --primary-color: #1da1f2;
+            --primary-hover: #1a91da;
+            --bg-color: #15202b;
+            --card-bg: #192734;
+            --text-color: #ffffff;
+            --text-secondary: #8899a6;
+            --border-color: #38444d;
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            width: 400px;
+            min-height: 400px;
+            padding: 16px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color var(--animation-speed), color var(--animation-speed);
+            margin: 0;
+        }
+
+        h1 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-top: 0;
+            margin-bottom: 16px;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+        }
+
+        h1::before {
+            content: '';
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            margin-right: 8px;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%231da1f2"><path d="M23.643 4.937c-.835.37-1.732.62-2.675.733.962-.576 1.7-1.49 2.048-2.578-.9.534-1.897.922-2.958 1.13-.85-.904-2.06-1.47-3.4-1.47-2.572 0-4.658 2.086-4.658 4.66 0 .364.042.718.12 1.06-3.873-.195-7.304-2.05-9.602-4.868-.4.69-.63 1.49-.63 2.342 0 1.616.823 3.043 2.072 3.878-.764-.025-1.482-.234-2.11-.583v.06c0 2.257 1.605 4.14 3.737 4.568-.392.106-.803.162-1.227.162-.3 0-.593-.028-.877-.082.593 1.85 2.313 3.198 4.352 3.234-1.595 1.25-3.604 1.995-5.786 1.995-.376 0-.747-.022-1.112-.065 2.062 1.323 4.51 2.093 7.14 2.093 8.57 0 13.255-7.098 13.255-13.254 0-.2-.005-.402-.014-.602.91-.658 1.7-1.477 2.323-2.41z"></path></svg>');
+            background-size: contain;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+
+            0%,
+            20%,
+            50%,
+            80%,
+            100% {
+                transform: translateY(0);
+            }
+
+            40% {
+                transform: translateY(-5px);
+            }
+
+            60% {
+                transform: translateY(-3px);
+            }
+        }
+
+        .theme-toggle {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            cursor: pointer;
+            background: none;
+            border: none;
+            color: var(--primary-color);
+            font-size: 20px;
+            transition: transform 0.3s;
+        }
+
+        .theme-toggle:hover {
+            transform: rotate(30deg);
+        }
+
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tab-bar {
+            display: flex;
+            background-color: var(--card-bg);
+            border-radius: 8px 8px 0 0;
+            overflow: hidden;
+            margin-bottom: 0;
+            box-shadow: var(--shadow);
+        }
+
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            cursor: pointer;
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            transition: all 0.2s;
+            border-bottom: 2px solid transparent;
+        }
+
+        .tab.active {
+            background-color: var(--card-bg);
+            border-bottom: 2px solid var(--primary-color);
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .tab:hover:not(.active) {
+            background-color: rgba(29, 161, 242, 0.1);
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            padding: 12px;
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            transition: background-color var(--animation-speed), box-shadow var(--animation-speed);
+            animation: fadeIn 0.5s;
+        }
+
+        .count {
+            font-size: 14px;
+            font-weight: 500;
+            text-align: center;
+            position: relative;
+        }
+
+        .count-number {
+            font-size: 24px;
+            font-weight: 700;
+            display: block;
+            color: var(--primary-color);
+            transition: all 0.3s;
+        }
+
+        .count-number.pulse {
+            animation: pulse 0.5s;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.2);
+                color: #ff9500;
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .search-bar {
+            display: flex;
+            margin-bottom: 16px;
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            transition: all var(--animation-speed);
+            overflow: hidden;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 10px 12px;
+            border: none;
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            font-size: 14px;
+            transition: all var(--animation-speed);
+        }
+
+        .search-input:focus {
+            outline: none;
+        }
+
+        .search-input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .filter-button {
+            background-color: var(--card-bg);
+            border: none;
+            color: var(--primary-color);
+            cursor: pointer;
+            padding: 0 12px;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+
+        .filter-button:hover {
+            background-color: rgba(29, 161, 242, 0.1);
+        }
+
+        .filters {
+            display: none;
+            background-color: var(--card-bg);
+            border-radius: 0 0 8px 8px;
+            padding: 16px;
+            margin-top: -16px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow);
+            animation: slideDown 0.3s;
+        }
+
+        .filters.show {
+            display: block;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .filter-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .filter-label {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .filter-select {
+            padding: 6px 10px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            width: 100%;
+            transition: all var(--animation-speed);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .tweet-list {
+            max-height: 350px;
+            overflow-y: auto;
+            margin-bottom: 16px;
+            border-radius: 8px;
+            background-color: var(--card-bg);
+            box-shadow: var(--shadow);
+            transition: background-color var(--animation-speed), box-shadow var(--animation-speed);
+            scrollbar-width: thin;
+            scrollbar-color: var(--primary-color) var(--bg-color);
+        }
+
+        .tweet-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .tweet-list::-webkit-scrollbar-track {
+            background: var(--card-bg);
+        }
+
+        .tweet-list::-webkit-scrollbar-thumb {
+            background-color: var(--primary-color);
+            border-radius: 20px;
+        }
+
+        .tweet {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+            transition: background-color 0.2s, border-color var(--animation-speed);
+            animation: slideIn 0.3s;
+            position: relative;
+        }
+
+        .tweet:last-child {
+            border-bottom: none;
+        }
+
+        .tweet:hover {
+            background-color: rgba(29, 161, 242, 0.1);
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .tweet-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .tweet-time {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .author {
+            font-weight: 700;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+        }
+
+        .author::before {
+            content: '@';
+            color: var(--primary-color);
+            margin-right: 4px;
+        }
+
+        .text {
+            font-size: 14px;
+            margin: 0;
+            color: var(--text-color);
+            line-height: 1.4;
+            transition: color var(--animation-speed);
+        }
+
+        .sentiment {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-left: 5px;
+        }
+
+        .sentiment.positive {
+            background-color: var(--positive-color);
+        }
+
+        .sentiment.negative {
+            background-color: var(--negative-color);
+        }
+
+        .sentiment.neutral {
+            background-color: var(--neutral-color);
+        }
+
+        .chart-container {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            padding: 16px;
+            margin-bottom: 16px;
+            transition: all var(--animation-speed);
+        }
+
+        .sentiment-bars {
+            display: flex;
+            align-items: flex-end;
+            height: 100px;
+            margin-top: 8px;
+        }
+
+        .bar {
+            flex: 1;
+            margin: 0 4px;
+            animation: barUp 1s;
+            position: relative;
+        }
+
+        @keyframes barUp {
+            from {
+                height: 0;
+            }
+        }
+
+        .bar-label {
+            text-align: center;
+            font-size: 12px;
+            margin-top: 4px;
+            color: var(--text-secondary);
+        }
+
+        .bar-value {
+            position: absolute;
+            top: -20px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .positive-bar {
+            background-color: var(--positive-color);
+        }
+
+        .neutral-bar {
+            background-color: var(--neutral-color);
+        }
+
+        .negative-bar {
+            background-color: var(--negative-color);
+        }
+
+        .chart-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 0;
+            margin-bottom: 16px;
+            color: var(--text-color);
+        }
+
+        .export-options {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .export-button {
+            flex: 1;
+            padding: 10px;
+            background-color: var(--card-bg);
+            color: var(--primary-color);
+            border: 1px solid var(--border-color);
+            border-radius: 25px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+        }
+
+        .export-button:hover {
+            background-color: rgba(29, 161, 242, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .export-button img {
+            width: 16px;
+            height: 16px;
+            margin-right: 4px;
+        }
+
+        button {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 5px;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.5);
+            opacity: 0;
+            border-radius: 100%;
+            transform: scale(1, 1) translate(-50%);
+            transform-origin: 50% 50%;
+        }
+
+        @keyframes ripple {
+            0% {
+                transform: scale(0, 0);
+                opacity: 1;
+            }
+
+            20% {
+                transform: scale(25, 25);
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0;
+                transform: scale(40, 40);
+            }
+        }
+
+        button:focus:not(:active)::after {
+            animation: ripple 1s ease-out;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 24px 16px;
+            color: var(--text-secondary);
+            font-style: italic;
+            transition: color var(--animation-speed);
+        }
+
+        .funky-badge {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            background-color: var(--primary-color);
+            color: white;
+            font-size: 10px;
+            padding: 3px 6px;
+            border-radius: 10px;
+            animation: pulse 2s infinite;
+        }
+
+        .new-badge {
+            background-color: #ff9500;
+        }
+
+        .topic-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            font-size: 10px;
+            border-radius: 10px;
+            margin-right: 4px;
+            background-color: rgba(29, 161, 242, 0.2);
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+
+<body>
+    <button class="theme-toggle" id="theme-toggle">🌙</button>
+    <div class="header-row">
+        <h1>Tweet Collector</h1>
+    </div>
+
+    <div class="tab-bar">
+        <div class="tab active" data-tab="tweets">Tweets</div>
+        <div class="tab" data-tab="insights">Insights</div>
+        <div class="tab" data-tab="export">Export</div>
+    </div>
+
+    <!-- Tweets Tab -->
+    <div class="tab-content active" id="tweets-tab">
+        <div class="stats">
+            <div class="count">
+                <span class="count-number" id="tweet-count">0</span>
+                Tweets
+            </div>
+            <div class="count">
+                <span class="count-number" id="author-count">0</span>
+                Authors
+            </div>
+            <div class="count">
+                <span class="count-number" id="topics-count">0</span>
+                Topics
+            </div>
+        </div>
+
+        <div class="search-bar">
+            <input type="text" id="search-input" class="search-input" placeholder="Search tweets...">
+            <button id="filter-toggle" class="filter-button">🔍</button>
+        </div>
+
+        <div class="filters" id="filters-panel">
+            <div class="filter-row">
+                <div>
+                    <div class="filter-label">Author</div>
+                    <select id="author-filter" class="filter-select">
+                        <option value="">All authors</option>
+                    </select>
+                </div>
+            </div>
+            <div class="filter-row">
+                <div>
+                    <div class="filter-label">Sentiment</div>
+                    <select id="sentiment-filter" class="filter-select">
+                        <option value="">All sentiments</option>
+                        <option value="positive">Positive</option>
+                        <option value="neutral">Neutral</option>
+                        <option value="negative">Negative</option>
+                    </select>
+                </div>
+                <div>
+                    <div class="filter-label">Topic</div>
+                    <select id="topic-filter" class="filter-select">
+                        <option value="">All topics</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="tweet-list" id="tweet-list">
+            <div class="empty-state">
+                No tweets collected yet. Scroll through Twitter to collect tweets.
+            </div>
+        </div>
+    </div>
+
+    <!-- Insights Tab -->
+    <div class="tab-content" id="insights-tab">
+        <div class="chart-container">
+            <h3 class="chart-title">Sentiment Analysis</h3>
+            <div class="sentiment-bars">
+                <div class="bar-column">
+                    <div id="positive-bar" class="bar positive-bar" style="height: 10%;">
+                        <div class="bar-value">0</div>
+                    </div>
+                    <div class="bar-label">Positive</div>
+                </div>
+                <div class="bar-column">
+                    <div id="neutral-bar" class="bar neutral-bar" style="height: 10%;">
+                        <div class="bar-value">0</div>
+                    </div>
+                    <div class="bar-label">Neutral</div>
+                </div>
+                <div class="bar-column">
+                    <div id="negative-bar" class="bar negative-bar" style="height: 10%;">
+                        <div class="bar-value">0</div>
+                    </div>
+                    <div class="bar-label">Negative</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <h3 class="chart-title">Top Topics</h3>
+            <div id="topics-chart">
+                <!-- Topics will be added here dynamically -->
+                <div class="empty-state">
+                    Collect tweets to see topic insights
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Tab -->
+    <div class="tab-content" id="export-tab">
+        <div class="chart-container">
+            <h3 class="chart-title">Export Options</h3>
+            <p>Choose your preferred format:</p>
+
+            <div class="export-options">
+                <button class="export-button" id="json-export">
+                    <span>JSON</span>
+                </button>
+                <button class="export-button" id="csv-export">
+                    <span>CSV</span>
+                </button>
+                <button class="export-button" id="txt-export">
+                    <span>Text</span>
+                </button>
+            </div>
+
+            <div class="filter-row">
+                <div>
+                    <div class="filter-label">Export what?</div>
+                    <select id="export-scope" class="filter-select">
+                        <option value="all">All tweets</option>
+                        <option value="filtered">Current filtered view</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <button id="clear-data">Clear all collected data</button>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+
+</html>

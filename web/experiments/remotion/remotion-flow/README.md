@@ -1,54 +1,87 @@
-# Remotion video
+# Content Creation Workflow Animation
 
-<p align="center">
-  <a href="https://github.com/remotion-dev/logo">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://github.com/remotion-dev/logo/raw/main/animated-logo-banner-dark.gif">
-      <img alt="Animated Remotion Logo" src="https://github.com/remotion-dev/logo/raw/main/animated-logo-banner-light.gif">
-    </picture>
-  </a>
-</p>
+A 1080p, 30fps Remotion animation that illustrates a typical programming content creation workflow. Each step in the workflow animates sequentially with stylish transitions, effects, and a flowing design.
 
-Welcome to your Remotion project!
+## Workflow Steps
 
-## Commands
-
-**Install Dependencies**
-
-```console
-npm i
+```
+idea ─▶ o3 ─▶ refine ─▶ tutorial.md ─▶ cursor ─▶ implement ─▶ refine ─▶ update tutorial ─▶ final product
 ```
 
-**Start Preview**
+## Features
 
-```console
+- ✨ Fluid animations with spring physics
+- 🎨 Colorful gradient boxes for each workflow step
+- ➡️ Animated arrows connecting each step
+- 🌌 Starry background with parallax effect
+- ✨ Particle system for ambient motion
+- 📜 Auto-scrolling container to keep active items in view
+- 💫 Special pulsing effect for the final product box
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js ≥ 18 LTS
+- npm, yarn, or pnpm
+
+### Installation
+
+```bash
+# Clone the repository
+# Navigate to the project directory
+cd web/experiments/remotion/remotion-flow
+
+# Install dependencies
+npm install
+```
+
+### Development
+
+```bash
+# Start the development server
 npm run dev
 ```
 
-**Render video**
+This will open the Remotion Studio at [http://localhost:3000](http://localhost:3000) where you can preview and scrub through the animation.
 
-```console
-npx remotion render
+### Rendering
+
+The project includes several rendering options:
+
+```bash
+# Standard quality render
+npm run render
+
+# High quality render
+npm run render-hq
+
+# ProRes render with alpha channel (for compositing)
+npm run render-prores
 ```
 
-**Upgrade Remotion**
+Rendered videos will be saved to the `out/` directory.
 
-```console
-npx remotion upgrade
-```
+## Customization
 
-## Docs
+You can customize various aspects of the animation by modifying the following in `FlowScene.tsx`:
 
-Get started with Remotion by reading the [fundamentals page](https://www.remotion.dev/docs/the-fundamentals).
+- `STEPS` array: Change the workflow steps
+- `COLORS` array: Modify the gradient colors
+- Animation timings and durations
+- Box sizes, spacing, and positioning
+- Background effects and particle systems
 
-## Help
+## Implementation Details
 
-We provide help on our [Discord server](https://discord.gg/6VzzNDwUwV).
+The animation is built with Remotion and React, using:
 
-## Issues
+- Interpolation for smooth transitions
+- Spring physics for natural motion
+- Dynamic scrolling to follow the active step
+- CSS transitions and transforms for visual effects
+- React hooks for animation state management
 
-Found an issue with Remotion? [File an issue here](https://github.com/remotion-dev/remotion/issues/new).
+## References
 
-## License
-
-Note that for some entities a company license is needed. [Read the terms here](https://github.com/remotion-dev/remotion/blob/main/LICENSE.md).
+Based on the tutorial document: `@02-remotion-animation.md`

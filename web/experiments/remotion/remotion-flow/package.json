@@ -27,7 +27,10 @@
     "dev": "remotion studio",
     "build": "remotion bundle",
     "upgrade": "remotion upgrade",
-    "lint": "eslint src && tsc"
+    "lint": "eslint src && tsc",
+    "render": "remotion render flow out/flow.mp4 --codec h264 --quality 90",
+    "render-hq": "remotion render flow out/flow-hq.mp4 --codec h264 --quality 100",
+    "render-prores": "remotion render flow out/flow-alpha.mov --codec=prores --proresProfile=4444"
   },
   "sideEffects": [
     "*.css"
