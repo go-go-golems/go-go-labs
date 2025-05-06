@@ -87,7 +87,7 @@ export const CustomNode: React.FC<CustomNodeProps> = ({
   onNodeClick,
   onAddClick
 }) => {
-  const { node, x, y } = nodeProps;
+  const { node } = nodeProps;
   const width = node.width || NODE_WIDTH;
   const height = node.height || NODE_HEIGHT;
   const isSelected = selectedNode === node.id;

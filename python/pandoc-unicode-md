@@ -5,94 +5,108 @@ Pandoc filter to replace problematic Unicode characters with LaTeX-compatible al
 Usage: pandoc --filter ./pandoc-unicode-md input.md -o output.md
 """
 
-from pandocfilters import toJSONFilter, Str, Math
+from pandocfilters import toJSONFilter, Str, Math, CodeBlock
 import re
 
 # Mapping of Unicode characters to their LaTeX-compatible replacements
 CHAR_REPLACEMENTS = {
     # Brackets (math_mode, text_mode)
-    '【': ('[', '['),
-    '】': (']', ']'),
-    
+    "【": ("[", "["),
+    "】": ("]", "]"),
     # Mathematical symbols (with and without math mode)
-    '≥': ('\\\\geq', '$\\\\geq$'),
-    '≤': ('\\\\leq', '$\\\\leq$'),
-    '∞': ('\\\\infty', '$\\\\infty$'),
-    '±': ('\\\\pm', '$\\\\pm$'),
-    '∓': ('\\\\mp', '$\\\\mp$'),
-    '×': ('\\\\times', '$\\\\times$'),
-    '÷': ('\\\\div', '$\\\\div$'),
-    '≠': ('\\\\neq', '$\\\\neq$'),
-    '≈': ('\\\\approx', '$\\\\approx$'),
-    '∑': ('\\\\sum', '$\\\\sum$'),
-    '∏': ('\\\\prod', '$\\\\prod$'),
-    '√': ('\\\\sqrt', '$\\\\sqrt$'),
-    '∫': ('\\\\int', '$\\\\int$'),
-    
+    "≥": ("\\\\geq", "$\\\\geq$"),
+    "≤": ("\\\\leq", "$\\\\leq$"),
+    "∞": ("\\\\infty", "$\\\\infty$"),
+    "±": ("\\\\pm", "$\\\\pm$"),
+    "∓": ("\\\\mp", "$\\\\mp$"),
+    "×": ("\\\\times", "$\\\\times$"),
+    "÷": ("\\\\div", "$\\\\div$"),
+    "≠": ("\\\\neq", "$\\\\neq$"),
+    "≈": ("\\\\approx", "$\\\\approx$"),
+    "∑": ("\\\\sum", "$\\\\sum$"),
+    "∏": ("\\\\prod", "$\\\\prod$"),
+    "√": ("\\\\sqrt", "$\\\\sqrt$"),
+    "∫": ("\\\\int", "$\\\\int$"),
     # Subscripts and superscripts
-    '₀': ('_0', '$_{0}$'),
-    '₁': ('_1', '$_{1}$'),
-    '₂': ('_2', '$_{2}$'),
-    '₃': ('_3', '$_{3}$'),
-    '₄': ('_4', '$_{4}$'),
-    '²': ('^2', '$^{2}$'),
-    '³': ('^3', '$^{3}$'),
-    
+    "₀": ("_0", "$_{0}$"),
+    "₁": ("_1", "$_{1}$"),
+    "₂": ("_2", "$_{2}$"),
+    "₃": ("_3", "$_{3}$"),
+    "₄": ("_4", "$_{4}$"),
+    "²": ("^2", "$^{2}$"),
+    "³": ("^3", "$^{3}$"),
     # Greek letters
-    'α': ('\\\\alpha', '$\\\\alpha$'),
-    'β': ('\\\\beta', '$\\\\beta$'),
-    'γ': ('\\\\gamma', '$\\\\gamma$'),
-    'δ': ('\\\\delta', '$\\\\delta$'),
-    'μ': ('\\\\mu', '$\\\\mu$'),
-    'π': ('\\\\pi', '$\\\\pi$'),
-    'σ': ('\\\\sigma', '$\\\\sigma$'),
-    'ω': ('\\\\omega', '$\\\\omega$')
+    "α": ("\\\\alpha", "$\\\\alpha$"),
+    "β": ("\\\\beta", "$\\\\beta$"),
+    "γ": ("\\\\gamma", "$\\\\gamma$"),
+    "δ": ("\\\\delta", "$\\\\delta$"),
+    "μ": ("\\\\mu", "$\\\\mu$"),
+    "π": ("\\\\pi", "$\\\\pi$"),
+    "σ": ("\\\\sigma", "$\\\\sigma$"),
+    "ω": ("\\\\omega", "$\\\\omega$"),
 }
+
 
 def replace_characters(key, value, format, meta):
     """
     Replace problematic Unicode characters with LaTeX-compatible alternatives in text content.
-    
+
     Args:
         key (str): The type of pandoc element
         value: The content of the element
         format (str): The output format
         meta: Document metadata
-    
+
     Returns:
         Modified element if replacements are needed, None otherwise
     """
-    if key == 'Str':
+    if key == "Str":
         text = value
         needs_replacement = False
-        
+
         # Check if any replacement is needed
         for char in CHAR_REPLACEMENTS:
             if char in text:
                 needs_replacement = True
                 break
-                
+
         if needs_replacement:
             # Perform all replacements
             for char, (math_repl, text_repl) in CHAR_REPLACEMENTS.items():
                 text = text.replace(char, text_repl)
             return Str(text)
-    
-    elif key == 'Math':
+
+    elif key == "Math":
         mathtype, text = value
         needs_replacement = False
-        
+
         # Check if any replacement is needed
         for char in CHAR_REPLACEMENTS:
             if char in text:
                 needs_replacement = True
                 break
-                
+
         if needs_replacement:
             # In math mode, use the non-dollarsign version
             for char, (math_repl, text_repl) in CHAR_REPLACEMENTS.items():
                 text = text.replace(char, math_repl)
             return Math(mathtype, text)
+
+    elif key == "CodeBlock":
+        [[ident, classes, keyvals], text] = value
+        needs_replacement = False
+
+        # Check if any replacement is needed
+        for char in CHAR_REPLACEMENTS:
+            if char in text:
+                needs_replacement = True
+                break
+
+        if needs_replacement:
+            for char, (math_repl, text_repl) in CHAR_REPLACEMENTS.items():
+                text = text.replace(char, text_repl)
+            return CodeBlock([ident, classes, keyvals], text)
+
 
 def main():
     """
@@ -100,5 +114,6 @@ def main():
     """
     toJSONFilter(replace_characters)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
