@@ -1,0 +1,565 @@
+2025-05-10 16:30:24,138 - __main__ - INFO - Starting reranker application
+2025-05-10 16:30:24,144 - werkzeug - WARNING -  * Debugger is active!
+2025-05-10 16:30:24,145 - werkzeug - INFO -  * Debugger PIN: 101-395-374
+2025-05-10 16:30:33,464 - werkzeug - INFO -  * Detected change in '/home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.py', reloading
+2025-05-10 16:31:46,785 - __main__ - INFO - Starting reranker application
+2025-05-10 16:31:46,791 - werkzeug - WARNING -  * Running on all addresses.
+   WARNING: This is a development server. Do not use it in a production deployment.
+2025-05-10 16:31:46,791 - werkzeug - INFO -  * Running on http://192.168.0.39:5000/ (Press CTRL+C to quit)
+2025-05-10 16:31:46,793 - werkzeug - INFO -  * Restarting with stat
+2025-05-10 16:31:51,343 - __main__ - INFO - Starting reranker application
+2025-05-10 16:31:51,349 - werkzeug - WARNING -  * Debugger is active!
+2025-05-10 16:31:51,349 - werkzeug - INFO -  * Debugger PIN: 101-395-374
+2025-05-10 16:31:54,667 - database - INFO - Getting all documents
+2025-05-10 16:31:54,667 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 16:31:54,667 - database - DEBUG - Retrieved 0 documents
+2025-05-10 16:31:54,668 - database - DEBUG - Database connection closed normally
+2025-05-10 16:31:54,668 - __main__ - INFO - Index page loaded with 0 documents
+2025-05-10 16:31:54,696 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 16:31:54] "GET / HTTP/1.1" 200 -
+2025-05-10 16:31:57,577 - database - INFO - Getting all documents
+2025-05-10 16:31:57,577 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 16:31:57,578 - database - DEBUG - Retrieved 0 documents
+2025-05-10 16:31:57,578 - database - DEBUG - Database connection closed normally
+2025-05-10 16:31:57,578 - __main__ - INFO - Documents page loaded with 0 documents
+2025-05-10 16:31:57,585 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 16:31:57] "GET /documents HTTP/1.1" 200 -
+2025-05-10 16:31:58,743 - __main__ - INFO - Examples page loaded with 3 examples
+2025-05-10 16:31:58,753 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 16:31:58] "GET /examples HTTP/1.1" 200 -
+2025-05-10 16:32:02,377 - database - INFO - Getting all documents
+2025-05-10 16:32:02,377 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 16:32:02,378 - database - DEBUG - Retrieved 0 documents
+2025-05-10 16:32:02,378 - database - DEBUG - Database connection closed normally
+2025-05-10 16:32:02,378 - __main__ - INFO - Index page loaded with 0 documents
+2025-05-10 16:32:02,379 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 16:32:02] "GET / HTTP/1.1" 200 -
+2025-05-10 16:32:06,284 - __main__ - INFO - Rerank request received
+2025-05-10 16:32:06,287 - __main__ - INFO - Processing YAML form submission
+2025-05-10 16:32:06,287 - __main__ - INFO - YAML text pasted
+2025-05-10 16:32:06,289 - __main__ - ERROR - YAML parsing error: expected a single document in the stream
+  in "<unicode string>", line 1, column 1:
+    Below is a step-by-step roadmap  ... 
+    ^
+but found another document
+  in "<unicode string>", line 3, column 1:
+    ---
+    ^
+2025-05-10 16:32:06,290 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 16:32:06] "[31m[1mPOST /rerank HTTP/1.1[0m" 400 -
+2025-05-10 16:32:24,903 - __main__ - INFO - Examples page loaded with 3 examples
+2025-05-10 16:32:24,904 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 16:32:24] "GET /examples HTTP/1.1" 200 -
+2025-05-10 16:32:27,626 - database - INFO - Getting all documents
+2025-05-10 16:32:27,626 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 16:32:27,626 - database - DEBUG - Retrieved 0 documents
+2025-05-10 16:32:27,626 - database - DEBUG - Database connection closed normally
+2025-05-10 16:32:27,627 - __main__ - INFO - Index page loaded with 0 documents
+2025-05-10 16:32:27,627 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 16:32:27] "GET / HTTP/1.1" 200 -
+2025-05-10 16:32:29,138 - __main__ - INFO - Examples page loaded with 3 examples
+2025-05-10 16:32:29,140 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 16:32:29] "GET /examples HTTP/1.1" 200 -
+2025-05-10 16:32:32,336 - database - INFO - Getting all documents
+2025-05-10 16:32:32,337 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 16:32:32,337 - database - DEBUG - Retrieved 0 documents
+2025-05-10 16:32:32,337 - database - DEBUG - Database connection closed normally
+2025-05-10 16:32:32,338 - __main__ - INFO - Documents page loaded with 0 documents
+2025-05-10 16:32:32,339 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 16:32:32] "GET /documents HTTP/1.1" 200 -
+2025-05-10 16:32:33,460 - database - INFO - Getting 20 recent queries
+2025-05-10 16:32:33,460 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 16:32:33,461 - database - DEBUG - Retrieved 0 recent queries
+2025-05-10 16:32:33,461 - database - DEBUG - Database connection closed normally
+2025-05-10 16:32:33,461 - __main__ - INFO - History page loaded with 0 queries
+2025-05-10 16:32:33,469 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 16:32:33] "GET /history HTTP/1.1" 200 -
+2025-05-10 16:32:34,725 - database - INFO - Getting all documents
+2025-05-10 16:32:34,725 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 16:32:34,725 - database - DEBUG - Retrieved 0 documents
+2025-05-10 16:32:34,725 - database - DEBUG - Database connection closed normally
+2025-05-10 16:32:34,726 - __main__ - INFO - Index page loaded with 0 documents
+2025-05-10 16:32:34,727 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 16:32:34] "GET / HTTP/1.1" 200 -
+2025-05-10 16:32:37,863 - __main__ - INFO - Rerank request received
+2025-05-10 16:32:37,863 - __main__ - INFO - Processing YAML form submission
+2025-05-10 16:32:37,863 - __main__ - INFO - YAML text pasted
+2025-05-10 16:32:37,870 - __main__ - DEBUG - Parsed YAML: {'query': 'What are the key components of a transformer architecture?', 'documents': ["The transformer architecture introduced in the 'Attention is All You Need' paper revolutionized NLP by eliminating recurrence and convolutions in favor of attention mechanisms.", 'Self-attention allows a model to weigh the importance of different words in a sequence relative to each other, capturing long-range dependencies more effectively than RNNs.', 'Multi-head attention runs multiple attention operations in parallel, allowing the model to attend to information from different representation spaces simultaneously.', "Positional encoding is added to embeddings to give the model information about token positions, since transformers don't process sequences sequentially.", 'Layer normalization stabilizes the learning process in deep networks by normalizing inputs across features rather than batch examples.', 'Residual connections (skip connections) help with gradient flow during training, allowing for deeper networks by providing a direct path for gradients.', 'Feed-forward neural networks in each transformer block apply the same feed-forward transformation to each position separately and identically.', 'Tokenization is the process of converting raw text into tokens that can be processed by the model, often using subword units like BPE or WordPiece.', 'The encoder-decoder architecture is used in many transformer models for sequence-to-sequence tasks, with variations like encoder-only (BERT) or decoder-only (GPT) for specific applications.']}
+2025-05-10 16:32:37,870 - __main__ - INFO - Performing reranking for query: 'What are the key components of a transformer architecture?' with 9 documents
+2025-05-10 16:32:37,870 - reranker - INFO - Reranking 9 documents for query: 'What are the key components of a transformer architecture?'
+2025-05-10 16:32:37,870 - reranker - DEBUG - Top_k=None
+2025-05-10 16:32:37,871 - reranker - INFO - Loading tokenizer: BAAI/bge-reranker-large
+2025-05-10 16:32:37,878 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): huggingface.co:443
+2025-05-10 16:32:38,046 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /BAAI/bge-reranker-large/resolve/main/tokenizer_config.json HTTP/1.1" 200 0
+2025-05-10 16:32:38,899 - reranker - INFO - Tokenizer loaded successfully
+2025-05-10 16:32:38,900 - reranker - INFO - Loading model: BAAI/bge-reranker-large on cpu
+2025-05-10 16:32:38,951 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /BAAI/bge-reranker-large/resolve/main/config.json HTTP/1.1" 200 0
+2025-05-10 16:32:41,126 - reranker - INFO - Model loaded successfully and set to eval mode
+2025-05-10 16:32:41,127 - reranker - DEBUG - Created 9 query-document pairs
+2025-05-10 16:32:41,127 - reranker - DEBUG - Encoding query-document pairs
+2025-05-10 16:32:41,129 - reranker - DEBUG - Running inference
+2025-05-10 16:32:42,583 - reranker - DEBUG - Inference complete, got 9 scores
+2025-05-10 16:32:42,583 - reranker - INFO - Returning all 9 results
+2025-05-10 16:32:42,583 - reranker - DEBUG - Result 1: Score=-3.0635, Doc='The encoder-decoder architecture is used in many t...'
+2025-05-10 16:32:42,584 - reranker - DEBUG - Result 2: Score=-4.5196, Doc='Feed-forward neural networks in each transformer b...'
+2025-05-10 16:32:42,584 - reranker - DEBUG - Result 3: Score=-5.3630, Doc='Positional encoding is added to embeddings to give...'
+2025-05-10 16:32:42,584 - __main__ - INFO - Reranking complete, got 9 results
+2025-05-10 16:32:42,584 - __main__ - DEBUG - First few results: [('The encoder-decoder architecture is used in many transformer models for sequence-to-sequence tasks, with variations like encoder-only (BERT) or decoder-only (GPT) for specific applications.', -3.063469409942627), ('Feed-forward neural networks in each transformer block apply the same feed-forward transformation to each position separately and identically.', -4.51956844329834), ("Positional encoding is added to embeddings to give the model information about token positions, since transformers don't process sequences sequentially.", -5.363032341003418)]
+2025-05-10 16:32:42,585 - database - INFO - Saving query: 'What are the key components of a transformer architecture?' with 9 results
+2025-05-10 16:32:42,585 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 16:32:42,585 - database - DEBUG - Inserting query: 'What are the key components of a transformer architecture?' with top_k=None
+2025-05-10 16:32:42,586 - database - DEBUG - Query inserted with ID: 1
+2025-05-10 16:32:42,586 - database - DEBUG - Processing result 1 with score -3.063469409942627
+2025-05-10 16:32:42,586 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 16:32:42,586 - database - DEBUG - Creating new document
+2025-05-10 16:32:47,594 - database - ERROR - Database connection error: database is locked
+2025-05-10 16:32:47,595 - database - ERROR - Traceback (most recent call last):
+  File "/home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/database.py", line 72, in get_db_connection
+    yield conn
+  File "/home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/database.py", line 95, in get_or_create_document
+    cursor.execute("INSERT INTO documents (content) VALUES (?)", (content,))
+sqlite3.OperationalError: database is locked
+
+2025-05-10 16:32:47,595 - database - ERROR - Error in get_or_create_document: database is locked
+2025-05-10 16:32:47,595 - database - ERROR - Traceback (most recent call last):
+  File "/home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/database.py", line 95, in get_or_create_document
+    cursor.execute("INSERT INTO documents (content) VALUES (?)", (content,))
+sqlite3.OperationalError: database is locked
+
+2025-05-10 16:32:47,595 - database - ERROR - Database connection error: database is locked
+2025-05-10 16:32:47,596 - database - ERROR - Traceback (most recent call last):
+  File "/home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/database.py", line 72, in get_db_connection
+    yield conn
+  File "/home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/database.py", line 124, in save_query_and_results
+    doc_id = get_or_create_document(doc)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/database.py", line 95, in get_or_create_document
+    cursor.execute("INSERT INTO documents (content) VALUES (?)", (content,))
+sqlite3.OperationalError: database is locked
+
+2025-05-10 16:32:47,596 - database - ERROR - Error in save_query_and_results: database is locked
+2025-05-10 16:32:47,597 - database - ERROR - Traceback (most recent call last):
+  File "/home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/database.py", line 124, in save_query_and_results
+    doc_id = get_or_create_document(doc)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/database.py", line 95, in get_or_create_document
+    cursor.execute("INSERT INTO documents (content) VALUES (?)", (content,))
+sqlite3.OperationalError: database is locked
+
+2025-05-10 16:32:47,597 - __main__ - ERROR - Database error saving results: database is locked
+2025-05-10 16:32:47,598 - __main__ - ERROR - Traceback (most recent call last):
+  File "/home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/app.py", line 134, in handle_rerank
+    query_id = db.save_query_and_results(query, results, top_k)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/database.py", line 124, in save_query_and_results
+    doc_id = get_or_create_document(doc)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/database.py", line 95, in get_or_create_document
+    cursor.execute("INSERT INTO documents (content) VALUES (?)", (content,))
+sqlite3.OperationalError: database is locked
+
+2025-05-10 16:32:47,598 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 16:32:47] "[35m[1mPOST /rerank HTTP/1.1[0m" 500 -
+2025-05-10 16:46:35,691 - werkzeug - INFO -  * Detected change in '/home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/04-reranker-gradient-saliency.py', reloading
+2025-05-10 16:54:47,097 - __main__ - INFO - Starting reranker application
+2025-05-10 16:54:47,103 - werkzeug - WARNING -  * Running on all addresses.
+   WARNING: This is a development server. Do not use it in a production deployment.
+2025-05-10 16:54:47,104 - werkzeug - INFO -  * Running on http://192.168.0.39:5000/ (Press CTRL+C to quit)
+2025-05-10 16:54:47,105 - werkzeug - INFO -  * Restarting with stat
+2025-05-10 16:54:51,763 - __main__ - INFO - Starting reranker application
+2025-05-10 16:54:51,769 - werkzeug - WARNING -  * Debugger is active!
+2025-05-10 16:54:51,770 - werkzeug - INFO -  * Debugger PIN: 101-395-374
+2025-05-10 16:55:04,494 - database - INFO - Getting all documents
+2025-05-10 16:55:04,494 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 16:55:04,494 - database - DEBUG - Retrieved 0 documents
+2025-05-10 16:55:04,495 - database - DEBUG - Database connection closed normally
+2025-05-10 16:55:04,495 - __main__ - INFO - Index page loaded with 0 documents
+2025-05-10 16:55:04,515 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 16:55:04] "GET / HTTP/1.1" 200 -
+2025-05-10 16:55:06,223 - __main__ - INFO - Examples page loaded with 3 examples
+2025-05-10 16:55:06,233 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 16:55:06] "GET /examples HTTP/1.1" 200 -
+2025-05-10 16:55:16,039 - database - INFO - Getting all documents
+2025-05-10 16:55:16,040 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 16:55:16,040 - database - DEBUG - Retrieved 0 documents
+2025-05-10 16:55:16,040 - database - DEBUG - Database connection closed normally
+2025-05-10 16:55:16,040 - __main__ - INFO - Index page loaded with 0 documents
+2025-05-10 16:55:16,041 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 16:55:16] "GET / HTTP/1.1" 200 -
+2025-05-10 16:55:18,939 - __main__ - INFO - Rerank request received
+2025-05-10 16:55:18,941 - __main__ - INFO - Processing YAML form submission
+2025-05-10 16:55:18,941 - __main__ - INFO - YAML text pasted
+2025-05-10 16:55:18,948 - __main__ - DEBUG - Parsed YAML: {'query': 'What are the key components of a transformer architecture?', 'documents': ["The transformer architecture introduced in the 'Attention is All You Need' paper revolutionized NLP by eliminating recurrence and convolutions in favor of attention mechanisms.", 'Self-attention allows a model to weigh the importance of different words in a sequence relative to each other, capturing long-range dependencies more effectively than RNNs.', 'Multi-head attention runs multiple attention operations in parallel, allowing the model to attend to information from different representation spaces simultaneously.', "Positional encoding is added to embeddings to give the model information about token positions, since transformers don't process sequences sequentially.", 'Layer normalization stabilizes the learning process in deep networks by normalizing inputs across features rather than batch examples.', 'Residual connections (skip connections) help with gradient flow during training, allowing for deeper networks by providing a direct path for gradients.', 'Feed-forward neural networks in each transformer block apply the same feed-forward transformation to each position separately and identically.', 'Tokenization is the process of converting raw text into tokens that can be processed by the model, often using subword units like BPE or WordPiece.', 'The encoder-decoder architecture is used in many transformer models for sequence-to-sequence tasks, with variations like encoder-only (BERT) or decoder-only (GPT) for specific applications.']}
+2025-05-10 16:55:18,948 - __main__ - INFO - Performing reranking for query: 'What are the key components of a transformer architecture?' with 9 documents
+2025-05-10 16:55:18,948 - reranker - INFO - Reranking 9 documents for query: 'What are the key components of a transformer architecture?'
+2025-05-10 16:55:18,948 - reranker - DEBUG - Top_k=None
+2025-05-10 16:55:18,949 - reranker - INFO - Loading tokenizer: BAAI/bge-reranker-large
+2025-05-10 16:55:18,956 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): huggingface.co:443
+2025-05-10 16:55:19,044 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /BAAI/bge-reranker-large/resolve/main/tokenizer_config.json HTTP/1.1" 200 0
+2025-05-10 16:55:19,939 - reranker - INFO - Tokenizer loaded successfully
+2025-05-10 16:55:19,939 - reranker - INFO - Loading model: BAAI/bge-reranker-large on cpu
+2025-05-10 16:55:19,984 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /BAAI/bge-reranker-large/resolve/main/config.json HTTP/1.1" 200 0
+2025-05-10 16:55:22,160 - reranker - INFO - Model loaded successfully and set to eval mode
+2025-05-10 16:55:22,160 - reranker - DEBUG - Created 9 query-document pairs
+2025-05-10 16:55:22,160 - reranker - DEBUG - Encoding query-document pairs
+2025-05-10 16:55:22,162 - reranker - DEBUG - Running inference
+2025-05-10 16:55:23,626 - reranker - DEBUG - Inference complete, got 9 scores
+2025-05-10 16:55:23,627 - reranker - INFO - Returning all 9 results
+2025-05-10 16:55:23,627 - reranker - DEBUG - Result 1: Score=-3.0635, Doc='The encoder-decoder architecture is used in many t...'
+2025-05-10 16:55:23,627 - reranker - DEBUG - Result 2: Score=-4.5196, Doc='Feed-forward neural networks in each transformer b...'
+2025-05-10 16:55:23,627 - reranker - DEBUG - Result 3: Score=-5.3630, Doc='Positional encoding is added to embeddings to give...'
+2025-05-10 16:55:23,628 - __main__ - INFO - Reranking complete, got 9 results
+2025-05-10 16:55:23,628 - __main__ - DEBUG - First few results: [('The encoder-decoder architecture is used in many transformer models for sequence-to-sequence tasks, with variations like encoder-only (BERT) or decoder-only (GPT) for specific applications.', -3.063469409942627), ('Feed-forward neural networks in each transformer block apply the same feed-forward transformation to each position separately and identically.', -4.51956844329834), ("Positional encoding is added to embeddings to give the model information about token positions, since transformers don't process sequences sequentially.", -5.363032341003418)]
+2025-05-10 16:55:23,628 - database - INFO - Saving query: 'What are the key components of a transformer architecture?' with 9 results
+2025-05-10 16:55:23,628 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 16:55:23,629 - database - DEBUG - Inserting query: 'What are the key components of a transformer architecture?' with top_k=None
+2025-05-10 16:55:23,629 - database - DEBUG - Query inserted with ID: 1
+2025-05-10 16:55:23,629 - database - DEBUG - Processing result 1 with score -3.063469409942627
+2025-05-10 16:55:23,630 - database - DEBUG - Creating new document
+2025-05-10 16:55:23,630 - database - DEBUG - Created new document with ID: 1
+2025-05-10 16:55:23,630 - database - DEBUG - Processing result 2 with score -4.51956844329834
+2025-05-10 16:55:23,630 - database - DEBUG - Creating new document
+2025-05-10 16:55:23,631 - database - DEBUG - Created new document with ID: 2
+2025-05-10 16:55:23,631 - database - DEBUG - Processing result 3 with score -5.363032341003418
+2025-05-10 16:55:23,631 - database - DEBUG - Creating new document
+2025-05-10 16:55:23,631 - database - DEBUG - Created new document with ID: 3
+2025-05-10 16:55:23,631 - database - DEBUG - Processing result 4 with score -5.443197250366211
+2025-05-10 16:55:23,631 - database - DEBUG - Creating new document
+2025-05-10 16:55:23,632 - database - DEBUG - Created new document with ID: 4
+2025-05-10 16:55:23,632 - database - DEBUG - Processing result 5 with score -7.596590995788574
+2025-05-10 16:55:23,632 - database - DEBUG - Creating new document
+2025-05-10 16:55:23,632 - database - DEBUG - Created new document with ID: 5
+2025-05-10 16:55:23,632 - database - DEBUG - Processing result 6 with score -7.778175354003906
+2025-05-10 16:55:23,632 - database - DEBUG - Creating new document
+2025-05-10 16:55:23,633 - database - DEBUG - Created new document with ID: 6
+2025-05-10 16:55:23,633 - database - DEBUG - Processing result 7 with score -8.28349494934082
+2025-05-10 16:55:23,633 - database - DEBUG - Creating new document
+2025-05-10 16:55:23,633 - database - DEBUG - Created new document with ID: 7
+2025-05-10 16:55:23,633 - database - DEBUG - Processing result 8 with score -8.536953926086426
+2025-05-10 16:55:23,633 - database - DEBUG - Creating new document
+2025-05-10 16:55:23,634 - database - DEBUG - Created new document with ID: 8
+2025-05-10 16:55:23,634 - database - DEBUG - Processing result 9 with score -9.28319263458252
+2025-05-10 16:55:23,634 - database - DEBUG - Creating new document
+2025-05-10 16:55:23,635 - database - DEBUG - Created new document with ID: 9
+2025-05-10 16:55:23,635 - database - INFO - Successfully saved query ID 1 with 9 results
+2025-05-10 16:55:23,644 - database - DEBUG - Database connection closed normally
+2025-05-10 16:55:23,645 - __main__ - INFO - Saved query (ID: 1) and results to database
+2025-05-10 16:55:23,653 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 16:55:23] "POST /rerank HTTP/1.1" 200 -
+2025-05-10 16:55:37,488 - database - INFO - Getting all documents
+2025-05-10 16:55:37,488 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 16:55:37,489 - database - DEBUG - Retrieved 9 documents
+2025-05-10 16:55:37,489 - database - DEBUG - Database connection closed normally
+2025-05-10 16:55:37,489 - __main__ - INFO - Index page loaded with 9 documents
+2025-05-10 16:55:37,491 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 16:55:37] "GET / HTTP/1.1" 200 -
+2025-05-10 16:56:05,775 - __main__ - INFO - Rerank request received
+2025-05-10 16:56:05,775 - __main__ - INFO - Processing manual form submission
+2025-05-10 16:56:05,776 - __main__ - DEBUG - Manual query: 'do connections skip the gradient flow?', document_ids: ['1', '2', '3', '4', '5', '6', '7', '8', '9'], top_k: 
+2025-05-10 16:56:05,776 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 16:56:05,776 - __main__ - DEBUG - SQL query: SELECT content FROM documents WHERE id IN (?,?,?,?,?,?,?,?,?) with params ['1', '2', '3', '4', '5', '6', '7', '8', '9']
+2025-05-10 16:56:05,776 - __main__ - INFO - Retrieved 9 documents from database
+2025-05-10 16:56:05,777 - database - DEBUG - Database connection closed normally
+2025-05-10 16:56:05,777 - __main__ - INFO - Performing reranking for query: 'do connections skip the gradient flow?' with 9 documents
+2025-05-10 16:56:05,777 - reranker - INFO - Reranking 9 documents for query: 'do connections skip the gradient flow?'
+2025-05-10 16:56:05,777 - reranker - DEBUG - Top_k=
+2025-05-10 16:56:05,777 - reranker - DEBUG - Created 9 query-document pairs
+2025-05-10 16:56:05,778 - reranker - DEBUG - Encoding query-document pairs
+2025-05-10 16:56:05,779 - reranker - DEBUG - Running inference
+2025-05-10 16:56:07,050 - reranker - DEBUG - Inference complete, got 9 scores
+2025-05-10 16:56:07,051 - reranker - INFO - Returning top  results
+2025-05-10 16:56:07,051 - reranker - ERROR - Error in rerank function: slice indices must be integers or None or have an __index__ method
+2025-05-10 16:56:07,051 - reranker - ERROR - Traceback (most recent call last):
+  File "/home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.py", line 82, in rerank
+    ranked = ranked[:top_k]
+             ~~~~~~^^^^^^^^
+TypeError: slice indices must be integers or None or have an __index__ method
+
+2025-05-10 16:56:07,052 - __main__ - ERROR - Reranking error: slice indices must be integers or None or have an __index__ method
+2025-05-10 16:56:07,053 - __main__ - ERROR - Traceback (most recent call last):
+  File "/home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/app.py", line 124, in handle_rerank
+    results = rerank(query, documents, top_k)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.py", line 82, in rerank
+    ranked = ranked[:top_k]
+             ~~~~~~^^^^^^^^
+TypeError: slice indices must be integers or None or have an __index__ method
+
+2025-05-10 16:56:07,053 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 16:56:07] "[35m[1mPOST /rerank HTTP/1.1[0m" 500 -
+2025-05-10 16:56:45,373 - werkzeug - INFO -  * Detected change in '/home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/app.py', reloading
+2025-05-10 16:56:53,410 - werkzeug - INFO -  * Restarting with stat
+2025-05-10 16:56:58,067 - __main__ - INFO - Starting reranker application
+2025-05-10 16:56:58,073 - werkzeug - WARNING -  * Debugger is active!
+2025-05-10 16:56:58,073 - werkzeug - INFO -  * Debugger PIN: 101-395-374
+2025-05-10 17:00:38,910 - __main__ - INFO - Starting reranker application
+2025-05-10 17:00:38,917 - werkzeug - WARNING -  * Running on all addresses.
+   WARNING: This is a development server. Do not use it in a production deployment.
+2025-05-10 17:00:38,917 - werkzeug - INFO -  * Running on http://192.168.0.39:5000/ (Press CTRL+C to quit)
+2025-05-10 17:00:38,919 - werkzeug - INFO -  * Restarting with stat
+2025-05-10 17:01:56,201 - __main__ - INFO - Starting reranker application
+2025-05-10 17:01:56,206 - werkzeug - WARNING -  * Running on all addresses.
+   WARNING: This is a development server. Do not use it in a production deployment.
+2025-05-10 17:01:56,206 - werkzeug - INFO -  * Running on http://192.168.0.39:5000/ (Press CTRL+C to quit)
+2025-05-10 17:01:56,208 - werkzeug - INFO -  * Restarting with stat
+2025-05-10 17:02:00,573 - __main__ - INFO - Starting reranker application
+2025-05-10 17:02:00,578 - werkzeug - WARNING -  * Debugger is active!
+2025-05-10 17:02:00,579 - werkzeug - INFO -  * Debugger PIN: 101-395-374
+2025-05-10 17:02:03,713 - database - INFO - Getting all documents
+2025-05-10 17:02:03,713 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 17:02:03,714 - database - DEBUG - Retrieved 9 documents
+2025-05-10 17:02:03,714 - database - DEBUG - Database connection closed normally
+2025-05-10 17:02:03,715 - __main__ - INFO - Index page loaded with 9 documents
+2025-05-10 17:02:03,736 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 17:02:03] "GET / HTTP/1.1" 200 -
+2025-05-10 17:02:09,692 - __main__ - INFO - Rerank request received
+2025-05-10 17:02:09,693 - __main__ - INFO - Processing manual form submission
+2025-05-10 17:02:09,694 - __main__ - DEBUG - Manual query: 'do connections skip the gradient flow?', document_ids: ['1', '2', '3', '4', '5', '6', '7', '8', '9'], top_k: 
+2025-05-10 17:02:09,694 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 17:02:09,694 - __main__ - DEBUG - SQL query: SELECT content FROM documents WHERE id IN (?,?,?,?,?,?,?,?,?) with params ['1', '2', '3', '4', '5', '6', '7', '8', '9']
+2025-05-10 17:02:09,695 - __main__ - INFO - Retrieved 9 documents from database
+2025-05-10 17:02:09,695 - database - DEBUG - Database connection closed normally
+2025-05-10 17:02:09,695 - __main__ - INFO - Performing reranking for query: 'do connections skip the gradient flow?' with 9 documents
+2025-05-10 17:02:09,695 - reranker - INFO - Reranking 9 documents for query: 'do connections skip the gradient flow?'
+2025-05-10 17:02:09,696 - reranker - DEBUG - Top_k=
+2025-05-10 17:02:09,696 - reranker - INFO - Loading tokenizer: BAAI/bge-reranker-large
+2025-05-10 17:02:09,704 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): huggingface.co:443
+2025-05-10 17:02:10,014 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /BAAI/bge-reranker-large/resolve/main/tokenizer_config.json HTTP/1.1" 200 0
+2025-05-10 17:02:10,940 - reranker - INFO - Tokenizer loaded successfully
+2025-05-10 17:02:10,940 - reranker - INFO - Loading model: BAAI/bge-reranker-large on cpu
+2025-05-10 17:02:11,008 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /BAAI/bge-reranker-large/resolve/main/config.json HTTP/1.1" 200 0
+2025-05-10 17:02:13,120 - reranker - INFO - Model loaded successfully and set to eval mode
+2025-05-10 17:02:13,120 - reranker - DEBUG - Created 9 query-document pairs
+2025-05-10 17:02:13,121 - reranker - DEBUG - Encoding query-document pairs
+2025-05-10 17:02:13,123 - reranker - DEBUG - Running inference
+2025-05-10 17:02:14,272 - reranker - DEBUG - Inference complete, got 9 scores
+2025-05-10 17:02:14,273 - reranker - INFO - Returning top  results
+2025-05-10 17:02:14,273 - reranker - ERROR - Error in rerank function: slice indices must be integers or None or have an __index__ method
+2025-05-10 17:02:14,274 - reranker - ERROR - Traceback (most recent call last):
+  File "/home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.py", line 82, in rerank
+    ranked = ranked[:top_k]
+             ~~~~~~^^^^^^^^
+TypeError: slice indices must be integers or None or have an __index__ method
+
+2025-05-10 17:02:14,274 - __main__ - ERROR - Reranking error: slice indices must be integers or None or have an __index__ method
+2025-05-10 17:02:14,275 - __main__ - ERROR - Traceback (most recent call last):
+  File "/home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/app.py", line 137, in handle_rerank
+    results: List[Tuple[str, float]] = rerank(query, documents, top_k)
+                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.py", line 82, in rerank
+    ranked = ranked[:top_k]
+             ~~~~~~^^^^^^^^
+TypeError: slice indices must be integers or None or have an __index__ method
+
+2025-05-10 17:02:14,275 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 17:02:14] "[35m[1mPOST /rerank HTTP/1.1[0m" 500 -
+2025-05-10 17:03:12,534 - werkzeug - INFO -  * Detected change in '/home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/app.py', reloading
+2025-05-10 17:04:00,905 - __main__ - INFO - Starting reranker application
+2025-05-10 17:04:00,913 - werkzeug - WARNING -  * Running on all addresses.
+   WARNING: This is a development server. Do not use it in a production deployment.
+2025-05-10 17:04:00,913 - werkzeug - INFO -  * Running on http://192.168.0.39:5000/ (Press CTRL+C to quit)
+2025-05-10 17:04:00,914 - werkzeug - INFO -  * Restarting with stat
+2025-05-10 17:04:05,480 - __main__ - INFO - Starting reranker application
+2025-05-10 17:04:05,486 - werkzeug - WARNING -  * Debugger is active!
+2025-05-10 17:04:05,486 - werkzeug - INFO -  * Debugger PIN: 101-395-374
+2025-05-10 17:04:18,534 - database - INFO - Getting all documents
+2025-05-10 17:04:18,535 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 17:04:18,535 - database - DEBUG - Retrieved 9 documents
+2025-05-10 17:04:18,535 - database - DEBUG - Database connection closed normally
+2025-05-10 17:04:18,536 - __main__ - INFO - Index page loaded with 9 documents
+2025-05-10 17:04:18,556 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 17:04:18] "GET / HTTP/1.1" 200 -
+2025-05-10 17:04:23,477 - __main__ - INFO - Rerank request received
+2025-05-10 17:04:23,479 - __main__ - INFO - Processing manual form submission
+2025-05-10 17:04:23,479 - __main__ - DEBUG - Manual form - top_k raw value: '', type: <class 'str'>
+2025-05-10 17:04:23,479 - __main__ - DEBUG - Manual query: 'do connections skip the gradient flow?', document_ids: ['1', '2', '3', '4', '5', '6', '7', '8', '9'], raw_top_k: ''
+2025-05-10 17:04:23,479 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 17:04:23,480 - __main__ - DEBUG - SQL query: SELECT content FROM documents WHERE id IN (?,?,?,?,?,?,?,?,?) with params ['1', '2', '3', '4', '5', '6', '7', '8', '9']
+2025-05-10 17:04:23,480 - __main__ - INFO - Retrieved 9 documents from database
+2025-05-10 17:04:23,481 - database - DEBUG - Database connection closed normally
+2025-05-10 17:04:23,481 - __main__ - INFO - Performing reranking for query: 'do connections skip the gradient flow?' with 9 documents and top_k=None (type: <class 'NoneType'>)
+2025-05-10 17:04:23,481 - reranker - INFO - Reranking 9 documents for query: 'do connections skip the gradient flow?'
+2025-05-10 17:04:23,481 - reranker - DEBUG - top_k value: None, type: <class 'NoneType'>
+2025-05-10 17:04:23,482 - reranker - INFO - Loading tokenizer: BAAI/bge-reranker-large
+2025-05-10 17:04:23,489 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): huggingface.co:443
+2025-05-10 17:04:23,571 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /BAAI/bge-reranker-large/resolve/main/tokenizer_config.json HTTP/1.1" 200 0
+2025-05-10 17:04:24,476 - reranker - INFO - Tokenizer loaded successfully
+2025-05-10 17:04:24,476 - reranker - INFO - Loading model: BAAI/bge-reranker-large on cpu
+2025-05-10 17:04:24,527 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /BAAI/bge-reranker-large/resolve/main/config.json HTTP/1.1" 200 0
+2025-05-10 17:04:26,673 - reranker - INFO - Model loaded successfully and set to eval mode
+2025-05-10 17:04:26,674 - reranker - DEBUG - Created 9 query-document pairs
+2025-05-10 17:04:26,674 - reranker - DEBUG - Encoding query-document pairs
+2025-05-10 17:04:26,676 - reranker - DEBUG - Running inference
+2025-05-10 17:04:27,885 - reranker - DEBUG - Inference complete, got 9 scores
+2025-05-10 17:04:27,885 - reranker - INFO - Returning all 9 results
+2025-05-10 17:04:27,886 - reranker - DEBUG - Result 1: Score=6.0668, Doc='Residual connections (skip connections) help with ...'
+2025-05-10 17:04:27,886 - reranker - DEBUG - Result 2: Score=-9.4703, Doc='Tokenization is the process of converting raw text...'
+2025-05-10 17:04:27,886 - reranker - DEBUG - Result 3: Score=-9.4783, Doc='The encoder-decoder architecture is used in many t...'
+2025-05-10 17:04:27,886 - __main__ - INFO - Reranking complete, got 9 results
+2025-05-10 17:04:27,887 - __main__ - DEBUG - First few results: [('Residual connections (skip connections) help with gradient flow during training, allowing for deeper networks by providing a direct path for gradients.', 6.0668416023254395), ('Tokenization is the process of converting raw text into tokens that can be processed by the model, often using subword units like BPE or WordPiece.', -9.47031307220459), ('The encoder-decoder architecture is used in many transformer models for sequence-to-sequence tasks, with variations like encoder-only (BERT) or decoder-only (GPT) for specific applications.', -9.478263854980469)]
+2025-05-10 17:04:27,887 - database - INFO - Saving query: 'do connections skip the gradient flow?' with 9 results
+2025-05-10 17:04:27,887 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 17:04:27,887 - database - DEBUG - Inserting query: 'do connections skip the gradient flow?' with top_k=None
+2025-05-10 17:04:27,888 - database - DEBUG - Query inserted with ID: 2
+2025-05-10 17:04:27,888 - database - DEBUG - Processing result 1 with score 6.0668416023254395
+2025-05-10 17:04:27,889 - database - DEBUG - Found existing document with ID: 8
+2025-05-10 17:04:27,889 - database - DEBUG - Processing result 2 with score -9.47031307220459
+2025-05-10 17:04:27,889 - database - DEBUG - Found existing document with ID: 5
+2025-05-10 17:04:27,889 - database - DEBUG - Processing result 3 with score -9.478263854980469
+2025-05-10 17:04:27,890 - database - DEBUG - Found existing document with ID: 1
+2025-05-10 17:04:27,890 - database - DEBUG - Processing result 4 with score -9.478527069091797
+2025-05-10 17:04:27,890 - database - DEBUG - Found existing document with ID: 6
+2025-05-10 17:04:27,890 - database - DEBUG - Processing result 5 with score -9.480780601501465
+2025-05-10 17:04:27,891 - database - DEBUG - Found existing document with ID: 4
+2025-05-10 17:04:27,891 - database - DEBUG - Processing result 6 with score -9.48095703125
+2025-05-10 17:04:27,891 - database - DEBUG - Found existing document with ID: 2
+2025-05-10 17:04:27,891 - database - DEBUG - Processing result 7 with score -9.481829643249512
+2025-05-10 17:04:27,892 - database - DEBUG - Found existing document with ID: 3
+2025-05-10 17:04:27,892 - database - DEBUG - Processing result 8 with score -9.481900215148926
+2025-05-10 17:04:27,892 - database - DEBUG - Found existing document with ID: 9
+2025-05-10 17:04:27,892 - database - DEBUG - Processing result 9 with score -9.482011795043945
+2025-05-10 17:04:27,893 - database - DEBUG - Found existing document with ID: 7
+2025-05-10 17:04:27,893 - database - INFO - Successfully saved query ID 2 with 9 results
+2025-05-10 17:04:27,895 - database - DEBUG - Database connection closed normally
+2025-05-10 17:04:27,896 - __main__ - INFO - Saved query (ID: 2) and results to database
+2025-05-10 17:04:27,903 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 17:04:27] "POST /rerank HTTP/1.1" 200 -
+2025-05-10 17:04:35,878 - __main__ - INFO - Viewing results for query ID: 2
+2025-05-10 17:04:35,878 - database - INFO - Getting results for query ID: 2
+2025-05-10 17:04:35,879 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 17:04:35,879 - database - DEBUG - Retrieved 9 results for query ID 2
+2025-05-10 17:04:35,879 - database - DEBUG - Database connection closed normally
+2025-05-10 17:04:35,880 - __main__ - INFO - Retrieved query 'do connections skip the gradient flow?' with 9 results
+2025-05-10 17:04:35,882 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 17:04:35] "GET /history/2 HTTP/1.1" 200 -
+2025-05-10 17:04:39,571 - database - INFO - Getting 20 recent queries
+2025-05-10 17:04:39,571 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 17:04:39,572 - database - DEBUG - Retrieved 2 recent queries
+2025-05-10 17:04:39,572 - database - DEBUG - Database connection closed normally
+2025-05-10 17:04:39,573 - __main__ - INFO - History page loaded with 2 queries
+2025-05-10 17:04:39,581 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 17:04:39] "GET /history HTTP/1.1" 200 -
+2025-05-10 17:04:41,610 - database - INFO - Getting 20 recent queries
+2025-05-10 17:04:41,611 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 17:04:41,612 - database - DEBUG - Retrieved 2 recent queries
+2025-05-10 17:04:41,612 - database - DEBUG - Database connection closed normally
+2025-05-10 17:04:41,612 - __main__ - INFO - History page loaded with 2 queries
+2025-05-10 17:04:41,614 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 17:04:41] "GET /history HTTP/1.1" 200 -
+2025-05-10 17:04:42,731 - __main__ - INFO - Viewing results for query ID: 2
+2025-05-10 17:04:42,731 - database - INFO - Getting results for query ID: 2
+2025-05-10 17:04:42,732 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 17:04:42,732 - database - DEBUG - Retrieved 9 results for query ID 2
+2025-05-10 17:04:42,733 - database - DEBUG - Database connection closed normally
+2025-05-10 17:04:42,733 - __main__ - INFO - Retrieved query 'do connections skip the gradient flow?' with 9 results
+2025-05-10 17:04:42,734 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 17:04:42] "GET /history/2 HTTP/1.1" 200 -
+2025-05-10 17:05:02,737 - __main__ - INFO - Viewing results for query ID: 2
+2025-05-10 17:05:02,737 - database - INFO - Getting results for query ID: 2
+2025-05-10 17:05:02,737 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 17:05:02,738 - database - DEBUG - Retrieved 9 results for query ID 2
+2025-05-10 17:05:02,738 - database - DEBUG - Database connection closed normally
+2025-05-10 17:05:02,739 - __main__ - INFO - Retrieved query 'do connections skip the gradient flow?' with 9 results
+2025-05-10 17:05:02,740 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 17:05:02] "GET /history/2 HTTP/1.1" 200 -
+2025-05-10 17:06:33,201 - werkzeug - INFO -  * Detected change in '/home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/app.py', reloading
+2025-05-10 17:06:40,576 - werkzeug - INFO -  * Restarting with stat
+2025-05-10 17:06:45,177 - __main__ - INFO - Starting reranker application
+2025-05-10 17:06:45,183 - werkzeug - WARNING -  * Debugger is active!
+2025-05-10 17:06:45,184 - werkzeug - INFO -  * Debugger PIN: 101-395-374
+2025-05-10 17:06:51,374 - werkzeug - INFO -  * Detected change in '/home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/app.py', reloading
+2025-05-10 17:06:55,620 - werkzeug - INFO -  * Restarting with stat
+2025-05-10 17:07:00,213 - __main__ - INFO - Starting reranker application
+2025-05-10 17:07:00,219 - werkzeug - WARNING -  * Debugger is active!
+2025-05-10 17:07:00,219 - werkzeug - INFO -  * Debugger PIN: 101-395-374
+2025-05-10 17:07:13,912 - __main__ - INFO - Starting reranker application
+2025-05-10 17:07:13,918 - werkzeug - WARNING -  * Running on all addresses.
+   WARNING: This is a development server. Do not use it in a production deployment.
+2025-05-10 17:07:13,918 - werkzeug - INFO -  * Running on http://192.168.0.39:5000/ (Press CTRL+C to quit)
+2025-05-10 17:07:13,919 - werkzeug - INFO -  * Restarting with stat
+2025-05-10 17:07:18,477 - __main__ - INFO - Starting reranker application
+2025-05-10 17:07:18,483 - werkzeug - WARNING -  * Debugger is active!
+2025-05-10 17:07:18,484 - werkzeug - INFO -  * Debugger PIN: 101-395-374
+2025-05-10 17:07:27,428 - database - INFO - Getting 20 recent queries
+2025-05-10 17:07:27,428 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 17:07:27,429 - database - DEBUG - Retrieved 2 recent queries
+2025-05-10 17:07:27,429 - database - DEBUG - Database connection closed normally
+2025-05-10 17:07:27,429 - __main__ - INFO - History page loaded with 2 queries
+2025-05-10 17:07:27,454 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 17:07:27] "GET /history HTTP/1.1" 200 -
+2025-05-10 17:07:28,717 - __main__ - INFO - Viewing results for query ID: 1
+2025-05-10 17:07:28,717 - database - INFO - Getting results for query ID: 1
+2025-05-10 17:07:28,717 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 17:07:28,718 - database - DEBUG - Retrieved 9 results for query ID 1
+2025-05-10 17:07:28,718 - database - DEBUG - Database connection closed normally
+2025-05-10 17:07:28,718 - __main__ - INFO - Retrieved query 'What are the key components of a transformer architecture?' with 9 results
+2025-05-10 17:07:28,725 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 17:07:28] "GET /history/1 HTTP/1.1" 200 -
+2025-05-10 17:07:30,531 - database - INFO - Getting 20 recent queries
+2025-05-10 17:07:30,531 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 17:07:30,531 - database - DEBUG - Retrieved 2 recent queries
+2025-05-10 17:07:30,532 - database - DEBUG - Database connection closed normally
+2025-05-10 17:07:30,532 - __main__ - INFO - History page loaded with 2 queries
+2025-05-10 17:07:30,533 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 17:07:30] "GET /history HTTP/1.1" 200 -
+2025-05-10 17:07:31,284 - database - INFO - Getting 20 recent queries
+2025-05-10 17:07:31,284 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 17:07:31,285 - database - DEBUG - Retrieved 2 recent queries
+2025-05-10 17:07:31,285 - database - DEBUG - Database connection closed normally
+2025-05-10 17:07:31,285 - __main__ - INFO - History page loaded with 2 queries
+2025-05-10 17:07:31,286 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 17:07:31] "GET /history HTTP/1.1" 200 -
+2025-05-10 17:07:31,491 - database - INFO - Getting 20 recent queries
+2025-05-10 17:07:31,491 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 17:07:31,491 - database - DEBUG - Retrieved 2 recent queries
+2025-05-10 17:07:31,492 - database - DEBUG - Database connection closed normally
+2025-05-10 17:07:31,492 - __main__ - INFO - History page loaded with 2 queries
+2025-05-10 17:07:31,493 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 17:07:31] "GET /history HTTP/1.1" 200 -
+2025-05-10 17:07:33,281 - database - INFO - Getting 20 recent queries
+2025-05-10 17:07:33,282 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 17:07:33,282 - database - DEBUG - Retrieved 2 recent queries
+2025-05-10 17:07:33,282 - database - DEBUG - Database connection closed normally
+2025-05-10 17:07:33,283 - __main__ - INFO - History page loaded with 2 queries
+2025-05-10 17:07:33,284 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 17:07:33] "GET /history HTTP/1.1" 200 -
+2025-05-10 17:07:34,089 - database - INFO - Getting all documents
+2025-05-10 17:07:34,089 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 17:07:34,090 - database - DEBUG - Retrieved 9 documents
+2025-05-10 17:07:34,090 - database - DEBUG - Database connection closed normally
+2025-05-10 17:07:34,090 - __main__ - INFO - Index page loaded with 9 documents
+2025-05-10 17:07:34,099 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 17:07:34] "GET / HTTP/1.1" 200 -
+2025-05-10 17:07:35,091 - database - INFO - Getting all documents
+2025-05-10 17:07:35,091 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 17:07:35,091 - database - DEBUG - Retrieved 9 documents
+2025-05-10 17:07:35,092 - database - DEBUG - Database connection closed normally
+2025-05-10 17:07:35,092 - __main__ - INFO - Index page loaded with 9 documents
+2025-05-10 17:07:35,095 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 17:07:35] "GET / HTTP/1.1" 200 -
+2025-05-10 17:07:55,772 - __main__ - INFO - Rerank request received
+2025-05-10 17:07:55,773 - __main__ - INFO - Processing manual form submission
+2025-05-10 17:07:55,773 - __main__ - DEBUG - Manual form - top_k raw value: '', type: <class 'str'>
+2025-05-10 17:07:55,773 - __main__ - DEBUG - Manual query: 'What are tokens?', document_ids: ['1', '2', '3', '4', '5', '6', '7', '8', '9'], raw_top_k: ''
+2025-05-10 17:07:55,774 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 17:07:55,774 - __main__ - DEBUG - SQL query: SELECT content FROM documents WHERE id IN (?,?,?,?,?,?,?,?,?) with params ['1', '2', '3', '4', '5', '6', '7', '8', '9']
+2025-05-10 17:07:55,774 - __main__ - INFO - Retrieved 9 documents from database
+2025-05-10 17:07:55,775 - database - DEBUG - Database connection closed normally
+2025-05-10 17:07:55,775 - __main__ - INFO - Performing reranking for query: 'What are tokens?' with 9 documents and top_k=None (type: <class 'NoneType'>)
+2025-05-10 17:07:55,775 - reranker - INFO - Reranking 9 documents for query: 'What are tokens?'
+2025-05-10 17:07:55,775 - reranker - DEBUG - top_k value: None, type: <class 'NoneType'>
+2025-05-10 17:07:55,775 - reranker - INFO - Loading tokenizer: BAAI/bge-reranker-large
+2025-05-10 17:07:55,784 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): huggingface.co:443
+2025-05-10 17:07:55,947 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /BAAI/bge-reranker-large/resolve/main/tokenizer_config.json HTTP/1.1" 200 0
+2025-05-10 17:07:56,788 - reranker - INFO - Tokenizer loaded successfully
+2025-05-10 17:07:56,788 - reranker - INFO - Loading model: BAAI/bge-reranker-large on cpu
+2025-05-10 17:07:56,842 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /BAAI/bge-reranker-large/resolve/main/config.json HTTP/1.1" 200 0
+2025-05-10 17:07:58,998 - reranker - INFO - Model loaded successfully and set to eval mode
+2025-05-10 17:07:58,998 - reranker - DEBUG - Created 9 query-document pairs
+2025-05-10 17:07:58,999 - reranker - DEBUG - Encoding query-document pairs
+2025-05-10 17:07:59,001 - reranker - DEBUG - Running inference
+2025-05-10 17:08:00,088 - reranker - DEBUG - Inference complete, got 9 scores
+2025-05-10 17:08:00,088 - reranker - INFO - Returning all 9 results
+2025-05-10 17:08:00,089 - reranker - DEBUG - Result 1: Score=-2.8229, Doc='Tokenization is the process of converting raw text...'
+2025-05-10 17:08:00,089 - reranker - DEBUG - Result 2: Score=-4.6863, Doc='Layer normalization stabilizes the learning proces...'
+2025-05-10 17:08:00,089 - reranker - DEBUG - Result 3: Score=-5.6725, Doc='The encoder-decoder architecture is used in many t...'
+2025-05-10 17:08:00,090 - __main__ - INFO - Reranking complete, got 9 results
+2025-05-10 17:08:00,090 - __main__ - DEBUG - First few results: [('Tokenization is the process of converting raw text into tokens that can be processed by the model, often using subword units like BPE or WordPiece.', -2.8229432106018066), ('Layer normalization stabilizes the learning process in deep networks by normalizing inputs across features rather than batch examples.', -4.686278820037842), ('The encoder-decoder architecture is used in many transformer models for sequence-to-sequence tasks, with variations like encoder-only (BERT) or decoder-only (GPT) for specific applications.', -5.672547340393066)]
+2025-05-10 17:08:00,090 - database - INFO - Saving query: 'What are tokens?' with 9 results
+2025-05-10 17:08:00,091 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 17:08:00,091 - database - DEBUG - Inserting query: 'What are tokens?' with top_k=None
+2025-05-10 17:08:00,092 - database - DEBUG - Query inserted with ID: 3
+2025-05-10 17:08:00,092 - database - DEBUG - Processing result 1 with score -2.8229432106018066
+2025-05-10 17:08:00,092 - database - DEBUG - Found existing document with ID: 5
+2025-05-10 17:08:00,093 - database - DEBUG - Processing result 2 with score -4.686278820037842
+2025-05-10 17:08:00,094 - database - DEBUG - Found existing document with ID: 6
+2025-05-10 17:08:00,094 - database - DEBUG - Processing result 3 with score -5.672547340393066
+2025-05-10 17:08:00,094 - database - DEBUG - Found existing document with ID: 1
+2025-05-10 17:08:00,095 - database - DEBUG - Processing result 4 with score -7.597407817840576
+2025-05-10 17:08:00,096 - database - DEBUG - Found existing document with ID: 2
+2025-05-10 17:08:00,096 - database - DEBUG - Processing result 5 with score -8.983972549438477
+2025-05-10 17:08:00,096 - database - DEBUG - Found existing document with ID: 9
+2025-05-10 17:08:00,097 - database - DEBUG - Processing result 6 with score -9.128641128540039
+2025-05-10 17:08:00,097 - database - DEBUG - Found existing document with ID: 7
+2025-05-10 17:08:00,097 - database - DEBUG - Processing result 7 with score -9.239113807678223
+2025-05-10 17:08:00,098 - database - DEBUG - Found existing document with ID: 3
+2025-05-10 17:08:00,098 - database - DEBUG - Processing result 8 with score -9.25733470916748
+2025-05-10 17:08:00,099 - database - DEBUG - Found existing document with ID: 8
+2025-05-10 17:08:00,103 - database - DEBUG - Processing result 9 with score -9.431097984313965
+2025-05-10 17:08:00,103 - database - DEBUG - Found existing document with ID: 4
+2025-05-10 17:08:00,104 - database - INFO - Successfully saved query ID 3 with 9 results
+2025-05-10 17:08:00,105 - database - DEBUG - Database connection closed normally
+2025-05-10 17:08:00,106 - __main__ - INFO - Saved query (ID: 3) and results to database
+2025-05-10 17:08:00,109 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 17:08:00] "POST /rerank HTTP/1.1" 200 -
+2025-05-10 17:08:05,798 - __main__ - INFO - Viewing results for query ID: 3
+2025-05-10 17:08:05,798 - database - INFO - Getting results for query ID: 3
+2025-05-10 17:08:05,798 - database - DEBUG - Opening database connection to /home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/reranker/reranker.db
+2025-05-10 17:08:05,799 - database - DEBUG - Retrieved 9 results for query ID 3
+2025-05-10 17:08:05,800 - database - DEBUG - Database connection closed normally
+2025-05-10 17:08:05,800 - __main__ - INFO - Retrieved query 'What are tokens?' with 9 results
+2025-05-10 17:08:05,801 - werkzeug - INFO - 127.0.0.1 - - [10/May/2025 17:08:05] "GET /history/3 HTTP/1.1" 200 -

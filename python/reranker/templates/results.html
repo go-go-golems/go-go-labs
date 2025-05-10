@@ -1,6 +1,9 @@
 <div class="card results-card">
-    <div class="card-header bg-primary text-white">
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
         <h5 class="card-title mb-0">Results</h5>
+        {% if query_id and not from_history %}
+        <a href="/history/{{ query_id }}" class="btn btn-sm btn-outline-light">View in History</a>
+        {% endif %}
     </div>
     <div class="card-body">
         <div class="mb-3">
@@ -25,5 +28,11 @@
                 {% endfor %}
             </tbody>
         </table>
+        
+        {% if from_history %}
+        <div class="d-flex justify-content-end mt-3">
+            <a href="/history" class="btn btn-outline-secondary">Back to History</a>
+        </div>
+        {% endif %}
     </div>
 </div> 

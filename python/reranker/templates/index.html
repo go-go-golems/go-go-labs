@@ -14,6 +14,9 @@
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="paste-tab" data-bs-toggle="tab" data-bs-target="#paste" type="button" role="tab" aria-controls="paste" aria-selected="false">Paste YAML</button>
                     </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="manual-tab" data-bs-toggle="tab" data-bs-target="#manual" type="button" role="tab" aria-controls="manual" aria-selected="false">Manual Query</button>
+                    </li>
                 </ul>
             </div>
             <div class="card-body">
@@ -21,6 +24,7 @@
                     <!-- Upload YAML Tab -->
                     <div class="tab-pane fade show active" id="upload" role="tabpanel" aria-labelledby="upload-tab">
                         <form hx-post="/rerank" hx-target="#results" hx-indicator="#loading" enctype="multipart/form-data">
+                            <input type="hidden" name="yaml_form" value="1">
                             <div class="mb-3">
                                 <label for="file" class="form-label">Upload YAML File</label>
                                 <input type="file" class="form-control" id="file" name="file" accept=".yaml,.yml" required>
@@ -35,6 +39,7 @@
                     <!-- Paste YAML Tab -->
                     <div class="tab-pane fade" id="paste" role="tabpanel" aria-labelledby="paste-tab">
                         <form hx-post="/rerank" hx-target="#results" hx-indicator="#loading">
+                            <input type="hidden" name="yaml_form" value="1">
                             <div class="mb-3">
                                 <label for="yaml_text" class="form-label">YAML Content</label>
                                 <textarea class="form-control" id="yaml_text" name="yaml_text" rows="10" required placeholder="query: What is semantic chunking in RAG pipelines?
@@ -46,6 +51,60 @@ top_k: 2  # Optional"></textarea>
                             </div>
                             <div class="d-grid">
                                 <button type="submit" class="btn btn-primary">Rerank Documents</button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <!-- Manual Query Tab -->
+                    <div class="tab-pane fade" id="manual" role="tabpanel" aria-labelledby="manual-tab">
+                        <form hx-post="/rerank" hx-target="#results" hx-indicator="#loading">
+                            <input type="hidden" name="manual_form" value="1">
+                            
+                            <div class="mb-3">
+                                <label for="query" class="form-label">Query</label>
+                                <input type="text" class="form-control" id="query" name="query" required 
+                                       placeholder="Enter your query here...">
+                                <div class="form-text">Enter the query you want to use for reranking documents.</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="top_k" class="form-label">Top K (Optional)</label>
+                                <input type="number" class="form-control" id="top_k" name="top_k" min="1"
+                                       placeholder="Number of top results to return">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Select Documents</label>
+                                {% if documents %}
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="select-all-btn">Select All</button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="deselect-all-btn">Deselect All</button>
+                                        </div>
+                                        <div class="form-text" id="selected-count">0 documents selected</div>
+                                    </div>
+                                    <div class="border rounded p-3" style="max-height: 300px; overflow-y: auto;">
+                                        {% for doc in documents %}
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input document-checkbox" type="checkbox" 
+                                                   name="selected_documents" value="{{ doc.id }}" id="doc-{{ doc.id }}">
+                                            <label class="form-check-label text-break" for="doc-{{ doc.id }}">
+                                                {{ doc.content|truncate(100) }}
+                                            </label>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <div class="alert alert-info">
+                                        No documents in database. Upload YAML files first to populate the database.
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary" {% if not documents %}disabled{% endif %}>
+                                    Rerank Documents
+                                </button>
                             </div>
                         </form>
                     </div>
@@ -65,4 +124,39 @@ top_k: 2  # Optional"></textarea>
 <div id="results" class="mt-4">
     <!-- Results will be loaded here -->
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle document selection
+    const checkboxes = document.querySelectorAll('.document-checkbox');
+    const selectAllBtn = document.getElementById('select-all-btn');
+    const deselectAllBtn = document.getElementById('deselect-all-btn');
+    const selectedCountEl = document.getElementById('selected-count');
+    
+    function updateSelectedCount() {
+        const count = document.querySelectorAll('.document-checkbox:checked').length;
+        selectedCountEl.textContent = `${count} document${count !== 1 ? 's' : ''} selected`;
+    }
+    
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', updateSelectedCount);
+    });
+    
+    if (selectAllBtn) {
+        selectAllBtn.addEventListener('click', function() {
+            checkboxes.forEach(cb => { cb.checked = true; });
+            updateSelectedCount();
+        });
+    }
+    
+    if (deselectAllBtn) {
+        deselectAllBtn.addEventListener('click', function() {
+            checkboxes.forEach(cb => { cb.checked = false; });
+            updateSelectedCount();
+        });
+    }
+    
+    updateSelectedCount();
+});
+</script>
 {% endblock %} 

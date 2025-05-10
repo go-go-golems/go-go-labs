@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block history_active %}active{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Query History</h5>
+    </div>
+    <div class="card-body">
+        {% if queries %}
+            <div class="row row-cols-1 row-cols-md-2 g-4">
+                {% for query in queries %}
+                <div class="col">
+                    <div class="card h-100 query-card">
+                        <div class="card-body">
+                            <h6 class="card-title text-truncate">{{ query.query }}</h6>
+                            <p class="card-text text-muted small">
+                                <time datetime="{{ query.created_at }}">{{ query.created_at|format_datetime }}</time>
+                            </p>
+                            {% if query.top_k %}
+                                <span class="badge bg-secondary">Top {{ query.top_k }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="card-footer bg-transparent">
+                            <a href="/history/{{ query.id }}" class="btn btn-sm btn-primary">View Results</a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                <p class="mb-0">No queries in history yet. Run some queries to see them here.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %} 

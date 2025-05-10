@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card border-danger">
+    <div class="card-header bg-danger text-white">
+        <h5 class="card-title mb-0">Error</h5>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-danger" role="alert">
+            <h4 class="alert-heading">Something went wrong!</h4>
+            <p>{{ error }}</p>
+            <hr>
+            <p class="mb-0">Please check the application logs for more details.</p>
+        </div>
+        
+        <div class="mt-4">
+            <p>You can try:</p>
+            <ul>
+                <li>Going back to the <a href="/">home page</a></li>
+                <li>Checking the <a href="/examples">examples</a> for correct usage</li>
+                <li>Using a smaller number of documents</li>
+                <li>Making sure your YAML format is correct</li>
+            </ul>
+        </div>
+        
+        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+            <a href="javascript:history.back()" class="btn btn-outline-secondary">Go Back</a>
+            <a href="/" class="btn btn-primary">Home Page</a>
+        </div>
+    </div>
+</div>
+{% endblock %} 

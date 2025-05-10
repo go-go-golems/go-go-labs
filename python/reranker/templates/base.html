@@ -28,6 +28,17 @@
         .nav-pills .nav-link.active {
             background-color: #007bff;
         }
+        .document-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .query-card {
+            transition: transform 0.2s;
+        }
+        .query-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
     </style>
 </head>
 <body>
@@ -36,6 +47,8 @@
             <h1 class="text-center">Document Reranker</h1>
             <nav class="nav nav-pills nav-fill mt-3">
                 <a class="nav-link {% block home_active %}{% endblock %}" href="/">Home</a>
+                <a class="nav-link {% block history_active %}{% endblock %}" href="/history">History</a>
+                <a class="nav-link {% block documents_active %}{% endblock %}" href="/documents">Documents</a>
                 <a class="nav-link {% block examples_active %}{% endblock %}" href="/examples">Examples</a>
                 <a class="nav-link {% block cheatsheet_active %}{% endblock %}" href="/cheatsheet">Cheatsheet</a>
             </nav>

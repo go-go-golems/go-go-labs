@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block documents_active %}active{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">Document Database</h5>
+        <a href="/" class="btn btn-sm btn-outline-primary">Use in Query</a>
+    </div>
+    <div class="card-body">
+        {% if documents %}
+            <p class="mb-3">{{ documents|length }} unique documents in the database.</p>
+            
+            <div class="mb-3">
+                <input type="text" class="form-control" id="document-search" 
+                       placeholder="Search documents..." aria-label="Search documents">
+            </div>
+            
+            <div class="list-group document-list" id="document-list">
+                {% for doc in documents %}
+                <div class="list-group-item list-group-item-action document-item">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h6 class="mb-1">Document #{{ doc.id }}</h6>
+                        <button class="btn btn-sm btn-outline-secondary copy-btn" 
+                                data-content="{{ doc.content }}">Copy</button>
+                    </div>
+                    <p class="mb-1 document-content">{{ doc.content }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                <p class="mb-0">No documents in database yet. Upload YAML files or use the app to populate the database.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Copy to clipboard functionality
+    document.querySelectorAll('.copy-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const content = this.getAttribute('data-content');
+            navigator.clipboard.writeText(content).then(() => {
+                const originalText = this.textContent;
+                this.textContent = 'Copied!';
+                setTimeout(() => {
+                    this.textContent = originalText;
+                }, 2000);
+            });
+        });
+    });
+    
+    // Document search functionality
+    const searchInput = document.getElementById('document-search');
+    const documentItems = document.querySelectorAll('.document-item');
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            
+            documentItems.forEach(item => {
+                const content = item.querySelector('.document-content').textContent.toLowerCase();
+                if (content.includes(searchTerm)) {
+                    item.style.display = '';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+    }
+});
+</script>
+{% endblock %} 
