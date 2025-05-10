@@ -121,50 +121,33 @@ A `Sound` data-block stores the actual audio data or a link to an external audio
 
 ## `bpy.types.SoundStrip`
 
-**Important Note on Accessing Strips:**
-In recent Blender versions, the preferred way to access sequence strips via the Python API is through the `bpy.context.scene.sequence_editor.strips` collection for top-level strips, and `bpy.context.scene.sequence_editor.strips_all` for all strips (including those within meta-strips). The older attributes `sequences` and `sequences_all` are now deprecated. The examples below have been updated to use the `strips` attribute.
-
-A `SoundStrip` is a type of sequence strip (`STRIP_TYPE_SOUND_RAM`) that plays audio in the Video Sequence Editor.
+A `SoundStrip` is a type of `Sequence` (strip) in the VSE that plays audio. It uses a `bpy.types.Sound` data-block as its source.
 
 ### Key Properties
 
-| Property             | Type      | Description                                                                  | Range/Notes |
-| ------------------- | --------- | ---------------------------------------------------------------------------- | ----------- |
-| `name`              | `string`  | Unique name of the strip                                                     | |
-| `type`              | `enum`    | Type of strip (will be `'SOUND'`)                                           | Read-only |
-| `sound`             | `Sound`   | Reference to the sound data-block                                           | |
-| `volume`            | `float`   | Playback volume multiplier                                                  | Default: 1.0 |
-| `pan`               | `float`   | Stereo panning value                                                        | -2.0 to 2.0 |
-| `sound_offset`      | `float`   | Time offset for the sound in seconds                                        | |
-| `pitch`             | -         | **DEPRECATED** - No longer accessible in Python API                         | Use speed_factor instead |
-| `speed_factor`      | `float`   | Playback speed multiplier                                                   | Default: 1.0 |
-| `frame_start`       | `int`     | Start frame of the strip                                                    | |
-| `frame_final_start` | `int`     | Start frame with handles and offsets applied                               | Read-only |
-| `frame_final_end`   | `int`     | End frame with handles and offsets applied                                 | Read-only |
-| `frame_duration`    | `int`     | Duration of the strip in frames                                            | Read-only |
-| `channel`           | `int`     | The channel number this strip is on                                        | |
-| `mute`              | `boolean` | Whether the strip is muted                                                  | |
-| `lock`              | `boolean` | Whether the strip is locked                                                 | |
-| `streamindex`       | `int`     | Stream index for multi-stream audio files                                  | |
+| Property                 | Type                                  | Description                                                                      |
+| ------------------------ | ------------------------------------- | -------------------------------------------------------------------------------- |
+| `sound`                  | `Sound`                               | The `Sound` data-block used by this strip. **Crucial link.**                     |
+| `volume`                 | `float`                               | Playback volume of the sound (0.0 to 100.0, default 1.0).                        |
+| `pan`                    | `float`                               | Playback panning of the sound (-inf to inf, default 0.0).                        |
+| `show_waveform`          | `boolean`                             | Whether to display the audio waveform inside the strip in the VSE (default False). |
+| `sound_offset`           | `float`                               | Offset of the sound from the beginning of the strip, in seconds. Use for trimming. |
+| `animation_offset_start` | `int`                                 | Animation start offset (trim start of the sound media, in frames).               |
+| `animation_offset_end`   | `int`                                 | Animation end offset (trim end of the sound media, in frames).                   |
+| **Inherited from `bpy.types.Strip`:**                                                                                                                 |
+| `name`                   | `string`                              | Name of the strip.                                                               |
+| `type`                   | `enum`                                | Type of the strip (will be `'SOUND'`).                                           |
+| `channel`                | `int`                                 | The VSE channel (track) number.                                                  |
+| `frame_start`            | `float`                               | The frame on the timeline where the strip begins.                                |
+| `frame_duration`         | `int`                                 | Duration of the sound data itself in frames (readonly for sound usually).        |
+| `frame_final_duration`   | `int`                                 | The visible duration of the strip on the timeline in frames. Can be edited.      |
+| `frame_final_start`      | `int`                                 | Effective start frame of the strip on the timeline (readonly).                   |
+| `frame_final_end`        | `int`                                 | Effective end frame of the strip on the timeline (readonly).                     |
+| `mute`                   | `boolean`                             | Whether the strip is muted.                                                      |
+| `lock`                   | `boolean`                             | Whether the strip is locked from editing in the UI.                              |
 
-### Animation Flags
-The strip can have various flags set that indicate animation status:
-
-```python
-strip.flag & SEQ_AUDIO_VOLUME_ANIMATED  # Volume is animated
-strip.flag & SEQ_AUDIO_PAN_ANIMATED     # Pan is animated
-strip.flag & SEQ_AUDIO_DRAW_WAVEFORM    # Show waveform in the editor
-```
-
-### Sound Equalizer Modifier
-
-Sound strips can have an equalizer modifier applied:
-
-```python
-class SoundEqualizerModifierData:
-    modifier: SequenceModifierData
-    graphics: ListBase  # Contains EQCurveMappingData for frequency control
-```
+**Important Note on Filepath:** `SoundStrip` objects **do not** have a direct `filepath` attribute. To get the filepath of the audio source, you must access it through the linked `Sound` data-block:
+`my_sound_strip.sound.filepath`
 
 ### Examples for `bpy.types.SoundStrip`
 
@@ -221,7 +204,6 @@ media_dir = "/home/manuel/Movies/blender-movie-editor/"
         print(f"Modifying strip: '{sound_strip.name}'")
         sound_strip.volume = 0.5  # Set volume to 50%
         sound_strip.pan = -0.8    # Pan mostly to the left
-        sound_strip.speed_factor = 1.2   # Increase speed slightly
         sound_strip.channel = 2   # Move to channel 2
         sound_strip.frame_start = 50 # Move start to frame 50
         
@@ -239,7 +221,6 @@ media_dir = "/home/manuel/Movies/blender-movie-editor/"
 
         print(f"  New Volume: {sound_strip.volume}")
         print(f"  New Pan: {sound_strip.pan}")
-        print(f"  New Speed Factor: {sound_strip.speed_factor}")
         print(f"  New Channel: {sound_strip.channel}")
         print(f"  New Frame Start: {sound_strip.frame_start}")
         print(f"  New Sound Offset (seconds): {sound_strip.sound_offset}")
@@ -291,6 +272,8 @@ media_dir = "/home/manuel/Movies/blender-movie-editor/"
 
 -   **`SoundStrip.sound` is the Bridge**: The `.sound` property on a `SoundStrip` object is your gateway to the actual `Sound` data-block.
 -   **Correct Filepath Access**: Always use `my_sound_strip.sound.filepath` to get the path to the audio file. `my_sound_strip.filepath` does not exist and will cause an `AttributeError`.
+-   **`ImageStrip` Filepath Access**: In Blender 4.4+, `ImageStrip` objects no longer have a direct `filepath` attribute. To access the image path, use a combination of the strip's `directory` and the first element's filename: `os.path.join(image_strip.directory, image_strip.elements[0].filename)`.
+-   **`SoundStrip` Pitch Property Removed**: In Blender 4.4+, the `pitch` property was removed from `SoundStrip` objects. Audio pitch can still be modified in the UI, but is no longer exposed directly in the Python API.
 -   **Check for Existence**: Before accessing `strip.sound.some_attribute`, it's wise to check if `strip.sound` is not `None`, especially if strips could be misconfigured or newly created without a sound source yet.
 -   **`frame_duration` vs. `frame_final_duration`**:
     -   `frame_duration`: Typically reflects the original length of the sound file in frames. For `SoundStrip`, this is often tied to the actual media length and may not be directly settable in the same way as an image strip.

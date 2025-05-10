@@ -135,7 +135,15 @@ def add_image_strip(seq_editor, filepath, channel=1, frame_start=1, duration=25,
     image_strip.frame_final_duration = duration
     
     print(f"Added image strip: {image_strip.name} (Type: {image_strip.type})")
-    print(f"  File: {image_strip.filepath}")
+    # Blender 4.4 removed the direct `filepath` attribute from `ImageStrip`.
+    # The file path must be composed from the strip's `directory` and the first element's filename.
+    if hasattr(image_strip, "elements") and image_strip.elements:
+        first_elem = image_strip.elements[0]
+        # `directory` already ends with a path separator ("/"), but use os.path.join for safety.
+        img_source_path = os.path.join(image_strip.directory, first_elem.filename)
+        print(f"  File: {img_source_path}")
+    else:
+        print("  File: (unable to determine – no strip elements)")
     print(f"  Duration: {image_strip.frame_final_duration} frames (Set Timeline Length)")
     print(f"  Timeline: Channel {image_strip.channel}, Start Frame {image_strip.frame_start}, End Frame {image_strip.frame_final_end}")
     
@@ -227,6 +235,7 @@ def add_sound_strip(seq_editor, filepath, channel=1, frame_start=1, name=None):
     else:
         print(f"  File: {filepath} (Fallback: unable to access sound_strip.sound.filepath)")
     print(f"  Duration: {sound_strip.frame_duration} frames (Source Media Length)")
+    # `pitch` was deprecated and removed from the Python API, but `pan` and `volume` remain.
     print(f"  Volume: {sound_strip.volume}, Pan: {sound_strip.pan}")
     
     return sound_strip
@@ -305,6 +314,28 @@ def main():
     current_channel = 1
     current_frame = 1
     frame_padding = 10 # Add some padding between different types of imports for clarity
+
+    # --- Name Channels for Clarity ---
+    # Set names for the first few channels (adjust as needed for your project)
+    channel_names = [
+        "Main Video",   # Channel 1
+        "Audio",        # Channel 2
+        "Music",        # Channel 3
+        "Images",       # Channel 4
+        "FX",           # Channel 5
+        "Titles"        # Channel 6
+    ]
+    for idx, name in enumerate(channel_names):
+        if idx < len(seq_editor.channels):
+            seq_editor.channels[idx].name = name
+    print("\nChannel names after setup:")
+    # SequenceTimelineChannel objects currently expose only a limited set of
+    # properties (`name`, `lock`, `mute`). They do NOT have a direct
+    # attribute with their numerical index (see `rna_sequencer.cc` where
+    # `rna_def_channel` defines the RNA interface). If we need to display
+    # the channel number, derive it from the collection index instead.
+    for idx, ch in enumerate(seq_editor.channels, start=1):
+        print(f"Channel {idx}: {ch.name}")
 
     # --- 1. Add Movie Strips ---
     print(f"\n--- Adding Movie Strips ---")
