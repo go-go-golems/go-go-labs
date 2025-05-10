@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block cheatsheet_active %}active{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Reranker Cheatsheet</h5>
+    </div>
+    <div class="card-body">
+        <h5>YAML Format</h5>
+        <p>Your YAML must contain the following structure:</p>
+        <pre>query: "Your query text here"
+documents:
+  - "First document text"
+  - "Second document text"
+  - "Third document text"
+top_k: 5  # Optional, limits results to top K documents</pre>
+
+        <h5 class="mt-4">About the Model</h5>
+        <p>This application uses the <a href="https://huggingface.co/BAAI/bge-reranker-large" target="_blank">BAAI/bge-reranker-large</a> model to rerank documents based on their relevance to a query. The reranker calculates relevance scores for each (query, document) pair and sorts them by score.</p>
+        
+        <div class="alert alert-info">
+            <h5 class="alert-heading">How Reranking Works</h5>
+            <p>Document reranking is a core component of modern retrieval systems:</p>
+            <ol>
+                <li>You provide a query and a set of candidate documents</li>
+                <li>The reranker evaluates the relevance of each document to the query</li>
+                <li>Documents are sorted by relevance score (higher is better)</li>
+            </ol>
+            <p>Unlike retrieval models, rerankers work with a limited set of documents and focus on precision rather than recall.</p>
+        </div>
+        
+        <h5 class="mt-4">Tips for Better Results</h5>
+        <ul>
+            <li>Be specific with your queries</li>
+            <li>Provide enough context in your documents</li>
+            <li>Experiment with different query phrasings</li>
+            <li>Documents should be self-contained semantic units</li>
+        </ul>
+        
+        <h5 class="mt-4">Technical Details</h5>
+        <ul>
+            <li>The model uses a cross-encoder architecture that jointly processes query-document pairs</li>
+            <li>Maximum input length is 512 tokens (longer inputs will be truncated)</li>
+            <li>Performance may vary based on document length and content similarity</li>
+        </ul>
+    </div>
+</div>
+{% endblock %} 

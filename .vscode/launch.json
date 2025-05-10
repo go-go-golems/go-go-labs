@@ -5,6 +5,20 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python: Reranker Flask App",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/python/reranker/app.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/python/reranker",
+                "FLASK_ENV": "development",
+                "FLASK_DEBUG": "1"
+            },
+            "cwd": "${workspaceFolder}/python/reranker"
+        },
+        {
             "name": "Launch Prompt Middleware Server",
             "type": "go",
             "request": "launch",

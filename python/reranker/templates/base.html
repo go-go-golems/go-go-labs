@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Reranker</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.5"></script>
+    <style>
+        .container {
+            max-width: 900px;
+        }
+        .results-card {
+            margin-top: 20px;
+        }
+        .score-badge {
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .nav-pills .nav-link.active {
+            background-color: #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container my-4">
+        <header class="mb-4">
+            <h1 class="text-center">Document Reranker</h1>
+            <nav class="nav nav-pills nav-fill mt-3">
+                <a class="nav-link {% block home_active %}{% endblock %}" href="/">Home</a>
+                <a class="nav-link {% block examples_active %}{% endblock %}" href="/examples">Examples</a>
+                <a class="nav-link {% block cheatsheet_active %}{% endblock %}" href="/cheatsheet">Cheatsheet</a>
+            </nav>
+        </header>
+        
+        <main>
+            {% block content %}{% endblock %}
+        </main>
+        
+        <footer class="mt-5 text-center text-muted">
+            <p>Powered by <a href="https://github.com/BAAI/bge-reranker" target="_blank">BAAI/bge-reranker</a> and HTMX</p>
+        </footer>
+    </div>
+    
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 

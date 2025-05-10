@@ -1,0 +1,11 @@
+query: "What are the key components of a transformer architecture?"
+documents:
+  - "The transformer architecture introduced in the 'Attention is All You Need' paper revolutionized NLP by eliminating recurrence and convolutions in favor of attention mechanisms."
+  - "Self-attention allows a model to weigh the importance of different words in a sequence relative to each other, capturing long-range dependencies more effectively than RNNs."
+  - "Multi-head attention runs multiple attention operations in parallel, allowing the model to attend to information from different representation spaces simultaneously."
+  - "Positional encoding is added to embeddings to give the model information about token positions, since transformers don't process sequences sequentially."
+  - "Layer normalization stabilizes the learning process in deep networks by normalizing inputs across features rather than batch examples."
+  - "Residual connections (skip connections) help with gradient flow during training, allowing for deeper networks by providing a direct path for gradients."
+  - "Feed-forward neural networks in each transformer block apply the same feed-forward transformation to each position separately and identically."
+  - "Tokenization is the process of converting raw text into tokens that can be processed by the model, often using subword units like BPE or WordPiece."
+  - "The encoder-decoder architecture is used in many transformer models for sequence-to-sequence tasks, with variations like encoder-only (BERT) or decoder-only (GPT) for specific applications." 

@@ -1,0 +1,12 @@
+query: "What's the best water temperature for brewing coffee?"
+documents:
+  - "The Specialty Coffee Association (SCA) recommends brewing coffee with water between 195°F (90.5°C) and 205°F (96.1°C) for optimal extraction."
+  - "Water that's too hot, exceeding 205°F, can over-extract coffee grounds, resulting in bitter flavors."
+  - "Using water below 195°F leads to under-extraction, producing weak, sour coffee with underdeveloped flavors."
+  - "Different brewing methods may call for specific temperatures within the ideal range. French press often works best around 200°F, while pour-over might perform better at 202-205°F."
+  - "Dark roasts generally extract more easily and can be brewed at the lower end of the temperature spectrum (195-198°F)."
+  - "Light roasts are denser and less soluble, often benefiting from hotter water (200-205°F) to properly extract the complex flavors."
+  - "Altitude affects water's boiling point. At high elevations, water boils below 212°F (100°C), which can impact brewing temperatures."
+  - "Some specialty brewing methods, like cold brew, use room temperature or cold water (35-70°F) for long extraction periods of 12-24 hours."
+  - "The water heating process matters too. Electric kettles with temperature control are preferable to ensure consistency in water temperature."
+  - "After boiling, water temperature naturally drops about 1-2°F per minute when removed from heat, which can be used to time the perfect brewing temperature without a thermometer." 

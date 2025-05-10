@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block examples_active %}active{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Example YAML Files</h5>
+    </div>
+    <div class="card-body">
+        <p class="card-text">Click on an example to view its contents. You can then copy and use it in the home page.</p>
+        
+        {% if examples %}
+            <div class="accordion" id="examplesAccordion">
+                {% for example in examples %}
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="heading{{ loop.index }}">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}" aria-expanded="false" aria-controls="collapse{{ loop.index }}">
+                            {{ example.name }}
+                        </button>
+                    </h2>
+                    <div id="collapse{{ loop.index }}" class="accordion-collapse collapse" aria-labelledby="heading{{ loop.index }}" data-bs-parent="#examplesAccordion">
+                        <div class="accordion-body">
+                            <pre>{{ example.content }}</pre>
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <button class="btn btn-sm btn-outline-primary copy-btn" data-content="{{ example.content }}">
+                                    Copy to Clipboard
+                                </button>
+                                <a href="/" class="btn btn-sm btn-primary" 
+                                   hx-boost="true" 
+                                   hx-push-url="true" 
+                                   hx-trigger="click" 
+                                   onclick="localStorage.setItem('yamlContent', `{{ example.content }}`);">
+                                    Use This Example
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                No example files found. Add YAML files to the examples directory.
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Copy to clipboard functionality
+    document.querySelectorAll('.copy-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const content = this.getAttribute('data-content');
+            navigator.clipboard.writeText(content).then(() => {
+                const originalText = this.textContent;
+                this.textContent = 'Copied!';
+                setTimeout(() => {
+                    this.textContent = originalText;
+                }, 2000);
+            });
+        });
+    });
+});
+
+// Handle the "Use This Example" button redirect
+window.addEventListener('htmx:afterOnLoad', function() {
+    const yamlContent = localStorage.getItem('yamlContent');
+    if (yamlContent && window.location.pathname === '/') {
+        // Switch to paste tab if we're on the home page
+        const pasteTab = document.getElementById('paste-tab');
+        if (pasteTab) {
+            const tabTrigger = new bootstrap.Tab(pasteTab);
+            tabTrigger.show();
+            
+            // Fill the textarea
+            const textarea = document.getElementById('yaml_text');
+            if (textarea) {
+                textarea.value = yamlContent;
+            }
+            
+            // Clear localStorage
+            localStorage.removeItem('yamlContent');
+        }
+    }
+});
+</script>
+{% endblock %} 

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block home_active %}active{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="upload-tab" data-bs-toggle="tab" data-bs-target="#upload" type="button" role="tab" aria-controls="upload" aria-selected="true">Upload YAML</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="paste-tab" data-bs-toggle="tab" data-bs-target="#paste" type="button" role="tab" aria-controls="paste" aria-selected="false">Paste YAML</button>
+                    </li>
+                </ul>
+            </div>
+            <div class="card-body">
+                <div class="tab-content">
+                    <!-- Upload YAML Tab -->
+                    <div class="tab-pane fade show active" id="upload" role="tabpanel" aria-labelledby="upload-tab">
+                        <form hx-post="/rerank" hx-target="#results" hx-indicator="#loading" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <label for="file" class="form-label">Upload YAML File</label>
+                                <input type="file" class="form-control" id="file" name="file" accept=".yaml,.yml" required>
+                                <div class="form-text">File must contain a query and list of documents.</div>
+                            </div>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">Rerank Documents</button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <!-- Paste YAML Tab -->
+                    <div class="tab-pane fade" id="paste" role="tabpanel" aria-labelledby="paste-tab">
+                        <form hx-post="/rerank" hx-target="#results" hx-indicator="#loading">
+                            <div class="mb-3">
+                                <label for="yaml_text" class="form-label">YAML Content</label>
+                                <textarea class="form-control" id="yaml_text" name="yaml_text" rows="10" required placeholder="query: What is semantic chunking in RAG pipelines?
+documents:
+  - Chunking breaks text into fixed-length windows.
+  - RAG systems benefit from semantically coherent chunks.
+  - Chunking is unrelated to computer memory management.
+top_k: 2  # Optional"></textarea>
+                            </div>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">Rerank Documents</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="loading" class="htmx-indicator mt-4 text-center">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+    <p class="mt-2">Processing... (This may take a moment as the model loads)</p>
+</div>
+
+<div id="results" class="mt-4">
+    <!-- Results will be loaded here -->
+</div>
+{% endblock %} 

@@ -1,0 +1,10 @@
+query: "What is semantic chunking in RAG pipelines?"
+documents:
+  - "Chunking is a preprocessing step in text data preparation where documents are broken into smaller units or 'chunks'. Traditional approaches use fixed-length windows of text, which can result in chunks that cut across logical boundaries."
+  - "Semantic chunking refers to the process of dividing text into logically coherent segments based on meaning rather than arbitrary length limits. In RAG pipelines, this ensures that retrieved chunks contain complete thoughts or ideas."
+  - "RAG (Retrieval Augmented Generation) systems benefit from semantically coherent chunks because they improve the quality of retrieved context. When the retriever fetches relevant chunks, having semantically complete units leads to better generation."
+  - "Unlike fixed-length chunking, semantic chunking considers paragraph boundaries, section headers, and topical shifts to create more natural text divisions. This approach preserves context within each chunk."
+  - "Computer memory management also uses a concept called 'chunking' to allocate memory blocks, but this is unrelated to text processing in RAG systems."
+  - "Implementing semantic chunking typically involves NLP techniques like topic modeling, text segmentation algorithms, or transformer models that can identify semantic boundaries."
+  - "The effectiveness of a RAG pipeline heavily depends on the quality of chunks. Poor chunking strategies can lead to missing context or irrelevant information being retrieved."
+top_k: 3 
