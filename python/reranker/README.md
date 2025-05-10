@@ -1,54 +1,138 @@
-# Document Reranker Web App
+# ArXiv Paper Reranker API
 
-A Flask + HTMX web application for reranking documents based on their relevance to a query using the BAAI/bge-reranker-large model.
+This API service provides paper reranking capabilities for ArXiv search results using cross-encoder models. It reranks papers based on their relevance to a user query.
 
 ## Features
 
-- Upload YAML files with queries and documents
-- Paste YAML content directly in the browser
-- View example YAML files and use them as templates
-- Rerank documents with scores displayed in a clean UI
-- Informational cheatsheet about reranking
+- Rerank ArXiv papers using cross-encoder models 
+- Process standard ArXiv search result JSON format
+- Configurable number of top results to return
+- RESTful API with Swagger documentation
+
+## Requirements
+
+- Python 3.8+
+- Dependencies listed in `requirements.txt`
 
 ## Installation
 
-1. Clone the repository
-2. Install dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
+```bash
+# Create and activate a virtual environment (recommended)
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-## Usage
-
-1. Start the application:
-   ```
-   python app.py
-   ```
-2. Open a web browser and navigate to `http://localhost:5000`
-3. Upload a YAML file or paste YAML content containing:
-   - A query
-   - A list of documents
-   - Optional top_k parameter
-
-## YAML Format
-
-```yaml
-query: "Your query text here"
-documents:
-  - "First document text"
-  - "Second document text"
-  - "Third document text"
-top_k: 5  # Optional
+# Install dependencies
+pip install -r requirements.txt
 ```
 
-## Example Files
+## Running the Server
 
-The `examples/` directory contains sample YAML files that can be used as templates:
+```bash
+python arxiv_reranker_server.py
+```
 
-- `rag_pipeline.yaml` - Example about semantic chunking in RAG systems
-- `llm_architecture.yaml` - Example about transformer architecture components
-- `coffee_brewing.yaml` - Example about coffee brewing temperatures
+The server will start on `http://localhost:8000`. Visit `http://localhost:8000/docs` for interactive API documentation.
 
-## Model Information
+## API Endpoints
 
-This application uses the [BAAI/bge-reranker-large](https://huggingface.co/BAAI/bge-reranker-large) model to calculate relevance scores for query-document pairs. 
+### Rerank Papers
+
+**POST** `/rerank`
+
+Reranks a list of ArXiv papers based on their relevance to a query.
+
+**Request Body:**
+```json
+{
+  "query": "cross encoders for neural retrieval",
+  "results": [
+    {
+      "Title": "Paper Title",
+      "Authors": ["Author 1", "Author 2"],
+      "Abstract": "Paper abstract text...",
+      "Published": "2025-05-01T00:00:00Z",
+      "PDFURL": "http://arxiv.org/pdf/2505.00000v1",
+      "SourceURL": "http://arxiv.org/abs/2505.00000v1"
+    }
+  ],
+  "top_n": 5
+}
+```
+
+**Response:**
+```json
+{
+  "query": "cross encoders for neural retrieval",
+  "reranked_results": [
+    {
+      "Title": "Paper Title",
+      "Authors": ["Author 1", "Author 2"],
+      "Abstract": "Paper abstract text...",
+      "Published": "2025-05-01T00:00:00Z",
+      "PDFURL": "http://arxiv.org/pdf/2505.00000v1",
+      "SourceURL": "http://arxiv.org/abs/2505.00000v1",
+      "score": 9.45
+    }
+  ]
+}
+```
+
+### Rerank JSON
+
+**POST** `/rerank_json`
+
+Reranks papers from the standard ArXiv search results JSON format.
+
+**Parameters:**
+- `query` (string): The search query
+- `arxiv_json` (object): ArXiv search results JSON  
+- `top_n` (integer, optional): Number of top results to return (default: 10)
+
+### Available Models
+
+**GET** `/models`
+
+Returns information about the currently loaded cross-encoder model and available alternatives.
+
+### Example Usage with curl
+
+```bash
+curl -X POST http://localhost:8000/rerank \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "cross encoders for neural retrieval",
+    "results": [
+      {
+        "Title": "Improving Neural Information Retrieval with Cross-Encoders",
+        "Authors": ["Jane Smith", "John Doe"],
+        "Abstract": "We present a novel approach to neural information retrieval using cross-encoder architectures...",
+        "Published": "2025-05-01T00:00:00Z",
+        "PDFURL": "http://arxiv.org/pdf/2505.00000v1",
+        "SourceURL": "http://arxiv.org/abs/2505.00000v1"
+      }
+    ],
+    "top_n": 5
+  }'
+```
+
+## How It Works
+
+The service uses a cross-encoder model from the SentenceTransformers library to compute relevance scores between the user query and each paper. The papers are then sorted by these scores in descending order.
+
+For each paper, the model primarily uses the title and abstract to determine relevance, as these fields contain the most important semantic information about the paper's content.
+
+## Performance Considerations
+
+- The first request may be slower as the model needs to be loaded into memory
+- Cross-encoder scoring is computationally intensive compared to bi-encoders
+- For large result sets (>100 papers), consider using a bi-encoder first to pre-filter results
+
+## Advanced Usage
+
+To integrate this reranker with an existing arXiv search system:
+
+1. Perform the initial search using your existing system
+2. Pass the search results and user query to the `/rerank_json` endpoint
+3. Display the reranked results to the user
+
+This approach improves search relevance while maintaining the benefits of your existing search infrastructure.

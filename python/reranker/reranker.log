@@ -1,0 +1,29 @@
+2025-05-10 17:33:57,329 - arxiv_reranker - INFO - Loading cross-encoder model: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-05-10 17:33:57,339 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): huggingface.co:443
+2025-05-10 17:33:57,419 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /cross-encoder/ms-marco-MiniLM-L-6-v2/resolve/main/config.json HTTP/1.1" 307 0
+2025-05-10 17:33:57,470 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /cross-encoder/ms-marco-MiniLM-L6-v2/resolve/main/config.json HTTP/1.1" 200 0
+2025-05-10 17:33:57,656 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /cross-encoder/ms-marco-MiniLM-L-6-v2/resolve/main/tokenizer_config.json HTTP/1.1" 307 0
+2025-05-10 17:33:57,715 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /cross-encoder/ms-marco-MiniLM-L6-v2/resolve/main/tokenizer_config.json HTTP/1.1" 200 0
+2025-05-10 17:33:57,781 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /cross-encoder/ms-marco-MiniLM-L-6-v2/resolve/main/README.md HTTP/1.1" 307 0
+2025-05-10 17:33:57,825 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "HEAD /cross-encoder/ms-marco-MiniLM-L6-v2/resolve/main/README.md HTTP/1.1" 200 0
+2025-05-10 17:33:57,827 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cpu
+2025-05-10 17:33:57,870 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /api/models/cross-encoder/ms-marco-MiniLM-L-6-v2 HTTP/1.1" 307 82
+2025-05-10 17:33:57,928 - urllib3.connectionpool - DEBUG - https://huggingface.co:443 "GET /api/models/cross-encoder/ms-marco-MiniLM-L6-v2 HTTP/1.1" 200 5169
+2025-05-10 17:33:57,931 - arxiv_reranker - INFO - Model loaded successfully
+2025-05-10 17:33:57,946 - arxiv_reranker - INFO - Starting ArXiv Paper Reranker API...
+2025-05-10 17:33:57,946 - arxiv_reranker - INFO - Loading cross-encoder model: cross-encoder/ms-marco-MiniLM-L-6-v2
+2025-05-10 17:33:57,946 - arxiv_reranker - INFO - Visit http://localhost:8000/docs for API documentation
+2025-05-10 17:33:57,961 - arxiv_reranker - INFO - Model loaded successfully. Test prediction: -2.6098
+2025-05-10 17:33:57,967 - asyncio - DEBUG - Using selector: EpollSelector
+2025-05-10 17:34:39,902 - arxiv_reranker - DEBUG - Reranking request received with query: 'cross encoders for neural retrieval' for 1 papers
+2025-05-10 17:34:39,902 - arxiv_reranker - DEBUG - Prepared 1 paper-query pairs for cross-encoder scoring
+2025-05-10 17:34:39,918 - arxiv_reranker - DEBUG - Cross-encoder scoring complete. Score range: 8.14 to 8.14
+2025-05-10 17:34:39,918 - arxiv_reranker - DEBUG - Returning top 1 results. Top score: 8.14
+2025-05-10 17:34:43,066 - arxiv_reranker - DEBUG - Reranking request received with query: 'cross encoders for neural retrieval' for 1 papers
+2025-05-10 17:34:43,066 - arxiv_reranker - DEBUG - Prepared 1 paper-query pairs for cross-encoder scoring
+2025-05-10 17:34:43,079 - arxiv_reranker - DEBUG - Cross-encoder scoring complete. Score range: 8.14 to 8.14
+2025-05-10 17:34:43,080 - arxiv_reranker - DEBUG - Returning top 1 results. Top score: 8.14
+2025-05-10 17:34:49,412 - arxiv_reranker - DEBUG - Reranking request received with query: 'cross encoders for neural retrieval' for 1 papers
+2025-05-10 17:34:49,412 - arxiv_reranker - DEBUG - Prepared 1 paper-query pairs for cross-encoder scoring
+2025-05-10 17:34:49,427 - arxiv_reranker - DEBUG - Cross-encoder scoring complete. Score range: 8.14 to 8.14
+2025-05-10 17:34:49,427 - arxiv_reranker - DEBUG - Returning top 1 results. Top score: 8.14
