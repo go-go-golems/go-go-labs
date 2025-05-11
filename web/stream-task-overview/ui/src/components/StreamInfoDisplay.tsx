@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Code, Users, Github, Check, ArrowRight } from 'lucide-react';
+import { Code, Users, Github, Check, ArrowRight, LogIn, LogOut } from 'lucide-react';
 import { useAppSelector, useAppDispatch } from '../store/hooks';
 import {
   setStreamInfo,
   toggleEditMode,
+  toggleLoggedIn,
   resetTimer,
   addUpcomingStep,
   setNewActiveTopic,
@@ -28,7 +29,8 @@ const StreamInfoDisplay: React.FC = () => {
     completedSteps,
     activeStep,
     upcomingSteps,
-    isEditing
+    isEditing,
+    isLoggedIn
   } = useAppSelector(state => state.stream);
   const dispatch = useAppDispatch();
 
@@ -115,14 +117,27 @@ const StreamInfoDisplay: React.FC = () => {
               <div className="text-xs uppercase">MACRODATA STREAM</div>
               <div className="text-xl font-bold">{duration}</div>
             </div>
-            {!isEditing ? (
+            
+            {/* Auth toggle */}
+            <button 
+              onClick={() => dispatch(toggleLoggedIn())}
+              className={`px-4 py-2 ${isLoggedIn ? 'bg-red-900 hover:bg-red-800' : 'bg-green-900 hover:bg-green-800'} text-white rounded-none transition-colors uppercase text-xs tracking-wider mr-3 flex items-center`}
+            >
+              {isLoggedIn ? (
+                <><LogOut size={14} className="mr-1" /> Logout</>
+              ) : (
+                <><LogIn size={14} className="mr-1" /> Login</>
+              )}
+            </button>
+            
+            {isLoggedIn && !isEditing ? (
               <button 
                 onClick={() => dispatch(toggleEditMode())}
                 className="px-4 py-2 bg-black text-white rounded-none hover:bg-gray-800 transition-colors uppercase text-xs tracking-wider"
               >
                 Edit Parameters
               </button>
-            ) : (
+            ) : isLoggedIn && isEditing ? (
               <>
                 <button 
                   onClick={saveChanges}
@@ -137,7 +152,7 @@ const StreamInfoDisplay: React.FC = () => {
                   Cancel
                 </button>
               </>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
@@ -251,6 +266,7 @@ const StreamInfoDisplay: React.FC = () => {
               </div>
             </div>
             
+            {isLoggedIn && (
             <div className="mt-6">
               <div className="flex">
                 <input
@@ -268,6 +284,7 @@ const StreamInfoDisplay: React.FC = () => {
                 </button>
               </div>
             </div>
+          )}
           </div>
           
           <div className="lg:col-span-7 border-2 border-black">
@@ -282,7 +299,7 @@ const StreamInfoDisplay: React.FC = () => {
                   <div className="text-xs uppercase tracking-wider mb-1 text-green-800">ACTIVE TASK</div>
                   <p className="font-bold">{activeStep || "No active task"}</p>
                 </div>
-                {activeStep && (
+                {activeStep && isLoggedIn && (
                   <button
                     onClick={handleCompleteCurrentStep}
                     className="px-3 py-1 bg-green-900 text-white rounded-none hover:bg-green-800 transition-colors uppercase text-xs tracking-wider flex items-center"
@@ -306,12 +323,14 @@ const StreamInfoDisplay: React.FC = () => {
                         </div>
                         <span className="line-through">{step}</span>
                       </div>
-                      <button
-                        onClick={() => handleMakeStepActive(step, 'completed')}
-                        className="text-xs text-blue-900 hover:underline"
-                      >
-                        Reactivate
-                      </button>
+                      {isLoggedIn && (
+                        <button
+                          onClick={() => handleMakeStepActive(step, 'completed')}
+                          className="text-xs text-blue-900 hover:underline"
+                        >
+                          Reactivate
+                        </button>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -333,12 +352,14 @@ const StreamInfoDisplay: React.FC = () => {
                         </div>
                         <span>{step}</span>
                       </div>
-                      <button
-                        onClick={() => handleMakeStepActive(step, 'upcoming')}
-                        className="text-xs text-blue-900 hover:underline"
-                      >
-                        Make Active
-                      </button>
+                      {isLoggedIn && (
+                        <button
+                          onClick={() => handleMakeStepActive(step, 'upcoming')}
+                          className="text-xs text-blue-900 hover:underline"
+                        >
+                          Make Active
+                        </button>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -346,21 +367,23 @@ const StreamInfoDisplay: React.FC = () => {
                 <p className="text-sm text-gray-500 italic">No upcoming tasks</p>
               )}
               
-              <div className="mt-4 flex">
-                <input
-                  type="text"
-                  value={newStep}
-                  onChange={(e) => setNewStep(e.target.value)}
-                  placeholder="Add new step..."
-                  className="flex-grow p-2 border-2 border-black rounded-none bg-white text-black"
-                />
-                <button
-                  onClick={handleAddNewStep}
-                  className="px-4 py-2 bg-black text-white rounded-none hover:bg-gray-800 transition-colors uppercase text-xs tracking-wider"
-                >
-                  Add
-                </button>
-              </div>
+              {isLoggedIn && (
+                <div className="mt-4 flex">
+                  <input
+                    type="text"
+                    value={newStep}
+                    onChange={(e) => setNewStep(e.target.value)}
+                    placeholder="Add new step..."
+                    className="flex-grow p-2 border-2 border-black rounded-none bg-white text-black"
+                  />
+                  <button
+                    onClick={handleAddNewStep}
+                    className="px-4 py-2 bg-black text-white rounded-none hover:bg-gray-800 transition-colors uppercase text-xs tracking-wider"
+                  >
+                    Add
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -16,6 +16,7 @@ interface StreamState {
   activeStep: string;
   upcomingSteps: string[];
   isEditing: boolean;
+  isLoggedIn: boolean;
 }
 
 const initialState: StreamState = {
@@ -39,7 +40,8 @@ const initialState: StreamState = {
     "Build Form elements",
     "Add dark mode toggle"
   ],
-  isEditing: false
+  isEditing: false,
+  isLoggedIn: true
 };
 
 export const streamSlice = createSlice({
@@ -51,6 +53,13 @@ export const streamSlice = createSlice({
     },
     toggleEditMode: (state) => {
       state.isEditing = !state.isEditing;
+    },
+    toggleLoggedIn: (state) => {
+      state.isLoggedIn = !state.isLoggedIn;
+      // If logging out, cancel any editing mode
+      if (!state.isLoggedIn) {
+        state.isEditing = false;
+      }
     },
     resetTimer: (state) => {
       state.info.startTime = new Date().toISOString();
@@ -96,6 +105,7 @@ export const streamSlice = createSlice({
 export const { 
   setStreamInfo, 
   toggleEditMode, 
+  toggleLoggedIn,
   resetTimer, 
   addUpcomingStep, 
   setNewActiveTopic, 
