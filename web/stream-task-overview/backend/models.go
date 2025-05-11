@@ -6,12 +6,12 @@ import (
 
 // StreamInfo represents stream metadata
 type StreamInfo struct {
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
-	StartTime   time.Time `json:"startTime"`
-	Language    string    `json:"language"`
-	GithubRepo  string    `json:"githubRepo"`
-	ViewerCount int       `json:"viewerCount"`
+	Title       string    `json:"title" db:"title"`
+	Description string    `json:"description" db:"description"`
+	StartTime   time.Time `json:"startTime" db:"start_time"`
+	Language    string    `json:"language" db:"language"`
+	GithubRepo  string    `json:"githubRepo" db:"github_repo"`
+	ViewerCount int       `json:"viewerCount" db:"viewer_count"`
 }
 
 // StepInfo represents all task steps

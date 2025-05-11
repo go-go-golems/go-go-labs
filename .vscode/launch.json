@@ -46,6 +46,30 @@
                 "PYTHONPATH": "${workspaceFolder}/python/mistralai-ocr",
                 "MISTRAL_API_KEY": "${env:MISTRAL_API_KEY}"
             }
+        },
+        {
+            "name": "Python: ArXiv Reranker FastAPI",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/python/reranker/arxiv_reranker_server.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/python/reranker"
+            },
+            "cwd": "${workspaceFolder}/python/reranker"
+        },
+        {
+            "name": "Python: ArXiv Reranker Test",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/python/reranker/test_reranker.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/python/reranker"
+            },
+            "cwd": "${workspaceFolder}/python/reranker"
         }
     ]
 }

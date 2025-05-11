@@ -325,17 +325,6 @@ def main():
         "FX",           # Channel 5
         "Titles"        # Channel 6
     ]
-    for idx, name in enumerate(channel_names):
-        if idx < len(seq_editor.channels):
-            seq_editor.channels[idx].name = name
-    print("\nChannel names after setup:")
-    # SequenceTimelineChannel objects currently expose only a limited set of
-    # properties (`name`, `lock`, `mute`). They do NOT have a direct
-    # attribute with their numerical index (see `rna_sequencer.cc` where
-    # `rna_def_channel` defines the RNA interface). If we need to display
-    # the channel number, derive it from the collection index instead.
-    for idx, ch in enumerate(seq_editor.channels, start=1):
-        print(f"Channel {idx}: {ch.name}")
 
     # --- 1. Add Movie Strips ---
     print(f"\n--- Adding Movie Strips ---")
@@ -348,9 +337,20 @@ def main():
     for video_filename in video_files:
         video_path = os.path.join(test_media_dir, video_filename)
         if os.path.exists(video_path):
+            # Name the video channel
+            if current_channel < len(seq_editor.channels):
+                seq_editor.channels[current_channel].name = f"Video: {os.path.splitext(video_filename)[0]}"
+            
             movie_strip = add_movie_strip(seq_editor, video_path, channel=current_channel, frame_start=current_frame)
-            # Add its audio on the channel above
+            movie_strip.name = f"Movie: {os.path.splitext(video_filename)[0]}"
+            
+            # Name the audio channel and add audio strip
+            if current_channel + 1 < len(seq_editor.channels):
+                seq_editor.channels[current_channel+1].name = f"Audio: {os.path.splitext(video_filename)[0]}"
+            
             audio_strip = add_sound_strip(seq_editor, video_path, channel=current_channel + 1, frame_start=current_frame)
+            audio_strip.name = f"Audio: {os.path.splitext(video_filename)[0]}"
+            
             current_frame += movie_strip.frame_duration + frame_padding
             current_channel += 2
         else:
@@ -360,7 +360,12 @@ def main():
     print(f"\n--- Adding Extracted Audio Strip ---")
     audio_path = os.path.join(test_media_dir, "extracted/audio/sample_2mb.aac")
     if os.path.exists(audio_path):
+        # Name the music channel
+        if current_channel < len(seq_editor.channels):
+            seq_editor.channels[current_channel].name = "Music Track"
+            
         audio_strip = add_sound_strip(seq_editor, audio_path, channel=current_channel, frame_start=1)
+        audio_strip.name = f"Music: {os.path.splitext(os.path.basename(audio_path))[0]}"
         current_channel += 1
     else:
         print(f"Audio file not found: {audio_path}. Skipping audio strip import.")
@@ -368,6 +373,11 @@ def main():
     # --- 3. Add Image Sequence ---
     print(f"\n--- Adding Image Sequence ---")
     frames_dir = os.path.join(test_media_dir, "extracted/frames")
+    
+    # Name the image sequence channel
+    if current_channel < len(seq_editor.channels):
+        seq_editor.channels[current_channel].name = "Image Sequence"
+        
     image_strips = add_image_sequence(
         seq_editor=seq_editor,
         directory=frames_dir,
@@ -376,10 +386,25 @@ def main():
         frame_start=1,
         duration_per_image=25  # Each frame lasts 1 second (25 frames)
     )
+    
+    # Name the image sequence strips
+    for i, strip in enumerate(image_strips):
+        # Get the filepath using the new Blender 4.4+ method
+        if hasattr(strip, "elements") and strip.elements:
+            first_elem = strip.elements[0]
+            img_source_path = os.path.join(strip.directory, first_elem.filename)
+            strip.name = f"Frame {i+1}: {os.path.splitext(os.path.basename(img_source_path))[0]}"
+        else:
+            strip.name = f"Frame {i+1}: (Unable to determine filename)"
         
     # --- Recap Added Strips ---
     print(f"\n--- Recap of All Strips Added ---")
     if seq_editor.strips:
+        print("\nChannel Configuration:")
+        for idx, ch in enumerate(seq_editor.channels, start=1):
+            print(f"Channel {idx}: {ch.name}")
+            
+        print("\nStrip Configuration:")
         for strip in seq_editor.strips_all:
             print(f"- Name: '{strip.name}', Type: {strip.type}, Channel: {strip.channel}, "
                   f"Start: {strip.frame_start}, End: {strip.frame_final_end}, Duration: {strip.frame_final_duration}")
