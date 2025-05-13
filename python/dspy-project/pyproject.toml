@@ -1,0 +1,46 @@
+[project]
+name = "dspy-project"
+version = "0.1.0"
+description = "Add your description here"
+authors = [
+    { name = "Manuel Odendahl", email = "wesen@ruinwesen.com" }
+]
+dependencies = [
+    "torch",
+    "numpy",
+    "pandas",
+    "jupyter>=1.1.1",
+    "notebook>=7.4.2",
+    "ipython>=9.2.0",
+    "jupyter-console>=6.6.3",
+    "ipykernel>=6.29.5",
+    "pydantic>=2.11.4",
+    "dspy-ai>=2.6.23",
+    "black>=25.1.0",
+]
+readme = "README.md"
+requires-python = ">= 3.11"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.rye]
+managed = true
+dev-dependencies = [
+    "pytest",
+    "jupyter",
+    "matplotlib",
+    "ipykernel>=6.29.5",
+    "black>=25.1.0",
+    "pylint>=3.3.7",
+    "flake8>=7.2.0",
+    "mypy>=1.15.0",
+    "isort>=6.0.1",
+]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dspy_project"]

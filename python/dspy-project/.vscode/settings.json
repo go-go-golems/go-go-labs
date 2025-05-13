@@ -1,0 +1,29 @@
+{
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}/src"
+    ],
+    "python.linting.enabled": true,
+    "python.linting.pylintEnabled": true,
+    "python.linting.flake8Enabled": false,
+    "python.linting.mypyEnabled": false,
+    "editor.formatOnSave": true,
+    "python.formatting.provider": "black",
+    "python.terminal.activateEnvironment": true,
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+        }
+    },
+    "python.linting.ignorePatterns": [
+        ".venv/**/*.py"
+    ],
+    "jupyter.notebookFileRoot": "${workspaceFolder}",
+    "jupyter.interactiveWindow.cellMarker.codeRegex": "^#\\s*%%.*",
+    "jupyter.interactiveWindow.cellMarker.default": "# %%",
+    "python.analysis.typeCheckingMode": "basic",
+    "python.envFile": "${workspaceFolder}/.env",
+    "python.poetryPath": "rye"
+}
