@@ -31,8 +31,8 @@ def create_crossfade(seq_editor, strip1, strip2, transition_duration, channel=No
         print(f"  Adjusted strip2.frame_start to {strip2.frame_start}")
     
     # Calculate transition start and end frames
-    trans_start = strip2.frame_start
-    trans_end = trans_start + transition_duration
+    trans_start = int(strip2.frame_start)
+    trans_end = int(trans_start + transition_duration)
     
     # Choose channel if not specified
     if channel is None:
@@ -78,8 +78,8 @@ def create_gamma_crossfade(seq_editor, strip1, strip2, transition_duration, chan
         print(f"  Adjusted strip2.frame_start to {strip2.frame_start}")
     
     # Calculate transition start and end frames
-    trans_start = strip2.frame_start
-    trans_end = trans_start + transition_duration
+    trans_start = int(strip2.frame_start)
+    trans_end = int(trans_start + transition_duration)
     
     # Choose channel if not specified
     if channel is None:
@@ -127,8 +127,8 @@ def create_wipe(seq_editor, strip1, strip2, transition_duration, wipe_type='SING
         print(f"  Adjusted strip2.frame_start to {strip2.frame_start}")
     
     # Calculate transition start and end frames
-    trans_start = strip2.frame_start
-    trans_end = trans_start + transition_duration
+    trans_start = int(strip2.frame_start)
+    trans_end = int(trans_start + transition_duration)
     
     # Choose channel if not specified
     if channel is None:
@@ -176,13 +176,13 @@ def create_audio_fade(sound_strip, fade_type='IN', duration_frames=24):
     try:
         # Calculate start and end frames based on fade type
         if fade_type == 'IN':
-            start_frame = sound_strip.frame_start
-            end_frame = start_frame + duration_frames
+            start_frame = int(sound_strip.frame_start)
+            end_frame = int(start_frame + duration_frames)
             start_vol = 0.0
             end_vol = 1.0
         elif fade_type == 'OUT':
-            end_frame = sound_strip.frame_final_end
-            start_frame = end_frame - duration_frames
+            end_frame = int(sound_strip.frame_final_end)
+            start_frame = int(end_frame - duration_frames)
             start_vol = 1.0
             end_vol = 0.0
         else:
@@ -231,8 +231,8 @@ def create_audio_crossfade(sound1, sound2, overlap_frames=24):
             print(f"  Adjusted sound2.frame_start to {sound2.frame_start}")
         
         # Calculate crossfade start and end
-        fade_start = sound2.frame_start
-        fade_end = fade_start + overlap_frames
+        fade_start = int(sound2.frame_start)
+        fade_end = int(fade_start + overlap_frames)
         
         # Keyframe sound1 volume (fading out)
         sound1.volume = 1.0
@@ -276,12 +276,12 @@ def create_fade_to_color(seq_editor, strip, fade_duration, fade_type='IN', color
         # Create a color strip with the specified color
         if fade_type == 'IN':
             # For fade in, color strip overlaps start of original strip
-            color_start = strip.frame_start
-            color_end = color_start + fade_duration
+            color_start = int(strip.frame_start)
+            color_end = int(color_start + fade_duration)
         else:  # fade_type == 'OUT'
             # For fade out, color strip overlaps end of original strip
-            color_end = strip.frame_final_end
-            color_start = color_end - fade_duration
+            color_end = int(strip.frame_final_end)
+            color_start = int(color_end - fade_duration)
         
         # Create the color strip
         color_strip = seq_editor.strips.new_effect(

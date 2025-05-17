@@ -74,6 +74,7 @@ run_file('/path/to/script.py', in_sequencer=True)
 - Include context.area comments for workspace-specific scripts
 - Document scripts with usage instructions in docstrings
 - Use main() function pattern for script entry points
+- Scripts are not automatically executed with `__name__ == "__main__"` - they must be triggered explicitly
 
 ## Utility Reference
 - For details on available VSE utilities, see `python-blender-utilities-api.md`

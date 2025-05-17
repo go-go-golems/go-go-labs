@@ -413,3 +413,93 @@ def add_transform_effect(seq_editor, strip, offset_x=0, offset_y=0, scale_x=1.0,
     transform.transform.rotation = radians(rotation)  # Convert degrees to radians
     
     return transform
+
+def print_sequence_info(seq_editor, title="Current Sequence State"):
+    """Print information about all strips in the sequence editor.
+    
+    Args:
+        seq_editor (bpy.types.SequenceEditor): The sequence editor to analyze
+        title (str, optional): Title for the output. Defaults to "Current Sequence State".
+    """
+    print(f"\n----- {title} -----")
+    print(f"Total strips: {len(seq_editor.strips_all)}")
+    
+    # Group strips by channel
+    strips_by_channel = {}
+    for strip in sorted(seq_editor.strips_all, key=lambda s: (s.channel, s.frame_start)):
+        if strip.channel not in strips_by_channel:
+            strips_by_channel[strip.channel] = []
+        strips_by_channel[strip.channel].append(strip)
+    
+    # Print strips by channel
+    for channel in sorted(strips_by_channel.keys()):
+        print(f"\nChannel {channel}:")
+        for strip in strips_by_channel[channel]:
+            print(f"  {strip.name} (Type: {strip.type})")
+            print(f"    Frames: {strip.frame_start}-{strip.frame_final_end}, Duration: {strip.frame_final_duration}")
+            
+            # Print type-specific info
+            if strip.type == 'MOVIE':
+                print(f"    File: {strip.filepath}")
+                print(f"    Offsets: start={strip.frame_offset_start}, end={strip.frame_offset_end}")
+            elif strip.type == 'SOUND':
+                print(f"    Volume: {strip.volume}")
+                # Check if strip has animation data for volume
+                has_volume_keyframes = False
+                try:
+                    # Check the scene's animation data since strip keyframes are stored there
+                    if bpy.context.scene.animation_data and bpy.context.scene.animation_data.action:
+                        for fc in bpy.context.scene.animation_data.action.fcurves:
+                            if fc.data_path.startswith('sequence_editor.sequences_all[') and fc.data_path.endswith('].volume'):
+                                # This is a volume fcurve for some strip - check if it's for this strip
+                                if strip.name in fc.data_path:
+                                    has_volume_keyframes = True
+                                    break
+                    if has_volume_keyframes:
+                        print(f"    Has volume keyframes: Yes")
+                except Exception as e:
+                    print(f"    Error checking volume keyframes: {e}")
+            elif strip.type in {'CROSS', 'GAMMA_CROSS', 'WIPE'}:
+                if hasattr(strip, 'seq1') and strip.seq1:
+                    print(f"    Input 1: {strip.seq1.name}")
+                if hasattr(strip, 'seq2') and strip.seq2:
+                    print(f"    Input 2: {strip.seq2.name}")
+                if strip.type == 'WIPE' and hasattr(strip, 'transition_type'):
+                    print(f"    Wipe Type: {strip.transition_type}")
+            elif strip.type == 'COLOR':
+                print(f"    Color: RGB{strip.color}")
+
+def find_test_media_dir(default_path="/home/manuel/Movies/blender-movie-editor"):
+    """Find a directory with test media files.
+    
+    Args:
+        default_path (str, optional): Default path to look for test media. 
+                                      Defaults to "/home/manuel/Movies/blender-movie-editor".
+    
+    Returns:
+        str: Path to a directory with test media files
+    """
+    # First check if the default path exists
+    if os.path.exists(default_path):
+        return default_path
+    
+    # Try alternative locations
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_dir = os.path.dirname(os.path.dirname(script_dir))  # Go up two levels
+    
+    alternative_paths = [
+        os.path.join(project_dir, "media"),
+        os.path.join(script_dir, "media"),
+        "/tmp/blender-test-media"
+    ]
+    
+    for path in alternative_paths:
+        if os.path.exists(path):
+            return path
+    
+    print(f"Warning: Could not find test media directory. Using default: {default_path}")
+    return default_path
+
+# Alias functions to match the book's functions
+add_movie_strip = add_video_strip
+add_sound_strip = add_audio_strip
