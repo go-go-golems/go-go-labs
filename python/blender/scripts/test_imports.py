@@ -1,93 +1,54 @@
-# Test script to verify imports work correctly with new directory structure
+# Sample script to test importing our utility modules
 
-import bpy
 import sys
 import os
 import importlib
 
-# Set up import paths - handle both direct execution and MCP execution
-try:
-    # When run as a file
-    scripts_dir = os.path.dirname(os.path.abspath(__file__))
-except NameError:
-    # When run through MCP or pasted code
-    # Use a relative path from current directory if possible
-    try:
-        scripts_dir = os.path.join(os.getcwd(), 'scripts')
-        if not os.path.exists(scripts_dir):
-            scripts_dir = os.getcwd()  # Current directory might be scripts already
-    except:
-        # Fallback to hardcoded path
-        scripts_dir = '/home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/blender/scripts'
+print("\nBlender VSE Python Utilities Import Test")
+print("========================================")
 
-if scripts_dir not in sys.path:
-    sys.path.append(scripts_dir)
-
-# Add subdirectories to path
+# Add script directories to path
+scripts_dir = os.path.dirname(os.path.abspath(__file__))
 utils_dir = os.path.join(scripts_dir, 'utils')
-tests_dir = os.path.join(scripts_dir, 'tests')
-chapters_dir = os.path.join(scripts_dir, 'chapters')
-investigations_dir = os.path.join(scripts_dir, 'investigations')
 
-# Add each directory to path
-for directory in [utils_dir, tests_dir, chapters_dir, investigations_dir]:
-    if directory not in sys.path:
-        sys.path.append(directory)
+print(f"Scripts directory: {scripts_dir}")
+print(f"Utils directory: {utils_dir}")
 
-# Report path setup
-print("\n===== PYTHON PATH SETUP =====\n")
-print(f"Main scripts directory: {scripts_dir}")
-print("\nPython sys.path now contains:")
-for i, path in enumerate(sys.path):
-    print(f"  {i}: {path}")
+# Add to sys.path if not already there
+for path in [scripts_dir, utils_dir]:
+    if path not in sys.path:
+        sys.path.append(path)
+        print(f"Added to sys.path: {path}")
 
-# Test imports from various subdirectories
-print("\n===== TESTING IMPORTS =====\n")
-
+# Import and reload utility modules to ensure changes are reflected
 try:
-    # Import from utils
-    print("Importing from utils...")
-    from utils import vse_utils
+    import vse_utils
     importlib.reload(vse_utils)
-    # Get module file path safely
-    vse_utils_path = getattr(vse_utils, '__file__', 'Module in memory')
-    print(f"  SUCCESS: Imported vse_utils from {vse_utils_path}")
+    print("✓ Successfully imported vse_utils")
     
-    # Test a function from vse_utils
-    print("  Testing function from vse_utils...")
-    scene = bpy.context.scene
-    seq_editor = vse_utils.ensure_sequence_editor(scene)
-    print(f"  Result: {seq_editor}")
+    # Test a function from the module
+    print(f"  Available functions: {', '.join([f for f in dir(vse_utils) if not f.startswith('_') and callable(getattr(vse_utils, f))][:5])}...")
     
-    # Import from tests
-    print("\nImporting from tests...")
-    from tests import chapter_3_demos
-    importlib.reload(chapter_3_demos)
-    # Get module file path safely
-    chapter_3_demos_path = getattr(chapter_3_demos, '__file__', 'Module in memory')
-    print(f"  SUCCESS: Imported chapter_3_demos from {chapter_3_demos_path}")
+    # Import and test transition_utils
+    import transition_utils
+    importlib.reload(transition_utils)
+    print("✓ Successfully imported transition_utils")
     
-    # Import from chapters
-    print("\nImporting from chapters...")
-    from chapters import chapter_3_blender_book
-    importlib.reload(chapter_3_blender_book)
-    # Get module file path safely
-    chapter_3_book_path = getattr(chapter_3_blender_book, '__file__', 'Module in memory')
-    print(f"  SUCCESS: Imported chapter_3_blender_book from {chapter_3_book_path}")
+    # Import and test effect_utils
+    import effect_utils
+    importlib.reload(effect_utils)
+    print("✓ Successfully imported effect_utils")
     
-    # Import from investigations
-    print("\nImporting from investigations...")
-    from investigations import segment_removal_investigation
-    importlib.reload(segment_removal_investigation)
-    # Get module file path safely
-    segment_removal_path = getattr(segment_removal_investigation, '__file__', 'Module in memory')
-    print(f"  SUCCESS: Imported segment_removal_investigation from {segment_removal_path}")
-    
-    print("\nAll imports successful!")
+    print("\nAll utility modules imported successfully!")
+    print("Run this script whenever you need to reload the modules after making changes.")
     
 except ImportError as e:
-    print(f"  FAILED: Import error: {e}")
-except Exception as e:
-    print(f"  ERROR: {e}")
-
-print("\n===== IMPORT TEST COMPLETE =====\n")
+    print(f"❌ Error importing modules: {e}")
+    print("\nTroubleshooting:")
+    print("1. Make sure the utility scripts exist in the correct location")
+    print("2. Check that the scripts directory is in your sys.path")
+    print("3. Check for syntax errors in the utility modules")
+    
+    print("\nCurrent sys.path:")
+    for i, path in enumerate(sys.path):
+        print(f"  {i}: {path}")

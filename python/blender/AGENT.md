@@ -16,27 +16,40 @@
   - `investigations/`: Exploratory analysis scripts
 
 ## Loading files / importing modules over blender MCP
-- Preferred method: Add module path and use importlib.reload
+See detailed guide: `ttmp/2025-05-17/06-how-to-import-files-and-start-an-interactive-session-with-the-blender-mcp.md`
+
+### Standard Import Pattern
+
+Use this once at the beginning of a session.
+
+Also read docs/python-blender-utilities-api.md which explains how to use the utilities in scripts/utils/
+
 ```python
 import sys, os, importlib
 
-# Add the main scripts directory
+# Add script directories to path
 scripts_dir = os.path.dirname(os.path.abspath(__file__))
-if scripts_dir not in sys.path:
-    sys.path.append(scripts_dir)
-
-# For importing from subdirectories
 utils_dir = os.path.join(scripts_dir, 'utils')
-if utils_dir not in sys.path:
-    sys.path.append(utils_dir)
+for path in [scripts_dir, utils_dir]:
+    if path not in sys.path: sys.path.append(path)
 
-# Now import and reload for development
+# Import and reload modules
 import module_name
-importlib.reload(module_name)  # For subsequent updates
+importlib.reload(module_name)
 
-# For subdirectory imports
+# CRITICAL: Import VSE utilities for Video Sequence Editor operations
 from utils import vse_utils
 importlib.reload(vse_utils)
+```
+
+### Quick Execute Pattern
+```python
+# One-line execution with execute_blender_code
+exec(open('/path/to/script.py').read())
+
+# With helper (after adding utils_dir to sys.path)
+from run_file import run_file
+run_file('/path/to/script.py', in_sequencer=True)
 ```
 
 ## Code Style Guidelines
@@ -61,3 +74,6 @@ importlib.reload(vse_utils)
 - Include context.area comments for workspace-specific scripts
 - Document scripts with usage instructions in docstrings
 - Use main() function pattern for script entry points
+
+## Utility Reference
+- For details on available VSE utilities, see `python-blender-utilities-api.md`

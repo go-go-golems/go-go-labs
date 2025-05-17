@@ -1,18 +1,27 @@
-# VSE Utility functions for Blender Python scripts
-# Contains reusable functions for Video Sequence Editor operations
+# VSE Utilities for Blender's Video Sequence Editor
+# Core utilities that can be imported by any VSE script
 
-import bpy
+import bpy # type: ignore
 import os
-from pathlib import Path
 
-# ----- Core VSE Setup Functions -----
+# Common shortcuts for Blender data and context
+D = bpy.data
+C = bpy.context
 
 def get_active_scene():
     """Get the currently active scene."""
-    return bpy.context.scene
+    return C.scene
 
 def ensure_sequence_editor(scene=None):
-    """Ensure a scene has a sequence editor, creating one if it doesn't exist."""
+    """Ensure a scene has a sequence editor, creating one if it doesn't exist.
+    
+    Args:
+        scene (bpy.types.Scene, optional): The scene to check/modify. 
+                                         Defaults to active scene.
+    
+    Returns:
+        bpy.types.SequenceEditor: The sequence editor
+    """
     if scene is None:
         scene = get_active_scene()
     
@@ -21,10 +30,19 @@ def ensure_sequence_editor(scene=None):
     
     return scene.sequence_editor
 
-# ----- Media Handling Functions -----
-
-def add_movie_strip(seq_editor, filepath, channel=1, frame_start=1, name=None):
-    """Add a movie strip to the sequence editor."""
+def add_video_strip(seq_editor, filepath, channel=1, frame_start=1, name=None):
+    """Add a video strip to the sequence editor.
+    
+    Args:
+        seq_editor (bpy.types.SequenceEditor): The sequence editor
+        filepath (str): Path to the video file
+        channel (int, optional): Channel to place the strip. Defaults to 1.
+        frame_start (int, optional): Frame to start the strip. Defaults to 1.
+        name (str, optional): Name for the strip. Defaults to filename without extension.
+    
+    Returns:
+        bpy.types.Strip: The created movie strip
+    """
     if name is None:
         name = os.path.splitext(os.path.basename(filepath))[0]
     
@@ -35,15 +53,21 @@ def add_movie_strip(seq_editor, filepath, channel=1, frame_start=1, name=None):
         frame_start=frame_start
     )
     
-    print(f"Added movie strip: {movie_strip.name} (Type: {movie_strip.type})")
-    print(f"  File: {movie_strip.filepath}")
-    print(f"  Duration: {movie_strip.frame_duration} frames")
-    print(f"  Timeline: Channel {movie_strip.channel}, Start Frame {movie_strip.frame_start}, End Frame {movie_strip.frame_final_end}")
-    
     return movie_strip
 
-def add_sound_strip(seq_editor, filepath, channel=1, frame_start=1, name=None):
-    """Add a sound strip to the sequence editor."""
+def add_audio_strip(seq_editor, filepath, channel=2, frame_start=1, name=None):
+    """Add an audio strip to the sequence editor.
+    
+    Args:
+        seq_editor (bpy.types.SequenceEditor): The sequence editor
+        filepath (str): Path to the audio file
+        channel (int, optional): Channel to place the strip. Defaults to 2.
+        frame_start (int, optional): Frame to start the strip. Defaults to 1.
+        name (str, optional): Name for the strip. Defaults to filename without extension.
+    
+    Returns:
+        bpy.types.Strip: The created sound strip
+    """
     if name is None:
         name = os.path.splitext(os.path.basename(filepath))[0]
     
@@ -54,225 +78,338 @@ def add_sound_strip(seq_editor, filepath, channel=1, frame_start=1, name=None):
         frame_start=frame_start
     )
     
-    print(f"Added sound strip: {sound_strip.name} (Type: {sound_strip.type})")
-    if hasattr(sound_strip, 'sound') and sound_strip.sound and hasattr(sound_strip.sound, 'filepath'):
-        print(f"  File: {sound_strip.sound.filepath}")
-    else:
-        print(f"  File: {filepath}")
-    print(f"  Duration: {sound_strip.frame_duration} frames")
-    print(f"  Volume: {sound_strip.volume}, Pan: {sound_strip.pan}")
-    
     return sound_strip
 
-# ----- Scene Management Functions -----
+def add_image_strip(seq_editor, filepath, channel=1, frame_start=1, duration=25, name=None):
+    """Add an image strip to the sequence editor.
+    
+    Args:
+        seq_editor (bpy.types.SequenceEditor): The sequence editor
+        filepath (str): Path to the image file
+        channel (int, optional): Channel to place the strip. Defaults to 1.
+        frame_start (int, optional): Frame to start the strip. Defaults to 1.
+        duration (int, optional): Duration of the strip in frames. Defaults to 25.
+        name (str, optional): Name for the strip. Defaults to filename without extension.
+    
+    Returns:
+        bpy.types.Strip: The created image strip
+    """
+    if name is None:
+        name = os.path.splitext(os.path.basename(filepath))[0]
+    
+    image_strip = seq_editor.strips.new_image(
+        name=name,
+        filepath=filepath,
+        channel=channel,
+        frame_start=frame_start
+    )
+    
+    # Set the strip duration (default is often too short)
+    image_strip.frame_final_duration = duration
+    
+    return image_strip
+
+def add_color_strip(seq_editor, frame_start, frame_end, channel=1, name=None, color=(0,0,0)):
+    """Add a solid color strip to the sequence editor.
+    
+    Args:
+        seq_editor (bpy.types.SequenceEditor): The sequence editor
+        frame_start (int): Frame to start the strip
+        frame_end (int): Frame to end the strip
+        channel (int, optional): Channel to place the strip. Defaults to 1.
+        name (str, optional): Name for the strip. Defaults to "Color".
+        color (tuple, optional): RGB color values (0-1). Defaults to black (0,0,0).
+    
+    Returns:
+        bpy.types.Strip: The created color strip
+    """
+    if name is None:
+        name = "Color"
+    
+    color_strip = seq_editor.strips.new_effect(
+        name=name,
+        type='COLOR',
+        channel=channel,
+        frame_start=frame_start,
+        frame_end=frame_end
+    )
+    
+    # Set the color
+    color_strip.color = color
+    
+    return color_strip
+
+def add_text_strip(seq_editor, text, frame_start, frame_end, channel=10, position='center', 
+                 size=50, color=(1,1,1)):
+    """Add a text strip to the sequence editor.
+    
+    Args:
+        seq_editor (bpy.types.SequenceEditor): The sequence editor
+        text (str): The text content to display
+        frame_start (int): Frame to start the strip
+        frame_end (int): Frame to end the strip
+        channel (int, optional): Channel to place the strip. Defaults to 10.
+        position (str, optional): Position of text: 'center', 'top', 'bottom'. Defaults to 'center'.
+        size (int, optional): Font size. Defaults to 50.
+        color (tuple, optional): RGB color values (0-1). Defaults to white (1,1,1).
+    
+    Returns:
+        bpy.types.Strip: The created text strip
+    """
+    # Create the text strip
+    text_strip = seq_editor.strips.new_effect(
+        name=f"Text_{text[:10]}",
+        type='TEXT',
+        channel=channel,
+        frame_start=frame_start,
+        frame_end=frame_end
+    )
+    
+    # Set the text strip properties
+    text_strip.text = text
+    text_strip.font_size = size
+    text_strip.color = color
+    
+    # Position the text
+    if position == 'center':
+        text_strip.location = (0.5, 0.5)
+    elif position == 'top':
+        text_strip.location = (0.5, 0.8)
+    elif position == 'bottom':
+        text_strip.location = (0.5, 0.2)
+    
+    # Set alignment if the property exists
+    if hasattr(text_strip, 'align_x'):
+        text_strip.align_x = 'CENTER'
+    if hasattr(text_strip, 'align_y'):
+        if position == 'bottom':
+            text_strip.align_y = 'TOP'
+        elif position == 'top':
+            text_strip.align_y = 'BOTTOM'
+        else:
+            text_strip.align_y = 'CENTER'
+    
+    return text_strip
+
+def trim_strip_start(strip, frames_to_trim):
+    """Trim frames from the beginning of a strip.
+    
+    Args:
+        strip (bpy.types.Strip): The strip to trim
+        frames_to_trim (int): Number of frames to trim from beginning
+    
+    Returns:
+        tuple: (original_start_frame, new_start_frame) for verification
+    """
+    original_start = strip.frame_final_start
+    
+    # Method 1: Using frame_offset_start
+    strip.frame_offset_start += frames_to_trim
+    
+    return (original_start, strip.frame_final_start)
+
+def trim_strip_end(strip, frames_to_trim):
+    """Trim frames from the end of a strip.
+    
+    Args:
+        strip (bpy.types.Strip): The strip to trim
+        frames_to_trim (int): Number of frames to trim from end
+    
+    Returns:
+        tuple: (original_end_frame, new_end_frame) for verification
+    """
+    original_end = strip.frame_final_end
+    
+    # Method 1: Using frame_offset_end
+    strip.frame_offset_end += frames_to_trim
+    
+    return (original_end, strip.frame_final_end)
+
+def split_strip(strip, frame):
+    """Split a strip at the specified frame.
+    
+    Args:
+        strip (bpy.types.Strip): The strip to split
+        frame (int): Frame at which to make the cut
+    
+    Returns:
+        tuple: (left_part, right_part) - the two resulting strips
+    """
+    # Convert to integer frame number
+    frame = int(frame)
+    
+    # Check if frame is within strip bounds
+    if frame <= strip.frame_start or frame >= strip.frame_final_end:
+        print(f"Warning: Split frame {frame} is outside '{strip.name}' bounds")
+        return (strip, None)
+    
+    seq_editor = C.scene.sequence_editor
+    
+    # Record existing strips before the split
+    pre_split_ids = {s.as_pointer() for s in seq_editor.strips_all}
+    
+    # Select only the strip we want to split
+    for s in seq_editor.strips_all:
+        s.select = (s == strip)
+    
+    # Set current frame and perform the split
+    C.scene.frame_current = frame
+    try:
+        bpy.ops.sequencer.split(frame=frame, channel=strip.channel, type='SOFT')
+    except RuntimeError as e:
+        print(f"Error: Split failed on '{strip.name}': {e}")
+        return (strip, None)
+    
+    # Find the left and right parts
+    left_part = right_part = None
+    for s in seq_editor.strips_all:
+        if s.channel == strip.channel:
+            if s.frame_final_end == frame:
+                left_part = s
+            elif s.frame_start == frame:
+                right_part = s
+    
+    return (left_part, right_part)
 
 def clear_all_strips(seq_editor):
-    """Remove all strips from the sequence editor."""
-    if seq_editor.strips_all:
-        print(f"Removing {len(seq_editor.strips_all)} existing strips...")
-        # Create a copy of the list to avoid modification during iteration issues
+    """Remove all strips from the sequence editor.
+    
+    Args:
+        seq_editor (bpy.types.SequenceEditor): The sequence editor to clear
+    
+    Returns:
+        int: Number of strips removed
+    """
+    strip_count = len(seq_editor.strips_all)
+    
+    if strip_count > 0:
+        # Clone the list first to avoid modification during iteration
         strips_to_remove = list(seq_editor.strips_all)
         for strip in strips_to_remove:
-            seq_editor.sequences.remove(strip)
-        print("All existing strips removed.")
-    return True
-
-def print_sequence_info(seq_editor, title="Current Sequence State"):
-    """Print detailed information about all strips in the sequence editor."""
-    print(f"\n--- {title} ---")
-    if not seq_editor.strips_all:
-        print("  No strips in sequence editor.")
-        return
+            seq_editor.strips.remove(strip)
     
-    print(f"Total strips: {len(seq_editor.strips_all)}")
-    
-    for i, strip in enumerate(seq_editor.strips_all, 1):
-        print(f"{i}. '{strip.name}' (Type: {strip.type}):")
-        print(f"   Channel: {strip.channel}")
-        print(f"   Timeline: Frames {strip.frame_start}-{strip.frame_final_end} " +
-              f"(Duration: {strip.frame_final_duration})")
-        print(f"   Offsets: start={strip.frame_offset_start}, end={strip.frame_offset_end}")
-        
-        if strip.type == 'MOVIE':
-            print(f"   Source: {strip.filepath}")
-        elif strip.type == 'SOUND':
-            print(f"   Volume: {strip.volume}, Pan: {strip.pan}")
-        print()
+    return strip_count
 
-# ----- Technical Functions -----
-
-def check_and_set_fps(seq_editor, scene):
-    """Check FPS of all strips and ensure they match the scene FPS.
-    If strips have different FPS, use the most common one and set scene to match.
+def find_strips_at_frame(seq_editor, frame, channel=None, strip_type=None):
+    """Find all strips at a specific frame, optionally filtering by channel or type.
     
     Args:
-        seq_editor (bpy.types.SequenceEditor): The sequence editor to check
-        scene (bpy.types.Scene): The scene to check/modify
-        
-    Returns:
-        tuple: (bool, str) - (success, message)
-    """
-    if not seq_editor or not seq_editor.sequences_all:
-        return True, "No sequences to check"
-    
-    # Collect FPS information from movie strips
-    fps_counts = {}
-    strip_fps = {}
-    
-    for strip in seq_editor.sequences_all:
-        if strip.type == 'MOVIE':
-            # Get source FPS using the new Blender 4.4 method
-            src_fps = None
-            if hasattr(strip.elements[0], 'orig_fps') and strip.elements[0].orig_fps:
-                src_fps = strip.elements[0].orig_fps
-            elif hasattr(strip, 'fps'):
-                src_fps = strip.fps
-                
-            if src_fps:
-                strip_fps[strip.name] = src_fps
-                fps_counts[src_fps] = fps_counts.get(src_fps, 0) + 1
-    
-    if not fps_counts:
-        return True, "No movie strips found"
-    
-    # Find most common FPS
-    most_common_fps = max(fps_counts.items(), key=lambda x: x[1])[0]
-    
-    # Check if all strips have the same FPS
-    if len(fps_counts) > 1:
-        print("\nWARNING: Different FPS detected in strips:")
-        for strip_name, fps in strip_fps.items():
-            print(f"  u2022 {strip_name}: {fps} fps")
-        print(f"\nUsing most common FPS: {most_common_fps}")
-    
-    # Check scene FPS
-    scene_fps = scene.render.fps / scene.render.fps_base
-    
-    if abs(scene_fps - most_common_fps) > 0.01:  # Allow small floating-point differences
-        print(f"\nAdjusting scene FPS from {scene_fps} to {most_common_fps}")
-        scene.render.fps = int(most_common_fps)
-        scene.render.fps_base = 1.0
-        return True, f"Scene FPS adjusted to {most_common_fps}"
-    
-    return True, f"All good - Scene and strips using {scene_fps} fps"
-
-def find_test_media_dir(default_path="/home/manuel/Movies/blender-movie-editor"):
-    """Find a valid test media directory with test videos.
+        seq_editor (bpy.types.SequenceEditor): The sequence editor to search
+        frame (int): The frame to check
+        channel (int, optional): Channel to filter by. If None, check all channels.
+        strip_type (str, optional): Strip type to filter by ('MOVIE', 'SOUND', etc.). 
+                                   If None, include all types.
     
     Returns:
-        str: Path to a directory containing test media files
+        list: Strips at the specified frame matching the criteria
     """
-    # First check the default path
-    if os.path.exists(default_path):
-        return default_path
+    matching_strips = []
     
-    # Try to find media directory relative to script location
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    alternative_paths = [
-        os.path.join(script_dir, "../media"),
-        os.path.join(script_dir, "media"),
-        "/tmp/blender-test-media"
-    ]
+    for strip in seq_editor.strips_all:
+        # Check if strip contains the frame
+        if strip.frame_final_start <= frame < strip.frame_final_end:
+            # Apply channel filter if specified
+            if channel is not None and strip.channel != channel:
+                continue
+            
+            # Apply type filter if specified
+            if strip_type is not None and strip.type != strip_type:
+                continue
+            
+            matching_strips.append(strip)
     
-    for path in alternative_paths:
-        if os.path.exists(path):
-            print(f"Using alternative media path: {path}")
-            return path
-    
-    # If no existing directory is found, create a default one
-    print(f"Warning: Media directory not found. Using: {default_path}")
-    os.makedirs(default_path, exist_ok=True)
-    return default_path
+    return matching_strips
 
-def setup_test_sequence(seq_editor, test_media_dir, video_files=None):
-    """Set up a test sequence with video clips for demonstration.
+def set_scene_fps(scene, fps):
+    """Set the scene frame rate.
     
     Args:
-        seq_editor (bpy.types.SequenceEditor): The sequence editor to add strips to
-        test_media_dir (str): Directory containing test media files
-        video_files (list, optional): List of video filenames to use
-        
+        scene (bpy.types.Scene): The scene to modify
+        fps (float): Frames per second to set
+    
     Returns:
-        list: A list of (video_strip, audio_strip) tuples for the added clips
+        float: The previous FPS setting
     """
-    print("\nSetting up test sequence with video clips...")
+    current_fps = scene.render.fps / scene.render.fps_base
     
-    # Clear existing strips first
-    clear_all_strips(seq_editor)
+    # Set the new FPS
+    scene.render.fps = int(fps)
+    scene.render.fps_base = 1.0
     
-    # Default list of test video files to use
-    if video_files is None:
-        video_files = [
-            "SampleVideo_1280x720_2mb.mp4",
-            "SampleVideo_1280x720_1mb.mp4",
-            "SampleVideo_1280x720_5mb.mp4"
-        ]
-    
-    # Track channels for video and audio
-    video_channel = 1
-    audio_channel = 2
-    
-    # Start with frame 1 and add some padding between clips
-    current_frame = 1
-    frame_padding = 0  # No padding - place clips back-to-back
-    
-    # Name the channels
-    if video_channel <= len(seq_editor.channels):
-        seq_editor.channels[video_channel-1].name = "Video"
-    if audio_channel <= len(seq_editor.channels):
-        seq_editor.channels[audio_channel-1].name = "Audio"
-    
-    # Add clips and store them for later use
-    added_clips = []
-    
-    for i, video_filename in enumerate(video_files):
-        video_path = os.path.join(test_media_dir, video_filename)
-        if os.path.exists(video_path):
-            # Add video strip
-            video_strip = add_movie_strip(
-                seq_editor, 
-                video_path, 
-                channel=video_channel, 
-                frame_start=current_frame,
-                name=f"Clip{i+1}"
-            )
-            
-            # Add matching audio strip
-            audio_strip = add_sound_strip(
-                seq_editor, 
-                video_path, 
-                channel=audio_channel, 
-                frame_start=current_frame,
-                name=f"Audio{i+1}"
-            )
-            
-            # Store the pair
-            added_clips.append((video_strip, audio_strip))
-            
-            # Update frame position for next clip
-            current_frame = video_strip.frame_final_end + frame_padding
-        else:
-            print(f"Video file not found: {video_path}")
-    
-    print(f"Added {len(added_clips)} clips to the sequence.")
-    
-    # Check and set FPS after adding all clips
-    success, message = check_and_set_fps(seq_editor, get_active_scene())
-    print(f"\nFPS Check: {message}")
-    
-    return added_clips
+    return current_fps
 
-# ----- Diagnostics Functions -----
+def add_crossfade(seq_editor, strip1, strip2, duration_frames, channel=None):
+    """Add a crossfade transition between two strips.
+    
+    Args:
+        seq_editor (bpy.types.SequenceEditor): The sequence editor
+        strip1 (bpy.types.Strip): First strip (fading out)
+        strip2 (bpy.types.Strip): Second strip (fading in)
+        duration_frames (int): Duration of crossfade in frames
+        channel (int, optional): Channel for the transition. If None, uses max(strip1.channel, strip2.channel) + 1
+    
+    Returns:
+        bpy.types.Strip: The created crossfade strip
+    """
+    # Ensure the strips overlap
+    if strip2.frame_start > strip1.frame_final_end - duration_frames:
+        # Adjust strip2 position to create required overlap
+        strip2.frame_start = strip1.frame_final_end - duration_frames
+    
+    # Set transition channel if not specified
+    if channel is None:
+        channel = max(strip1.channel, strip2.channel) + 1
+    
+    # Create the crossfade
+    crossfade = seq_editor.strips.new_effect(
+        name=f"Cross_{strip1.name}_{strip2.name}",
+        type='CROSS',
+        channel=channel,
+        frame_start=strip2.frame_start,
+        frame_end=strip2.frame_start + duration_frames,
+        seq1=strip1,
+        seq2=strip2
+    )
+    
+    return crossfade
 
-def print_strip_details(strip, label="Strip"):
-    """Print very detailed information about a strip, including internal properties."""
-    print(f"\n{label}: '{strip.name}' (Type: {strip.type}, Ptr: {strip.as_pointer()})")
-    print(f"  Position: Channel {strip.channel}, Frames {strip.frame_start}-{strip.frame_final_end}")
-    print(f"  frame_start:        {strip.frame_start}")
-    print(f"  frame_final_start:  {strip.frame_final_start}")
-    print(f"  frame_duration:     {strip.frame_duration}")
-    print(f"  frame_final_duration: {strip.frame_final_duration}")
-    print(f"  frame_offset_start: {strip.frame_offset_start}")
-    print(f"  frame_offset_end:   {strip.frame_offset_end}")
-    print(f"  frame_still_start:  {strip.frame_still_start if hasattr(strip, 'frame_still_start') else 'N/A'}")
-    print(f"  frame_still_end:    {strip.frame_still_end if hasattr(strip, 'frame_still_end') else 'N/A'}")
+def add_transform_effect(seq_editor, strip, offset_x=0, offset_y=0, scale_x=1.0, scale_y=1.0, 
+                       rotation=0.0, channel=None):
+    """Add a transform effect to a strip.
+    
+    Args:
+        seq_editor (bpy.types.SequenceEditor): The sequence editor
+        strip (bpy.types.Strip): The strip to transform
+        offset_x (float, optional): Horizontal offset in pixels. Defaults to 0.
+        offset_y (float, optional): Vertical offset in pixels. Defaults to 0.
+        scale_x (float, optional): Horizontal scale factor. Defaults to 1.0.
+        scale_y (float, optional): Vertical scale factor. Defaults to 1.0.
+        rotation (float, optional): Rotation in degrees. Defaults to 0.0.
+        channel (int, optional): Channel for the effect. If None, uses strip.channel + 1.
+    
+    Returns:
+        bpy.types.Strip: The created transform effect strip
+    """
+    from math import radians
+    
+    if channel is None:
+        channel = strip.channel + 1
+    
+    # Create the transform effect
+    transform = seq_editor.strips.new_effect(
+        name=f"Transform_{strip.name}",
+        type='TRANSFORM',
+        channel=channel,
+        frame_start=strip.frame_start,
+        frame_end=strip.frame_final_end,
+        seq1=strip
+    )
+    
+    # Set the transform properties
+    transform.transform.offset_x = offset_x
+    transform.transform.offset_y = offset_y
+    transform.transform.scale_x = scale_x
+    transform.transform.scale_y = scale_y
+    transform.transform.rotation = radians(rotation)  # Convert degrees to radians
+    
+    return transform
