@@ -12,7 +12,7 @@ It shows how to:
 4. Handle scene and context
 
 Usage:
-    Run this script in Blender's Text Editor or Python Console while in the Video Editing workspace.
+    Run this script from Blender's Text Editor or Python Console while in the Video Editing workspace.
 """
 
 import bpy
@@ -49,6 +49,62 @@ def ensure_sequence_editor(scene=None):
         scene.sequence_editor_create()
     
     return scene.sequence_editor
+
+def check_and_set_fps(seq_editor, scene):
+    """
+    Check FPS of all strips and ensure they match the scene FPS.
+    If strips have different FPS, use the most common one and set scene to match.
+    
+    Args:
+        seq_editor (bpy.types.SequenceEditor): The sequence editor to check
+        scene (bpy.types.Scene): The scene to check/modify
+        
+    Returns:
+        tuple: (bool, str) - (success, message)
+    """
+    if not seq_editor or not seq_editor.sequences_all:
+        return True, "No sequences to check"
+    
+    # Collect FPS information from movie strips
+    fps_counts = {}
+    strip_fps = {}
+    
+    for strip in seq_editor.sequences_all:
+        if strip.type == 'MOVIE':
+            # Get source FPS using the new Blender 4.4 method
+            src_fps = None
+            if hasattr(strip.elements[0], 'orig_fps') and strip.elements[0].orig_fps:
+                src_fps = strip.elements[0].orig_fps
+            elif hasattr(strip, 'fps'):
+                src_fps = strip.fps
+                
+            if src_fps:
+                strip_fps[strip.name] = src_fps
+                fps_counts[src_fps] = fps_counts.get(src_fps, 0) + 1
+    
+    if not fps_counts:
+        return True, "No movie strips found"
+    
+    # Find most common FPS
+    most_common_fps = max(fps_counts.items(), key=lambda x: x[1])[0]
+    
+    # Check if all strips have the same FPS
+    if len(fps_counts) > 1:
+        print("\nWARNING: Different FPS detected in strips:")
+        for strip_name, fps in strip_fps.items():
+            print(f"  • {strip_name}: {fps} fps")
+        print(f"\nUsing most common FPS: {most_common_fps}")
+    
+    # Check scene FPS
+    scene_fps = scene.render.fps / scene.render.fps_base
+    
+    if abs(scene_fps - most_common_fps) > 0.01:  # Allow small floating-point differences
+        print(f"\nAdjusting scene FPS from {scene_fps} to {most_common_fps}")
+        scene.render.fps = int(most_common_fps)
+        scene.render.fps_base = 1.0
+        return True, f"Scene FPS adjusted to {most_common_fps}"
+    
+    return True, f"All good - Scene and strips using {scene_fps} fps"
 
 def print_sequence_info(seq_editor):
     """
@@ -93,6 +149,10 @@ def main():
     # Ensure sequence editor exists
     seq_editor = ensure_sequence_editor(scene)
     print(f"\nSequence Editor created/accessed successfully")
+    
+    # Check and set FPS
+    success, message = check_and_set_fps(seq_editor, scene)
+    print(f"\nFPS Check: {message}")
     
     # Print sequence information
     print_sequence_info(seq_editor)

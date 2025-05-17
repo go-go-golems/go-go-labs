@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+We are using the Blender 4.4 API, make sure that you don't use old deprecated functions.

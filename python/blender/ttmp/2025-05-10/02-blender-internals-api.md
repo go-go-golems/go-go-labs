@@ -321,6 +321,33 @@ channel = seq_editor.channels[0]
 print(dir(channel))  # Shows available attributes and methods
 ```
 
+**Silent Failures in Operator-Based APIs:** Some Blender operators, particularly those in the Video Sequence Editor, can silently fail or produce unexpected results without raising exceptions. For example, the `sequencer.split` operator:
+
+1. May not create a new strip when splitting at or near a strip boundary
+2. Can produce unpredictable selection states
+3. Lacks a direct return value indicating success or new strips created
+
+When working with operators, especially for automation:
+
+```python
+# Track objects before and after operations
+pre_op_objects = {obj.as_pointer(): obj for obj in bpy.data.objects}
+bpy.ops.object.duplicate()
+post_op_objects = {obj.as_pointer(): obj for obj in bpy.data.objects}
+# Find newly created objects
+new_objects = [obj for ptr, obj in post_op_objects.items() if ptr not in pre_op_objects]
+
+# Handle error cases explicitly
+try:
+    bpy.ops.sequencer.split(frame=100, channel=5)
+except RuntimeError as e:
+    print(f"Operation failed: {e}")
+    
+# Validate results of operations
+if not new_objects:
+    print("Operation didn't create any new objects as expected")
+```
+
 **Drivers:** You can add drivers via Python by creating a driver on a property and setting its expression or targets. For instance:
 
 ```python
@@ -434,6 +461,37 @@ This panel will appear in the 3D View's sidebar under a tab "Tool" (you can choo
 
 * **Isolation:** An add-on should not interfere with other add-ons or Blender's own data in unexpected ways. For instance, avoid globally changing settings or monkey-patching Blender's Python classes. Use your own classes and properties.
 * **Naming:** Prefix your classes and properties uniquely (often with your add-on name or initials) to avoid name collisions. Blender requires class `bl_idname` to be unique for operators, and class `bl_idname` for panels/menus must also be unique. The convention is something like `OBJECT_OT_my_op` for operator class name (Blender doesn't use the class name for operation, but it's good style) and `VIEW3D_PT_my_panel` for panel class name, including the area it's for.
+* **Defensive Programming:** Blender's operator-based API can sometimes fail silently or behave unexpectedly in edge cases. Implement these defensive practices:
+  - Always validate input parameters before calling operators
+  - Use try/except blocks around operator calls that might fail
+  - Verify results after operations rather than assuming success
+  - Track objects before and after operations using `as_pointer()` for identification
+  - Include detailed logging so users can understand what happened
+  - Handle edge cases gracefully with appropriate fallbacks
+
+  For example, when splitting a strip in the VSE:
+  ```python
+  # Before splitting, verify the frame is valid
+  if frame <= strip.frame_start or frame >= strip.frame_final_end:
+      self.report({'WARNING'}, f"Cannot split outside strip bounds")
+      return {'CANCELLED'}
+      
+  # Track strips before operation
+  pre_strips = {s.as_pointer(): s for s in context.scene.sequence_editor.strips_all}
+  
+  # Try the operation
+  try:
+      bpy.ops.sequencer.split(frame=frame, channel=strip.channel)
+  except RuntimeError as e:
+      self.report({'ERROR'}, f"Split failed: {e}")
+      return {'CANCELLED'}
+      
+  # Verify results
+  new_strips = [s for s in context.scene.sequence_editor.strips_all 
+                if s.as_pointer() not in pre_strips]
+  if not new_strips:
+      self.report({'WARNING'}, "Split operation did not create a new strip")
+  ```
 * **Context Sensitivity:** Only show UI elements where they make sense. Use poll functions in operators or panels to hide them if not applicable. For example:
 
   ```python
