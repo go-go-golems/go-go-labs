@@ -1,7 +1,12 @@
-- [ ] fix channel names in chapter-2-blender-book.py
-- [ ] continue updating the video sequence editor book to make sure it's precise and correct in its API.
+# VSE Investigations To Complete
 
+## Module Import Investigation
+- Check Python module naming conventions and how they affect imports
+- Verify sys.path contents at time of import
+- Test import using different naming conventions
 
-## Future: building the addon
-
-- [ ] look at the addon ideas and the addon blender book 
+## Segment Removal Investigation
+- Analyze why segment removal failed in original implementation
+- Test segment removal with various frame ranges
+- Document reliable patterns for detecting split failure
+- Create defensive programming recommendations

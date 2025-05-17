@@ -317,35 +317,169 @@ This effectively trims the strip. If the strip originally was 240 frames long (1
 Now suppose within the remaining part, we detect an unwanted section from frame 100 to 120 that we want to cut out. We can cut and remove:
 
 ```python
-# Make two cuts at 100 and 120
-scene.frame_current = 100
-movie_strip.select = True
-bpy.ops.sequencer.split(frame=100, channel=movie_strip.channel, type='SOFT', ignore_selection=False):contentReference[oaicite:48]{index=48}:contentReference[oaicite:49]{index=49}
+# A more robust approach to split a strip at a frame
+def split_strip(strip, frame):
+    """Split a strip at the specified frame and return both parts."""
+    # Ensure frame is within strip bounds
+    if frame <= strip.frame_start or frame >= strip.frame_final_end:
+        print(f"Split frame {frame} is outside strip bounds ({strip.frame_start}-{strip.frame_final_end})")
+        return (strip, None)
+    
+    # Record existing strips before the split
+    seq_editor = bpy.context.scene.sequence_editor
+    pre_split_ids = {s.as_pointer() for s in seq_editor.strips_all}
+    
+    # Select only the strip we want to split
+    for s in seq_editor.strips_all:
+        s.select = (s == strip)
+    
+    # Set current frame and perform the split
+    bpy.context.scene.frame_current = frame
+    try:
+        bpy.ops.sequencer.split(frame=frame, channel=strip.channel, type='SOFT')
+    except RuntimeError as e:
+        print(f"Split failed: {e}")
+        return (strip, None)
+    
+    # Identify the left and right parts
+    left_part = None
+    right_part = None
+    for s in seq_editor.strips_all:
+        if s.channel == strip.channel:
+            if s.frame_final_end == frame:
+                left_part = s
+            elif s.frame_start == frame:
+                right_part = s
+    
+    return (left_part, right_part)
 
-scene.frame_current = 120
-# After first cut, the original strip is split into two. The second part is likely selected now.
-bpy.ops.sequencer.split(frame=120, channel=movie_strip.channel, type='SOFT')
-# Now we have three strips: movie_strip (start-100), movie_strip.001 (100-120), movie_strip.002 (120-end)
-# Identify the middle strip (with frame_start = 100)
-middle_strip = None
-for s in seq_editor.strips:
-    if s.frame_start == 100 and s.frame_final_end == 120:
-        middle_strip = s
-        break
-if middle_strip:
-    seq_editor.strips.remove(middle_strip)  # remove the unwanted section:contentReference[oaicite:50]{index=50}
-    # Move the third part to start at frame 100
-    for s in seq_editor.strips:
-        if s.frame_start == 120:
-            s.frame_start = 100
-            break
+# Make two cuts at 100 and 120
+left_part, right_part = split_strip(movie_strip, 100)
+if not right_part:
+    print("First split failed to create a right part")
+else:
+    middle_part, end_part = split_strip(right_part, 120)
+    if middle_part:
+        # Remove the middle segment
+        seq_editor.strips.remove(middle_part)
+        # Move the end part to close the gap
+        if end_part:
+            end_part.frame_start = left_part.frame_final_end
 ```
 
 This demonstrates how to programmatically cut and remove a section. In practice, you might know the name or index of the strips rather than searching by frame as above (here we search by the known frames to find the middle piece). After removal, we manually closed the gap by moving the later strip.
 
 Keep in mind that when you directly set `frame_start` of a strip to butt against another, you should ensure you're not causing unwanted overlaps. If `use_sequence` (render from VSE) is true and you have gaps, it will just show nothing (black) during the gap. Closing gaps by moving strips as shown is straightforward.
 
-In summary, trimming can be done by adjusting strip properties (offsets or final start/end), and cutting can be done via the `split` operator or by creating multiple strips from the same source with specified time regions. Next, we will look at transitions—how to create fades and other transitions between clips.
+In summary, trimming can be done by adjusting strip properties (offsets or final start/end), and cutting can be done via the `split` operator or by creating multiple strips from the same source with specified time regions. 
+
+**Handling Edge Cases when Splitting Strips**: The `split` operator doesn't always behave as expected, especially in edge cases. When splitting strips, be aware of these potential issues:
+
+1. **Boundary Issues**: If you try to split at exactly a strip's start or end frame, the operation may silently fail without creating a new strip.
+2. **Null Return Values**: After splitting, one of the resulting strips might be `None` - particularly if splitting near a boundary.
+3. **Selection State**: After splitting, Blender typically selects one of the resulting strips (usually the right part).
+
+To create robust VSE scripts, always:
+- Validate that frame values are within strip boundaries before splitting
+- Check if both parts were successfully created after a split
+- Use try/except blocks to catch runtime errors from operations
+- Implement clear identification of which strips are which after operations
+- Track strips by memory pointer (using `strip.as_pointer()`) when needed to identify strips across operations
+
+## Defensive Programming with Blender's VSE API
+
+When writing scripts to automate video editing with Blender's VSE API, it's crucial to implement defensive programming practices. The operator-based nature of many VSE functions means they can sometimes fail silently or produce unexpected results.
+
+### Best Practices for Robust VSE Scripts
+
+1. **Input Validation**
+   ```python
+   # Always check values before using them
+   def set_strip_start(strip, frame):
+       if not strip:
+           print("Error: No strip provided")
+           return False
+       if frame < 1:
+           print(f"Error: Invalid start frame {frame} (must be >= 1)")
+           return False
+       
+       # Now it's safe to modify the strip
+       strip.frame_start = frame
+       return True
+   ```
+
+2. **Error Handling with Try/Except**
+   ```python
+   # Wrap operator calls in try/except blocks
+   try:
+       bpy.ops.sequencer.effect_strip_add(type='CROSS')
+   except RuntimeError as e:
+       print(f"Failed to add cross effect: {e}")
+   ```
+
+3. **Object Tracking Across Operations**
+   ```python
+   # Use as_pointer() to track which strips are which
+   def duplicate_strip(strip):
+       strips_before = {s.as_pointer() for s in seq_editor.strips_all}
+       strip.select = True
+       bpy.ops.sequencer.duplicate()
+       
+       # Find the new strip(s)
+       new_strips = []
+       for s in seq_editor.strips_all:
+           if s.as_pointer() not in strips_before and s.channel == strip.channel:
+               new_strips.append(s)
+       
+       return new_strips[0] if new_strips else None
+   ```
+
+4. **Result Verification**
+   ```python
+   # After an operation, verify the expected result occurred
+   original_count = len(seq_editor.strips_all)
+   bpy.ops.sequencer.duplicate()
+   if len(seq_editor.strips_all) == original_count:
+       print("Warning: Duplicate operation didn't create new strips")
+   ```
+
+5. **Context Checking**
+   ```python
+   # Ensure you're in the right context for an operation
+   def apply_strip_effect(strip, effect_type):
+       if bpy.context.area.type != 'SEQUENCE_EDITOR':
+           print("Warning: Not in Sequence Editor context")
+       
+       # Rest of function...
+   ```
+
+6. **Selection Management**
+   ```python
+   # Save and restore selection state
+   def operate_on_strip(strip, operation):
+       # Save current selection
+       original_selection = [s for s in seq_editor.strips_all if s.select]
+       
+       # Deselect all and select only our target
+       for s in seq_editor.strips_all:
+           s.select = (s == strip)
+       
+       # Perform operation
+       result = operation()
+       
+       # Restore original selection
+       for s in seq_editor.strips_all:
+           s.select = False
+       for s in original_selection:
+           if s in seq_editor.strips_all:  # Make sure it still exists
+               s.select = True
+               
+       return result
+   ```
+
+By implementing these defensive programming practices, you'll create more robust scripts that can handle unexpected situations gracefully, providing clearer feedback when things go wrong and ensuring your automation scripts work reliably across different Blender projects.
+
+Next, we will look at transitions—how to create fades and other transitions between clips.
 
 ## Chapter 4: Transitions and Fades
 
