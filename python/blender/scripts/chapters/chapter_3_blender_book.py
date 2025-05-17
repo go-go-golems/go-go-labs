@@ -402,6 +402,13 @@ def setup_test_sequence(seq_editor, test_media_dir):
     """
     print("\nSetting up test sequence with video clips...")
     
+    # Clear all existing strips first
+    if seq_editor.sequences_all:
+        print(f"Removing {len(seq_editor.sequences_all)} existing strips...")
+        for strip in seq_editor.sequences_all:
+            seq_editor.sequences.remove(strip)
+        print("All existing strips removed.")
+    
     # List of test video files to use
     video_files = [
         "SampleVideo_1280x720_2mb.mp4",
@@ -462,7 +469,6 @@ def setup_test_sequence(seq_editor, test_media_dir):
     print(f"\nFPS Check: {message}")
     
     return added_clips
-
 def main():
     """
     Main function demonstrating Chapter 3 concepts: Trimming and Splitting Clips.
@@ -477,7 +483,27 @@ def main():
     print(f"\nOperating on scene: '{scene.name}' with Sequence Editor: {seq_editor}")
     
     # --- Configuration ---
+    # Path to test media - try to find it in common locations
     test_media_dir = "/home/manuel/Movies/blender-movie-editor"
+    
+    # Check if path exists, if not look for alternative locations
+    if not os.path.exists(test_media_dir):
+        # Try relative path from current script
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        alternative_paths = [
+            os.path.join(script_dir, "../media"),
+            os.path.join(script_dir, "media"),
+            "/tmp/blender-test-media"
+        ]
+        
+        for path in alternative_paths:
+            if os.path.exists(path):
+                test_media_dir = path
+                print(f"Using alternative media path: {test_media_dir}")
+                break
+        
+        print(f"Warning: Media directory not found. Please download test videos to: {test_media_dir}")
+        print("Sample videos can be downloaded from: https://sample-videos.com/")
     
     # --- 1. Set up a basic sequence ---
     clips = setup_test_sequence(seq_editor, test_media_dir)
@@ -485,7 +511,7 @@ def main():
     if not clips:
         print("No clips were added. Make sure test_media_dir is correct.")
         return
-    
+
     # --- 2. Demonstrate Trimming ---
     print("\n--- Demonstration: Trimming ---")
     # Let's trim the first clip: 24 frames from start, 24 frames from end
@@ -520,12 +546,24 @@ def main():
     
     # --- 4. Demonstrate Removing a Segment ---
     print("\n--- Demonstration: Removing a Segment ---")
-    if clips and len(clips) > 2:
-        video3, audio3 = clips[2]
-        
-        # Define a segment to remove (e.g., 1/3 through to 2/3 through)
-        segment_start = video3.frame_start + (video3.frame_final_duration // 3)
-        segment_end = video3.frame_start + (2 * video3.frame_final_duration // 3)
+    # Get a fresh clip for this demo since previous operations may have modified original clips
+    # We'll try to find a clip with enough duration for our test
+    video3 = None
+    audio3 = None
+    
+    # Find the longest video and audio strips to use
+    for strip in seq_editor.strips_all:
+        if strip.type == 'MOVIE' and (video3 is None or strip.frame_final_duration > video3.frame_final_duration):
+            video3 = strip
+        elif strip.type == 'SOUND' and (audio3 is None or strip.frame_final_duration > audio3.frame_final_duration):
+            audio3 = strip
+    
+    # Check if we have valid strips to work with
+    if video3 and audio3 and video3.frame_final_duration > 100:  # Ensure enough frames for the demo
+        # Define a segment to remove (e.g., 1/4 through to 1/2 through)
+        # Use a smaller segment to ensure we're well within the clip bounds
+        segment_start = video3.frame_start + (video3.frame_final_duration // 4)
+        segment_end = video3.frame_start + (video3.frame_final_duration // 2)
         
         print(f"\nRemoving middle segment from '{video3.name}'")
         print(f"  Original duration: {video3.frame_final_duration} frames")
@@ -536,32 +574,52 @@ def main():
         audio_result = remove_segment(audio3, segment_start, segment_end)
         
         # Final check - should have two parts that together are shorter
-        if video_result[0] and video_result[1]:
+        if 'video_result' in locals() and video_result[0] and video_result[1]:
             new_duration = video_result[0].frame_final_duration + video_result[1].frame_final_duration
             print(f"  New combined duration: {new_duration} frames")
+    else:
+        print("\nSkipping segment removal demo: No suitable strips found.")
     
     # --- 5. Demonstrate Slip Edit ---
     print("\n--- Demonstration: Slip Edit ---")
-    if clips and len(clips) > 0 and video_parts and len(video_parts) > 0:
+    # First check if we have video_parts from the earlier splitting demo
+    slip_target = None
+    
+    if 'video_parts' in locals() and video_parts and len(video_parts) > 0:
         # Use one of the parts from our earlier split
         slip_target = video_parts[0]
-        
+    elif clips and len(clips) > 0:
+        # If splitting wasn't done or failed, use the first clip
+        slip_target = clips[0][0]  # First clip's video part
+    
+    if slip_target:
         print(f"\nPerforming slip edit on '{slip_target.name}'")
         print(f"  Before slip: offset_start={slip_target.frame_offset_start}, offset_end={slip_target.frame_offset_end}")
         
         # Slip by 12 frames (show later content)
         slip_strip(slip_target, 12)
+    else:
+        print("\nCannot perform slip edit: No suitable target strip found.")
     
     # --- 6. Demonstrate Moving a Strip ---
     print("\n--- Demonstration: Moving a Strip ---")
-    if video_parts and len(video_parts) > 1:
+    # First check if we have video_parts from the earlier splitting demo
+    move_target = None
+    
+    if 'video_parts' in locals() and video_parts and len(video_parts) > 1:
         move_target = video_parts[1]
-        
+    elif clips and len(clips) > 1:
+        # If splitting wasn't done or failed, use the second clip
+        move_target = clips[1][0]  # Second clip's video part
+    
+    if move_target:
         print(f"\nMoving '{move_target.name}'")
         # Move to a higher channel
         move_strip(move_target, new_channel=4)
         # Also move it earlier by 10 frames
         move_strip(move_target, new_frame_start=move_target.frame_start - 10)
+    else:
+        print("\nCannot perform move operation: No suitable target strip found.")
     
     # --- Recap the Final State ---
     print("\n--- Final State of Strips ---")
