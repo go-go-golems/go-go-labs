@@ -289,7 +289,10 @@ import App from './App';
 import './index.css';
 
 async function start() {
-  if (import.meta.env.DEV) {
+  // Only enable MSW in dev mode when explicitly requested
+  // This allows the vite proxy to work for backend calls by default
+  if (import.meta.env.DEV && import.meta.env.VITE_USE_MSW === 'true') {
+    console.log('Starting MSW in development mode');
     const { worker } = await import('./mocks/browser');
     worker.start();
   }
@@ -1073,4 +1076,193 @@ If MSW isn't intercepting requests:
 If components aren't updating with Redux changes:
 
 1. Check that components are wrapped with `Provider`
-2. Verify selectors are correctly accessing
+2. Verify selectors are correctly accessing state
+3. Use the Redux DevTools to debug state changes
+
+### Go Backend Integration
+
+If the Go backend isn't serving the React app correctly:
+
+1. Ensure the Go embed directive is correctly set up
+2. Check that the static files are copied to the correct location
+3. Verify that client-side routing is properly handled
+4. Check for CORS issues when API calls are made
+
+## 15. Integrating with a Go Backend
+
+You can embed your React app into a Go binary for deployment. This approach offers several advantages:
+- Single binary deployment
+- No separate frontend/backend hosting needed
+- Built-in handling for client-side routing
+
+### Create the Go Server Structure
+
+Create the server directory structure:
+
+```bash
+mkdir -p cmd/server
+```
+
+### Create the Go Backend
+
+Create `cmd/server/main.go`:
+
+```go
+package main
+
+import (
+	"embed"
+	"io/fs"
+	"log"
+	"net/http"
+	"strings"
+)
+
+//go:embed static
+var staticFiles embed.FS
+
+func spa() http.Handler {
+	// Get a sub-filesystem rooted at the static directory
+	static, err := fs.Sub(staticFiles, "static")
+	if err != nil {
+		log.Fatal("Failed to get sub filesystem:", err)
+	}
+	fileServer := http.FileServer(http.FS(static))
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// First, try to serve api requests
+		if strings.HasPrefix(r.URL.Path, "/api/") {
+			return
+		}
+
+		// For any other path, check if the file exists
+		path := strings.TrimPrefix(r.URL.Path, "/")
+		if path == "" {
+			path = "index.html"
+		}
+
+		_, err := static.Open(path)
+		if err != nil {
+			// File doesn't exist, serve index.html for client-side routing
+			r.URL.Path = "/index.html"
+		}
+
+		fileServer.ServeHTTP(w, r)
+	})
+}
+
+// Example API handler - replace with your actual API implementations
+func apiRoutes() http.Handler {
+	mux := http.NewServeMux()
+	
+	// Sample API endpoint
+	mux.HandleFunc("/api/widgets", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`[{"id":1,"name":"Widget 1"},{"id":2,"name":"Widget 2"}]`))
+	})
+	
+	return mux
+}
+
+func main() {
+	mux := http.NewServeMux()
+	mux.Handle("/api/", apiRoutes())
+	mux.Handle("/", spa())
+	
+	port := ":8080"
+	log.Printf("Server starting on http://localhost%s", port)
+	log.Fatal(http.ListenAndServe(port, mux))
+}
+```
+
+### Create a Makefile for Building
+
+Create a `Makefile` in the project root:
+
+```make
+.PHONY: build frontend-build backend-build clean run dev
+
+# Default target
+all: build
+
+# Build frontend assets
+frontend-build:
+	bun run build
+	mkdir -p cmd/server/static
+	cp -r dist/* cmd/server/static/
+
+# Build the Go backend
+backend-build: frontend-build
+	go build -o server ./cmd/server
+
+# Full build process
+build: backend-build
+
+# Clean built assets
+clean:
+	rm -rf dist
+	rm -rf cmd/server/static
+	rm -f server
+
+# Run the server
+run: build
+	./server
+
+# Run Vite development server (proxying API calls to Go backend)
+dev:
+	bun run dev
+```
+
+### Build and Run the Application
+
+For development:
+1. Start the Go backend: `go run ./cmd/server/main.go`
+2. Start the frontend: `bun run dev` (uses Vite's proxy to reach backend)
+
+For production:
+1. Build both: `make build`
+2. Run the server: `./server`
+
+### Development Workflow
+
+1. For local development with mock data: `bun run dev:msw`
+2. For local development with real backend API: `bun run dev` 
+3. For Storybook development (always uses MSW): `bun run storybook`
+4. For production builds with Go backend: `make build`
+
+## 16. Troubleshooting Common Issues
+
+### Storybook CSS Loading Issues
+
+If CSS isn't properly loading in Storybook:
+
+1. Import CSS files in the Storybook preview file
+2. Create Storybook-specific CSS if needed
+3. Use style decorators for component-specific styling
+4. Check import order - global styles should come before component styles
+
+### MSW Integration Problems
+
+If MSW isn't intercepting requests:
+
+1. Ensure the service worker is properly initialized
+2. Check that handlers match the exact API endpoints
+3. Verify that MSW is initialized before component rendering
+4. Use the browser DevTools Network tab to debug request issues
+
+### Redux Store Integration
+
+If components aren't updating with Redux changes:
+
+1. Check that components are wrapped with `Provider`
+2. Verify selectors are correctly accessing state
+3. Use the Redux DevTools to debug state changes
+
+### Go Backend Integration
+
+If the Go backend isn't serving the React app correctly:
+
+1. Ensure the Go embed directive is correctly set up
+2. Check that the static files are copied to the correct location
+3. Verify that client-side routing is properly handled
+4. Check for CORS issues when API calls are made
