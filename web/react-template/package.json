@@ -1,0 +1,37 @@
+{
+  "name": "react-template",
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:msw": "VITE_USE_MSW=true vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
+  },
+  "dependencies": {
+    "@reduxjs/toolkit": "^2.8.2",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-redux": "^9.2.0"
+  },
+  "devDependencies": {
+    "@storybook/react": "^8.6.14",
+    "@storybook/react-vite": "^8.6.14",
+    "@types/react": "^19.1.4",
+    "@types/react-dom": "^19.1.5",
+    "@vitejs/plugin-react-swc": "^3.9.0",
+    "esbuild": "^0.25.4",
+    "msw": "^2.8.2",
+    "msw-storybook-addon": "^2.0.4",
+    "storybook": "^8.6.14",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5"
+  },
+  "msw": {
+    "workerDirectory": [
+      "public"
+    ]
+  }
+}
