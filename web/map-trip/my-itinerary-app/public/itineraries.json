@@ -1,0 +1,56 @@
+[
+  {
+    "id": "classic_sf",
+    "title": "Classic San Francisco",
+    "points": [
+      {
+        "name": "Golden Gate Bridge",
+        "lat": 37.8199,
+        "lng": -122.4786,
+        "bestTime": "Sunset (for golden light and fewer crowds)",
+        "photoTips": "Capture the bridge from Battery Spencer or Fort Point for iconic angles"
+      },
+      {
+        "name": "Palace of Fine Arts",
+        "lat": 37.8028,
+        "lng": -122.4487,
+        "bestTime": "Morning (soft light and fewer people)",
+        "photoTips": "Use the lagoon for reflections of the rotunda in your composition"
+      },
+      {
+        "name": "Fisherman's Wharf",
+        "lat": 37.8083,
+        "lng": -122.4156,
+        "bestTime": "Evening (for lively atmosphere and sunset views)",
+        "photoTips": "Try a long exposure to capture light trails of the carousel and waterfront"
+      }
+    ]
+  },
+  {
+    "id": "scenic_views",
+    "title": "SF Scenic Views",
+    "points": [
+      {
+        "name": "Twin Peaks",
+        "lat": 37.7529,
+        "lng": -122.4476,
+        "bestTime": "Sunrise or night (for panoramic cityscape views)",
+        "photoTips": "Bring a tripod for steady shots of the city lights after dark"
+      },
+      {
+        "name": "Coit Tower",
+        "lat": 37.8024,
+        "lng": -122.4060,
+        "bestTime": "Early morning (to avoid crowds, with soft light)",
+        "photoTips": "Shoot from the base for dramatic perspective, or capture the skyline from the top"
+      },
+      {
+        "name": "Baker Beach",
+        "lat": 37.7932,
+        "lng": -122.4840,
+        "bestTime": "Sunset (for colorful skies behind the Golden Gate Bridge)",
+        "photoTips": "Walk to the north end of the beach for the best angle of the bridge; use a wide lens"
+      }
+    ]
+  }
+]

@@ -1,0 +1,10 @@
+{
+    "amp.commands.allowlist": [
+        "bun create vite my-itinerary-app",
+        "cd my-itinerary-app",
+        "bun install",
+        "bun add @reduxjs/toolkit react-redux leaflet @types/leaflet",
+        "bun run dev",
+        "bun run build"
+    ]
+}
