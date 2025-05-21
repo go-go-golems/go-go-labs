@@ -102,7 +102,7 @@ def create_gamma_crossfade(seq_editor, strip1, strip2, transition_duration, chan
     
     return transition
 
-def create_wipe(seq_editor, strip1, strip2, transition_duration, wipe_type='SINGLE', angle=0.0, channel=None):
+def create_wipe(seq_editor, strip_being_wiped_away, strip_being_wiped_in, transition_duration, wipe_type='SINGLE', angle=0.0, channel=None):
     """
     Create a wipe transition between two strips.
     
@@ -120,29 +120,29 @@ def create_wipe(seq_editor, strip1, strip2, transition_duration, wipe_type='SING
         bpy.types.Strip: The created transition strip
     """
     # Make sure strips overlap by at least the transition duration
-    if strip2.frame_start > strip1.frame_final_end - transition_duration:
+    if strip_being_wiped_in.frame_start > strip_being_wiped_away.frame_final_end - transition_duration:
         print(f"Warning: Strips don't overlap enough for {transition_duration} frame transition")
-        # Adjust strip2 to start earlier to create required overlap
-        strip2.frame_start = strip1.frame_final_end - transition_duration
-        print(f"  Adjusted strip2.frame_start to {strip2.frame_start}")
+        # Adjust strip_being_wiped_in to start earlier to create required overlap
+        strip_being_wiped_in.frame_start = strip_being_wiped_away.frame_final_end - transition_duration
+        print(f"  Adjusted strip_being_wiped_in.frame_start to {strip_being_wiped_in.frame_start}")
     
     # Calculate transition start and end frames
-    trans_start = int(strip2.frame_start)
+    trans_start = int(strip_being_wiped_in.frame_start)
     trans_end = int(trans_start + transition_duration)
     
     # Choose channel if not specified
     if channel is None:
-        channel = max(strip1.channel, strip2.channel) + 1
+        channel = max(strip_being_wiped_away.channel, strip_being_wiped_in.channel) + 1
     
     # Create the wipe effect
     transition = seq_editor.strips.new_effect(
-        name=f"Wipe_{strip1.name}_{strip2.name}",
+        name=f"Wipe_{strip_being_wiped_away.name}_{strip_being_wiped_in.name}",
         type='WIPE',
         channel=channel,
         frame_start=trans_start,
         frame_end=trans_end,
-        seq1=strip1,
-        seq2=strip2
+        seq1=strip_being_wiped_away,
+        seq2=strip_being_wiped_in
     )
     
     # Configure wipe properties
@@ -150,7 +150,7 @@ def create_wipe(seq_editor, strip1, strip2, transition_duration, wipe_type='SING
     transition.direction = 'IN' if angle == 0.0 else 'OUT'
     transition.angle = angle
     
-    print(f"Created wipe transition from '{strip1.name}' to '{strip2.name}'")
+    print(f"Created wipe transition from '{strip_being_wiped_away.name}' to '{strip_being_wiped_in.name}'")
     print(f"  Type: {wipe_type}, Angle: {angle} radians")
     print(f"  Duration: {transition_duration} frames ({trans_start}-{trans_end})")
     print(f"  Channel: {channel}")

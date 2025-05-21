@@ -7,18 +7,18 @@ This directory contains test files for the Blender Video Sequence Editor (VSE) P
 ### Core Test Files
 
 1. `test_transition_utils.py`
-   - [ ] Crossfade transitions
-   - [ ] Gamma crossfade transitions
-   - [ ] Wipe transitions
+   - [x] Crossfade transitions
+   - [x] Gamma crossfade transitions
+   - [x] Wipe transitions
    - [ ] Audio transitions
    - [ ] Audio fades
-   - [ ] Color fade effects
-   - [ ] Test runner implementation
+   - [x] Color fade effects
+   - [x] Test runner implementation
 
 2. `test_flicker_effect.py`
-   - [ ] Video interleaving effects
-   - [ ] Multi-channel scene setup
-   - [ ] Flicker timing verification
+   - [x] Video interleaving effects
+   - [x] Multi-channel scene setup
+   - [x] Flicker timing verification
    - [ ] Audio synchronization
 
 ### Demo and Example Files

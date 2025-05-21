@@ -25,50 +25,77 @@ import bpy # type: ignore
 import os
 import sys
 from math import radians
+import traceback
 
 # Common shortcuts for Blender data and context
 D = bpy.data
 C = bpy.context
 
+# Set up enhanced logging
+VERBOSE_LOGGING = True
+
+def log(message, level='INFO'):
+    """Enhanced logging function with levels and formatting"""
+    if not VERBOSE_LOGGING and level != 'ERROR':
+        return
+    
+    prefix = {
+        'INFO': '🔵 [INFO]',
+        'WARN': '🟠 [WARN]',
+        'ERROR': '🔴 [ERROR]',
+        'DEBUG': '🟢 [DEBUG]',
+        'SUCCESS': '✅ [SUCCESS]',
+        'IMPORT': '📦 [IMPORT]',
+        'FUNCTION': '🔧 [FUNCTION]',
+        'EFFECT': '✨ [EFFECT]',
+    }.get(level, '[LOG]')
+    
+    print(f"{prefix} {message}")
+
 # Try to import utilities - first make sure our utilities path is in sys.path
+log("Setting up import paths", "DEBUG")
 scripts_dir = os.path.dirname(os.path.abspath(__file__))
 utils_dir = os.path.join(os.path.dirname(scripts_dir), 'utils')
+log(f"Scripts directory: {scripts_dir}", "DEBUG")
+log(f"Utils directory: {utils_dir}", "DEBUG")
+
 if utils_dir not in sys.path:
+    log(f"Adding {utils_dir} to sys.path", "DEBUG")
     sys.path.append(utils_dir)
 
-# Now try to import our utilities, with fallback implementations if import fails
+# Print out all paths in sys.path for debugging
+log("Current sys.path:", "DEBUG")
+for i, path in enumerate(sys.path):
+    log(f"  {i}: {path}", "DEBUG")
+
+# Import from vse_utils first (these are standard utilities)
 try:
-    from effect_utils import (
-        apply_transform_effect, create_picture_in_picture, apply_speed_effect,
-        create_text_overlay, apply_color_balance, apply_glow_effect
+    log("Attempting to import vse_utils", "IMPORT")
+    from vse_utils import (
+        get_active_scene, ensure_sequence_editor, add_movie_strip, add_sound_strip,
+        add_text_strip as create_text_overlay, add_transform_effect as apply_transform_effect,
+        find_test_media_dir
     )
-    print("Successfully imported effect utilities")
+    log("Successfully imported VSE utilities", "SUCCESS")
 except ImportError as e:
-    print(f"Warning: Could not import effect_utils: {e}")
-    print("Using built-in fallback implementations")
+    log(f"VSE utilities import failed: {e}", "ERROR")
+    log(f"Traceback: {traceback.format_exc()}", "DEBUG")
+
+# Now try to import the effect utilities
+try:
+    log("Attempting to import effect_utils", "IMPORT")
+    from effect_utils import (
+        create_picture_in_picture, apply_speed_effect,
+        apply_color_balance, apply_glow_effect
+    )
+    log("Successfully imported effect utilities", "SUCCESS")
+except ImportError as e:
+    log(f"Effect utilities import failed: {e}", "ERROR")
+    log(f"Traceback: {traceback.format_exc()}", "DEBUG")
+    log("Using built-in fallback implementations", "WARN")
     
     # --- Fallback utility implementations ---
-    def apply_transform_effect(seq_editor, strip, offset_x=0, offset_y=0, scale_x=1.0, scale_y=1.0, rotation=0.0, channel=None):
-        """Apply a transform effect to a strip"""
-        if channel is None:
-            channel = strip.channel + 1
-        
-        transform = seq_editor.strips.new_effect(
-            name=f"Transform_{strip.name}",
-            type='TRANSFORM',
-            channel=channel,
-            frame_start=strip.frame_start,
-            frame_end=strip.frame_final_end,
-            seq1=strip
-        )
-        
-        transform.transform.offset_x = offset_x
-        transform.transform.offset_y = offset_y
-        transform.transform.scale_x = scale_x
-        transform.transform.scale_y = scale_y
-        transform.transform.rotation = radians(rotation)  # Convert degrees to radians
-        
-        return transform
+    # apply_transform_effect is now imported from vse_utils
     
     def create_picture_in_picture(seq_editor, main_strip, pip_strip, pip_scale=0.3, position='top-right', channel=None):
         """Create a picture-in-picture effect"""
@@ -130,32 +157,7 @@ except ImportError as e:
         
         return speed_effect
     
-    def create_text_overlay(seq_editor, text, frame_start, frame_end, channel=10,
-                          position='center', size=50, color=(1,1,1,1)):
-        """Create a text overlay"""
-        text_strip = seq_editor.strips.new_effect(
-            name=f"Text_{text[:10]}",
-            type='TEXT',
-            channel=channel,
-            frame_start=frame_start,
-            frame_end=frame_end
-        )
-        
-        text_strip.text = text
-        text_strip.font_size = size
-        text_strip.color = color[:3]  # RGB only
-        
-        if position == 'center':
-            text_strip.location = (0.5, 0.5)
-        elif position == 'top':
-            text_strip.location = (0.5, 0.8)
-        elif position == 'bottom':
-            text_strip.location = (0.5, 0.2)
-        
-        if hasattr(text_strip, 'align_x'):
-            text_strip.align_x = 'CENTER'
-        
-        return text_strip
+    # create_text_overlay is now imported from vse_utils as add_text_strip
     
     def apply_color_balance(seq_editor, strip, lift=(1,1,1), gamma=(1,1,1), gain=(1,1,1)):
         """Apply color balance adjustments to a strip"""
@@ -193,118 +195,155 @@ except ImportError as e:
         return glow
 
 # --- Core utility functions from Chapter 2 & 3 ---
+# Note: These utilities are now imported from vse_utils.py at the top of the file
+# Keeping these wrappers for backward compatibility, but they now use the imported functions
 
-def get_active_scene():
-    """Get the currently active scene."""
-    return C.scene
+# Redefine movie/sound strip functions to include the console output the original had
+def add_movie_strip_with_logging(seq_editor, filepath, channel=1, frame_start=1, name=None):
+    """Add a movie strip to the sequence editor with detailed logging."""
+    try:
+        log(f"Adding movie strip from '{filepath}' on channel {channel} at frame {frame_start}", "FUNCTION")
+        if name:
+            log(f"Using custom name: {name}", "DEBUG")
+        
+        movie_strip = add_movie_strip(seq_editor, filepath, channel, frame_start, name)
+        
+        log(f"Added movie strip: {movie_strip.name} (Type: {movie_strip.type})")
+        log(f"  File: {movie_strip.filepath}", "DEBUG")
+        log(f"  Duration: {movie_strip.frame_duration} frames", "DEBUG")
+        log(f"  Resolution: {movie_strip.elements[0].orig_width}x{movie_strip.elements[0].orig_height} px", "DEBUG")
+        log(f"  Timeline: Channel {movie_strip.channel}, Start Frame {movie_strip.frame_start}, End Frame {movie_strip.frame_final_end}", "DEBUG")
+        
+        return movie_strip
+    except Exception as e:
+        log(f"Failed to add movie strip from '{filepath}': {e}", "ERROR")
+        log(f"Traceback: {traceback.format_exc()}", "DEBUG")
+        raise
 
-def ensure_sequence_editor(scene=None):
-    """Ensure a scene has a sequence editor, creating one if it doesn't exist."""
-    if scene is None:
-        scene = get_active_scene()
-    
-    if not scene.sequence_editor:
-        scene.sequence_editor_create()
-    
-    return scene.sequence_editor
-
-def add_movie_strip(seq_editor, filepath, channel=1, frame_start=1, name=None):
-    """Add a movie strip to the sequence editor."""
-    if name is None:
-        name = os.path.splitext(os.path.basename(filepath))[0]
-    
-    movie_strip = seq_editor.strips.new_movie(
-        name=name,
-        filepath=filepath,
-        channel=channel,
-        frame_start=frame_start
-    )
-    
-    print(f"Added movie strip: {movie_strip.name} (Type: {movie_strip.type})")
-    print(f"  File: {movie_strip.filepath}")
-    print(f"  Duration: {movie_strip.frame_duration} frames")
-    print(f"  Timeline: Channel {movie_strip.channel}, Start Frame {movie_strip.frame_start}, End Frame {movie_strip.frame_final_end}")
-    
-    return movie_strip
-
-def add_sound_strip(seq_editor, filepath, channel=1, frame_start=1, name=None):
-    """Add a sound strip to the sequence editor."""
-    if name is None:
-        name = os.path.splitext(os.path.basename(filepath))[0]
-    
-    sound_strip = seq_editor.strips.new_sound(
-        name=name,
-        filepath=filepath,
-        channel=channel,
-        frame_start=frame_start
-    )
-    
-    print(f"Added sound strip: {sound_strip.name} (Type: {sound_strip.type})")
-    if hasattr(sound_strip, 'sound') and sound_strip.sound and hasattr(sound_strip.sound, 'filepath'):
-        print(f"  File: {sound_strip.sound.filepath}")
-    else:
-        print(f"  File: {filepath}")
-    print(f"  Duration: {sound_strip.frame_duration} frames")
-    print(f"  Volume: {sound_strip.volume}, Pan: {sound_strip.pan}")
-    
-    return sound_strip
+def add_sound_strip_with_logging(seq_editor, filepath, channel=1, frame_start=1, name=None):
+    """Add a sound strip to the sequence editor with detailed logging."""
+    try:
+        log(f"Adding sound strip from '{filepath}' on channel {channel} at frame {frame_start}", "FUNCTION")
+        if name:
+            log(f"Using custom name: {name}", "DEBUG")
+            
+        sound_strip = add_sound_strip(seq_editor, filepath, channel, frame_start, name)
+        
+        log(f"Added sound strip: {sound_strip.name} (Type: {sound_strip.type})")
+        if hasattr(sound_strip, 'sound') and sound_strip.sound and hasattr(sound_strip.sound, 'filepath'):
+            log(f"  File: {sound_strip.sound.filepath}", "DEBUG")
+        else:
+            log(f"  File: {filepath}", "DEBUG")
+        log(f"  Duration: {sound_strip.frame_duration} frames", "DEBUG")
+        log(f"  Volume: {sound_strip.volume}, Pan: {sound_strip.pan}", "DEBUG")
+        log(f"  Timeline: Channel {sound_strip.channel}, Start Frame {sound_strip.frame_start}, End Frame {sound_strip.frame_final_end}", "DEBUG")
+        
+        return sound_strip
+    except Exception as e:
+        log(f"Failed to add sound strip from '{filepath}': {e}", "ERROR")
+        log(f"Traceback: {traceback.format_exc()}", "DEBUG")
+        raise
 
 def check_and_set_fps(seq_editor, scene):
     """Check FPS of strips and ensure it matches the scene FPS."""
+    log("Checking and validating FPS settings", "FUNCTION")
+    
     if not seq_editor or not seq_editor.sequences_all:
+        log("No sequences to check for FPS", "WARN")
         return True, "No sequences to check"
     
     # Collect FPS information from movie strips
     fps_counts = {}
     strip_fps = {}
     
+    log(f"Inspecting {len(seq_editor.sequences_all)} strips for FPS information", "DEBUG")
     for strip in seq_editor.sequences_all:
         if strip.type == 'MOVIE':
             # Get source FPS using the new Blender 4.4 method
             src_fps = None
+            log(f"Checking FPS for movie strip: {strip.name}", "DEBUG")
+            
             if hasattr(strip.elements[0], 'orig_fps') and strip.elements[0].orig_fps:
                 src_fps = strip.elements[0].orig_fps
+                log(f"  Found FPS from strip.elements[0].orig_fps: {src_fps}", "DEBUG")
             elif hasattr(strip, 'fps'):
                 src_fps = strip.fps
+                log(f"  Found FPS from strip.fps: {src_fps}", "DEBUG")
+            else:
+                log(f"  Could not determine FPS for {strip.name}", "WARN")
                 
             if src_fps:
                 strip_fps[strip.name] = src_fps
                 fps_counts[src_fps] = fps_counts.get(src_fps, 0) + 1
     
     if not fps_counts:
+        log("No movie strips found with FPS information", "WARN")
         return True, "No movie strips found"
     
     # Find most common FPS
     most_common_fps = max(fps_counts.items(), key=lambda x: x[1])[0]
+    log(f"Most common FPS in strips: {most_common_fps}", "DEBUG")
     
     # Check if all strips have the same FPS
     if len(fps_counts) > 1:
-        print("\nWARNING: Different FPS detected in strips:")
+        log("WARNING: Different FPS detected in strips:", "WARN")
         for strip_name, fps in strip_fps.items():
-            print(f"  u2022 {strip_name}: {fps} fps")
-        print(f"\nUsing most common FPS: {most_common_fps}")
+            log(f"  • {strip_name}: {fps} fps", "WARN")
+        log(f"Using most common FPS: {most_common_fps}", "WARN")
     
     # Check scene FPS
     scene_fps = scene.render.fps / scene.render.fps_base
+    log(f"Current scene FPS: {scene_fps}", "DEBUG")
     
     if abs(scene_fps - most_common_fps) > 0.01:  # Allow small floating-point differences
-        print(f"\nAdjusting scene FPS from {scene_fps} to {most_common_fps}")
-        scene.render.fps = int(most_common_fps)
-        scene.render.fps_base = 1.0
+        log(f"Adjusting scene FPS from {scene_fps} to {most_common_fps}", "WARN")
+        
+        # Use set_scene_fps from vse_utils if available, otherwise set directly
+        try:
+            log("Attempting to use vse_utils.set_scene_fps", "DEBUG")
+            from vse_utils import set_scene_fps
+            set_scene_fps(scene, most_common_fps)
+            log("Successfully updated scene FPS using vse_utils", "SUCCESS")
+        except (ImportError, AttributeError) as e:
+            log(f"Falling back to direct FPS setting: {e}", "DEBUG")
+            scene.render.fps = int(most_common_fps)
+            scene.render.fps_base = 1.0
+            log(f"Directly set scene.render.fps={scene.render.fps}, fps_base={scene.render.fps_base}", "DEBUG")
+        
         return True, f"Scene FPS adjusted to {most_common_fps}"
     
+    log(f"FPS check completed - all good with {scene_fps} fps", "SUCCESS")
     return True, f"All good - Scene and strips using {scene_fps} fps"
 
 def setup_test_sequence(seq_editor, test_media_dir):
     """Set up a test sequence with video clips for demonstration."""
-    print("\nSetting up test sequence with video clips...")
+    log("Setting up test sequence with video clips", "FUNCTION")
     
     # Clear all existing strips first
     if seq_editor.sequences_all:
-        print(f"Removing {len(seq_editor.sequences_all)} existing strips...")
-        for strip in seq_editor.sequences_all:
-            seq_editor.sequences.remove(strip)
-        print("All existing strips removed.")
+        strip_count = len(seq_editor.sequences_all)
+        log(f"Clearing {strip_count} existing strips", "DEBUG")
+        
+        # Try to use clear_all_strips from vse_utils if available
+        try:
+            log("Attempting to use vse_utils.clear_all_strips", "DEBUG")
+            from vse_utils import clear_all_strips
+            clear_all_strips(seq_editor)
+            log("Successfully cleared strips using vse_utils", "SUCCESS")
+        except (ImportError, AttributeError) as e:
+            log(f"Falling back to manual strip removal: {e}", "DEBUG")
+            log(f"Removing {strip_count} existing strips...", "WARN")
+            
+            try:
+                for strip in seq_editor.sequences_all:
+                    log(f"  Removing strip: {strip.name} ({strip.type})", "DEBUG")
+                    seq_editor.sequences.remove(strip)
+                log("All existing strips removed successfully", "SUCCESS")
+            except Exception as e:
+                log(f"Error removing strips: {e}", "ERROR")
+                log(traceback.format_exc(), "DEBUG")
+    else:
+        log("No existing strips to clear", "DEBUG")
     
     # List of test video files to use
     video_files = [
@@ -312,6 +351,7 @@ def setup_test_sequence(seq_editor, test_media_dir):
         "SampleVideo_1280x720_1mb.mp4",
         "SampleVideo_1280x720_5mb.mp4"
     ]
+    log(f"Using {len(video_files)} test video files", "DEBUG")
     
     # Track channels for video and audio
     video_channel = 1
@@ -320,50 +360,72 @@ def setup_test_sequence(seq_editor, test_media_dir):
     # Start with frame 1 and add spacing between clips
     current_frame = 1
     frame_padding = 10  # Space between clips
+    log(f"Starting at frame {current_frame} with {frame_padding} frames padding between clips", "DEBUG")
     
     # Name the channels
-    if video_channel < len(seq_editor.channels):
-        seq_editor.channels[video_channel-1].name = "Video"
-    if audio_channel < len(seq_editor.channels):
-        seq_editor.channels[audio_channel-1].name = "Audio"
+    try:
+        if video_channel < len(seq_editor.channels):
+            seq_editor.channels[video_channel-1].name = "Video"
+            log(f"Named channel {video_channel} as 'Video'", "DEBUG")
+        if audio_channel < len(seq_editor.channels):
+            seq_editor.channels[audio_channel-1].name = "Audio"
+            log(f"Named channel {audio_channel} as 'Audio'", "DEBUG")
+    except Exception as e:
+        log(f"Error naming channels: {e}", "WARN")
     
     # Add clips and store them for later use
     added_clips = []
     
     for i, video_filename in enumerate(video_files):
         video_path = os.path.join(test_media_dir, video_filename)
+        log(f"Processing video file {i+1}/{len(video_files)}: {video_filename}", "DEBUG")
+        log(f"  Full path: {video_path}", "DEBUG")
+        
         if os.path.exists(video_path):
-            # Add video strip
-            video_strip = add_movie_strip(
-                seq_editor, 
-                video_path, 
-                channel=video_channel, 
-                frame_start=current_frame,
-                name=f"Clip{i+1}"
-            )
+            log(f"  File exists, adding to sequence", "DEBUG")
             
-            # Add matching audio strip
-            audio_strip = add_sound_strip(
-                seq_editor, 
-                video_path, 
-                channel=audio_channel, 
-                frame_start=current_frame,
-                name=f"Audio{i+1}"
-            )
-            
-            # Store the pair
-            added_clips.append((video_strip, audio_strip))
-            
-            # Update frame position for next clip
-            current_frame = video_strip.frame_final_end + frame_padding
+            try:
+                # Add video strip with logging
+                video_strip = add_movie_strip_with_logging(
+                    seq_editor, 
+                    video_path, 
+                    channel=video_channel, 
+                    frame_start=current_frame,
+                    name=f"Clip{i+1}"
+                )
+                
+                # Add matching audio strip with logging
+                audio_strip = add_sound_strip_with_logging(
+                    seq_editor, 
+                    video_path, 
+                    channel=audio_channel, 
+                    frame_start=current_frame,
+                    name=f"Audio{i+1}"
+                )
+                
+                # Store the pair
+                added_clips.append((video_strip, audio_strip))
+                log(f"  Added clip pair (video: {video_strip.name}, audio: {audio_strip.name})", "SUCCESS")
+                
+                # Update frame position for next clip
+                prev_frame = current_frame
+                current_frame = video_strip.frame_final_end + frame_padding
+                log(f"  Next clip will start at frame {current_frame} (prev: {prev_frame}, duration: {video_strip.frame_final_duration})", "DEBUG")
+            except Exception as e:
+                log(f"  Error adding clip {video_filename}: {e}", "ERROR")
+                log(traceback.format_exc(), "DEBUG")
         else:
-            print(f"Video file not found: {video_path}")
+            log(f"  Video file not found: {video_path}", "ERROR")
     
-    print(f"Added {len(added_clips)} clips to the sequence.")
+    log(f"Added {len(added_clips)} clips to the sequence", "SUCCESS")
     
     # Check and set FPS after adding all clips
-    success, message = check_and_set_fps(seq_editor, C.scene)
-    print(f"\nFPS Check: {message}")
+    try:
+        success, message = check_and_set_fps(seq_editor, C.scene)
+        log(f"FPS Check: {message}", "INFO")
+    except Exception as e:
+        log(f"Error during FPS check: {e}", "ERROR")
+        log(traceback.format_exc(), "DEBUG")
     
     return added_clips
 
@@ -377,33 +439,41 @@ def demonstrate_transform_effects(seq_editor, clips):
         seq_editor: The sequence editor
         clips: List of (video_strip, audio_strip) tuples
     """
-    print("\n--- Demonstrating Transform Effects ---")
+    log("Demonstrating Transform Effects", "EFFECT")
     
     # Need at least one clip
     if not clips:
-        print("Need at least 1 clip to demonstrate transform effects. Skipping.")
+        log("Need at least 1 clip to demonstrate transform effects. Skipping.", "WARN")
         return
     
     # Get the first clip
     video1, _ = clips[0]
+    log(f"Using video clip '{video1.name}' for transform effect", "DEBUG")
     
-    # Apply the transform effect - scale down slightly and move up
-    transform = apply_transform_effect(
-        seq_editor=seq_editor,
-        strip=video1,
-        offset_x=0,  # No horizontal change
-        offset_y=50,  # Move up 50 pixels
-        scale_x=0.9,  # Scale to 90% width
-        scale_y=0.9,  # Scale to 90% height
-        rotation=5.0,  # Rotate 5 degrees
-        channel=5     # Place on channel 5
-    )
-    
-    print(f"Applied transform effect to '{video1.name}'")
-    print(f"  Positioned at offset (0, 50) pixels")
-    print(f"  Scaled to 90% of original size")
-    print(f"  Rotated 5 degrees")
-    print(f"  Effect placed on channel {transform.channel}")
+    try:
+        # Apply the transform effect - scale down slightly and move up
+        # Note: apply_transform_effect is already imported from vse_utils
+        log(f"Applying transform effect to '{video1.name}'", "DEBUG")
+        transform = apply_transform_effect(
+            seq_editor=seq_editor,
+            strip=video1,
+            offset_x=0,  # No horizontal change
+            offset_y=50,  # Move up 50 pixels
+            scale_x=0.9,  # Scale to 90% width
+            scale_y=0.9,  # Scale to 90% height
+            rotation=5.0,  # Rotate 5 degrees
+            channel=5     # Place on channel 5
+        )
+        
+        log(f"Applied transform effect to '{video1.name}'")
+        log(f"  Positioned at offset (0, 50) pixels", "DEBUG")
+        log(f"  Scaled to 90% of original size", "DEBUG")
+        log(f"  Rotated 5 degrees", "DEBUG")
+        log(f"  Effect placed on channel {transform.channel}", "DEBUG")
+        log(f"Transform effect created successfully", "SUCCESS")
+    except Exception as e:
+        log(f"Error applying transform effect: {e}", "ERROR")
+        log(traceback.format_exc(), "DEBUG")
 
 def demonstrate_picture_in_picture(seq_editor, clips):
     """
@@ -530,6 +600,7 @@ def demonstrate_text_overlays(seq_editor, clips):
     last_video, _ = clips[-1]
     
     # Create a main title at the beginning
+    # Note: create_text_overlay is already imported from vse_utils as add_text_strip
     title = create_text_overlay(
         seq_editor=seq_editor,
         text="Chapter 5: Effects and Adjustments",
@@ -629,73 +700,128 @@ def main():
     Main function demonstrating Chapter 5 concepts: Effects and Adjustments.
     This function sets up a test sequence and then demonstrates various effects.
     """
-    print("Blender VSE Python API Test - Chapter 5: Effects and Adjustments")
-    print("=============================================================\n")
+    log("Blender VSE Python API Test - Chapter 5: Effects and Adjustments", "INFO")
+    log("=============================================================", "INFO")
     
-    scene = get_active_scene()
-    seq_editor = ensure_sequence_editor(scene)
-    
-    print(f"Operating on scene: '{scene.name}' with Sequence Editor: {seq_editor}")
+    # Get scene and ensure we have a sequence editor
+    log("Initializing scene and sequence editor", "FUNCTION")
+    try:
+        scene = get_active_scene()
+        log(f"Active scene: {scene.name}", "DEBUG")
+        
+        seq_editor = ensure_sequence_editor(scene)
+        log(f"Sequence editor initialized: {seq_editor}", "DEBUG")
+        
+        # Log render settings
+        resolution_x = scene.render.resolution_x
+        resolution_y = scene.render.resolution_y
+        fps = scene.render.fps / scene.render.fps_base
+        log(f"Scene settings - Resolution: {resolution_x}x{resolution_y}, FPS: {fps}", "DEBUG")
+    except Exception as e:
+        log(f"Error initializing scene/sequence editor: {e}", "ERROR")
+        log(traceback.format_exc(), "DEBUG")
+        raise
     
     # --- Configuration ---
-    # Path to test media - try to find it in common locations
-    test_media_dir = "/home/manuel/Movies/blender-movie-editor"
-    
-    # Check if path exists, if not look for alternative locations
-    if not os.path.exists(test_media_dir):
-        # Try relative path from current script
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        alternative_paths = [
-            os.path.join(script_dir, "../media"),
-            os.path.join(script_dir, "media"),
-            "/tmp/blender-test-media"
-        ]
+    # Use find_test_media_dir from vse_utils if available
+    log("Looking for test media directory", "FUNCTION")
+    try:
+        test_media_dir = find_test_media_dir("/home/manuel/Movies/blender-movie-editor")
+        log(f"Found test media directory using utility: {test_media_dir}", "SUCCESS")
+    except (NameError, AttributeError) as e:
+        # Fallback implementation if utility not available
+        log(f"Could not use find_test_media_dir utility: {e}", "WARN")
+        test_media_dir = "/home/manuel/Movies/blender-movie-editor"
         
-        for path in alternative_paths:
-            if os.path.exists(path):
-                test_media_dir = path
-                print(f"Using alternative media path: {test_media_dir}")
-                break
-        
-        print(f"Warning: Media directory not found. Please download test videos to: {test_media_dir}")
-        print("Sample videos can be downloaded from: https://sample-videos.com/")
+        # Check if path exists, if not look for alternative locations
+        if not os.path.exists(test_media_dir):
+            log(f"Default path {test_media_dir} not found, trying alternatives", "WARN")
+            # Try relative path from current script
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            alternative_paths = [
+                os.path.join(script_dir, "../media"),
+                os.path.join(script_dir, "media"),
+                "/tmp/blender-test-media"
+            ]
+            
+            for path in alternative_paths:
+                log(f"Checking alternative path: {path}", "DEBUG")
+                if os.path.exists(path):
+                    test_media_dir = path
+                    log(f"Using alternative media path: {test_media_dir}", "SUCCESS")
+                    break
+            
+            if not os.path.exists(test_media_dir):
+                log(f"Warning: Media directory not found. Please download test videos to: {test_media_dir}", "ERROR")
+                log("Sample videos can be downloaded from: https://sample-videos.com/", "INFO")
     
     # --- 1. Set up a basic sequence with clips ---
-    clips = setup_test_sequence(seq_editor, test_media_dir)
-    
-    if not clips:
-        print("No clips were added. Make sure test_media_dir is correct.")
+    log("Starting to set up test sequence", "FUNCTION")
+    try:
+        clips = setup_test_sequence(seq_editor, test_media_dir)
+        
+        if not clips:
+            log("No clips were added. Make sure test_media_dir is correct.", "ERROR")
+            return
+        
+        log(f"Successfully set up test sequence with {len(clips)} clips", "SUCCESS")
+    except Exception as e:
+        log(f"Failed to set up test sequence: {e}", "ERROR")
+        log(traceback.format_exc(), "DEBUG")
         return
     
-    # --- 2. Demonstrate transform effects ---
-    demonstrate_transform_effects(seq_editor, clips)
-    
-    # --- 3. Demonstrate picture-in-picture ---
-    demonstrate_picture_in_picture(seq_editor, clips)
-    
-    # --- 4. Demonstrate speed effects ---
-    demonstrate_speed_effects(seq_editor, clips)
-    
-    # --- 5. Demonstrate text overlays ---
-    demonstrate_text_overlays(seq_editor, clips)
-    
-    # --- 6. Demonstrate color effects ---
-    demonstrate_color_effects(seq_editor, clips)
+    # Run each demo function with proper error handling
+    try:
+        # --- 2. Demonstrate transform effects ---
+        log("Starting transform effects demonstration", "FUNCTION")
+        demonstrate_transform_effects(seq_editor, clips)
+        
+        # --- 3. Demonstrate picture-in-picture ---
+        log("Starting picture-in-picture demonstration", "FUNCTION")
+        demonstrate_picture_in_picture(seq_editor, clips)
+        
+        # --- 4. Demonstrate speed effects ---
+        log("Starting speed effects demonstration", "FUNCTION")
+        demonstrate_speed_effects(seq_editor, clips)
+        
+        # --- 5. Demonstrate text overlays ---
+        log("Starting text overlays demonstration", "FUNCTION")
+        demonstrate_text_overlays(seq_editor, clips)
+        
+        # --- 6. Demonstrate color effects ---
+        log("Starting color effects demonstration", "FUNCTION")
+        demonstrate_color_effects(seq_editor, clips)
+    except Exception as e:
+        log(f"Error during effect demonstrations: {e}", "ERROR")
+        log(traceback.format_exc(), "DEBUG")
     
     # --- Recap the Final State ---
-    print("\n--- Final State of Strips ---")
-    strip_count = 0
-    for strip in seq_editor.strips_all:
-        strip_count += 1
-        if strip_count <= 10:  # Only show first 10 to avoid overwhelming output
-            print(f"- '{strip.name}' (Type: {strip.type}): Channel {strip.channel}, "
-                f"Frames {strip.frame_start}-{strip.frame_final_end}")
+    log("Final State of Strips", "INFO")
+    try:
+        strip_count = 0
+        for strip in seq_editor.strips_all:
+            strip_count += 1
+            if strip_count <= 10:  # Only show first 10 to avoid overwhelming output
+                log(f"- '{strip.name}' (Type: {strip.type}): Channel {strip.channel}, Frames {strip.frame_start}-{strip.frame_final_end}")
+        
+        if strip_count > 10:
+            log(f"... and {strip_count - 10} more strips", "INFO")
+        
+        log(f"Total strips in final sequence: {strip_count}", "SUCCESS")
+    except Exception as e:
+        log(f"Error while printing final state: {e}", "ERROR")
     
-    if strip_count > 10:
-        print(f"... and {strip_count - 10} more strips")
-    
-    print("\nTest for Chapter 5 completed! Review the VSE timeline and console output.")
+    log("Test for Chapter 5 completed! Review the VSE timeline and console output.", "SUCCESS")
 
 # Run the main function to demonstrate Chapter 5 concepts
 if __name__ == "__main__":
-    main()
+    try:
+        log("Starting Chapter 5 demonstration script", "INFO")
+        main()
+        log("Script execution completed successfully", "SUCCESS")
+    except Exception as e:
+        log(f"Unhandled error in main execution: {e}", "ERROR")
+        log(traceback.format_exc(), "DEBUG")
+        print(f"\n\nERROR: Script failed with error: {e}")
+    finally:
+        log("Script execution finished", "INFO")

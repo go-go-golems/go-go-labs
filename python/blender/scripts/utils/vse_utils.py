@@ -283,11 +283,29 @@ def clear_all_strips(seq_editor):
     strip_count = len(seq_editor.strips_all)
     
     if strip_count > 0:
-        # Clone the list first to avoid modification during iteration
-        strips_to_remove = list(seq_editor.strips_all)
-        for strip in strips_to_remove:
-            seq_editor.strips.remove(strip)
+        print(f"\n=== Clearing {strip_count} strips ===")
+        
+        # First, print all strips and their dependencies
+        print("\nStrip dependencies before removal:")
+        for strip in seq_editor.strips_all:
+            deps = []
+            if hasattr(strip, 'seq1') and strip.seq1:
+                deps.append(f"seq1={strip.seq1.name}")
+            if hasattr(strip, 'seq2') and strip.seq2:
+                deps.append(f"seq2={strip.seq2.name}")
+            dep_str = f" (Dependencies: {', '.join(deps)})" if deps else ""
+            print(f"  {strip.name} (Type: {strip.type}){dep_str}")
+        
+        # Select all strips
+        for strip in seq_editor.sequences_all:
+            strip.select = True
+        
+        # Use Blender's operator to delete them (this handles dependencies correctly)
+        print("\nDeleting all strips using Blender operator")
+        bpy.ops.sequencer.delete()
     
+    remaining = len(seq_editor.strips_all)
+    print(f"\nStrips removed: {strip_count}, Remaining: {remaining}")
     return strip_count
 
 def find_strips_at_frame(seq_editor, frame, channel=None, strip_type=None):
