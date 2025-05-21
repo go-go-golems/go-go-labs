@@ -15,6 +15,20 @@ Key concepts covered:
 5.  **Picture-in-Picture**: Creating PIP compositions
 6.  **Glow Effects**: Applying glow/blur effects to clips
 
+What to expect after running this script:
+
+1. A sequence with three video clips placed on channel 1 with corresponding audio on channel 2
+2. First clip (Clip1) has a transform effect applied (scaled to 90%, rotated 5°, moved up)
+3. Second clip (Clip2) shown as a picture-in-picture in the top-right corner
+4. Additional clips demonstrating slow-motion (0.5x) and fast-motion (2x) effects
+5. Text overlays including a title at the beginning, lower third captions for each clip,
+   and end credits at the end of the sequence
+6. Color grading applied to the first clip with a slight reddish tint in shadows
+7. Glow effect applied to the second clip
+
+All effects are placed on separate channels above their source clips for better
+organization and visualization.
+
 Usage:
     -   Run this script from Blender's Text Editor or Python Console.
     -   Ensure you are in the Video Editing workspace.
@@ -176,12 +190,16 @@ except ImportError as e:
         if channel is None:
             channel = strip.channel + 1
         
+        # Ensure start/end frames are integers
+        frame_start = ensure_integer_frame(strip.frame_start)
+        frame_end = ensure_integer_frame(strip.frame_final_end)
+        
         glow = seq_editor.strips.new_effect(
             name=f"Glow_{strip.name}",
             type='GLOW',
             channel=channel,
-            frame_start=strip.frame_start,
-            frame_end=strip.frame_final_end,
+            frame_start=frame_start,
+            frame_end=frame_end,
             seq1=strip
         )
         
@@ -190,7 +208,9 @@ except ImportError as e:
         if hasattr(glow, 'blur_radius'):
             glow.blur_radius = blur_radius
         if hasattr(glow, 'quality'):
-            glow.quality = quality
+            # Convert float quality (0-1) to integer (1-10)
+            quality_int = int(quality * 10) if isinstance(quality, float) else quality
+            glow.quality = quality_int  # Expects integer value
         
         return glow
 
@@ -431,6 +451,13 @@ def setup_test_sequence(seq_editor, test_media_dir):
 
 # --- Chapter 5 Demo Functions ---
 
+def ensure_integer_frame(value):
+    """Helper function to ensure frame numbers are integers."""
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return value
+
 def demonstrate_transform_effects(seq_editor, clips):
     """
     Demonstrate applying transform effects to clips.
@@ -452,18 +479,25 @@ def demonstrate_transform_effects(seq_editor, clips):
     
     try:
         # Apply the transform effect - scale down slightly and move up
-        # Note: apply_transform_effect is already imported from vse_utils
-        log(f"Applying transform effect to '{video1.name}'", "DEBUG")
-        transform = apply_transform_effect(
-            seq_editor=seq_editor,
-            strip=video1,
-            offset_x=0,  # No horizontal change
-            offset_y=50,  # Move up 50 pixels
-            scale_x=0.9,  # Scale to 90% width
-            scale_y=0.9,  # Scale to 90% height
-            rotation=5.0,  # Rotate 5 degrees
-            channel=5     # Place on channel 5
+        # Let's use the direct approach which is more reliable
+        log(f"Creating transform effect for '{video1.name}'", "DEBUG")
+        
+        # Create transform effect directly
+        transform = seq_editor.strips.new_effect(
+            name=f"Transform_{video1.name}",
+            type='TRANSFORM',
+            channel=5,
+            frame_start=ensure_integer_frame(video1.frame_start),
+            frame_end=ensure_integer_frame(video1.frame_final_end),
+            seq1=video1
         )
+        
+        # Set transform properties
+        transform.transform.offset_x = 0
+        transform.transform.offset_y = 50
+        transform.transform.scale_x = 0.9
+        transform.transform.scale_y = 0.9
+        transform.transform.rotation = radians(5.0)
         
         log(f"Applied transform effect to '{video1.name}'")
         log(f"  Positioned at offset (0, 50) pixels", "DEBUG")
@@ -474,6 +508,30 @@ def demonstrate_transform_effects(seq_editor, clips):
     except Exception as e:
         log(f"Error applying transform effect: {e}", "ERROR")
         log(traceback.format_exc(), "DEBUG")
+        
+        # Fallback to direct creation of transform effect
+        log("Attempting fallback transform implementation", "WARN")
+        try:
+            transform = seq_editor.strips.new_effect(
+                name=f"Transform_{video1.name}",
+                type='TRANSFORM',
+                channel=5,
+                frame_start=ensure_integer_frame(video1.frame_start),
+                frame_end=ensure_integer_frame(video1.frame_final_end),
+                seq1=video1
+            )
+            
+            # Set the transform properties
+            transform.transform.offset_x = 0
+            transform.transform.offset_y = 50
+            transform.transform.scale_x = 0.9
+            transform.transform.scale_y = 0.9
+            transform.transform.rotation = radians(5.0)
+            
+            log(f"Fallback transform effect created successfully", "SUCCESS")
+        except Exception as e2:
+            log(f"Fallback also failed: {e2}", "ERROR")
+            log(traceback.format_exc(), "DEBUG")
 
 def demonstrate_picture_in_picture(seq_editor, clips):
     """
@@ -483,11 +541,11 @@ def demonstrate_picture_in_picture(seq_editor, clips):
         seq_editor: The sequence editor
         clips: List of (video_strip, audio_strip) tuples
     """
-    print("\n--- Demonstrating Picture-in-Picture ---")
+    log("Demonstrating Picture-in-Picture", "EFFECT")
     
     # Need at least two clips
     if len(clips) < 2:
-        print("Need at least 2 clips to demonstrate picture-in-picture. Skipping.")
+        log("Need at least 2 clips to demonstrate picture-in-picture. Skipping.", "WARN")
         return
     
     # Get two clips
@@ -496,25 +554,52 @@ def demonstrate_picture_in_picture(seq_editor, clips):
     
     # Make sure video2 is at least as long as video1 for simplicity
     if video2.frame_final_end < video1.frame_final_end:
-        print(f"Note: Adjusting second clip to match first clip's duration")
+        log(f"Note: Adjusting second clip to match first clip's duration", "DEBUG")
         # Extend video2's end to match video1
         # This is just for demo purposes, in real usage might need more care
-        video2.frame_start = video1.frame_start
+        video2.frame_start = ensure_integer_frame(video1.frame_start)
     
-    # Create the picture-in-picture effect
-    pip_effect = create_picture_in_picture(
-        seq_editor=seq_editor,
-        main_strip=video1,
-        pip_strip=video2,
-        pip_scale=0.3,   # 30% of original size
-        position='top-right',
-        channel=6
-    )
-    
-    print(f"Created picture-in-picture effect")
-    print(f"  Main clip: '{video1.name}'")
-    print(f"  PIP clip: '{video2.name}' scaled to 30% in top-right corner")
-    print(f"  Effect placed on channel {pip_effect.channel}")
+    try:
+        # Create the picture-in-picture effect
+        log(f"Creating PIP effect with '{video1.name}' as main and '{video2.name}' as PIP", "DEBUG")
+        
+        # Calculate position based on specified corner
+        width = C.scene.render.resolution_x
+        height = C.scene.render.resolution_y
+        padding = 20
+        position = 'top-right'
+        pip_scale = 0.3
+        
+        # Calculate position offset
+        offset_x = width/2 - (width * pip_scale)/2 - padding
+        offset_y = height/2 - (height * pip_scale)/2 - padding
+        
+        # Create transform effect directly
+        transform = seq_editor.strips.new_effect(
+            name=f"PIP_{video2.name}",
+            type='TRANSFORM',
+            channel=6,
+            frame_start=ensure_integer_frame(video2.frame_start),
+            frame_end=ensure_integer_frame(video2.frame_final_end),
+            seq1=video2
+        )
+        
+        # Set transform properties
+        transform.transform.offset_x = offset_x
+        transform.transform.offset_y = offset_y
+        transform.transform.scale_x = pip_scale
+        transform.transform.scale_y = pip_scale
+        
+        log(f"Created picture-in-picture effect", "SUCCESS")
+        log(f"  Main clip: '{video1.name}'", "DEBUG")
+        log(f"  PIP clip: '{video2.name}' scaled to 30% in top-right corner", "DEBUG")
+        log(f"  Effect placed on channel {transform.channel}", "DEBUG")
+        
+        return transform
+    except Exception as e:
+        log(f"Error creating picture-in-picture effect: {e}", "ERROR")
+        log(traceback.format_exc(), "DEBUG")
+        return None
 
 def demonstrate_speed_effects(seq_editor, clips):
     """
@@ -524,61 +609,82 @@ def demonstrate_speed_effects(seq_editor, clips):
         seq_editor: The sequence editor
         clips: List of (video_strip, audio_strip) tuples
     """
-    print("\n--- Demonstrating Speed Effects ---")
+    log("Demonstrating Speed Effects", "EFFECT")
     
     # Need at least one clip
     if not clips:
-        print("Need at least 1 clip to demonstrate speed effects. Skipping.")
+        log("Need at least 1 clip to demonstrate speed effects. Skipping.", "WARN")
         return
     
     # We'll need a fresh clip for this to avoid affecting other demos
     # Let's duplicate a clip and add it at the end
     last_video, last_audio = clips[-1]
-    start_frame = last_video.frame_final_end + 50  # Add some spacing
+    start_frame = ensure_integer_frame(last_video.frame_final_end + 50)  # Add some spacing
     
     # Create a new strip using the same file
-    slow_video = add_movie_strip(
-        seq_editor=seq_editor,
-        filepath=last_video.filepath,
-        channel=last_video.channel,
-        frame_start=start_frame,
-        name="SlowClip"
-    )
-    
-    # Also add a new strip for fast motion demo
-    fast_video = add_movie_strip(
-        seq_editor=seq_editor,
-        filepath=last_video.filepath,
-        channel=last_video.channel,
-        frame_start=slow_video.frame_final_end + 50,  # After the slow clip
-        name="FastClip"
-    )
-    
-    # Create a slow-motion effect (0.5x speed)
-    slow_effect = apply_speed_effect(
-        seq_editor=seq_editor,
-        strip=slow_video,
-        speed_factor=0.5,  # Half speed (slow motion)
-        channel=7
-    )
-    
-    print(f"Applied slow-motion effect (0.5x) to '{slow_video.name}'")
-    print(f"  Original duration: {slow_video.frame_final_duration} frames")
-    print(f"  New duration: {slow_effect.frame_final_duration} frames")
-    print(f"  Effect placed on channel {slow_effect.channel}")
-    
-    # Create a fast-motion effect (2x speed)
-    fast_effect = apply_speed_effect(
-        seq_editor=seq_editor,
-        strip=fast_video,
-        speed_factor=2.0,  # Double speed
-        channel=7
-    )
-    
-    print(f"Applied fast-motion effect (2.0x) to '{fast_video.name}'")
-    print(f"  Original duration: {fast_video.frame_final_duration} frames")
-    print(f"  New duration: {fast_effect.frame_final_duration} frames")
-    print(f"  Effect placed on channel {fast_effect.channel}")
+    try:
+        # Create a new strip for slow motion
+        slow_video = add_movie_strip(
+            seq_editor=seq_editor,
+            filepath=last_video.filepath,
+            channel=last_video.channel,
+            frame_start=start_frame,
+            name="SlowClip"
+        )
+        
+        # Also add a new strip for fast motion demo
+        fast_video = add_movie_strip(
+            seq_editor=seq_editor,
+            filepath=last_video.filepath,
+            channel=last_video.channel,
+            frame_start=ensure_integer_frame(slow_video.frame_final_end + 50),  # After the slow clip
+            name="FastClip"
+        )
+        
+        # Create a slow-motion effect (0.5x speed)
+        slow_speed_factor = 0.5
+        slow_duration = int(slow_video.frame_final_duration / slow_speed_factor)
+        
+        slow_effect = seq_editor.strips.new_effect(
+            name=f"Speed_{slow_video.name}_{slow_speed_factor}x",
+            type='SPEED',
+            channel=7,
+            frame_start=ensure_integer_frame(slow_video.frame_start),
+            frame_end=ensure_integer_frame(slow_video.frame_start + slow_duration),
+            seq1=slow_video
+        )
+        
+        if hasattr(slow_effect, 'use_scale_to_length'):
+            slow_effect.use_scale_to_length = True
+            
+        log(f"Applied slow-motion effect (0.5x) to '{slow_video.name}'", "SUCCESS")
+        log(f"  Original duration: {slow_video.frame_final_duration} frames", "DEBUG")
+        log(f"  New duration: {slow_effect.frame_final_duration} frames", "DEBUG")
+        log(f"  Effect placed on channel {slow_effect.channel}", "DEBUG")
+        
+        # Create a fast-motion effect (2x speed)
+        fast_speed_factor = 2.0
+        fast_duration = int(fast_video.frame_final_duration / fast_speed_factor)
+        
+        fast_effect = seq_editor.strips.new_effect(
+            name=f"Speed_{fast_video.name}_{fast_speed_factor}x",
+            type='SPEED',
+            channel=7,
+            frame_start=ensure_integer_frame(fast_video.frame_start),
+            frame_end=ensure_integer_frame(fast_video.frame_start + fast_duration),
+            seq1=fast_video
+        )
+        
+        if hasattr(fast_effect, 'use_scale_to_length'):
+            fast_effect.use_scale_to_length = True
+            
+        log(f"Applied fast-motion effect (2.0x) to '{fast_video.name}'", "SUCCESS")
+        log(f"  Original duration: {fast_video.frame_final_duration} frames", "DEBUG")
+        log(f"  New duration: {fast_effect.frame_final_duration} frames", "DEBUG")
+        log(f"  Effect placed on channel {fast_effect.channel}", "DEBUG")
+    except Exception as e:
+        log(f"Error creating speed effects: {e}", "ERROR")
+        log(traceback.format_exc(), "DEBUG")
 
 def demonstrate_text_overlays(seq_editor, clips):
     """
@@ -588,65 +694,77 @@ def demonstrate_text_overlays(seq_editor, clips):
         seq_editor: The sequence editor
         clips: List of (video_strip, audio_strip) tuples
     """
-    print("\n--- Demonstrating Text Overlays ---")
+    log("Demonstrating Text Overlays", "EFFECT")
     
     # Need at least one clip as reference for timeline
     if not clips:
-        print("Need at least 1 clip as reference for text placement. Skipping.")
+        log("Need at least 1 clip as reference for text placement. Skipping.", "WARN")
         return
     
     # Get reference to first and last clip for timeline reference
     first_video, _ = clips[0]
     last_video, _ = clips[-1]
     
-    # Create a main title at the beginning
-    # Note: create_text_overlay is already imported from vse_utils as add_text_strip
-    title = create_text_overlay(
-        seq_editor=seq_editor,
-        text="Chapter 5: Effects and Adjustments",
-        frame_start=first_video.frame_start,
-        frame_end=first_video.frame_start + 90,  # 3-4 second title at 24-30fps
-        channel=10,
-        position='center',
-        size=70,
-        color=(1, 0.8, 0.2, 1)  # Golden yellow
-    )
-    
-    print(f"Created main title overlay")
-    print(f"  Text: '{title.text}'")
-    print(f"  Duration: {title.frame_final_duration} frames")
-    print(f"  Placed on channel {title.channel}")
-    
-    # Create a lower third subtitle for each clip
-    for i, (video, _) in enumerate(clips):
-        subtitle = create_text_overlay(
+    try:
+        # Create a main title at the beginning
+        title_start = ensure_integer_frame(first_video.frame_start)
+        title_end = ensure_integer_frame(first_video.frame_start + 90)  # 3-4 second title at 24-30fps
+        
+        title = create_text_overlay(
             seq_editor=seq_editor,
-            text=f"Video Clip {i+1}",
-            frame_start=video.frame_start + 10,  # Start a bit after clip starts
-            frame_end=video.frame_start + 60,    # Short duration
-            channel=9,
-            position='bottom',
-            size=40,
-            color=(1, 1, 1, 1)  # White
+            text="Chapter 5: Effects and Adjustments",
+            frame_start=title_start,
+            frame_end=title_end,
+            channel=10,
+            position='center',
+            size=70,
+            color=(1, 0.8, 0.2, 1)  # Golden yellow
         )
         
-        print(f"Created lower third subtitle for '{video.name}'")
-        print(f"  Text: '{subtitle.text}'")
-    
-    # Create an end credit
-    credits = create_text_overlay(
-        seq_editor=seq_editor,
-        text="Created with Blender VSE Python API",
-        frame_start=last_video.frame_final_end - 60,
-        frame_end=last_video.frame_final_end,
-        channel=10,
-        position='bottom',
-        size=50,
-        color=(0.9, 0.9, 0.9, 1)  # Light gray
-    )
-    
-    print(f"Created end credits overlay")
-    print(f"  Text: '{credits.text}'")
+        log(f"Created main title overlay", "SUCCESS")
+        log(f"  Text: '{title.text}'", "DEBUG")
+        log(f"  Duration: {title.frame_final_duration} frames", "DEBUG")
+        log(f"  Placed on channel {title.channel}", "DEBUG")
+        
+        # Create a lower third subtitle for each clip
+        for i, (video, _) in enumerate(clips):
+            subtitle_start = ensure_integer_frame(video.frame_start + 10)
+            subtitle_end = ensure_integer_frame(video.frame_start + 60)
+            
+            subtitle = create_text_overlay(
+                seq_editor=seq_editor,
+                text=f"Video Clip {i+1}",
+                frame_start=subtitle_start,
+                frame_end=subtitle_end,
+                channel=9,
+                position='bottom',
+                size=40,
+                color=(1, 1, 1, 1)  # White
+            )
+            
+            log(f"Created lower third subtitle for '{video.name}'", "SUCCESS")
+            log(f"  Text: '{subtitle.text}'", "DEBUG")
+        
+        # Create an end credit
+        credits_start = ensure_integer_frame(last_video.frame_final_end - 60)
+        credits_end = ensure_integer_frame(last_video.frame_final_end)
+        
+        credits = create_text_overlay(
+            seq_editor=seq_editor,
+            text="Created with Blender VSE Python API",
+            frame_start=credits_start,
+            frame_end=credits_end,
+            channel=10,
+            position='bottom',
+            size=50,
+            color=(0.9, 0.9, 0.9, 1)  # Light gray
+        )
+        
+        log(f"Created end credits overlay", "SUCCESS")
+        log(f"  Text: '{credits.text}'", "DEBUG")
+    except Exception as e:
+        log(f"Error creating text overlays: {e}", "ERROR")
+        log(traceback.format_exc(), "DEBUG")
 
 def demonstrate_color_effects(seq_editor, clips):
     """
@@ -656,44 +774,60 @@ def demonstrate_color_effects(seq_editor, clips):
         seq_editor: The sequence editor
         clips: List of (video_strip, audio_strip) tuples
     """
-    print("\n--- Demonstrating Color Effects ---")
+    log("Demonstrating Color Effects", "EFFECT")
     
     # Need at least one clip
     if not clips:
-        print("Need at least 1 clip to demonstrate color effects. Skipping.")
+        log("Need at least 1 clip to demonstrate color effects. Skipping.", "WARN")
         return
     
-    # Apply color balance to the first clip
-    video1, _ = clips[0]
-    color_mod = apply_color_balance(
-        seq_editor=seq_editor,
-        strip=video1,
-        lift=(1.1, 0.9, 0.9),    # Slightly reddish shadows
-        gamma=(0.95, 1.05, 1.1),  # Slightly blue/green midtones
-        gain=(1.0, 1.0, 1.1)      # Slightly blueish highlights
-    )
-    
-    if color_mod:
-        print(f"Applied color balance to '{video1.name}'")
-        print(f"  Lift (shadows): (1.1, 0.9, 0.9) - reddish")
-        print(f"  Gamma (midtones): (0.95, 1.05, 1.1) - blue/green tint")
-        print(f"  Gain (highlights): (1.0, 1.0, 1.1) - slight blue tint")
-    
-    # If we have a second clip, apply a glow effect to it
-    if len(clips) > 1:
-        video2, _ = clips[1]
-        glow = apply_glow_effect(
+    try:
+        # Apply color balance to the first clip
+        video1, _ = clips[0]
+        color_mod = apply_color_balance(
             seq_editor=seq_editor,
-            strip=video2,
-            threshold=0.7,     # Only brightest areas glow
-            blur_radius=5.0,   # Moderate blur
-            quality=0.8,       # High quality
-            channel=8
+            strip=video1,
+            lift=(1.1, 0.9, 0.9),    # Slightly reddish shadows
+            gamma=(0.95, 1.05, 1.1),  # Slightly blue/green midtones
+            gain=(1.0, 1.0, 1.1)      # Slightly blueish highlights
         )
         
-        print(f"Applied glow effect to '{video2.name}'")
-        print(f"  Threshold: 0.7, Blur Radius: 5.0")
-        print(f"  Effect placed on channel {glow.channel}")
+        if color_mod:
+            log(f"Applied color balance to '{video1.name}'", "SUCCESS")
+            log(f"  Lift (shadows): (1.1, 0.9, 0.9) - reddish", "DEBUG")
+            log(f"  Gamma (midtones): (0.95, 1.05, 1.1) - blue/green tint", "DEBUG")
+            log(f"  Gain (highlights): (1.0, 1.0, 1.1) - slight blue tint", "DEBUG")
+        
+        # If we have a second clip, apply a glow effect to it
+        if len(clips) > 1:
+            video2, _ = clips[1]
+            
+            glow_start = ensure_integer_frame(video2.frame_start)
+            glow_end = ensure_integer_frame(video2.frame_final_end)
+            
+            glow = seq_editor.strips.new_effect(
+                name=f"Glow_{video2.name}",
+                type='GLOW',
+                channel=8,
+                frame_start=glow_start,
+                frame_end=glow_end,
+                seq1=video2
+            )
+            
+            # Set glow properties if available
+            if hasattr(glow, 'threshold'):
+                glow.threshold = 0.7
+            if hasattr(glow, 'blur_radius'):
+                glow.blur_radius = 5.0
+            if hasattr(glow, 'quality'):
+                glow.quality = 8  # Use integer value (higher = better quality)
+            
+            log(f"Applied glow effect to '{video2.name}'", "SUCCESS")
+            log(f"  Threshold: 0.7, Blur Radius: 5.0", "DEBUG")
+            log(f"  Effect placed on channel {glow.channel}", "DEBUG")
+    except Exception as e:
+        log(f"Error applying color effects: {e}", "ERROR")
+        log(traceback.format_exc(), "DEBUG")
 
 def main():
     """

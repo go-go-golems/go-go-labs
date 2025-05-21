@@ -9,6 +9,14 @@ from math import radians
 D = bpy.data
 C = bpy.context
 
+# Helper function to ensure frame numbers are integers
+def ensure_integer_frame(value):
+    """Helper function to ensure frame numbers are integers."""
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return value
+
 def apply_transform_effect(seq_editor, strip, offset_x=0, offset_y=0, scale_x=1.0, scale_y=1.0, rotation=0.0, channel=None):
     """
     Apply a transform effect to a strip to adjust position, scale, and rotation.
@@ -29,13 +37,13 @@ def apply_transform_effect(seq_editor, strip, offset_x=0, offset_y=0, scale_x=1.
     if channel is None:
         channel = strip.channel + 1
     
-    # Create the transform effect
+    # Create the transform effect with integer frame values
     transform = seq_editor.strips.new_effect(
         name=f"Transform_{strip.name}",
         type='TRANSFORM',
         channel=channel,
-        frame_start=strip.frame_start,
-        frame_end=strip.frame_final_end,
+        frame_start=ensure_integer_frame(strip.frame_start),
+        frame_end=ensure_integer_frame(strip.frame_final_end),
         seq1=strip
     )
     
@@ -127,13 +135,14 @@ def apply_speed_effect(seq_editor, strip, speed_factor, channel=None):
     original_duration = strip.frame_final_duration
     new_duration = int(original_duration / speed_factor)
     
-    # Create the speed effect
+    # Create the speed effect with integer frame values
+    frame_start = ensure_integer_frame(strip.frame_start)
     speed_effect = seq_editor.strips.new_effect(
         name=f"Speed_{strip.name}_{speed_factor}x",
         type='SPEED',
         channel=channel,
-        frame_start=strip.frame_start,
-        frame_end=strip.frame_start + new_duration,
+        frame_start=frame_start,
+        frame_end=frame_start + new_duration,
         seq1=strip
     )
     
@@ -169,13 +178,13 @@ def create_text_overlay(seq_editor, text, frame_start, frame_end, channel=10,
     Returns:
         bpy.types.Strip: The created text strip
     """
-    # Create the text strip
+    # Create the text strip with integer frame values
     text_strip = seq_editor.strips.new_effect(
         name=f"Text_{text[:10]}",
         type='TEXT',
         channel=channel,
-        frame_start=frame_start,
-        frame_end=frame_end
+        frame_start=ensure_integer_frame(frame_start),
+        frame_end=ensure_integer_frame(frame_end)
     )
     
     # Set the text strip properties
@@ -241,7 +250,7 @@ def apply_color_balance(seq_editor, strip, lift=(1,1,1), gamma=(1,1,1), gain=(1,
         print(f"Error applying color balance: {e}")
         return None
 
-def apply_glow_effect(seq_editor, strip, threshold=0.5, blur_radius=3.0, quality=0.5, channel=None):
+def apply_glow_effect(seq_editor, strip, threshold=0.5, blur_radius=3.0, quality=5, channel=None):
     """
     Apply a glow effect to a strip.
     
@@ -250,7 +259,7 @@ def apply_glow_effect(seq_editor, strip, threshold=0.5, blur_radius=3.0, quality
         strip (bpy.types.Strip): The strip to apply glow to
         threshold (float): Threshold for bright areas (0.0-1.0)
         blur_radius (float): Radius of the glow effect
-        quality (float): Quality of the glow effect (0.0-1.0)
+        quality (int): Quality of the glow effect (1-10, higher is better)
         channel (int, optional): Channel for the effect. If None, uses strip.channel + 1
     
     Returns:
@@ -259,13 +268,17 @@ def apply_glow_effect(seq_editor, strip, threshold=0.5, blur_radius=3.0, quality
     if channel is None:
         channel = strip.channel + 1
     
+    # Ensure frame values are integers
+    frame_start = ensure_integer_frame(strip.frame_start)
+    frame_end = ensure_integer_frame(strip.frame_final_end)
+    
     # Create the glow effect
     glow = seq_editor.strips.new_effect(
         name=f"Glow_{strip.name}",
         type='GLOW',
         channel=channel,
-        frame_start=strip.frame_start,
-        frame_end=strip.frame_final_end,
+        frame_start=frame_start,
+        frame_end=frame_end,
         seq1=strip
     )
     
@@ -275,7 +288,9 @@ def apply_glow_effect(seq_editor, strip, threshold=0.5, blur_radius=3.0, quality
     if hasattr(glow, 'blur_radius'):
         glow.blur_radius = blur_radius
     if hasattr(glow, 'quality'):
-        glow.quality = quality
+        # Ensure quality is an integer - Blender 4.4 requires this
+        quality_int = int(quality) if isinstance(quality, float) else quality
+        glow.quality = quality_int
     
     print(f"Applied glow effect to '{strip.name}'")
     print(f"  Threshold: {threshold}, Blur Radius: {blur_radius}, Quality: {quality}")
