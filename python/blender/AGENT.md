@@ -16,41 +16,99 @@
   - `investigations/`: Exploratory analysis scripts
 
 ## Loading files / importing modules over blender MCP
-See detailed guide: `ttmp/2025-05-17/06-how-to-import-files-and-start-an-interactive-session-with-the-blender-mcp.md`
 
-### Standard Import Pattern
+### Using execute_blender_code Tool
 
-Use this once at the beginning of a session.
+For executing individual code blocks:
 
-Also read docs/python-blender-utilities-api.md which explains how to use the utilities in scripts/utils/
-
+1. **Basic Scene Setup**:
 ```python
-import sys, os, importlib
+import bpy
+import os
+import sys
 
-# Add script directories to path
-scripts_dir = os.path.dirname(os.path.abspath(__file__))
+# Clear any existing scene data
+scene = bpy.context.scene
+seq_editor = scene.sequence_editor_create()
+```
+
+2. **Setting Up Import Paths**:
+```python
+# Set up absolute paths - NEVER use __file__
+scripts_dir = '/home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/blender/scripts'
 utils_dir = os.path.join(scripts_dir, 'utils')
-for path in [scripts_dir, utils_dir]:
-    if path not in sys.path: sys.path.append(path)
-
-# Import and reload modules
-import module_name
-importlib.reload(module_name)
-
-# CRITICAL: Import VSE utilities for Video Sequence Editor operations
-from utils import vse_utils
-importlib.reload(vse_utils)
+if utils_dir not in sys.path:
+    sys.path.append(utils_dir)
 ```
 
-### Quick Execute Pattern
+3. **Importing Modules**:
 ```python
-# One-line execution with execute_blender_code
-exec(open('/path/to/script.py').read())
-
-# With helper (after adding utils_dir to sys.path)
-from run_file import run_file
-run_file('/path/to/script.py', in_sequencer=True)
+# Import utilities with error handling
+try:
+    from utils import vse_utils
+    from utils import transition_utils
+    print("Successfully imported utilities")
+except ImportError as e:
+    print(f"Warning: Could not import utilities: {e}")
 ```
+
+4. **Running Functions**:
+```python
+# Always wrap function calls in try-except
+try:
+    result = vse_utils.some_function()
+    print(f"Function executed successfully: {result}")
+except Exception as e:
+    print(f"Error executing function: {e}")
+```
+
+Key Points:
+- NEVER use `__file__` or relative imports
+- Always use absolute paths
+- Break complex operations into smaller chunks
+- Include proper error handling
+- Print status messages for debugging
+
+### Executing Specific Files
+
+When asked to execute a specific file (e.g., "@some_file.py"), follow this pattern:
+
+1. **Setup Environment**:
+```python
+import bpy
+import os
+import sys
+
+# Set up absolute paths - NEVER use __file__
+scripts_dir = '/home/manuel/code/wesen/corporate-headquarters/go-go-labs/python/blender/scripts'
+utils_dir = os.path.join(scripts_dir, 'utils')
+if utils_dir not in sys.path:
+    sys.path.append(utils_dir)
+
+# Add the directory containing the target file
+target_dir = os.path.dirname(os.path.join(scripts_dir, 'path/to/target/file'))
+if target_dir not in sys.path:
+    sys.path.append(target_dir)
+```
+
+2. **Import and Execute**:
+```python
+# Import the module (assuming file is my_script.py)
+import my_script
+import importlib
+importlib.reload(my_script)  # Ensure we have the latest version
+
+# Execute the main function if it exists
+if hasattr(my_script, 'main'):
+    my_script.main()
+```
+
+Key Points:
+- Always import the file as a module rather than executing it directly
+- Use importlib.reload() to ensure you have the latest version
+- Add the file's directory to sys.path before importing
+- Use absolute paths throughout
+- Handle imports and execution separately
 
 ## Code Style Guidelines
 - Follow Blender 4.4 API conventions (avoid deprecated functions)

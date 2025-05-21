@@ -1,4 +1,3 @@
-
 ## General ideas
 
 - Make a blender MCP that only has "load_file" as a tool to make imports easier.

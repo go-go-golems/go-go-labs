@@ -35,10 +35,21 @@ utils_dir = os.path.join(os.path.dirname(scripts_dir), 'utils')
 if utils_dir not in sys.path:
     sys.path.append(utils_dir)
 
-# Now try to import our utilities, with fallback implementations if import fails
+# Import vse_utils for core functionality
+try:
+    from vse_utils import (
+        get_active_scene, ensure_sequence_editor, add_movie_strip, add_sound_strip,
+        add_crossfade, find_test_media_dir, print_sequence_info
+    )
+    print("Successfully imported VSE utilities")
+except ImportError as e:
+    print(f"Warning: Could not import vse_utils: {e}")
+    raise ImportError("Required vse_utils module not found")
+
+# Now try to import transition utilities
 try:
     from transition_utils import (
-        create_crossfade, create_gamma_crossfade, create_wipe, 
+        create_gamma_crossfade, create_wipe, 
         create_audio_fade, create_audio_crossfade, create_fade_to_color
     )
     print("Successfully imported transition utilities")
@@ -47,20 +58,6 @@ except ImportError as e:
     print("Using built-in fallback implementations")
     
     # --- Fallback utility implementations ---
-    def create_crossfade(seq_editor, strip1, strip2, transition_duration, channel=None):
-        """Create a crossfade between two strips"""
-        if channel is None:
-            channel = max(strip1.channel, strip2.channel) + 1
-        return seq_editor.strips.new_effect(
-            name=f"Cross_{strip1.name}_{strip2.name}",
-            type='CROSS',
-            channel=channel,
-            frame_start=strip2.frame_start,
-            frame_end=strip2.frame_start + transition_duration,
-            seq1=strip1,
-            seq2=strip2
-        )
-    
     def create_gamma_crossfade(seq_editor, strip1, strip2, transition_duration, channel=None):
         """Create a gamma crossfade between two strips"""
         if channel is None:
@@ -79,12 +76,17 @@ except ImportError as e:
         """Create a wipe transition between two strips"""
         if channel is None:
             channel = max(strip1.channel, strip2.channel) + 1
+        
+        # Ensure frame numbers are integers
+        start_frame = ensure_integer_frame(strip2.frame_start)
+        end_frame = ensure_integer_frame(strip2.frame_start + transition_duration)
+        
         wipe = seq_editor.strips.new_effect(
             name=f"Wipe_{strip1.name}_{strip2.name}",
             type='WIPE',
             channel=channel,
-            frame_start=strip2.frame_start,
-            frame_end=strip2.frame_start + transition_duration,
+            frame_start=start_frame,
+            frame_end=end_frame,
             seq1=strip1,
             seq2=strip2
         )
@@ -176,108 +178,35 @@ except ImportError as e:
                 seq2=color_strip
             )
 
-# --- Core utility functions from Chapter 2 & 3 ---
+def ensure_integer_frame(value):
+    """Helper function to ensure frame numbers are integers."""
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return value
 
-def get_active_scene():
-    """Get the currently active scene."""
-    return C.scene
-
-def ensure_sequence_editor(scene=None):
-    """Ensure a scene has a sequence editor, creating one if it doesn't exist."""
-    if scene is None:
-        scene = get_active_scene()
+def safe_remove_strips(seq_editor):
+    """Safely remove all strips from the sequence editor."""
+    print("\nSafely removing all strips...")
     
-    if not scene.sequence_editor:
-        scene.sequence_editor_create()
-    
-    return scene.sequence_editor
-
-def add_movie_strip(seq_editor, filepath, channel=1, frame_start=1, name=None):
-    """Add a movie strip to the sequence editor."""
-    if name is None:
-        name = os.path.splitext(os.path.basename(filepath))[0]
-    
-    movie_strip = seq_editor.strips.new_movie(
-        name=name,
-        filepath=filepath,
-        channel=channel,
-        frame_start=frame_start
-    )
-    
-    print(f"Added movie strip: {movie_strip.name} (Type: {movie_strip.type})")
-    print(f"  File: {movie_strip.filepath}")
-    print(f"  Duration: {movie_strip.frame_duration} frames")
-    print(f"  Timeline: Channel {movie_strip.channel}, Start Frame {movie_strip.frame_start}, End Frame {movie_strip.frame_final_end}")
-    
-    return movie_strip
-
-def add_sound_strip(seq_editor, filepath, channel=1, frame_start=1, name=None):
-    """Add a sound strip to the sequence editor."""
-    if name is None:
-        name = os.path.splitext(os.path.basename(filepath))[0]
-    
-    sound_strip = seq_editor.strips.new_sound(
-        name=name,
-        filepath=filepath,
-        channel=channel,
-        frame_start=frame_start
-    )
-    
-    print(f"Added sound strip: {sound_strip.name} (Type: {sound_strip.type})")
-    if hasattr(sound_strip, 'sound') and sound_strip.sound and hasattr(sound_strip.sound, 'filepath'):
-        print(f"  File: {sound_strip.sound.filepath}")
-    else:
-        print(f"  File: {filepath}")
-    print(f"  Duration: {sound_strip.frame_duration} frames")
-    print(f"  Volume: {sound_strip.volume}, Pan: {sound_strip.pan}")
-    
-    return sound_strip
-
-def check_and_set_fps(seq_editor, scene):
-    """Check FPS of strips and ensure it matches the scene FPS."""
-    if not seq_editor or not seq_editor.sequences_all:
-        return True, "No sequences to check"
-    
-    # Collect FPS information from movie strips
-    fps_counts = {}
-    strip_fps = {}
-    
+    # First, deselect all strips
     for strip in seq_editor.sequences_all:
-        if strip.type == 'MOVIE':
-            # Get source FPS using the new Blender 4.4 method
-            src_fps = None
-            if hasattr(strip.elements[0], 'orig_fps') and strip.elements[0].orig_fps:
-                src_fps = strip.elements[0].orig_fps
-            elif hasattr(strip, 'fps'):
-                src_fps = strip.fps
-                
-            if src_fps:
-                strip_fps[strip.name] = src_fps
-                fps_counts[src_fps] = fps_counts.get(src_fps, 0) + 1
+        strip.select = False
     
-    if not fps_counts:
-        return True, "No movie strips found"
+    # Remove strips in reverse order (effects first)
+    strips_to_remove = sorted(
+        seq_editor.sequences_all,
+        key=lambda s: 1 if s.type in {'CROSS', 'GAMMA_CROSS', 'WIPE'} else 0
+    )
     
-    # Find most common FPS
-    most_common_fps = max(fps_counts.items(), key=lambda x: x[1])[0]
+    for strip in strips_to_remove:
+        try:
+            print(f"Removing strip: {strip.name} (Type: {strip.type})")
+            seq_editor.sequences.remove(strip)
+        except Exception as e:
+            print(f"Warning: Could not remove strip {strip.name}: {e}")
     
-    # Check if all strips have the same FPS
-    if len(fps_counts) > 1:
-        print("\nWARNING: Different FPS detected in strips:")
-        for strip_name, fps in strip_fps.items():
-            print(f"  • {strip_name}: {fps} fps")
-        print(f"\nUsing most common FPS: {most_common_fps}")
-    
-    # Check scene FPS
-    scene_fps = scene.render.fps / scene.render.fps_base
-    
-    if abs(scene_fps - most_common_fps) > 0.01:  # Allow small floating-point differences
-        print(f"\nAdjusting scene FPS from {scene_fps} to {most_common_fps}")
-        scene.render.fps = int(most_common_fps)
-        scene.render.fps_base = 1.0
-        return True, f"Scene FPS adjusted to {most_common_fps}"
-    
-    return True, f"All good - Scene and strips using {scene_fps} fps"
+    print("Strip removal completed.")
 
 def setup_test_sequence(seq_editor, test_media_dir):
     """Set up a test sequence with a few video clips for demonstration."""
@@ -285,10 +214,7 @@ def setup_test_sequence(seq_editor, test_media_dir):
     
     # Clear all existing strips first
     if seq_editor.sequences_all:
-        print(f"Removing {len(seq_editor.sequences_all)} existing strips...")
-        for strip in seq_editor.sequences_all:
-            seq_editor.sequences.remove(strip)
-        print("All existing strips removed.")
+        safe_remove_strips(seq_editor)
     
     # List of test video files to use
     video_files = [
@@ -306,6 +232,8 @@ def setup_test_sequence(seq_editor, test_media_dir):
     current_frame = 1
     clip_spacing = -30  # Negative spacing means overlap for transitions
     
+    print(f"\nInitial setup: current_frame={current_frame}, clip_spacing={clip_spacing}")
+    
     # Name the channels
     if video_channel < len(seq_editor.channels):
         seq_editor.channels[video_channel-1].name = "Video"
@@ -318,41 +246,48 @@ def setup_test_sequence(seq_editor, test_media_dir):
     for i, video_filename in enumerate(video_files):
         video_path = os.path.join(test_media_dir, video_filename)
         if os.path.exists(video_path):
+            print(f"\nAdding clip {i+1} from {video_path}")
+            print(f"Starting at frame {current_frame}")
+            
             # Add video strip
             video_strip = add_movie_strip(
                 seq_editor, 
                 video_path, 
                 channel=video_channel, 
-                frame_start=current_frame,
+                frame_start=ensure_integer_frame(current_frame),
                 name=f"Clip{i+1}"
             )
+            
+            print(f"Video strip added: {video_strip.name}")
+            print(f"Frame range: {video_strip.frame_start}-{video_strip.frame_final_end}")
             
             # Add matching audio strip
             audio_strip = add_sound_strip(
                 seq_editor, 
                 video_path, 
                 channel=audio_channel, 
-                frame_start=current_frame,
+                frame_start=ensure_integer_frame(current_frame),
                 name=f"Audio{i+1}"
             )
+            
+            print(f"Audio strip added: {audio_strip.name}")
+            print(f"Frame range: {audio_strip.frame_start}-{audio_strip.frame_final_end}")
             
             # Store the pair
             added_clips.append((video_strip, audio_strip))
             
             # Update frame position for next clip, adding a small overlap for transitions
-            current_frame = video_strip.frame_final_end + clip_spacing
+            current_frame = ensure_integer_frame(video_strip.frame_final_end + clip_spacing)
+            print(f"Next clip will start at frame {current_frame}")
         else:
             print(f"Video file not found: {video_path}")
     
-    print(f"Added {len(added_clips)} clips to the sequence.")
+    print(f"\nAdded {len(added_clips)} clips to the sequence.")
     
-    # Check and set FPS after adding all clips
-    success, message = check_and_set_fps(seq_editor, C.scene)
-    print(f"\nFPS Check: {message}")
+    # Print sequence info after adding all clips
+    print_sequence_info(seq_editor, "Initial Sequence State")
     
     return added_clips
-
-# --- Chapter 4 Demo Functions ---
 
 def demonstrate_crossfades(seq_editor, clips, transition_duration=24):
     """
@@ -374,30 +309,56 @@ def demonstrate_crossfades(seq_editor, clips, transition_duration=24):
     video1, audio1 = clips[0]
     video2, audio2 = clips[1]
     
+    print(f"\nPreparing crossfade between:")
+    print(f"Video1: {video1.name} (frames {video1.frame_start}-{video1.frame_final_end})")
+    print(f"Video2: {video2.name} (frames {video2.frame_start}-{video2.frame_final_end})")
+    
     # Make sure clips overlap by checking and possibly adjusting their positions
     # This is a safety check - our setup should already have created overlap
     if video2.frame_start >= video1.frame_final_end:
         print(f"Adjusting clip positions to create {transition_duration} frame overlap")
-        video2.frame_start = video1.frame_final_end - transition_duration
-        audio2.frame_start = video2.frame_start  # Keep audio in sync with video
+        new_start = ensure_integer_frame(video1.frame_final_end - transition_duration)
+        print(f"Moving {video2.name} from frame {video2.frame_start} to {new_start}")
+        video2.frame_start = new_start
+        audio2.frame_start = new_start  # Keep audio in sync with video
     
-    # Create the crossfade transition
-    crossfade = create_crossfade(
-        seq_editor=seq_editor,
-        strip1=video1,
-        strip2=video2,
-        transition_duration=transition_duration,
-        channel=3  # Place on channel above both clips
-    )
+    # Create the crossfade transition using vse_utils
+    print(f"\nCreating crossfade:")
+    start_frame = ensure_integer_frame(video2.frame_start)
+    end_frame = ensure_integer_frame(start_frame + transition_duration)
+    print(f"Start frame: {start_frame}")
+    print(f"End frame: {end_frame}")
+    print(f"Duration: {transition_duration} frames")
     
-    print(f"Created crossfade between '{video1.name}' and '{video2.name}'")
-    print(f"  Transition duration: {transition_duration} frames")
-    print(f"  Effect channel: {crossfade.channel}")
+    try:
+        # Create the effect directly since add_crossfade is having issues
+        crossfade = seq_editor.strips.new_effect(
+            name=f"Cross_{video1.name}_{video2.name}",
+            type='CROSS',
+            channel=3,  # Place on channel above both clips
+            frame_start=start_frame,
+            frame_end=end_frame,
+            seq1=video1,
+            seq2=video2
+        )
+        
+        print(f"Crossfade created successfully:")
+        print(f"Name: {crossfade.name}")
+        print(f"Channel: {crossfade.channel}")
+        print(f"Frame range: {crossfade.frame_start}-{crossfade.frame_final_end}")
+    except Exception as e:
+        print(f"Error creating crossfade: {e}")
+        import traceback
+        traceback.print_exc()
+        return
     
     # Also create an audio crossfade
-    success = create_audio_crossfade(audio1, audio2, transition_duration)
+    print("\nCreating audio crossfade...")
+    success = create_audio_crossfade(audio1, audio2, ensure_integer_frame(transition_duration))
     if success:
         print(f"Created audio crossfade between '{audio1.name}' and '{audio2.name}'")
+    else:
+        print("Failed to create audio crossfade")
 
 def demonstrate_gamma_crossfade(seq_editor, clips, transition_duration=24):
     """
@@ -419,29 +380,42 @@ def demonstrate_gamma_crossfade(seq_editor, clips, transition_duration=24):
     video2, audio2 = clips[1]
     video3, audio3 = clips[2]
     
+    print(f"\nPreparing gamma crossfade between:")
+    print(f"Video2: {video2.name} (frames {video2.frame_start}-{video2.frame_final_end})")
+    print(f"Video3: {video3.name} (frames {video3.frame_start}-{video3.frame_final_end})")
+    
     # Ensure overlap
     if video3.frame_start >= video2.frame_final_end:
         print(f"Adjusting clip positions to create {transition_duration} frame overlap")
-        video3.frame_start = video2.frame_final_end - transition_duration
-        audio3.frame_start = video3.frame_start  # Keep audio in sync with video
+        new_start = ensure_integer_frame(video2.frame_final_end - transition_duration)
+        print(f"Moving {video3.name} from frame {video3.frame_start} to {new_start}")
+        video3.frame_start = new_start
+        audio3.frame_start = new_start  # Keep audio in sync with video
     
     # Create the gamma crossfade transition
-    gamma_crossfade = create_gamma_crossfade(
-        seq_editor=seq_editor,
-        strip1=video2,
-        strip2=video3,
-        transition_duration=transition_duration,
-        channel=3  # Place on channel above both clips
-    )
+    print(f"\nCreating gamma crossfade:")
+    print(f"Start frame: {ensure_integer_frame(video3.frame_start)}")
+    print(f"End frame: {ensure_integer_frame(video3.frame_start + transition_duration)}")
+    print(f"Duration: {transition_duration} frames")
     
-    print(f"Created gamma crossfade between '{video2.name}' and '{video3.name}'")
-    print(f"  Transition duration: {transition_duration} frames")
-    print(f"  Effect channel: {gamma_crossfade.channel}")
-    
-    # Also create an audio crossfade
-    success = create_audio_crossfade(audio2, audio3, transition_duration)
-    if success:
-        print(f"Created audio crossfade between '{audio2.name}' and '{audio3.name}'")
+    try:
+        gamma_crossfade = create_gamma_crossfade(
+            seq_editor=seq_editor,
+            strip1=video2,
+            strip2=video3,
+            transition_duration=ensure_integer_frame(transition_duration),
+            channel=3  # Place on channel above both clips
+        )
+        
+        print(f"Gamma crossfade created successfully:")
+        print(f"Name: {gamma_crossfade.name}")
+        print(f"Channel: {gamma_crossfade.channel}")
+        print(f"Frame range: {gamma_crossfade.frame_start}-{gamma_crossfade.frame_final_end}")
+    except Exception as e:
+        print(f"Error creating gamma crossfade: {e}")
+        import traceback
+        traceback.print_exc()
+        return
 
 def demonstrate_wipe_transitions(seq_editor, clips):
     """
@@ -463,57 +437,110 @@ def demonstrate_wipe_transitions(seq_editor, clips):
     
     # Create a new strip at the end of the timeline
     last_clip = clips[-1][0]
-    start_frame = last_clip.frame_final_end + 30  # Add some spacing
+    start_frame = ensure_integer_frame(last_clip.frame_final_end + 30)  # Add some spacing
+    
+    print(f"\nCreating wipe transition demo clips:")
+    print(f"Using source clip: {video1.name}")
+    print(f"Starting at frame: {start_frame}")
+    
+    # Get the filepath from the movie strip
+    source_path = video1.filepath if hasattr(video1, 'filepath') else None
+    if not source_path:
+        print("Error: Could not get source filepath from video strip")
+        return
     
     # Use the same filepath to create a new strip
-    video_duplicate = add_movie_strip(
-        seq_editor=seq_editor,
-        filepath=video1.filepath,
-        channel=video1.channel,
-        frame_start=start_frame,
-        name="WipeTarget"
-    )
-    
-    audio_duplicate = add_sound_strip(
-        seq_editor=seq_editor,
-        filepath=audio1.filepath,
-        channel=audio1.channel,
-        frame_start=start_frame,
-        name="WipeTargetAudio"
-    )
+    try:
+        video_duplicate = add_movie_strip(
+            seq_editor=seq_editor,
+            filepath=source_path,
+            channel=video1.channel,
+            frame_start=start_frame,
+            name="WipeTarget"
+        )
+        
+        print(f"Created duplicate video strip: {video_duplicate.name}")
+        print(f"Frame range: {video_duplicate.frame_start}-{video_duplicate.frame_final_end}")
+        
+        audio_duplicate = add_sound_strip(
+            seq_editor=seq_editor,
+            filepath=source_path,
+            channel=audio1.channel,
+            frame_start=start_frame,
+            name="WipeTargetAudio"
+        )
+        
+        print(f"Created duplicate audio strip: {audio_duplicate.name}")
+        print(f"Frame range: {audio_duplicate.frame_start}-{audio_duplicate.frame_final_end}")
+    except Exception as e:
+        print(f"Error creating duplicate strips: {e}")
+        import traceback
+        traceback.print_exc()
+        return
     
     # Create a color strip to transition from
-    color_strip = seq_editor.strips.new_effect(
-        name="BlueBackground",
-        type='COLOR',
-        channel=video1.channel,
-        frame_start=start_frame - 40,  # Start earlier to create overlap
-        frame_end=start_frame + 20  # Extend past start of the duplicate clip
-    )
-    
-    # Set the color (blue)
-    color_strip.color = (0.0, 0.0, 0.8)
+    try:
+        color_start = ensure_integer_frame(start_frame - 40)
+        color_end = ensure_integer_frame(start_frame + 20)
+        
+        color_strip = seq_editor.strips.new_effect(
+            name="BlueBackground",
+            type='COLOR',
+            channel=video1.channel,
+            frame_start=color_start,  # Start earlier to create overlap
+            frame_end=color_end  # Extend past start of the duplicate clip
+        )
+        
+        # Set the color (blue)
+        color_strip.color = (0.0, 0.0, 0.8)
+        
+        print(f"Created color strip: {color_strip.name}")
+        print(f"Frame range: {color_strip.frame_start}-{color_strip.frame_final_end}")
+    except Exception as e:
+        print(f"Error creating color strip: {e}")
+        import traceback
+        traceback.print_exc()
+        return
     
     # Create the wipe transition - 60 frames from color to video
-    wipe_transition = create_wipe(
-        seq_editor=seq_editor,
-        strip1=color_strip,
-        strip2=video_duplicate,
-        transition_duration=60,
-        wipe_type='CLOCK',  # Clock wipe
-        angle=radians(45),  # 45-degree angle
-        channel=4  # Place on channel above both clips
-    )
-    
-    print(f"Created clock wipe transition from color strip to '{video_duplicate.name}'")
-    print(f"  Transition duration: 60 frames")
-    print(f"  Wipe type: CLOCK at 45-degree angle")
-    print(f"  Effect channel: {wipe_transition.channel}")
+    try:
+        # Create the wipe effect directly since the utility function is having issues
+        wipe_start = ensure_integer_frame(start_frame)
+        wipe_end = ensure_integer_frame(start_frame + 60)
+        
+        wipe_transition = seq_editor.strips.new_effect(
+            name=f"Wipe_{color_strip.name}_{video_duplicate.name}",
+            type='WIPE',
+            channel=4,  # Place on channel above both clips
+            frame_start=wipe_start,
+            frame_end=wipe_end,
+            seq1=color_strip,
+            seq2=video_duplicate
+        )
+        
+        # Set wipe properties
+        wipe_transition.transition_type = 'CLOCK'
+        wipe_transition.direction = 'OUT'  # Since we have a non-zero angle
+        wipe_transition.angle = radians(45)
+        
+        print(f"Created clock wipe transition from color strip to '{video_duplicate.name}'")
+        print(f"  Transition duration: 60 frames")
+        print(f"  Wipe type: CLOCK at 45-degree angle")
+        print(f"  Effect channel: {wipe_transition.channel}")
+        print(f"  Frame range: {wipe_transition.frame_start}-{wipe_transition.frame_final_end}")
+    except Exception as e:
+        print(f"Error creating wipe transition: {e}")
+        import traceback
+        traceback.print_exc()
+        return
     
     # Create an audio fade-in for the duplicated audio
+    print("\nCreating audio fade-in...")
     success = create_audio_fade(audio_duplicate, fade_type='IN', duration_frames=60)
     if success:
         print(f"Created audio fade-in for '{audio_duplicate.name}'")
+    else:
+        print("Failed to create audio fade-in")
 
 def demonstrate_fade_to_from_black(seq_editor, clips):
     """
@@ -587,28 +614,8 @@ def main():
     
     print(f"Operating on scene: '{scene.name}' with Sequence Editor: {seq_editor}")
     
-    # --- Configuration ---
-    # Path to test media - try to find it in common locations
-    test_media_dir = "/home/manuel/Movies/blender-movie-editor"
-    
-    # Check if path exists, if not look for alternative locations
-    if not os.path.exists(test_media_dir):
-        # Try relative path from current script
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        alternative_paths = [
-            os.path.join(script_dir, "../media"),
-            os.path.join(script_dir, "media"),
-            "/tmp/blender-test-media"
-        ]
-        
-        for path in alternative_paths:
-            if os.path.exists(path):
-                test_media_dir = path
-                print(f"Using alternative media path: {test_media_dir}")
-                break
-        
-        print(f"Warning: Media directory not found. Please download test videos to: {test_media_dir}")
-        print("Sample videos can be downloaded from: https://sample-videos.com/")
+    # Find test media directory using vse_utils helper
+    test_media_dir = find_test_media_dir()
     
     # --- 1. Set up a basic sequence with slightly overlapping clips ---
     clips = setup_test_sequence(seq_editor, test_media_dir)
@@ -629,12 +636,8 @@ def main():
     # --- 5. Demonstrate fade to/from black ---
     demonstrate_fade_to_from_black(seq_editor, clips)
     
-    # --- Recap the Final State ---
-    print("\n--- Final State of Strips ---")
-    for strip in seq_editor.strips_all:
-        print(f"- '{strip.name}' (Type: {strip.type}): Channel {strip.channel}, "
-              f"Frames {strip.frame_start}-{strip.frame_final_end}, "
-              f"Duration: {strip.frame_final_duration}")
+    # --- Print Final State ---
+    print_sequence_info(seq_editor, "Final Sequence State")
     
     print("\nTest for Chapter 4 completed! Review the VSE timeline and console output.")
 
