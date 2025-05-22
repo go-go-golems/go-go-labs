@@ -1,0 +1,40 @@
+{
+  "name": "Example Workflow",
+  "active": true,
+  "nodes": [
+    {
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "parameters": {
+        "path": "example-endpoint",
+        "method": "POST"
+      }
+    },
+    {
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [400, 300],
+      "parameters": {
+        "responseMode": "onReceived",
+        "responseData": "{{\"message\": \"Workflow executed successfully\"}}",
+        "responseCode": 200
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

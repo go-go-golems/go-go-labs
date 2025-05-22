@@ -1,0 +1,11 @@
+{
+  "name": "Respond",
+  "type": "n8n-nodes-base.respondToWebhook",
+  "typeVersion": 1,
+  "position": [400, 300],
+  "parameters": {
+    "responseMode": "onReceived",
+    "responseData": "{{\"message\": \"Workflow executed successfully\"}}",
+    "responseCode": 200
+  }
+}
