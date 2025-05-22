@@ -71,7 +71,7 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
-	github.com/tdewolff/parse/v2 v2.6.8
+	github.com/tdewolff/parse/v2 v2.8.1
 	github.com/tiktoken-go/tokenizer v0.2.0
 	github.com/weaviate/tiktoken-go v0.0.2
 	github.com/weaviate/weaviate v1.25.1
