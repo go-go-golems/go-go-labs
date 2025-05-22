@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"os"
+
+	"github.com/rs/zerolog/log"
 )
 
 // N8NClient represents a client for interacting with the n8n REST API
@@ -28,15 +30,70 @@ func NewN8NClient(baseURL, apiKey string) *N8NClient {
 // DoRequest makes an HTTP request to the n8n API
 func (c *N8NClient) DoRequest(method, endpoint string, body io.Reader) (*http.Response, error) {
 	url := fmt.Sprintf("%s/api/v1/%s", c.BaseURL, endpoint)
-	req, err := http.NewRequest(method, url, body)
+	log.Debug().Str("method", method).Str("url", url).Msg("API request")
+
+	// Copy and log request body at TRACE level
+	var bodyToSend io.Reader
+	if body != nil {
+		// Read the entire body
+		bodyBytes, err := io.ReadAll(body)
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to read request body")
+			return nil, err
+		}
+
+		// Log at TRACE level
+		log.Trace().Str("body", string(bodyBytes)).Msg("Request body")
+
+		// Create a new reader with the same content
+		bodyToSend = bytes.NewBuffer(bodyBytes)
+	}
+
+	req, err := http.NewRequest(method, url, bodyToSend)
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to create request")
 		return nil, err
 	}
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-N8N-API-KEY", c.APIKey)
 
-	return c.Client.Do(req)
+	// Log all request headers at TRACE level
+	log.Trace().Interface("headers", req.Header).Msg("Request headers")
+
+	resp, err := c.Client.Do(req)
+	if err != nil {
+		log.Error().Err(err).Str("url", url).Msg("HTTP request failed")
+		return nil, err
+	}
+
+	// Always read the response body so we can log it and make it available for reuse
+	bodyBytes, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to read response body")
+		return nil, err
+	}
+
+	// Recreate response body
+	resp.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+	// Log response status
+	logEvent := log.Debug().Int("status", resp.StatusCode).Str("status_text", resp.Status)
+
+	// For non-2xx responses, log the body at DEBUG level
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		logEvent = log.Error().Int("status", resp.StatusCode).Str("status_text", resp.Status)
+		logEvent.Str("body", string(bodyBytes)).Msg("Error response")
+	} else {
+		// For successful responses, log body at TRACE level
+		logEvent.Msg("Response received")
+		log.Trace().Str("body", string(bodyBytes)).Msg("Response body")
+	}
+
+	log.Trace().Interface("headers", resp.Header).Msg("Response headers")
+
+	return resp, nil
 }
 
 // ReadFile reads a JSON file and unmarshals it into the provided interface
@@ -85,41 +142,61 @@ func (c *N8NClient) GetWorkflow(id string) (map[string]interface{}, error) {
 }
 
 // ListWorkflows retrieves all workflows with optional filtering
-func (c *N8NClient) ListWorkflows(active bool, limit, offset int) ([]map[string]interface{}, error) {
-	endpoint := fmt.Sprintf("workflows?limit=%d&offset=%d", limit, offset)
+func (c *N8NClient) ListWorkflows(active bool, limit int, cursor string) ([]map[string]interface{}, string, error) {
+	// Build the endpoint with the correct pagination parameters (cursor-based, not offset-based)
+	endpoint := fmt.Sprintf("workflows?limit=%d", limit)
 	if active {
 		endpoint += "&active=true"
 	}
+	if cursor != "" {
+		endpoint += fmt.Sprintf("&cursor=%s", cursor)
+	}
 
+	log.Debug().Bool("active", active).Int("limit", limit).Str("cursor", cursor).Str("endpoint", endpoint).Msg("Listing workflows")
 	resp, err := c.DoRequest("GET", endpoint, nil)
 	if err != nil {
-		return nil, err
+		log.Error().Err(err).Msg("Failed to list workflows")
+		return nil, "", err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned non-200 status: %d", resp.StatusCode)
+		log.Error().Int("status", resp.StatusCode).Str("endpoint", endpoint).Msg("List workflows failed with non-200 status")
+		return nil, "", fmt.Errorf("API returned non-200 status: %d", resp.StatusCode)
 	}
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		log.Error().Err(err).Msg("Failed to read response body")
+		return nil, "", err
 	}
 
+	// Always log response body at TRACE level
+	log.Trace().Msgf("Response body: %s", string(data))
+
+	// Log the response size and content type
+	log.Debug().Int("body_size", len(data)).Str("content_type", resp.Header.Get("Content-Type")).Msg("Received response")
+
+	// Parse the response which should include data and nextCursor
 	var result struct {
-		Data []map[string]interface{} `json:"data"`
+		Data       []map[string]interface{} `json:"data"`
+		NextCursor string                   `json:"nextCursor"`
 	}
 
 	if err := json.Unmarshal(data, &result); err != nil {
+		log.Debug().Err(err).Str("raw_data", string(data)).Msg("Failed to parse response as {data:[]} structure, trying direct array")
 		// Try parsing as direct array for older n8n versions
 		var workflows []map[string]interface{}
 		if jsonErr := json.Unmarshal(data, &workflows); jsonErr != nil {
-			return nil, err
+			log.Error().Err(jsonErr).Str("raw_data", string(data)).Msg("Failed to parse response as direct array")
+			return nil, "", fmt.Errorf("failed to parse JSON response: %w, raw response: %s", err, string(data))
 		}
-		return workflows, nil
+		log.Debug().Int("count", len(workflows)).Msg("Successfully parsed as direct array")
+		return workflows, "", nil
 	}
 
-	return result.Data, nil
+	log.Debug().Int("count", len(result.Data)).Str("next_cursor", result.NextCursor).Msg("Successfully parsed workflows")
+	return result.Data, result.NextCursor, nil
 }
 
 // CreateWorkflow creates a new workflow

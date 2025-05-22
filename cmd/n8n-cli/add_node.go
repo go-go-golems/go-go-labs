@@ -19,12 +19,12 @@ type AddNodeCommand struct {
 
 // Settings for AddNodeCommand
 type AddNodeSettings struct {
-	WorkflowID  string `glazed.parameter:"workflow-id"`
-	NodeType    string `glazed.parameter:"node-type"`
-	NodeName    string `glazed.parameter:"node-name"`
-	Parameters  string `glazed.parameter:"parameters"`
-	PositionX   int    `glazed.parameter:"position-x"`
-	PositionY   int    `glazed.parameter:"position-y"`
+	WorkflowID string `glazed.parameter:"workflow-id"`
+	NodeType   string `glazed.parameter:"node-type"`
+	NodeName   string `glazed.parameter:"node-name"`
+	Parameters string `glazed.parameter:"parameters"`
+	PositionX  int    `glazed.parameter:"position-x"`
+	PositionY  int    `glazed.parameter:"position-y"`
 }
 
 // RunIntoGlazeProcessor implements the GlazeCommand interface

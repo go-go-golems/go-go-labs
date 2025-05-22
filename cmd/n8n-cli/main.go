@@ -6,11 +6,17 @@ import (
 
 	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds"
+	"github.com/go-go-golems/glazed/pkg/cmds/logging"
 	"github.com/go-go-golems/glazed/pkg/help"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 func main() {
+	// Setup viper for configuration
+	viper.SetEnvPrefix("N8N_CLI")
+	viper.AutomaticEnv()
+
 	// Create the root command
 	rootCmd := &cobra.Command{
 		Use:   "n8n-cli",
@@ -23,6 +29,23 @@ including adding nodes, connecting them, and setting node parameters.
 All commands require an API key, which can be obtained from the n8n UI under
 Settings → n8n API → "Create an API key".
 `,
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			// Bind viper to cobra flags
+			_ = viper.BindPFlags(cmd.Flags())
+
+			// Initialize the logger from viper settings
+			err := logging.InitLoggerFromViper()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error initializing logger: %v\n", err)
+			}
+		},
+	}
+
+	// Add logging layer to root command
+	err := logging.AddLoggingLayerToRootCommand(rootCmd, "n8n-cli")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error adding logging layer: %v\n", err)
+		os.Exit(1)
 	}
 
 	// Initialize help system

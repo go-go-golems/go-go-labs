@@ -17,9 +17,9 @@ type ConnectNodesCommand struct {
 
 // Settings for ConnectNodesCommand
 type ConnectNodesSettings struct {
-	WorkflowID string `glazed.parameter:"workflow-id"`
-	SourceNode string `glazed.parameter:"source-node"`
-	TargetNode string `glazed.parameter:"target-node"`
+	WorkflowID  string `glazed.parameter:"workflow-id"`
+	SourceNode  string `glazed.parameter:"source-node"`
+	TargetNode  string `glazed.parameter:"target-node"`
 	OutputIndex int    `glazed.parameter:"output-index"`
 	InputIndex  int    `glazed.parameter:"input-index"`
 }
