@@ -1,0 +1,38 @@
+version: "3"
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=n8n_user
+      - POSTGRES_PASSWORD=strongpassword
+      - POSTGRES_DB=n8n_db
+    volumes:
+      - n8n-db-data:/var/lib/postgresql/data
+
+  n8n:
+    image: n8nio/n8n:latest
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+      - "3000:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true        # (For n8n < 1.0; see note below)
+      - N8N_BASIC_AUTH_USER=admin         # (Basic auth username)
+      - N8N_BASIC_AUTH_PASSWORD=supersecretpassword   # (Basic auth password)
+      - N8N_ENCRYPTION_KEY=ts91Y...       # (Generate a strong key for credential encryption)
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_DATABASE=n8n_db
+      - DB_POSTGRESDB_USER=n8n_user
+      - DB_POSTGRESDB_PASSWORD=strongpassword
+      - WEBHOOK_URL=https://90ee-2600-8805-9398-8a00-d86f-564c-85d8-3c4b.ngrok-free.app/    # (Required if you expose n8n via a domain/proxy)
+      - GENERIC_TIMEZONE=America/New_York         # (Configure timezone if needed)
+    volumes:
+      - n8n-data:/home/node/.n8n    # Persist n8n data (including SQLite if used, and encryption key)
+    depends_on:
+      - postgres
+
+volumes:
+  n8n-db-data:
+  n8n-data:
+
