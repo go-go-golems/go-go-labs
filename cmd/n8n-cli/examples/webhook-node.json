@@ -1,0 +1,10 @@
+{
+  "name": "Webhook Trigger",
+  "type": "n8n-nodes-base.webhook",
+  "typeVersion": 1,
+  "position": [200, 300],
+  "parameters": {
+    "path": "my-endpoint",
+    "method": "POST"
+  }
+}

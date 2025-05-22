@@ -1,0 +1,5 @@
+{
+  "responseMode": "onReceived",
+  "responseData": "{{\"message\": \"Custom response message\"}}",
+  "responseCode": 201
+}
