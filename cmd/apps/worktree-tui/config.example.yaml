@@ -1,0 +1,38 @@
+# Example configuration for worktree-tui
+workspaces:
+  default_base_path: "~/code/workspaces"
+  
+repositories:
+  - name: "go-go-labs"
+    description: "Go experiments and prototypes"
+    local_path: "~/code/wesen/corporate-headquarters/go-go-labs"
+    default_branch: "main"
+    tags: ["go", "experiments"]
+    
+  - name: "clay"
+    description: "Clay configuration management"
+    url: "https://github.com/go-go-golems/clay.git"
+    default_branch: "main"
+    tags: ["go", "config"]
+    
+  - name: "glazed"
+    description: "Glazed structured output"
+    url: "https://github.com/go-go-golems/glazed.git"
+    default_branch: "main"
+    tags: ["go", "output"]
+    
+  - name: "geppetto"
+    description: "Corporate headquarters automation"
+    local_path: "~/code/wesen/corporate-headquarters"
+    subdirectory: "geppetto"
+    default_branch: "main"
+    tags: ["automation", "corporate"]
+
+presets:
+  - name: "Go Development"
+    description: "Full Go development environment"
+    repositories: ["go-go-labs", "clay", "glazed"]
+    
+  - name: "Corporate Tools"
+    description: "Corporate automation tools"
+    repositories: ["go-go-labs", "geppetto"]

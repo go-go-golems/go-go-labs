@@ -1,0 +1,30 @@
+workspaces:
+  default_base_path: "~/code/wesen/workspaces"
+  
+repositories:
+  - name: "geppetto"
+    description: "Geppetto LLM Framework"
+    local_path: "~/code/wesen/corporate-headquarters/geppetto"
+    default_branch: "main"
+    tags: ["go", "main", "llm"]
+    
+  - name: "glazed"
+    description: "Glazed"
+    local_path: "~/code/wesen/corporate-headquarters/glazed"
+    default_branch: "main"
+    tags: ["go", "library"]
+    
+  - name: "labs"
+    description: "Go go labs"
+    local_path: "~/code/wesen/corporate-headquarters/go-go-labs"
+    default_branch: "main"
+    tags: ["go", "experiments"]
+
+presets:
+  - name: "Full Development"
+    description: "Complete development environment"
+    repositories: ["geppetto", "glazed", "labs"]
+    
+  - name: "Core Tools"
+    description: "Essential tools"
+    repositories: ["geppetto", "glazed"]

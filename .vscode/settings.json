@@ -1,0 +1,11 @@
+{
+    "amp.commands.allowlist": [
+        "npm",
+        "go build",
+        "go mod tidy",
+        "cd cmd/apps/remote-js-executor",
+        "make build",
+        "cd cmd/apps/create-pull-request",
+        "./create-pull-request"
+    ]
+}
