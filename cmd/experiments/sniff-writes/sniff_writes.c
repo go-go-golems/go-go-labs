@@ -32,6 +32,13 @@ struct {
     __type(value, char[MAX_FILENAME_LEN]);
 } temp_paths SEC(".maps");
 
+struct {
+    __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+    __uint(max_entries, 1);
+    __type(key, __u32);
+    __type(value, struct event);
+} scratch_event SEC(".maps");
+
 // Simplified tracepoint context structures
 struct sys_enter_ctx {
     unsigned short common_type;
@@ -67,24 +74,22 @@ int trace_openat_enter(struct sys_enter_ctx *ctx) {
     __u64 pid_tgid = bpf_get_current_pid_tgid();
     __u32 pid = pid_tgid >> 32;
     
-    char comm[MAX_COMM_LEN];
-    bpf_get_current_comm(comm, sizeof(comm));
+    // Use per-CPU array to avoid stack issues
+    __u32 key = 0;
+    struct event *e = bpf_map_lookup_elem(&scratch_event, &key);
+    if (!e) return 0;
     
-    char filename[MAX_FILENAME_LEN];
-    bpf_probe_read_user_str(filename, sizeof(filename), (void *)ctx->args[1]);
+    __builtin_memset(e, 0, sizeof(*e));
+    e->pid = pid;
+    e->type = 0; // open
+    bpf_get_current_comm(e->comm, sizeof(e->comm));
+    bpf_probe_read_user_str(e->filename, sizeof(e->filename), (void *)ctx->args[1]);
     
-    // Send all openat events - filtering will be done in userspace
-    struct event e = {};
-    e.pid = pid;
-    e.type = 0; // open
-    __builtin_memcpy(e.comm, comm, MAX_COMM_LEN);
-    __builtin_memcpy(e.filename, filename, MAX_FILENAME_LEN);
-    
-    bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU, &e, sizeof(e));
+    bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU, e, sizeof(*e));
     
     // Store temp path for matching with exit
-    __u64 key = ((__u64)pid << 32) | hash_comm(comm);
-    bpf_map_update_elem(&temp_paths, &key, filename, BPF_ANY);
+    __u64 hash_key = ((__u64)pid << 32) | hash_comm(e->comm);
+    bpf_map_update_elem(&temp_paths, &hash_key, e->filename, BPF_ANY);
     
     return 0;
 }
@@ -115,19 +120,28 @@ int trace_read_enter(struct sys_enter_ctx *ctx) {
     __u32 pid = pid_tgid >> 32;
     __s32 fd = (__s32)ctx->args[0];
     
+    // Skip obvious non-file descriptors (stdin, stdout, stderr, sockets, pipes)
+    if (fd <= 2) return 0;
+    
+    // Use per-CPU array to avoid stack issues
+    __u32 key = 0;
+    struct event *e = bpf_map_lookup_elem(&scratch_event, &key);
+    if (!e) return 0;
+    
+    __builtin_memset(e, 0, sizeof(*e));
+    e->pid = pid;
+    e->fd = fd;
+    e->type = 1; // read
+    bpf_get_current_comm(e->comm, sizeof(e->comm));
+    
+    // Try to get filename from our tracking map
     __u64 fd_key = ((__u64)pid << 32) | (__u32)fd;
     char *filename = bpf_map_lookup_elem(&fd_to_filename, &fd_key);
-    
     if (filename) {
-        struct event e = {};
-        e.pid = pid;
-        e.fd = fd;
-        e.type = 1; // read
-        bpf_get_current_comm(e.comm, sizeof(e.comm));
-        __builtin_memcpy(e.filename, filename, MAX_FILENAME_LEN);
-        
-        bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU, &e, sizeof(e));
+        __builtin_memcpy(e->filename, filename, MAX_FILENAME_LEN);
     }
+    
+    bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU, e, sizeof(*e));
     
     return 0;
 }
@@ -138,19 +152,28 @@ int trace_write_enter(struct sys_enter_ctx *ctx) {
     __u32 pid = pid_tgid >> 32;
     __s32 fd = (__s32)ctx->args[0];
     
+    // Skip obvious non-file descriptors (stdin, stdout, stderr, sockets, pipes)
+    if (fd <= 2) return 0;
+    
+    // Use per-CPU array to avoid stack issues
+    __u32 key = 0;
+    struct event *e = bpf_map_lookup_elem(&scratch_event, &key);
+    if (!e) return 0;
+    
+    __builtin_memset(e, 0, sizeof(*e));
+    e->pid = pid;
+    e->fd = fd;
+    e->type = 2; // write
+    bpf_get_current_comm(e->comm, sizeof(e->comm));
+    
+    // Try to get filename from our tracking map
     __u64 fd_key = ((__u64)pid << 32) | (__u32)fd;
     char *filename = bpf_map_lookup_elem(&fd_to_filename, &fd_key);
-    
     if (filename) {
-        struct event e = {};
-        e.pid = pid;
-        e.fd = fd;
-        e.type = 2; // write
-        bpf_get_current_comm(e.comm, sizeof(e.comm));
-        __builtin_memcpy(e.filename, filename, MAX_FILENAME_LEN);
-        
-        bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU, &e, sizeof(e));
+        __builtin_memcpy(e->filename, filename, MAX_FILENAME_LEN);
     }
+    
+    bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU, e, sizeof(*e));
     
     return 0;
 }
@@ -161,7 +184,30 @@ int trace_close_enter(struct sys_enter_ctx *ctx) {
     __u32 pid = pid_tgid >> 32;
     __s32 fd = (__s32)ctx->args[0];
     
+    // Skip obvious non-file descriptors (stdin, stdout, stderr)
+    if (fd <= 2) return 0;
+    
     __u64 fd_key = ((__u64)pid << 32) | (__u32)fd;
+    
+    // Only send close events if we have filename info
+    char *filename = bpf_map_lookup_elem(&fd_to_filename, &fd_key);
+    if (filename) {
+        // Use per-CPU array to avoid stack issues
+        __u32 key = 0;
+        struct event *e = bpf_map_lookup_elem(&scratch_event, &key);
+        if (e) {
+            __builtin_memset(e, 0, sizeof(*e));
+            e->pid = pid;
+            e->fd = fd;
+            e->type = 3; // close
+            bpf_get_current_comm(e->comm, sizeof(e->comm));
+            __builtin_memcpy(e->filename, filename, MAX_FILENAME_LEN);
+            
+            bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU, e, sizeof(*e));
+        }
+    }
+    
+    // Clean up our tracking regardless
     bpf_map_delete_elem(&fd_to_filename, &fd_key);
     
     return 0;

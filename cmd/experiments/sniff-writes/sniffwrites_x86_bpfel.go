@@ -12,6 +12,14 @@ import (
 	"github.com/cilium/ebpf"
 )
 
+type sniffwritesEvent struct {
+	Pid      uint32
+	Fd       int32
+	Comm     [16]int8
+	Filename [64]int8
+	Type     uint32
+}
+
 // loadSniffwrites returns the embedded CollectionSpec for sniffwrites.
 func loadSniffwrites() (*ebpf.CollectionSpec, error) {
 	reader := bytes.NewReader(_SniffwritesBytes)
@@ -67,6 +75,7 @@ type sniffwritesProgramSpecs struct {
 type sniffwritesMapSpecs struct {
 	Events       *ebpf.MapSpec `ebpf:"events"`
 	FdToFilename *ebpf.MapSpec `ebpf:"fd_to_filename"`
+	ScratchEvent *ebpf.MapSpec `ebpf:"scratch_event"`
 	TempPaths    *ebpf.MapSpec `ebpf:"temp_paths"`
 }
 
@@ -98,6 +107,7 @@ func (o *sniffwritesObjects) Close() error {
 type sniffwritesMaps struct {
 	Events       *ebpf.Map `ebpf:"events"`
 	FdToFilename *ebpf.Map `ebpf:"fd_to_filename"`
+	ScratchEvent *ebpf.Map `ebpf:"scratch_event"`
 	TempPaths    *ebpf.Map `ebpf:"temp_paths"`
 }
 
@@ -105,6 +115,7 @@ func (m *sniffwritesMaps) Close() error {
 	return _SniffwritesClose(
 		m.Events,
 		m.FdToFilename,
+		m.ScratchEvent,
 		m.TempPaths,
 	)
 }

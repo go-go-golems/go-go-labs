@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -38,6 +39,7 @@ type Config struct {
 	Verbose      bool
 	ShowFd       bool
 	OutputFile   string
+	Debug        bool
 }
 
 type EventOutput struct {
@@ -99,6 +101,7 @@ func init() {
 	monitorCmd.Flags().BoolVarP(&config.Verbose, "verbose", "v", false, "Verbose output")
 	monitorCmd.Flags().BoolVar(&config.ShowFd, "show-fd", false, "Show file descriptor numbers")
 	monitorCmd.Flags().StringVar(&config.OutputFile, "output", "", "Output to file instead of stdout")
+	monitorCmd.Flags().BoolVar(&config.Debug, "debug", false, "Debug mode - show all events regardless of filters")
 }
 
 func runMonitor(cmd *cobra.Command, args []string) error {
@@ -267,15 +270,24 @@ func processEvents(ctx context.Context, rd *perf.Reader, outputWriter *os.File) 
 			continue
 		}
 
-		if shouldProcessEvent(&event) {
-			outputEvent(&event, outputWriter)
+		if config.Debug || shouldProcessEvent(&event) {
+			if config.Debug {
+				filename := cString(event.Filename[:])
+				comm := cString(event.Comm[:])
+				fmt.Printf("[DEBUG] PID=%d FD=%d COMM=%s FILE=%s TYPE=%d\n", 
+					event.Pid, event.Fd, comm, filename, event.Type)
+			}
+			if !config.Debug || shouldProcessEvent(&event) {
+				outputEvent(&event, outputWriter)
+			}
 		}
 	}
 }
 
 func parseEvent(data []byte, event *Event) error {
-	if len(data) < int(unsafe.Sizeof(*event)) {
-		return fmt.Errorf("data too short")
+	expectedSize := int(unsafe.Sizeof(*event))
+	if len(data) < expectedSize {
+		return fmt.Errorf("data too short: got %d bytes, expected %d bytes", len(data), expectedSize)
 	}
 	
 	*event = *(*Event)(unsafe.Pointer(&data[0]))
@@ -286,28 +298,84 @@ func shouldProcessEvent(event *Event) bool {
 	filename := cString(event.Filename[:])
 	comm := cString(event.Comm[:])
 	
-	// Check directory filter
-	if !strings.HasPrefix(filename, config.Directory) {
-		return false
-	}
-	
-	// Check process filter
+	// Check process filter first (more efficient)
 	if config.ProcessFilter != "" && !strings.Contains(comm, config.ProcessFilter) {
 		return false
 	}
 	
+	// If we don't have a filename, try to resolve it from /proc
+	if filename == "" {
+		resolvedFilename := resolveFilenameFromFd(event.Pid, event.Fd)
+		if resolvedFilename != "" {
+			filename = resolvedFilename
+			// Update the event with resolved filename
+			for i := 0; i < len(event.Filename) && i < len(resolvedFilename); i++ {
+				event.Filename[i] = int8(resolvedFilename[i])
+			}
+		}
+	}
+	
+	// Skip if we still don't have a filename and it's not a close event
+	if filename == "" && event.Type != 3 {
+		return false
+	}
+	
+	// Check directory filter - for close events without filename, we can't filter
+	if filename != "" {
+		// Get current working directory for relative path comparison
+		cwd, _ := os.Getwd()
+		
+		// Convert both paths to absolute for proper comparison
+		absFilename := filename
+		if !filepath.IsAbs(filename) {
+			absFilename = filepath.Join(cwd, filename)
+		}
+		absFilename = filepath.Clean(absFilename)
+		
+		absTargetDir := config.Directory
+		if !filepath.IsAbs(config.Directory) {
+			absTargetDir = filepath.Join(cwd, config.Directory)
+		}
+		absTargetDir = filepath.Clean(absTargetDir)
+		
+		// Check if file is within the target directory
+		relPath, err := filepath.Rel(absTargetDir, absFilename)
+		if err != nil || strings.HasPrefix(relPath, "..") {
+			return false
+		}
+	}
+	
 	return true
+}
+
+func resolveFilenameFromFd(pid uint32, fd int32) string {
+	// Try to resolve filename from /proc/PID/fd/FD
+	procPath := fmt.Sprintf("/proc/%d/fd/%d", pid, fd)
+	
+	// Use readlink to get the actual file path
+	if link, err := os.Readlink(procPath); err == nil {
+		// Clean the path to make it more readable
+		if abs, err := filepath.Abs(link); err == nil {
+			return abs
+		}
+		return link
+	}
+	
+	return ""
 }
 
 func outputEvent(event *Event, writer *os.File) {
 	comm := cString(event.Comm[:])
 	filename := cString(event.Filename[:])
 	
+	// Format filename to be relative and user-friendly
+	displayFilename := formatFilename(filename)
+	
 	eventOutput := EventOutput{
 		Timestamp: time.Now().Format(time.RFC3339),
 		Pid:       event.Pid,
 		Process:   comm,
-		Filename:  filename,
+		Filename:  displayFilename,
 	}
 	
 	switch event.Type {
@@ -377,31 +445,79 @@ func outputJSON(event EventOutput, writer *os.File) {
 
 func printTableHeader(writer *os.File) {
 	if config.ShowFd {
-		fmt.Fprintf(writer, "%-20s %-10s %-8s %-8s %-8s %s\n", 
-			"TIMESTAMP", "PROCESS", "PID", "OPERATION", "FD", "FILENAME")
-		fmt.Fprintf(writer, "%-20s %-10s %-8s %-8s %-8s %s\n", 
-			"--------------------", "----------", "--------", "--------", "--------", "--------")
+		fmt.Fprintf(writer, "%-8s %-12s %-8s %-8s %-8s %s\n", 
+			"TIME", "PROCESS", "PID", "OPERATION", "FD", "FILENAME")
+		fmt.Fprintf(writer, "%-8s %-12s %-8s %-8s %-8s %s\n", 
+			"--------", "------------", "--------", "--------", "--------", "--------")
 	} else {
-		fmt.Fprintf(writer, "%-20s %-10s %-8s %-8s %s\n", 
-			"TIMESTAMP", "PROCESS", "PID", "OPERATION", "FILENAME")
-		fmt.Fprintf(writer, "%-20s %-10s %-8s %-8s %s\n", 
-			"--------------------", "----------", "--------", "--------", "--------")
+		fmt.Fprintf(writer, "%-8s %-12s %-8s %-8s %s\n", 
+			"TIME", "PROCESS", "PID", "OPERATION", "FILENAME")
+		fmt.Fprintf(writer, "%-8s %-12s %-8s %-8s %s\n", 
+			"--------", "------------", "--------", "--------", "--------")
 	}
 }
 
 func outputTable(event EventOutput, writer *os.File) {
+	// Truncate timestamp to show only time part for better readability
+	timestamp := event.Timestamp
+	if len(timestamp) > 19 {
+		timestamp = timestamp[11:19] // Extract HH:MM:SS part
+	}
+	
 	fdCol := ""
 	if config.ShowFd && event.Fd != 0 {
 		fdCol = fmt.Sprintf("%d", event.Fd)
 	}
 	
-	if config.ShowFd {
-		fmt.Fprintf(writer, "%-20s %-10s %-8d %-8s %-8s %s\n", 
-			event.Timestamp, event.Process, event.Pid, event.Operation, fdCol, event.Filename)
-	} else {
-		fmt.Fprintf(writer, "%-20s %-10s %-8d %-8s %s\n", 
-			event.Timestamp, event.Process, event.Pid, event.Operation, event.Filename)
+	// Truncate filename if too long for better table formatting
+	filename := event.Filename
+	if len(filename) > 50 {
+		filename = "..." + filename[len(filename)-47:]
 	}
+	
+	if config.ShowFd {
+		fmt.Fprintf(writer, "%-8s %-12s %-8d %-8s %-8s %s\n", 
+			timestamp, event.Process, event.Pid, event.Operation, fdCol, filename)
+	} else {
+		fmt.Fprintf(writer, "%-8s %-12s %-8d %-8s %s\n", 
+			timestamp, event.Process, event.Pid, event.Operation, filename)
+	}
+}
+
+func formatFilename(filename string) string {
+	if filename == "" {
+		return ""
+	}
+	
+	cwd, err := os.Getwd()
+	if err != nil {
+		return filename
+	}
+	
+	// Try to make path relative to current directory
+	if relPath, err := filepath.Rel(cwd, filename); err == nil && !strings.HasPrefix(relPath, "..") {
+		return relPath
+	}
+	
+	// If not under current directory, try relative to target directory
+	if !filepath.IsAbs(config.Directory) {
+		absTargetDir := filepath.Join(cwd, config.Directory)
+		if relPath, err := filepath.Rel(absTargetDir, filename); err == nil && !strings.HasPrefix(relPath, "..") {
+			return filepath.Join(config.Directory, relPath)
+		}
+	} else {
+		if relPath, err := filepath.Rel(config.Directory, filename); err == nil && !strings.HasPrefix(relPath, "..") {
+			return relPath
+		}
+	}
+	
+	// If path is too long, elide the beginning (keep the important end part)
+	const maxLen = 60
+	if len(filename) > maxLen {
+		return "..." + filename[len(filename)-maxLen+3:]
+	}
+	
+	return filename
 }
 
 func cString(data []int8) string {
