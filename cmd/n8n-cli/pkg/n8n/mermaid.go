@@ -1,4 +1,4 @@
-package main
+package n8n
 
 import (
 	"fmt"

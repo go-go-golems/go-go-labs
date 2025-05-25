@@ -10,6 +10,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
+	"github.com/go-go-golems/go-go-labs/cmd/n8n-cli/pkg/n8n"
 )
 
 // AddNodeCommand adds a node to an existing workflow
@@ -40,13 +41,13 @@ func (c *AddNodeCommand) RunIntoGlazeProcessor(
 	}
 
 	// Get API settings
-	apiSettings, err := GetN8NAPISettingsFromParsedLayers(parsedLayers)
+	apiSettings, err := n8n.GetN8NAPISettingsFromParsedLayers(parsedLayers)
 	if err != nil {
 		return err
 	}
 
 	// Create API client
-	client := NewN8NClient(apiSettings.BaseURL, apiSettings.APIKey)
+	client := n8n.NewN8NClient(apiSettings.BaseURL, apiSettings.APIKey)
 
 	// Get current workflow
 	workflow, err := client.GetWorkflow(s.WorkflowID)
@@ -99,7 +100,7 @@ func NewAddNodeCommand() (*AddNodeCommand, error) {
 	}
 
 	// Add the n8n API layer
-	apiLayer, err := NewN8NAPILayer()
+	apiLayer, err := n8n.NewN8NAPILayer()
 	if err != nil {
 		return nil, err
 	}

@@ -1,4 +1,4 @@
-package main
+package n8n
 
 import (
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"

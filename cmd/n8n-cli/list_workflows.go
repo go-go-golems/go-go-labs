@@ -10,6 +10,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
+	"github.com/go-go-golems/go-go-labs/cmd/n8n-cli/pkg/n8n"
 	"io"
 	"net/http"
 )
@@ -42,13 +43,13 @@ func (c *ListWorkflowsCommand) RunIntoGlazeProcessor(
 	}
 
 	// Get API settings
-	apiSettings, err := GetN8NAPISettingsFromParsedLayers(parsedLayers)
+	apiSettings, err := n8n.GetN8NAPISettingsFromParsedLayers(parsedLayers)
 	if err != nil {
 		return err
 	}
 
 	// Create API client
-	client := NewN8NClient(apiSettings.BaseURL, apiSettings.APIKey)
+	client := n8n.NewN8NClient(apiSettings.BaseURL, apiSettings.APIKey)
 
 	// List workflows with cursor-based pagination
 	endpoint := fmt.Sprintf("workflows?limit=%d", s.Limit)
@@ -133,7 +134,7 @@ func (c *ListWorkflowsCommand) RunIntoGlazeProcessor(
 			}
 
 			// Generate mermaid diagram and extract sticky notes
-			result := WorkflowToMermaid(workflow)
+			result := n8n.WorkflowToMermaid(workflow)
 
 			// Print header with workflow name/id
 			name, _ := workflow["name"].(string)
@@ -186,7 +187,7 @@ func NewListWorkflowsCommand() (*ListWorkflowsCommand, error) {
 		return nil, err
 	}
 
-	apiLayer, err := NewN8NAPILayer()
+	apiLayer, err := n8n.NewN8NAPILayer()
 	if err != nil {
 		return nil, err
 	}
