@@ -49,7 +49,19 @@ func handleErrorResponse(resp *http.Response, endpoint string, expectedStatuses 
 		errorBodyStr = resp.Status
 	}
 
+	// Log at multiple levels to ensure visibility
 	log.Error().Int("status", resp.StatusCode).Str("endpoint", endpoint).Str("error_body", errorBodyStr).Msg("API request failed")
+	
+	// Also log at WARN level with more explicit message for better visibility
+	log.Warn().
+		Int("http_status", resp.StatusCode).
+		Str("api_endpoint", endpoint).
+		Str("full_error_response", errorBodyStr).
+		Msg("n8n API returned error - full response body above")
+	
+	// For critical debugging, also output directly to stderr
+	fmt.Fprintf(os.Stderr, "[n8n-cli DEBUG] HTTP %d error on %s: %s\n", resp.StatusCode, endpoint, errorBodyStr)
+	
 	return fmt.Errorf("n8n API error (status %d): %s", resp.StatusCode, errorBodyStr)
 }
 
@@ -107,10 +119,18 @@ func (c *N8NClient) DoRequest(method, endpoint string, body io.Reader) (*http.Re
 	// Log response status
 	logEvent := log.Debug().Int("status", resp.StatusCode).Str("status_text", resp.Status)
 
-	// For non-2xx responses, log the body at DEBUG level
+	// For non-2xx responses, log the body at ERROR level and also at INFO level for visibility
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		logEvent = log.Error().Int("status", resp.StatusCode).Str("status_text", resp.Status)
 		logEvent.Str("body", string(bodyBytes)).Msg("Error response")
+		
+		// Also log at INFO level to ensure it's visible even with higher log levels
+		log.Info().
+			Int("status", resp.StatusCode).
+			Str("url", url).
+			Str("method", method).
+			Str("response_body", string(bodyBytes)).
+			Msg("HTTP Error Response Details")
 	} else {
 		// For successful responses, log body at TRACE level
 		logEvent.Msg("Response received")

@@ -5,6 +5,7 @@
 #include <bpf/bpf_helpers.h>
 
 #define MAX_COMM_LEN 16
+#define MAX_CONTENT_LEN 64
 
 struct event {
     __u32 pid;
@@ -12,6 +13,9 @@ struct event {
     char comm[MAX_COMM_LEN];
     __u32 path_hash; // 32-bit hash of the path for cache lookup
     __u32 type; // 0 = open, 1 = read, 2 = write, 3 = close
+    __u64 write_size; // Total size of write operation
+    __u32 content_len; // Actual content captured (≤ MAX_CONTENT_LEN)
+    char content[MAX_CONTENT_LEN]; // Write content (for write events only)
 };
 
 struct {
@@ -25,6 +29,14 @@ struct {
     __type(key, __u64); // pid << 32 | fd
     __type(value, __u32); // path hash
 } fd_to_hash SEC(".maps");
+
+// Control map for content capture (single entry: key=0, value=1 means enabled)
+struct {
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __uint(max_entries, 1);
+    __type(key, __u32);
+    __type(value, __u32);
+} content_capture_enabled SEC(".maps");
 
 struct {
     __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
@@ -161,6 +173,27 @@ int trace_write_enter(struct sys_enter_ctx *ctx) {
     e->fd = fd;
     e->type = 2; // write
     bpf_get_current_comm(e->comm, sizeof(e->comm));
+    
+    // Capture write size and content
+    e->write_size = (__u64)ctx->args[2]; // size argument
+    
+    // Check if content capture is enabled
+    __u32 capture_key = 0;
+    __u32 *enabled = bpf_map_lookup_elem(&content_capture_enabled, &capture_key);
+    
+    if (enabled && *enabled && e->write_size > 0) {
+        // Capture content only when enabled
+        if (e->write_size <= MAX_CONTENT_LEN) {
+            e->content_len = (__u32)e->write_size;
+            bpf_probe_read_user(e->content, e->content_len, (void *)ctx->args[1]);
+        } else {
+            // Capture first MAX_CONTENT_LEN bytes
+            e->content_len = MAX_CONTENT_LEN;
+            bpf_probe_read_user(e->content, MAX_CONTENT_LEN, (void *)ctx->args[1]);
+        }
+    } else {
+        e->content_len = 0;
+    }
     
     // Try to get path hash from our tracking map
     __u64 fd_key = ((__u64)pid << 32) | (__u32)fd;

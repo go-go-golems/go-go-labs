@@ -24,11 +24,14 @@ import (
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target amd64 -cflags "-I/usr/include/x86_64-linux-gnu -mllvm -bpf-stack-size=8192" sniffwrites sniff_writes.c
 
 type Event struct {
-	Pid      uint32
-	Fd       int32
-	Comm     [16]int8
-	PathHash uint32 // 32-bit hash of the path for cache lookup
-	Type     uint32 // 0 = open, 1 = read, 2 = write, 3 = close
+	Pid        uint32
+	Fd         int32
+	Comm       [16]int8
+	PathHash   uint32 // 32-bit hash of the path for cache lookup
+	Type       uint32 // 0 = open, 1 = read, 2 = write, 3 = close
+	WriteSize  uint64 // Total size of write operation
+	ContentLen uint32 // Actual content captured
+	Content    [64]int8 // Write content (for write events only)
 }
 
 type Config struct {
@@ -42,6 +45,8 @@ type Config struct {
 	OutputFile   string
 	Debug        bool
 	ShowAllFiles bool // Show pipes, sockets, etc. (default: false)
+	CaptureContent bool // Capture write content (default: false)
+	ContentSize  int  // Max content bytes to capture (default: 64)
 }
 
 type EventOutput struct {
@@ -51,6 +56,9 @@ type EventOutput struct {
 	Operation string `json:"operation"`
 	Filename  string `json:"filename"`
 	Fd        int32  `json:"fd,omitempty"`
+	WriteSize uint64 `json:"write_size,omitempty"`
+	Content   string `json:"content,omitempty"`
+	Truncated bool   `json:"truncated,omitempty"`
 }
 
 var config Config
@@ -121,6 +129,12 @@ Examples:
   # Show all file types including pipes and sockets
   sudo sniff-writes monitor --show-all-files
 
+  # Capture write content (first 64 bytes)
+  sudo sniff-writes monitor --capture-content
+
+  # Capture more content (first 128 bytes) 
+  sudo sniff-writes monitor --capture-content --content-size 128
+
   # Filter by process name
   sudo sniff-writes monitor -p nginx -v`,
 }
@@ -147,12 +161,19 @@ func init() {
 	monitorCmd.Flags().StringVar(&config.OutputFile, "output", "", "Output to file instead of stdout")
 	monitorCmd.Flags().BoolVar(&config.Debug, "debug", false, "Debug mode - show all events regardless of filters")
 	monitorCmd.Flags().BoolVar(&config.ShowAllFiles, "show-all-files", false, "Show all file types including pipes, sockets, etc. (default: only regular files)")
+	monitorCmd.Flags().BoolVar(&config.CaptureContent, "capture-content", false, "Capture write content (warning: may impact performance)")
+	monitorCmd.Flags().IntVar(&config.ContentSize, "content-size", 64, "Maximum bytes of write content to capture (default: 64)")
 }
 
 func runMonitor(cmd *cobra.Command, args []string) error {
 	// Check for root privileges
 	if os.Geteuid() != 0 {
 		return fmt.Errorf("this program requires root privileges to load eBPF programs")
+	}
+
+	// Validate content size parameter
+	if config.ContentSize < 1 || config.ContentSize > 64 {
+		return fmt.Errorf("content-size must be between 1 and 64 bytes (current eBPF limitation)")
 	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -192,6 +213,11 @@ func runMonitor(cmd *cobra.Command, args []string) error {
 			l.Close()
 		}
 	}()
+
+	// Configure content capture in eBPF
+	if err := configureContentCapture(coll); err != nil {
+		return fmt.Errorf("failed to configure content capture: %w", err)
+	}
 
 	// Open perf event reader
 	rd, err := perf.NewReader(coll.Maps["events"], os.Getpagesize())
@@ -279,6 +305,17 @@ func attachTracepoints(coll *ebpf.Collection) ([]link.Link, error) {
 	}
 
 	return links, nil
+}
+
+func configureContentCapture(coll *ebpf.Collection) error {
+	// Set content capture flag in eBPF map
+	key := uint32(0)
+	value := uint32(0)
+	if config.CaptureContent {
+		value = uint32(1)
+	}
+	
+	return coll.Maps["content_capture_enabled"].Put(key, value)
 }
 
 func processEvents(ctx context.Context, rd *perf.Reader, outputWriter *os.File) error {
@@ -458,6 +495,22 @@ func outputEvent(event *Event, resolvedPath string, writer *os.File) {
 		Filename:  displayFilename,
 	}
 	
+	// Add write-specific information if available
+	if event.Type == 2 && event.WriteSize > 0 { // write event
+		eventOutput.WriteSize = event.WriteSize
+		
+		if config.CaptureContent && event.ContentLen > 0 {
+			// Respect user's content size limit
+			contentLen := event.ContentLen
+			if int(contentLen) > config.ContentSize {
+				contentLen = uint32(config.ContentSize)
+			}
+			content := cString(event.Content[:contentLen])
+			eventOutput.Content = content
+			eventOutput.Truncated = event.WriteSize > uint64(contentLen)
+		}
+	}
+	
 	switch event.Type {
 	case 0:
 		eventOutput.Operation = "open"
@@ -504,8 +557,20 @@ func outputPlain(event EventOutput, writer *os.File) {
 		fmt.Fprintf(writer, "[%s] Process %s (PID %d) reading from file: %s%s\n", 
 			event.Timestamp, event.Process, event.Pid, event.Filename, fdInfo)
 	case "write":
-		fmt.Fprintf(writer, "[%s] Process %s (PID %d) writing to file: %s%s\n", 
-			event.Timestamp, event.Process, event.Pid, event.Filename, fdInfo)
+		sizeInfo := ""
+		if event.WriteSize > 0 {
+			sizeInfo = fmt.Sprintf(" (%d bytes)", event.WriteSize)
+		}
+		fmt.Fprintf(writer, "[%s] Process %s (PID %d) writing to file: %s%s%s\n", 
+			event.Timestamp, event.Process, event.Pid, event.Filename, fdInfo, sizeInfo)
+		
+		if config.CaptureContent && event.Content != "" {
+			truncated := ""
+			if event.Truncated {
+				truncated = " [TRUNCATED]"
+			}
+			fmt.Fprintf(writer, "    Content: %q%s\n", event.Content, truncated)
+		}
 	case "close":
 		fmt.Fprintf(writer, "[%s] Process %s (PID %d) closing file descriptor%s\n", 
 			event.Timestamp, event.Process, event.Pid, fdInfo)

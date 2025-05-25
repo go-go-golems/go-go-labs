@@ -13,11 +13,15 @@ import (
 )
 
 type sniffwritesEvent struct {
-	Pid      uint32
-	Fd       int32
-	Comm     [16]int8
-	PathHash uint32
-	Type     uint32
+	Pid        uint32
+	Fd         int32
+	Comm       [16]int8
+	PathHash   uint32
+	Type       uint32
+	WriteSize  uint64
+	ContentLen uint32
+	Content    [64]int8
+	_          [4]byte
 }
 
 // loadSniffwrites returns the embedded CollectionSpec for sniffwrites.
@@ -73,9 +77,10 @@ type sniffwritesProgramSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type sniffwritesMapSpecs struct {
-	Events       *ebpf.MapSpec `ebpf:"events"`
-	FdToHash     *ebpf.MapSpec `ebpf:"fd_to_hash"`
-	ScratchEvent *ebpf.MapSpec `ebpf:"scratch_event"`
+	ContentCaptureEnabled *ebpf.MapSpec `ebpf:"content_capture_enabled"`
+	Events                *ebpf.MapSpec `ebpf:"events"`
+	FdToHash              *ebpf.MapSpec `ebpf:"fd_to_hash"`
+	ScratchEvent          *ebpf.MapSpec `ebpf:"scratch_event"`
 }
 
 // sniffwritesVariableSpecs contains global variables before they are loaded into the kernel.
@@ -104,13 +109,15 @@ func (o *sniffwritesObjects) Close() error {
 //
 // It can be passed to loadSniffwritesObjects or ebpf.CollectionSpec.LoadAndAssign.
 type sniffwritesMaps struct {
-	Events       *ebpf.Map `ebpf:"events"`
-	FdToHash     *ebpf.Map `ebpf:"fd_to_hash"`
-	ScratchEvent *ebpf.Map `ebpf:"scratch_event"`
+	ContentCaptureEnabled *ebpf.Map `ebpf:"content_capture_enabled"`
+	Events                *ebpf.Map `ebpf:"events"`
+	FdToHash              *ebpf.Map `ebpf:"fd_to_hash"`
+	ScratchEvent          *ebpf.Map `ebpf:"scratch_event"`
 }
 
 func (m *sniffwritesMaps) Close() error {
 	return _SniffwritesClose(
+		m.ContentCaptureEnabled,
 		m.Events,
 		m.FdToHash,
 		m.ScratchEvent,
