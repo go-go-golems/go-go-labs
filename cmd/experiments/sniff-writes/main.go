@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 	"unsafe"
@@ -26,7 +27,7 @@ type Event struct {
 	Pid      uint32
 	Fd       int32
 	Comm     [16]int8
-	Filename [64]int8
+	PathHash uint32 // 32-bit hash of the path for cache lookup
 	Type     uint32 // 0 = open, 1 = read, 2 = write, 3 = close
 }
 
@@ -40,6 +41,7 @@ type Config struct {
 	ShowFd       bool
 	OutputFile   string
 	Debug        bool
+	ShowAllFiles bool // Show pipes, sockets, etc. (default: false)
 }
 
 type EventOutput struct {
@@ -53,6 +55,45 @@ type EventOutput struct {
 
 var config Config
 
+// PathCache stores full paths by hash for quick lookup
+type PathCache struct {
+	mu    sync.RWMutex
+	cache map[uint32]string
+}
+
+func NewPathCache() *PathCache {
+	return &PathCache{
+		cache: make(map[uint32]string),
+	}
+}
+
+func (pc *PathCache) Set(hash uint32, path string) {
+	pc.mu.Lock()
+	defer pc.mu.Unlock()
+	pc.cache[hash] = path
+}
+
+func (pc *PathCache) Get(hash uint32) (string, bool) {
+	pc.mu.RLock()
+	defer pc.mu.RUnlock()
+	path, exists := pc.cache[hash]
+	return path, exists
+}
+
+// Hash function that matches the eBPF implementation
+func hashPath(path string) uint32 {
+	hash := uint32(0)
+	for i, c := range []byte(path) {
+		if i >= 256 { // Match eBPF limit
+			break
+		}
+		hash = hash*31 + uint32(c)
+	}
+	return hash
+}
+
+var pathCache = NewPathCache()
+
 func main() {
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -64,11 +105,11 @@ var rootCmd = &cobra.Command{
 	Use:   "sniff-writes",
 	Short: "Monitor file operations using eBPF",
 	Long: `sniff-writes monitors file operations (open, read, write, close) on specified 
-directories using eBPF tracepoints. This is a Go port of a bpftrace script that 
-provides more flexible filtering and output options.
+directories using eBPF tracepoints. By default, only shows regular files and excludes 
+pipes, sockets, and virtual filesystems.
 
 Examples:
-  # Monitor default directory with plain output
+  # Monitor default directory with plain output (regular files only)
   sudo sniff-writes monitor
 
   # Monitor specific directory with JSON output for 30 seconds
@@ -76,6 +117,9 @@ Examples:
 
   # Monitor only read/write operations with table format
   sudo sniff-writes monitor -o read,write -f table --show-fd
+
+  # Show all file types including pipes and sockets
+  sudo sniff-writes monitor --show-all-files
 
   # Filter by process name
   sudo sniff-writes monitor -p nginx -v`,
@@ -102,6 +146,7 @@ func init() {
 	monitorCmd.Flags().BoolVar(&config.ShowFd, "show-fd", false, "Show file descriptor numbers")
 	monitorCmd.Flags().StringVar(&config.OutputFile, "output", "", "Output to file instead of stdout")
 	monitorCmd.Flags().BoolVar(&config.Debug, "debug", false, "Debug mode - show all events regardless of filters")
+	monitorCmd.Flags().BoolVar(&config.ShowAllFiles, "show-all-files", false, "Show all file types including pipes, sockets, etc. (default: only regular files)")
 }
 
 func runMonitor(cmd *cobra.Command, args []string) error {
@@ -250,35 +295,37 @@ func processEvents(ctx context.Context, rd *perf.Reader, outputWriter *os.File) 
 			if ctx.Err() != nil {
 				return nil
 			}
-			if config.Verbose {
+			if config.Verbose || config.Debug {
 				log.Printf("reading from perf event reader: %s", err)
 			}
 			continue
 		}
 
 		if record.LostSamples != 0 {
-			if config.Verbose {
+			if config.Verbose || config.Debug {
 				log.Printf("lost %d samples", record.LostSamples)
 			}
 			continue
 		}
 
 		if err := parseEvent(record.RawSample, &event); err != nil {
-			if config.Verbose {
+			if config.Verbose || config.Debug {
 				log.Printf("parsing event: %s", err)
 			}
 			continue
 		}
 
-		if config.Debug || shouldProcessEvent(&event) {
+		// Resolve the path before filtering
+		resolvedPath := resolvePath(&event)
+		
+		if config.Debug || shouldProcessEvent(&event, resolvedPath) {
 			if config.Debug {
-				filename := cString(event.Filename[:])
 				comm := cString(event.Comm[:])
-				fmt.Printf("[DEBUG] PID=%d FD=%d COMM=%s FILE=%s TYPE=%d\n", 
-					event.Pid, event.Fd, comm, filename, event.Type)
+				fmt.Printf("[DEBUG] PID=%d FD=%d COMM=%s FILE=%s HASH=%d TYPE=%d\n", 
+					event.Pid, event.Fd, comm, resolvedPath, event.PathHash, event.Type)
 			}
-			if !config.Debug || shouldProcessEvent(&event) {
-				outputEvent(&event, outputWriter)
+			if !config.Debug || shouldProcessEvent(&event, resolvedPath) {
+				outputEvent(&event, resolvedPath, outputWriter)
 			}
 		}
 	}
@@ -294,8 +341,25 @@ func parseEvent(data []byte, event *Event) error {
 	return nil
 }
 
-func shouldProcessEvent(event *Event) bool {
-	filename := cString(event.Filename[:])
+func isRealFile(path string) bool {
+	if path == "" {
+		return false
+	}
+	
+	// Filter out non-file descriptors by default
+	if strings.Contains(path, "pipe:") ||
+		strings.Contains(path, "anon_inode:") ||
+		strings.Contains(path, "socket:") ||
+		strings.HasPrefix(path, "/dev/") ||
+		strings.HasPrefix(path, "/proc/") ||
+		strings.HasPrefix(path, "/sys/") {
+		return false
+	}
+	
+	return true
+}
+
+func shouldProcessEvent(event *Event, resolvedPath string) bool {
 	comm := cString(event.Comm[:])
 	
 	// Check process filter first (more efficient)
@@ -303,32 +367,25 @@ func shouldProcessEvent(event *Event) bool {
 		return false
 	}
 	
-	// If we don't have a filename, try to resolve it from /proc
-	if filename == "" {
-		resolvedFilename := resolveFilenameFromFd(event.Pid, event.Fd)
-		if resolvedFilename != "" {
-			filename = resolvedFilename
-			// Update the event with resolved filename
-			for i := 0; i < len(event.Filename) && i < len(resolvedFilename); i++ {
-				event.Filename[i] = int8(resolvedFilename[i])
-			}
-		}
+	// Skip if we still don't have a filename and it's not a close event
+	if resolvedPath == "" && event.Type != 3 {
+		return false
 	}
 	
-	// Skip if we still don't have a filename and it's not a close event
-	if filename == "" && event.Type != 3 {
+	// Filter out non-real files by default (unless in debug mode or show-all-files is enabled)
+	if !config.Debug && !config.ShowAllFiles && !isRealFile(resolvedPath) {
 		return false
 	}
 	
 	// Check directory filter - for close events without filename, we can't filter
-	if filename != "" {
+	if resolvedPath != "" {
 		// Get current working directory for relative path comparison
 		cwd, _ := os.Getwd()
 		
 		// Convert both paths to absolute for proper comparison
-		absFilename := filename
-		if !filepath.IsAbs(filename) {
-			absFilename = filepath.Join(cwd, filename)
+		absFilename := resolvedPath
+		if !filepath.IsAbs(resolvedPath) {
+			absFilename = filepath.Join(cwd, resolvedPath)
 		}
 		absFilename = filepath.Clean(absFilename)
 		
@@ -348,6 +405,30 @@ func shouldProcessEvent(event *Event) bool {
 	return true
 }
 
+func resolvePath(event *Event) string {
+	// For open events, we need to resolve the path from /proc since eBPF doesn't provide it
+	if event.Type == 0 { // open
+		filename := resolveFilenameFromFd(event.Pid, event.Fd)
+		if filename != "" {
+			// Store in cache with the hash
+			hash := hashPath(filename)
+			pathCache.Set(hash, filename)
+			return filename
+		}
+		return ""
+	}
+	
+	// For other events, try cache first
+	if event.PathHash != 0 {
+		if path, exists := pathCache.Get(event.PathHash); exists {
+			return path
+		}
+	}
+	
+	// Fallback to /proc resolution
+	return resolveFilenameFromFd(event.Pid, event.Fd)
+}
+
 func resolveFilenameFromFd(pid uint32, fd int32) string {
 	// Try to resolve filename from /proc/PID/fd/FD
 	procPath := fmt.Sprintf("/proc/%d/fd/%d", pid, fd)
@@ -364,12 +445,11 @@ func resolveFilenameFromFd(pid uint32, fd int32) string {
 	return ""
 }
 
-func outputEvent(event *Event, writer *os.File) {
+func outputEvent(event *Event, resolvedPath string, writer *os.File) {
 	comm := cString(event.Comm[:])
-	filename := cString(event.Filename[:])
 	
 	// Format filename to be relative and user-friendly
-	displayFilename := formatFilename(filename)
+	displayFilename := formatFilename(resolvedPath)
 	
 	eventOutput := EventOutput{
 		Timestamp: time.Now().Format(time.RFC3339),
@@ -435,7 +515,7 @@ func outputPlain(event EventOutput, writer *os.File) {
 func outputJSON(event EventOutput, writer *os.File) {
 	data, err := json.Marshal(event)
 	if err != nil {
-		if config.Verbose {
+		if config.Verbose || config.Debug {
 			log.Printf("failed to marshal JSON: %v", err)
 		}
 		return

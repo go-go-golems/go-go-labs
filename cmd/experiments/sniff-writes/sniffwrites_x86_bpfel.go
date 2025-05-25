@@ -16,7 +16,7 @@ type sniffwritesEvent struct {
 	Pid      uint32
 	Fd       int32
 	Comm     [16]int8
-	Filename [64]int8
+	PathHash uint32
 	Type     uint32
 }
 
@@ -74,9 +74,8 @@ type sniffwritesProgramSpecs struct {
 // It can be passed ebpf.CollectionSpec.Assign.
 type sniffwritesMapSpecs struct {
 	Events       *ebpf.MapSpec `ebpf:"events"`
-	FdToFilename *ebpf.MapSpec `ebpf:"fd_to_filename"`
+	FdToHash     *ebpf.MapSpec `ebpf:"fd_to_hash"`
 	ScratchEvent *ebpf.MapSpec `ebpf:"scratch_event"`
-	TempPaths    *ebpf.MapSpec `ebpf:"temp_paths"`
 }
 
 // sniffwritesVariableSpecs contains global variables before they are loaded into the kernel.
@@ -106,17 +105,15 @@ func (o *sniffwritesObjects) Close() error {
 // It can be passed to loadSniffwritesObjects or ebpf.CollectionSpec.LoadAndAssign.
 type sniffwritesMaps struct {
 	Events       *ebpf.Map `ebpf:"events"`
-	FdToFilename *ebpf.Map `ebpf:"fd_to_filename"`
+	FdToHash     *ebpf.Map `ebpf:"fd_to_hash"`
 	ScratchEvent *ebpf.Map `ebpf:"scratch_event"`
-	TempPaths    *ebpf.Map `ebpf:"temp_paths"`
 }
 
 func (m *sniffwritesMaps) Close() error {
 	return _SniffwritesClose(
 		m.Events,
-		m.FdToFilename,
+		m.FdToHash,
 		m.ScratchEvent,
-		m.TempPaths,
 	)
 }
 

@@ -27,6 +27,32 @@ func NewN8NClient(baseURL, apiKey string) *N8NClient {
 	}
 }
 
+// handleErrorResponse reads and formats error response bodies for better debugging
+func handleErrorResponse(resp *http.Response, endpoint string, expectedStatuses ...int) error {
+	// Check if status is acceptable
+	for _, status := range expectedStatuses {
+		if resp.StatusCode == status {
+			return nil
+		}
+	}
+
+	// Read the error response body for debugging
+	errorBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to read error response body")
+		return fmt.Errorf("API returned status %d (could not read error body): %s", resp.StatusCode, resp.Status)
+	}
+
+	// Trim whitespace and ensure we have meaningful content
+	errorBodyStr := string(errorBody)
+	if len(errorBodyStr) == 0 {
+		errorBodyStr = resp.Status
+	}
+
+	log.Error().Int("status", resp.StatusCode).Str("endpoint", endpoint).Str("error_body", errorBodyStr).Msg("API request failed")
+	return fmt.Errorf("n8n API error (status %d): %s", resp.StatusCode, errorBodyStr)
+}
+
 // DoRequest makes an HTTP request to the n8n API
 func (c *N8NClient) DoRequest(method, endpoint string, body io.Reader) (*http.Response, error) {
 	url := fmt.Sprintf("%s/api/v1/%s", c.BaseURL, endpoint)
@@ -106,6 +132,81 @@ func ReadJSONFile(filePath string, v interface{}) error {
 	return json.Unmarshal(data, v)
 }
 
+// filterWorkflowData filters workflow data to only include properties allowed by the OpenAPI schema
+func filterWorkflowData(workflowData map[string]interface{}) map[string]interface{} {
+	// The workflow schema has additionalProperties: false, so we must only send allowed fields
+	filteredData := map[string]interface{}{}
+
+	// Required fields: name, nodes, connections, settings
+	if name, ok := workflowData["name"]; ok {
+		filteredData["name"] = name
+	}
+	if nodes, ok := workflowData["nodes"]; ok {
+		filteredData["nodes"] = nodes
+	}
+	if connections, ok := workflowData["connections"]; ok {
+		filteredData["connections"] = connections
+	}
+	if settings, ok := workflowData["settings"]; ok {
+		filteredData["settings"] = settings
+	}
+
+	// Optional fields: staticData
+	if staticData, ok := workflowData["staticData"]; ok {
+		filteredData["staticData"] = staticData
+	}
+
+	return filteredData
+}
+
+// filterTagData filters tag data to only include properties allowed by the OpenAPI schema
+func filterTagData(tagData map[string]interface{}) map[string]interface{} {
+	// The tag schema has additionalProperties: false, so we must only send allowed fields
+	filteredData := map[string]interface{}{}
+
+	// Required fields: name
+	if name, ok := tagData["name"]; ok {
+		filteredData["name"] = name
+	}
+
+	// No optional fields for tag schema
+
+	return filteredData
+}
+
+// filterVariableData filters variable data to only include properties allowed by the OpenAPI schema
+func filterVariableData(variableData map[string]interface{}) map[string]interface{} {
+	// The variable schema has additionalProperties: false, so we must only send allowed fields
+	filteredData := map[string]interface{}{}
+
+	// Required fields: key, value
+	if key, ok := variableData["key"]; ok {
+		filteredData["key"] = key
+	}
+	if value, ok := variableData["value"]; ok {
+		filteredData["value"] = value
+	}
+
+	// No optional fields for variable schema
+
+	return filteredData
+}
+
+// filterProjectData filters project data to only include properties allowed by the OpenAPI schema
+func filterProjectData(projectData map[string]interface{}) map[string]interface{} {
+	// The project schema has additionalProperties: false, so we must only send allowed fields
+	filteredData := map[string]interface{}{}
+
+	// Required fields: name
+	if name, ok := projectData["name"]; ok {
+		filteredData["name"] = name
+	}
+
+	// No optional fields for project schema
+
+	return filteredData
+}
+
 // WriteJSONFile writes an interface to a JSON file with pretty formatting
 func WriteJSONFile(filePath string, v interface{}) error {
 	data, err := json.MarshalIndent(v, "", "  ")
@@ -124,8 +225,8 @@ func (c *N8NClient) GetWorkflow(id string) (map[string]interface{}, error) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned non-200 status: %d", resp.StatusCode)
+	if err := handleErrorResponse(resp, fmt.Sprintf("workflows/%s", id), http.StatusOK); err != nil {
+		return nil, err
 	}
 
 	data, err := io.ReadAll(resp.Body)
@@ -160,9 +261,8 @@ func (c *N8NClient) ListWorkflows(active bool, limit int, cursor string) ([]map[
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		log.Error().Int("status", resp.StatusCode).Str("endpoint", endpoint).Msg("List workflows failed with non-200 status")
-		return nil, "", fmt.Errorf("API returned non-200 status: %d", resp.StatusCode)
+	if err := handleErrorResponse(resp, endpoint, http.StatusOK); err != nil {
+		return nil, "", err
 	}
 
 	data, err := io.ReadAll(resp.Body)
@@ -201,7 +301,8 @@ func (c *N8NClient) ListWorkflows(active bool, limit int, cursor string) ([]map[
 
 // CreateWorkflow creates a new workflow
 func (c *N8NClient) CreateWorkflow(workflowData map[string]interface{}) (map[string]interface{}, error) {
-	workflowJSON, err := json.Marshal(workflowData)
+	filteredData := filterWorkflowData(workflowData)
+	workflowJSON, err := json.Marshal(filteredData)
 	if err != nil {
 		return nil, err
 	}
@@ -212,8 +313,8 @@ func (c *N8NClient) CreateWorkflow(workflowData map[string]interface{}) (map[str
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, fmt.Errorf("API returned non-200/201 status: %d", resp.StatusCode)
+	if err := handleErrorResponse(resp, "workflows", http.StatusOK, http.StatusCreated); err != nil {
+		return nil, err
 	}
 
 	data, err := io.ReadAll(resp.Body)
@@ -231,7 +332,8 @@ func (c *N8NClient) CreateWorkflow(workflowData map[string]interface{}) (map[str
 
 // UpdateWorkflow updates an existing workflow
 func (c *N8NClient) UpdateWorkflow(id string, workflowData map[string]interface{}) (map[string]interface{}, error) {
-	workflowJSON, err := json.Marshal(workflowData)
+	filteredData := filterWorkflowData(workflowData)
+	workflowJSON, err := json.Marshal(filteredData)
 	if err != nil {
 		return nil, err
 	}
@@ -242,8 +344,8 @@ func (c *N8NClient) UpdateWorkflow(id string, workflowData map[string]interface{
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned non-200 status: %d", resp.StatusCode)
+	if err := handleErrorResponse(resp, fmt.Sprintf("workflows/%s", id), http.StatusOK); err != nil {
+		return nil, err
 	}
 
 	data, err := io.ReadAll(resp.Body)
@@ -267,11 +369,7 @@ func (c *N8NClient) DeleteWorkflow(id string) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("API returned non-200 status: %d", resp.StatusCode)
-	}
-
-	return nil
+	return handleErrorResponse(resp, fmt.Sprintf("workflows/%s", id), http.StatusOK)
 }
 
 // ListExecutions lists workflow executions with optional filters
@@ -297,8 +395,8 @@ func (c *N8NClient) ListExecutions(params map[string]string) ([]map[string]inter
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned non-200 status: %d", resp.StatusCode)
+	if err := handleErrorResponse(resp, endpoint, http.StatusOK); err != nil {
+		return nil, err
 	}
 
 	data, err := io.ReadAll(resp.Body)
@@ -330,8 +428,8 @@ func (c *N8NClient) GetExecution(id string) (map[string]interface{}, error) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned non-200 status: %d", resp.StatusCode)
+	if err := handleErrorResponse(resp, fmt.Sprintf("executions/%s", id), http.StatusOK); err != nil {
+		return nil, err
 	}
 
 	data, err := io.ReadAll(resp.Body)
@@ -355,8 +453,8 @@ func (c *N8NClient) GetNodes() ([]map[string]interface{}, error) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API returned non-200 status: %d", resp.StatusCode)
+	if err := handleErrorResponse(resp, "nodes", http.StatusOK); err != nil {
+		return nil, err
 	}
 
 	data, err := io.ReadAll(resp.Body)

@@ -10,8 +10,8 @@ import (
 	"github.com/go-go-golems/go-go-labs/cmd/n8n-cli/pkg/n8n"
 	"github.com/go-go-golems/go-go-mcp/pkg/embeddable"
 	"github.com/go-go-golems/go-go-mcp/pkg/protocol"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
+	// "github.com/rs/zerolog"
+	// "github.com/rs/zerolog/log"
 )
 
 // configureMCPLogging configures logging to output to stderr when in MCP mode
@@ -24,7 +24,7 @@ func configureMCPLogging() {
 		return
 	}
 	// Configure zerolog to output to stderr to avoid interfering with MCP protocol on stdout
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	// log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	mcpLoggingConfigured = true
 }
 
@@ -35,7 +35,7 @@ func registerMCPTools() []embeddable.ServerOption {
 		embeddable.WithEnhancedTool("list_workflows", listWorkflowsHandler,
 			embeddable.WithEnhancedDescription(`Retrieve a comprehensive list of all workflows from your n8n instance.
 
-This tool fetches all available workflows with their metadata including ID, name, active status, creation date, and last update time. The response includes both active and inactive workflows, allowing you to get a complete overview of your automation landscape.
+This tool fetches workflow summaries with essential metadata including ID, name, active status, creation/update timestamps, and tags. Unlike the full workflow details, this provides a clean overview without node configurations or connection data, making it perfect for browsing and discovery.
 
 Use this tool to:
 - Get an overview of all available workflows
@@ -650,9 +650,31 @@ func listWorkflowsHandler(ctx context.Context, args embeddable.Arguments) (*prot
 		return protocol.NewErrorToolResult(protocol.NewTextContent(fmt.Sprintf("Failed to list workflows: %v", err))), nil
 	}
 
-	data, err := json.MarshalIndent(workflows, "", "  ")
+	// Extract only workflow summaries (id, name, active status) instead of full workflow data
+	workflowSummaries := make([]map[string]interface{}, 0, len(workflows))
+	for _, workflow := range workflows {
+		summary := map[string]interface{}{
+			"id":     workflow["id"],
+			"name":   workflow["name"],
+			"active": workflow["active"],
+		}
+		// Include createdAt and updatedAt if available
+		if createdAt, ok := workflow["createdAt"]; ok {
+			summary["createdAt"] = createdAt
+		}
+		if updatedAt, ok := workflow["updatedAt"]; ok {
+			summary["updatedAt"] = updatedAt
+		}
+		// Include tags if available
+		if tags, ok := workflow["tags"]; ok {
+			summary["tags"] = tags
+		}
+		workflowSummaries = append(workflowSummaries, summary)
+	}
+
+	data, err := json.MarshalIndent(workflowSummaries, "", "  ")
 	if err != nil {
-		return protocol.NewErrorToolResult(protocol.NewTextContent(fmt.Sprintf("Failed to marshal workflows: %v", err))), nil
+		return protocol.NewErrorToolResult(protocol.NewTextContent(fmt.Sprintf("Failed to marshal workflow summaries: %v", err))), nil
 	}
 
 	return protocol.NewToolResult(
