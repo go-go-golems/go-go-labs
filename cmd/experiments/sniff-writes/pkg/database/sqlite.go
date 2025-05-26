@@ -3,9 +3,9 @@ package database
 import (
 	"database/sql"
 	"fmt"
-	
-	_ "github.com/mattn/go-sqlite3"
+
 	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/models"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type SQLiteDB struct {

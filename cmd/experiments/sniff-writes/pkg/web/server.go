@@ -5,8 +5,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/gorilla/websocket"
 	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/models"
+	"github.com/gorilla/websocket"
 )
 
 // WebSocket upgrader
