@@ -4,7 +4,6 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -16,6 +15,8 @@ import (
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/perf"
 	"github.com/cilium/ebpf/rlimit"
+	"github.com/rs/zerolog"
+	zlog "github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 
 	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/api"
@@ -44,16 +45,16 @@ var pathCache *cache.PathCache
 
 // Query-specific flags
 var queryFlags struct {
-	startTime  string
-	endTime    string
-	filename   string
-	pid        uint32
-	exportFmt  string
-	limit      int
-	offset     int
+	startTime string
+	endTime   string
+	filename  string
+	pid       uint32
+	exportFmt string
+	limit     int
+	offset    int
 }
 
-// Server-specific flags  
+// Server-specific flags
 var serverFlags struct {
 	port int
 }
@@ -79,9 +80,12 @@ func startWebServer() {
 }
 
 func main() {
+	// Initialize logging
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	zlog.Logger = zlog.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
+		zlog.Fatal().Err(err).Msg("Error executing command")
 	}
 }
 
@@ -159,6 +163,29 @@ func init() {
 	rootCmd.AddCommand(monitorCmd)
 	rootCmd.AddCommand(queryCmd)
 	rootCmd.AddCommand(serverCmd)
+
+	// Add global logging flags
+	rootCmd.PersistentFlags().Bool("debug-logging", false, "Enable debug logging")
+	rootCmd.PersistentFlags().String("log-level", "info", "Set log level (debug, info, warn, error)")
+
+	// Set up pre-run hook to configure logging
+	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		debugLogging, _ := cmd.Flags().GetBool("debug-logging")
+		logLevel, _ := cmd.Flags().GetString("log-level")
+
+		if debugLogging {
+			zerolog.SetGlobalLevel(zerolog.DebugLevel)
+		} else {
+			level, err := zerolog.ParseLevel(logLevel)
+			if err != nil {
+				return fmt.Errorf("invalid log level: %s", logLevel)
+			}
+			zerolog.SetGlobalLevel(level)
+		}
+
+		zlog.Debug().Msg("Debug logging enabled")
+		return nil
+	}
 
 	// Add flags to monitor command
 	monitorCmd.Flags().StringVarP(&config.Directory, "directory", "d", "cmd/n8n-cli", "Directory to monitor")
@@ -383,23 +410,19 @@ func processEvents(ctx context.Context, rd *perf.Reader, outputWriter *os.File) 
 			if ctx.Err() != nil {
 				return nil
 			}
-			if config.Verbose || config.Debug {
-				log.Printf("reading from perf event reader: %s", err)
-			}
+			zlog.Debug().Err(err).Msg("Error reading from perf event reader")
 			continue
 		}
 
 		if record.LostSamples != 0 {
-			if config.Verbose || config.Debug {
-				log.Printf("lost %d samples", record.LostSamples)
+			if config.Debug {	
+				zlog.Warn().Uint64("lost_samples", record.LostSamples).Msg("Lost perf event samples")
 			}
 			continue
 		}
 
 		if err := processor.ParseEvent(record.RawSample, &event); err != nil {
-			if config.Verbose || config.Debug {
-				log.Printf("parsing event: %s", err)
-			}
+			zlog.Debug().Err(err).Msg("Failed to parse event")
 			continue
 		}
 
@@ -423,8 +446,8 @@ func outputEvent(event *models.Event, resolvedPath string, writer *os.File) {
 	eventOutput := formatter.CreateEventOutput(event, resolvedPath, &config)
 
 	// Log to SQLite if configured
-	if err := sqliteDB.LogEvent(eventOutput); err != nil && (config.Verbose || config.Debug) {
-		log.Printf("failed to log event to SQLite: %v", err)
+	if err := sqliteDB.LogEvent(eventOutput); err != nil {
+		zlog.Error().Err(err).Msg("Failed to log event to SQLite")
 	}
 
 	// Broadcast to WebSocket clients if web UI is enabled
@@ -565,14 +588,20 @@ func runQuery(cmd *cobra.Command, args []string) error {
 }
 
 func runServer(cmd *cobra.Command, args []string) error {
+	zlog.Info().Msg("Starting sniff-writes REST API server")
+
 	// Initialize SQLite database
 	if err := initSQLite(); err != nil {
+		zlog.Error().Err(err).Str("database", config.SqliteDB).Msg("Failed to initialize SQLite database")
 		return fmt.Errorf("failed to initialize SQLite: %w", err)
 	}
 	defer closeSQLite()
 
+	zlog.Info().Str("database", config.SqliteDB).Msg("SQLite database initialized successfully")
+
 	// Create and start API server
 	server := api.NewServer(sqliteDB, serverFlags.port)
+	zlog.Info().Int("port", serverFlags.port).Msg("Starting API server")
 	fmt.Printf("Starting API server on port %d\n", serverFlags.port)
 	return server.Start()
 }

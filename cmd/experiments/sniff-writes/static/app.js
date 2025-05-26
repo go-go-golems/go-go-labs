@@ -498,12 +498,14 @@ function loadSettings() {
 // History search state
 let currentPage = 1;
 let currentSearchParams = {};
+let systemStatus = null;
 
 // Initialize WebSocket connection when page loads
 document.addEventListener('DOMContentLoaded', function() {
 	loadSettings();
 	connectWebSocket();
 	updateStats();
+	checkSystemStatus();
 	
 	// Add tab switching event listeners
 	document.getElementById('live-tab').addEventListener('click', function() {
@@ -523,6 +525,107 @@ function showLiveView() {
 function showHistoryView() {
 	document.getElementById('live-stats').style.display = 'none';
 	document.getElementById('live-log').style.display = 'none';
+}
+
+function checkSystemStatus() {
+	fetch('/api/status')
+		.then(response => response.json())
+		.then(data => {
+			systemStatus = data;
+			updateHistorySearchUI();
+		})
+		.catch(error => {
+			console.error('Error checking system status:', error);
+			showSystemStatusError();
+		});
+}
+
+function updateHistorySearchUI() {
+	const historySection = document.querySelector('.history-section');
+	const searchForm = document.getElementById('history-form');
+	const exportSection = document.querySelector('.card:has(.btn-group)');
+	
+	if (!systemStatus.can_search) {
+		// Database not available - show warning and disable form
+		const warningDiv = document.createElement('div');
+		warningDiv.className = 'alert alert-warning';
+		warningDiv.innerHTML = `
+			<h6><strong>History Search Unavailable</strong></h6>
+			<p>${systemStatus.message}</p>
+			<small class="text-muted">
+				<strong>Database Status:</strong> ${systemStatus.database_status}
+				${systemStatus.database_error ? `<br><strong>Error:</strong> ${systemStatus.database_error}` : ''}
+			</small>
+		`;
+		
+		// Insert warning at the top of history section
+		historySection.insertBefore(warningDiv, searchForm);
+		
+		// Disable form elements
+		const formElements = searchForm.querySelectorAll('input, button, select');
+		formElements.forEach(element => {
+			element.disabled = true;
+		});
+		
+		// Disable export buttons
+		if (exportSection) {
+			const exportButtons = exportSection.querySelectorAll('button');
+			exportButtons.forEach(button => {
+				button.disabled = true;
+			});
+		}
+	}
+}
+
+function showSystemStatusError() {
+	const historySection = document.querySelector('.history-section');
+	const warningDiv = document.createElement('div');
+	warningDiv.className = 'alert alert-danger';
+	warningDiv.innerHTML = `
+		<h6><strong>System Status Check Failed</strong></h6>
+		<p>Unable to determine system status. History search functionality may not work properly.</p>
+	`;
+	historySection.insertBefore(warningDiv, document.getElementById('history-form'));
+}
+
+function displaySearchError(error) {
+	const resultsContainer = document.getElementById('history-results');
+	const countBadge = document.getElementById('history-count');
+	
+	countBadge.textContent = 'Error';
+	
+	let errorHtml = '<div class="alert alert-danger m-3">';
+	
+	try {
+		// Try to parse structured error response
+		const errorData = JSON.parse(error.message);
+		errorHtml += `
+			<h6><strong>Search Error: ${errorData.error || 'Unknown'}</strong></h6>
+			<p>${errorData.message || 'An error occurred while searching.'}</p>
+		`;
+		
+		if (errorData.details) {
+			errorHtml += '<div class="mt-2">';
+			errorHtml += '<strong>Details:</strong><br>';
+			if (typeof errorData.details === 'object') {
+				for (const [key, value] of Object.entries(errorData.details)) {
+					errorHtml += `<small class="text-muted">${key}: ${value}</small><br>`;
+				}
+			} else {
+				errorHtml += `<small class="text-muted">${errorData.details}</small>`;
+			}
+			errorHtml += '</div>';
+		}
+	} catch (parseError) {
+		// Fallback for non-structured errors
+		errorHtml += `
+			<h6><strong>Search Error</strong></h6>
+			<p>An error occurred while searching: ${error.message}</p>
+		`;
+	}
+	
+	errorHtml += '</div>';
+	resultsContainer.innerHTML = errorHtml;
 }
 
 function searchHistory(page = 1) {
@@ -563,15 +666,21 @@ function searchHistory(page = 1) {
 	
 	// Make API request
 	fetch('/api/events?' + params.toString())
-		.then(response => response.json())
+		.then(response => {
+			if (!response.ok) {
+				return response.json().then(errorData => {
+					throw new Error(JSON.stringify(errorData));
+				});
+			}
+			return response.json();
+		})
 		.then(data => {
 			displayHistoryResults(data);
 			updatePagination(data);
 		})
 		.catch(error => {
 			console.error('Error searching history:', error);
-			document.getElementById('history-results').innerHTML = 
-				'<div class="text-center p-4 text-danger">Error loading results: ' + error.message + '</div>';
+			displaySearchError(error);
 		});
 }
 
@@ -631,20 +740,45 @@ function updatePagination(data) {
 }
 
 function exportData(format) {
+	// Check if search is available
+	if (systemStatus && !systemStatus.can_search) {
+		alert('Export is not available because the database is not connected.');
+		return;
+	}
+	
 	// Build export URL with current search parameters
 	const params = new URLSearchParams(currentSearchParams);
 	params.set('format', format);
 	params.delete('limit');  // Remove pagination for export
 	params.delete('offset');
 	
-	// Create download link
+	// Test the export URL first to handle errors gracefully
 	const url = '/api/events/export?' + params.toString();
-	const link = document.createElement('a');
-	link.href = url;
-	link.download = `file_events.${format}`;
-	document.body.appendChild(link);
-	link.click();
-	document.body.removeChild(link);
+	
+	fetch(url, { method: 'HEAD' })
+		.then(response => {
+			if (!response.ok) {
+				return response.json().then(errorData => {
+					throw new Error(JSON.stringify(errorData));
+				});
+			}
+			
+			// If HEAD request succeeds, proceed with download
+			const link = document.createElement('a');
+			link.href = url;
+			link.download = `file_events.${format}`;
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+		})
+		.catch(error => {
+			try {
+				const errorData = JSON.parse(error.message);
+				alert(`Export failed: ${errorData.message}\n\nDetails: ${errorData.details?.error_details || 'Unknown error'}`);
+			} catch (parseError) {
+				alert(`Export failed: ${error.message}`);
+			}
+		});
 }
 
 function createHistoryEventElement(event) {

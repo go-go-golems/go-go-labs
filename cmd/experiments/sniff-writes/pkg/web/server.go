@@ -155,6 +155,7 @@ func StartServer(port int, styleCSS, appJS []byte, indexHandler http.HandlerFunc
 	http.HandleFunc("/api/events/export", apiServer.HandleExport)
 	http.HandleFunc("/api/stats", apiServer.HandleStats)
 	http.HandleFunc("/api/health", apiServer.HandleHealth)
+	http.HandleFunc("/api/status", apiServer.HandleStatus)
 
 	addr := fmt.Sprintf(":%d", port)
 	fmt.Printf("Web UI available at http://localhost%s\n", addr)
