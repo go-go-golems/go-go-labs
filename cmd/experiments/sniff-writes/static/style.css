@@ -1,0 +1,124 @@
+.event-log {
+	height: 60vh;
+	overflow-y: auto;
+	font-family: monospace;
+	font-size: 0.85em;
+	background-color: #f8f9fa;
+	border: 1px solid #dee2e6;
+	padding: 10px;
+}
+
+.event-item {
+	padding: 2px 0;
+	border-bottom: 1px solid #e9ecef;
+}
+
+.event-item:last-child {
+	border-bottom: none;
+}
+
+.operation-open { color: #28a745; }
+.operation-read { color: #007bff; }
+.operation-write { color: #fd7e14; }
+.operation-close { color: #6c757d; }
+
+.filter-section {
+	background-color: #f8f9fa;
+	border-radius: 0.375rem;
+	padding: 1rem;
+	margin-bottom: 1rem;
+}
+
+.stats-card {
+	text-align: center;
+}
+
+.status-indicator {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	display: inline-block;
+	margin-right: 5px;
+}
+
+.status-connected { background-color: #28a745; }
+.status-disconnected { background-color: #dc3545; }
+
+.filter-pill {
+	display: inline-block;
+	background: #e9ecef;
+	border: 1px solid #dee2e6;
+	border-radius: 15px;
+	padding: 4px 12px 4px 8px;
+	margin: 2px;
+	font-size: 0.85em;
+	position: relative;
+}
+
+.filter-pill.negative {
+	background: #f8d7da;
+	border-color: #f5c6cb;
+	color: #721c24;
+}
+
+.filter-pill .remove-pill {
+	background: none;
+	border: none;
+	color: #6c757d;
+	margin-left: 8px;
+	padding: 0;
+	cursor: pointer;
+	font-weight: bold;
+}
+
+.filter-pill .remove-pill:hover {
+	color: #dc3545;
+}
+
+.filter-pills-container {
+	min-height: 40px;
+	border: 1px solid #dee2e6;
+	border-radius: 0.375rem;
+	padding: 8px;
+	background-color: #fff;
+}
+
+.operation-checkbox {
+	margin-right: 15px;
+}
+
+.add-filter-btn {
+	background: none;
+	border: 1px dashed #dee2e6;
+	color: #6c757d;
+	padding: 4px 12px;
+	border-radius: 15px;
+	cursor: pointer;
+	font-size: 0.85em;
+}
+
+.add-filter-btn:hover {
+	border-color: #007bff;
+	color: #007bff;
+}
+
+.content-display {
+	max-width: 100%;
+	word-break: break-all;
+	white-space: pre-wrap;
+	font-family: 'Courier New', monospace;
+	font-size: 0.85em;
+	line-height: 1.4;
+}
+
+.content-container {
+	border-left: 3px solid #dee2e6;
+	padding-left: 8px;
+	margin-top: 4px;
+	background-color: #f8f9fa;
+	border-radius: 0 4px 4px 0;
+}
+
+.content-controls-section {
+	padding-bottom: 1.5rem;
+}

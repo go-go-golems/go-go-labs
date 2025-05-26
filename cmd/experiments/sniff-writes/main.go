@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -26,6 +27,12 @@ import (
 )
 
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target amd64 -cflags "-I/usr/include/x86_64-linux-gnu -mllvm -bpf-stack-size=8192" sniffwrites sniff_writes.c
+
+//go:embed static/style.css
+var styleCSS []byte
+
+//go:embed static/app.js
+var appJS []byte
 
 type Event struct {
 	Pid        uint32
@@ -309,10 +316,23 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 	index().Render(r.Context(), w)
 }
 
+func handleCSS(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/css")
+	w.Write(styleCSS)
+}
+
+func handleJS(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/javascript")
+	w.Write(appJS)
+}
+
 func startWebServer() {
 	webHub = newWebHub()
 	go webHub.run()
 
+	// Serve embedded static files
+	http.HandleFunc("/static/style.css", handleCSS)
+	http.HandleFunc("/static/app.js", handleJS)
 	http.HandleFunc("/", handleIndex)
 	http.HandleFunc("/ws", handleWebSocket)
 
