@@ -1,4 +1,5 @@
 Testing content capture
+foo
 foobar
 foobar
 foobar
@@ -9,3 +10,4 @@ foobar
 foobar
 foobar
 foobar
+foo

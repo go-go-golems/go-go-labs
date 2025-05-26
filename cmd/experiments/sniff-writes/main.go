@@ -2,28 +2,28 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	_ "embed"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
-	"sync"
 	"syscall"
-	"time"
-	"unsafe"
 
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/perf"
 	"github.com/cilium/ebpf/rlimit"
-	"github.com/gorilla/websocket"
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/cobra"
+
+	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/cache"
+	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/database"
+	ebpfops "github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/ebpf"
+	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/formatter"
+	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/models"
+	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/processor"
+	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/web"
 )
 
 //go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target amd64 -cflags "-I/usr/include/x86_64-linux-gnu -mllvm -bpf-stack-size=8192" sniffwrites sniff_writes.c
@@ -34,192 +34,15 @@ var styleCSS []byte
 //go:embed static/app.js
 var appJS []byte
 
-type Event struct {
-	Pid        uint32
-	Fd         int32
-	Comm       [16]int8
-	PathHash   uint32   // 32-bit hash of the path for cache lookup
-	Type       uint32   // 0 = open, 1 = read, 2 = write, 3 = close
-	WriteSize  uint64   // Total size of write operation
-	ContentLen uint32   // Actual content captured
-	Content    [64]int8 // Write content (for write events only)
-}
-
-type Config struct {
-	Directory          string
-	OutputFormat       string
-	Operations         []string
-	ProcessFilter      string
-	Duration           time.Duration
-	Verbose            bool
-	ShowFd             bool
-	OutputFile         string
-	Debug              bool
-	ShowAllFiles       bool     // Show pipes, sockets, etc. (default: false)
-	CaptureContent     bool     // Capture write content (default: false)
-	ContentSize        int      // Max content bytes to capture (default: 64)
-	GlobPatterns       []string // Include patterns for file filtering
-	GlobExclude        []string // Exclude patterns for file filtering
-	ProcessGlob        []string // Include patterns for process name filtering
-	ProcessGlobExclude []string // Exclude patterns for process name filtering
-	SqliteDB           string   // Path to SQLite database for logging
-	WebUI              bool     // Enable web UI
-	WebPort            int      // Web UI port
-}
-
-type EventOutput struct {
-	Timestamp string `json:"timestamp"`
-	Pid       uint32 `json:"pid"`
-	Process   string `json:"process"`
-	Operation string `json:"operation"`
-	Filename  string `json:"filename"`
-	Fd        int32  `json:"fd,omitempty"`
-	WriteSize uint64 `json:"write_size,omitempty"`
-	Content   string `json:"content,omitempty"`
-	Truncated bool   `json:"truncated,omitempty"`
-}
-
-var config Config
-var sqliteDB *sql.DB
-
-// WebSocket upgrader
-var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool {
-		return true // Allow connections from any origin in development
-	},
-}
-
-// WebSocket clients
-type WebClient struct {
-	conn *websocket.Conn
-	send chan EventOutput
-}
-
-type WebHub struct {
-	clients    map[*WebClient]bool
-	register   chan *WebClient
-	unregister chan *WebClient
-	broadcast  chan EventOutput
-}
-
-func newWebHub() *WebHub {
-	return &WebHub{
-		clients:    make(map[*WebClient]bool),
-		register:   make(chan *WebClient),
-		unregister: make(chan *WebClient),
-		broadcast:  make(chan EventOutput),
-	}
-}
-
-func (h *WebHub) run() {
-	for {
-		select {
-		case client := <-h.register:
-			h.clients[client] = true
-			if config.Verbose {
-				log.Printf("WebSocket client connected. Total clients: %d", len(h.clients))
-			}
-
-		case client := <-h.unregister:
-			if _, ok := h.clients[client]; ok {
-				delete(h.clients, client)
-				close(client.send)
-				if config.Verbose {
-					log.Printf("WebSocket client disconnected. Total clients: %d", len(h.clients))
-				}
-			}
-
-		case event := <-h.broadcast:
-			for client := range h.clients {
-				select {
-				case client.send <- event:
-				default:
-					close(client.send)
-					delete(h.clients, client)
-				}
-			}
-		}
-	}
-}
-
-var webHub *WebHub
-
-// PathCache stores full paths by hash for quick lookup
-type PathCache struct {
-	mu    sync.RWMutex
-	cache map[uint32]string
-}
-
-func NewPathCache() *PathCache {
-	return &PathCache{
-		cache: make(map[uint32]string),
-	}
-}
-
-func (pc *PathCache) Set(hash uint32, path string) {
-	pc.mu.Lock()
-	defer pc.mu.Unlock()
-	pc.cache[hash] = path
-}
-
-func (pc *PathCache) Get(hash uint32) (string, bool) {
-	pc.mu.RLock()
-	defer pc.mu.RUnlock()
-	path, exists := pc.cache[hash]
-	return path, exists
-}
-
-// Hash function that matches the eBPF implementation
-func hashPath(path string) uint32 {
-	hash := uint32(0)
-	for i, c := range []byte(path) {
-		if i >= 256 { // Match eBPF limit
-			break
-		}
-		hash = hash*31 + uint32(c)
-	}
-	return hash
-}
-
-var pathCache = NewPathCache()
+var config models.Config
+var sqliteDB *database.SQLiteDB
+var webHub *web.WebHub
+var pathCache *cache.PathCache
 
 func initSQLite() error {
-	if config.SqliteDB == "" {
-		return nil
-	}
-
 	var err error
-	sqliteDB, err = sql.Open("sqlite3", config.SqliteDB)
-	if err != nil {
-		return fmt.Errorf("failed to open SQLite database: %w", err)
-	}
-
-	// Create the events table
-	createTableSQL := `
-	CREATE TABLE IF NOT EXISTS file_events (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		timestamp DATETIME NOT NULL,
-		pid INTEGER NOT NULL,
-		process TEXT NOT NULL,
-		operation TEXT NOT NULL,
-		filename TEXT,
-		fd INTEGER,
-		write_size INTEGER,
-		content TEXT,
-		truncated BOOLEAN DEFAULT FALSE
-	);
-	
-	CREATE INDEX IF NOT EXISTS idx_timestamp ON file_events(timestamp);
-	CREATE INDEX IF NOT EXISTS idx_pid ON file_events(pid);
-	CREATE INDEX IF NOT EXISTS idx_process ON file_events(process);
-	CREATE INDEX IF NOT EXISTS idx_operation ON file_events(operation);
-	`
-
-	if _, err := sqliteDB.Exec(createTableSQL); err != nil {
-		return fmt.Errorf("failed to create table: %w", err)
-	}
-
-	return nil
+	sqliteDB, err = database.NewSQLiteDB(config.SqliteDB)
+	return err
 }
 
 func closeSQLite() {
@@ -228,122 +51,12 @@ func closeSQLite() {
 	}
 }
 
-func logEventToSQLite(event EventOutput) error {
-	if sqliteDB == nil {
-		return nil
-	}
-
-	insertSQL := `
-	INSERT INTO file_events (timestamp, pid, process, operation, filename, fd, write_size, content, truncated)
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`
-
-	var fd *int32
-	if event.Fd != 0 {
-		fd = &event.Fd
-	}
-
-	var writeSize *uint64
-	if event.WriteSize > 0 {
-		writeSize = &event.WriteSize
-	}
-
-	var content *string
-	if event.Content != "" {
-		content = &event.Content
-	}
-
-	_, err := sqliteDB.Exec(insertSQL,
-		event.Timestamp,
-		event.Pid,
-		event.Process,
-		event.Operation,
-		event.Filename,
-		fd,
-		writeSize,
-		content,
-		event.Truncated)
-
-	return err
-}
-
-func handleWebSocket(w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Printf("WebSocket upgrade failed: %v", err)
-		return
-	}
-
-	client := &WebClient{
-		conn: conn,
-		send: make(chan EventOutput, 256),
-	}
-
-	webHub.register <- client
-
-	go func() {
-		defer func() {
-			webHub.unregister <- client
-			conn.Close()
-		}()
-
-		for {
-			select {
-			case event, ok := <-client.send:
-				if !ok {
-					conn.WriteMessage(websocket.CloseMessage, []byte{})
-					return
-				}
-
-				if err := conn.WriteJSON(event); err != nil {
-					log.Printf("WebSocket write error: %v", err)
-					return
-				}
-			}
-		}
-	}()
-
-	// Keep connection alive
-	for {
-		_, _, err := conn.ReadMessage()
-		if err != nil {
-			break
-		}
-	}
-}
-
 func handleIndex(w http.ResponseWriter, r *http.Request) {
 	index().Render(r.Context(), w)
 }
 
-func handleCSS(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/css")
-	w.Write(styleCSS)
-}
-
-func handleJS(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/javascript")
-	w.Write(appJS)
-}
-
 func startWebServer() {
-	webHub = newWebHub()
-	go webHub.run()
-
-	// Serve embedded static files
-	http.HandleFunc("/static/style.css", handleCSS)
-	http.HandleFunc("/static/app.js", handleJS)
-	http.HandleFunc("/", handleIndex)
-	http.HandleFunc("/ws", handleWebSocket)
-
-	addr := fmt.Sprintf(":%d", config.WebPort)
-	fmt.Printf("Web UI available at http://localhost%s\n", addr)
-
-	go func() {
-		if err := http.ListenAndServe(addr, nil); err != nil {
-			log.Printf("Web server error: %v", err)
-		}
-	}()
+	webHub = web.StartServer(config.WebPort, styleCSS, appJS, handleIndex)
 }
 
 func main() {
@@ -455,6 +168,9 @@ func runMonitor(cmd *cobra.Command, args []string) error {
 		ctx = durationCtx
 	}
 
+	// Initialize path cache
+	pathCache = cache.New()
+
 	// Initialize SQLite database if specified
 	if err := initSQLite(); err != nil {
 		return fmt.Errorf("failed to initialize SQLite: %w", err)
@@ -484,7 +200,7 @@ func runMonitor(cmd *cobra.Command, args []string) error {
 	defer coll.Close()
 
 	// Attach tracepoints based on selected operations
-	links, err := attachTracepoints(coll)
+	links, err := ebpfops.AttachTracepoints(coll, &config)
 	if err != nil {
 		return fmt.Errorf("failed to attach tracepoints: %w", err)
 	}
@@ -495,7 +211,7 @@ func runMonitor(cmd *cobra.Command, args []string) error {
 	}()
 
 	// Configure content capture in eBPF
-	if err := configureContentCapture(coll); err != nil {
+	if err := ebpfops.ConfigureContentCapture(coll, &config); err != nil {
 		return fmt.Errorf("failed to configure content capture: %w", err)
 	}
 
@@ -599,11 +315,11 @@ func configureContentCapture(coll *ebpf.Collection) error {
 }
 
 func processEvents(ctx context.Context, rd *perf.Reader, outputWriter *os.File) error {
-	var event Event
+	var event models.Event
 
 	// Print table header if using table format
 	if config.OutputFormat == "table" {
-		printTableHeader(outputWriter)
+		formatter.PrintTableHeader(outputWriter, &config)
 	}
 
 	for {
@@ -625,7 +341,7 @@ func processEvents(ctx context.Context, rd *perf.Reader, outputWriter *os.File) 
 			continue
 		}
 
-		if err := parseEvent(record.RawSample, &event); err != nil {
+		if err := processor.ParseEvent(record.RawSample, &event); err != nil {
 			if config.Verbose || config.Debug {
 				log.Printf("parsing event: %s", err)
 			}
@@ -633,403 +349,59 @@ func processEvents(ctx context.Context, rd *perf.Reader, outputWriter *os.File) 
 		}
 
 		// Resolve the path before filtering
-		resolvedPath := resolvePath(&event)
+		resolvedPath := cache.ResolvePath(&event, pathCache)
 
-		if config.Debug || shouldProcessEvent(&event, resolvedPath) {
+		if config.Debug || processor.ShouldProcessEvent(&event, resolvedPath, &config) {
 			if config.Debug {
 				comm := cString(event.Comm[:])
 				fmt.Printf("[DEBUG] PID=%d FD=%d COMM=%s FILE=%s HASH=%d TYPE=%d\n",
 					event.Pid, event.Fd, comm, resolvedPath, event.PathHash, event.Type)
 			}
-			if !config.Debug || shouldProcessEvent(&event, resolvedPath) {
+			if !config.Debug || processor.ShouldProcessEvent(&event, resolvedPath, &config) {
 				outputEvent(&event, resolvedPath, outputWriter)
 			}
 		}
 	}
 }
 
-func parseEvent(data []byte, event *Event) error {
-	expectedSize := int(unsafe.Sizeof(*event))
-	if len(data) < expectedSize {
-		return fmt.Errorf("data too short: got %d bytes, expected %d bytes", len(data), expectedSize)
-	}
-
-	*event = *(*Event)(unsafe.Pointer(&data[0]))
-	return nil
-}
-
-func isRealFile(path string) bool {
-	if path == "" {
-		return false
-	}
-
-	// Filter out non-file descriptors by default
-	if strings.Contains(path, "pipe:") ||
-		strings.Contains(path, "anon_inode:") ||
-		strings.Contains(path, "socket:") ||
-		strings.HasPrefix(path, "/dev/") ||
-		strings.HasPrefix(path, "/proc/") ||
-		strings.HasPrefix(path, "/sys/") {
-		return false
-	}
-
-	return true
-}
-
-func shouldProcessEvent(event *Event, resolvedPath string) bool {
-	comm := cString(event.Comm[:])
-
-	// Check process filter first (more efficient)
-	if config.ProcessFilter != "" && !strings.Contains(comm, config.ProcessFilter) {
-		return false
-	}
-
-	// Apply process glob filtering
-	if !matchesProcessGlobFilters(comm) {
-		return false
-	}
-
-	// Skip if we still don't have a filename and it's not a close event
-	if resolvedPath == "" && event.Type != 3 {
-		return false
-	}
-
-	// Filter out non-real files by default (unless in debug mode or show-all-files is enabled)
-	if !config.Debug && !config.ShowAllFiles && !isRealFile(resolvedPath) {
-		return false
-	}
-
-	// Check directory filter - for close events without filename, we can't filter
-	if resolvedPath != "" {
-		// Get current working directory for relative path comparison
-		cwd, _ := os.Getwd()
-
-		// Convert both paths to absolute for proper comparison
-		absFilename := resolvedPath
-		if !filepath.IsAbs(resolvedPath) {
-			absFilename = filepath.Join(cwd, resolvedPath)
-		}
-		absFilename = filepath.Clean(absFilename)
-
-		absTargetDir := config.Directory
-		if !filepath.IsAbs(config.Directory) {
-			absTargetDir = filepath.Join(cwd, config.Directory)
-		}
-		absTargetDir = filepath.Clean(absTargetDir)
-
-		// Check if file is within the target directory
-		relPath, err := filepath.Rel(absTargetDir, absFilename)
-		if err != nil || strings.HasPrefix(relPath, "..") {
-			return false
-		}
-
-		// Apply glob filtering
-		if !matchesGlobFilters(resolvedPath) {
-			return false
-		}
-	}
-
-	return true
-}
-
-// matchesGlobFilters checks if the file path matches include patterns and doesn't match exclude patterns
-func matchesGlobFilters(path string) bool {
-	filename := filepath.Base(path)
-
-	// If we have include patterns, file must match at least one
-	if len(config.GlobPatterns) > 0 {
-		matched := false
-		for _, pattern := range config.GlobPatterns {
-			if match, _ := filepath.Match(pattern, filename); match {
-				matched = true
-				break
-			}
-		}
-		if !matched {
-			return false
-		}
-	}
-
-	// If we have exclude patterns, file must not match any
-	for _, pattern := range config.GlobExclude {
-		if match, _ := filepath.Match(pattern, filename); match {
-			return false
-		}
-	}
-
-	return true
-}
-
-// matchesProcessGlobFilters checks if the process name matches include patterns and doesn't match exclude patterns
-func matchesProcessGlobFilters(processName string) bool {
-	// If we have include patterns, process must match at least one
-	if len(config.ProcessGlob) > 0 {
-		matched := false
-		for _, pattern := range config.ProcessGlob {
-			if match, _ := filepath.Match(pattern, processName); match {
-				matched = true
-				break
-			}
-		}
-		if !matched {
-			return false
-		}
-	}
-
-	// If we have exclude patterns, process must not match any
-	for _, pattern := range config.ProcessGlobExclude {
-		if match, _ := filepath.Match(pattern, processName); match {
-			return false
-		}
-	}
-
-	return true
-}
-
-func resolvePath(event *Event) string {
-	// For open events, we need to resolve the path from /proc since eBPF doesn't provide it
-	if event.Type == 0 { // open
-		filename := resolveFilenameFromFd(event.Pid, event.Fd)
-		if filename != "" {
-			// Store in cache with the hash
-			hash := hashPath(filename)
-			pathCache.Set(hash, filename)
-			return filename
-		}
-		return ""
-	}
-
-	// For other events, try cache first
-	if event.PathHash != 0 {
-		if path, exists := pathCache.Get(event.PathHash); exists {
-			return path
-		}
-	}
-
-	// Fallback to /proc resolution
-	return resolveFilenameFromFd(event.Pid, event.Fd)
-}
-
-func resolveFilenameFromFd(pid uint32, fd int32) string {
-	// Try to resolve filename from /proc/PID/fd/FD
-	procPath := fmt.Sprintf("/proc/%d/fd/%d", pid, fd)
-
-	// Use readlink to get the actual file path
-	if link, err := os.Readlink(procPath); err == nil {
-		// Clean the path to make it more readable
-		if abs, err := filepath.Abs(link); err == nil {
-			return abs
-		}
-		return link
-	}
-
-	return ""
-}
-
-func outputEvent(event *Event, resolvedPath string, writer *os.File) {
-	comm := cString(event.Comm[:])
-
-	// Format filename to be relative and user-friendly
-	displayFilename := formatFilename(resolvedPath)
-
-	eventOutput := EventOutput{
-		Timestamp: time.Now().Format(time.RFC3339),
-		Pid:       event.Pid,
-		Process:   comm,
-		Filename:  displayFilename,
-	}
-
-	// Add write-specific information if available
-	if event.Type == 2 && event.WriteSize > 0 { // write event
-		eventOutput.WriteSize = event.WriteSize
-
-		if config.CaptureContent && event.ContentLen > 0 {
-			// Respect user's content size limit
-			contentLen := event.ContentLen
-			if int(contentLen) > config.ContentSize {
-				contentLen = uint32(config.ContentSize)
-			}
-			content := cString(event.Content[:contentLen])
-			eventOutput.Content = content
-			eventOutput.Truncated = event.WriteSize > uint64(contentLen)
-		}
-	}
-
-	switch event.Type {
-	case 0:
-		eventOutput.Operation = "open"
-	case 1:
-		eventOutput.Operation = "read"
-		if config.ShowFd {
-			eventOutput.Fd = event.Fd
-		}
-	case 2:
-		eventOutput.Operation = "write"
-		if config.ShowFd {
-			eventOutput.Fd = event.Fd
-		}
-	case 3:
-		eventOutput.Operation = "close"
-		if config.ShowFd {
-			eventOutput.Fd = event.Fd
-		}
-	default:
-		return
-	}
+func outputEvent(event *models.Event, resolvedPath string, writer *os.File) {
+	eventOutput := formatter.CreateEventOutput(event, resolvedPath, &config)
 
 	// Log to SQLite if configured
-	if err := logEventToSQLite(eventOutput); err != nil && (config.Verbose || config.Debug) {
+	if err := sqliteDB.LogEvent(eventOutput); err != nil && (config.Verbose || config.Debug) {
 		log.Printf("failed to log event to SQLite: %v", err)
 	}
 
 	// Broadcast to WebSocket clients if web UI is enabled
 	if config.WebUI && webHub != nil {
-		select {
-		case webHub.broadcast <- eventOutput:
-		default:
-			// Non-blocking send
-		}
+		webHub.Broadcast(eventOutput)
 	}
 
 	switch config.OutputFormat {
 	case "json":
-		outputJSON(eventOutput, writer)
+		formatter.OutputJSON(eventOutput, writer, &config)
 	case "table":
-		outputTable(eventOutput, writer)
+		formatter.OutputTable(eventOutput, writer, &config)
 	default:
-		outputPlain(eventOutput, writer)
+		formatter.OutputPlain(eventOutput, writer, &config)
 	}
 }
 
-func outputPlain(event EventOutput, writer *os.File) {
-	fdInfo := ""
-	if config.ShowFd && event.Fd != 0 {
-		fdInfo = fmt.Sprintf(" (fd: %d)", event.Fd)
-	}
-
-	switch event.Operation {
-	case "open":
-		fmt.Fprintf(writer, "[%s] Process %s (PID %d) opening file: %s\n",
-			event.Timestamp, event.Process, event.Pid, event.Filename)
-	case "read":
-		fmt.Fprintf(writer, "[%s] Process %s (PID %d) reading from file: %s%s\n",
-			event.Timestamp, event.Process, event.Pid, event.Filename, fdInfo)
-	case "write":
-		sizeInfo := ""
-		if event.WriteSize > 0 {
-			sizeInfo = fmt.Sprintf(" (%d bytes)", event.WriteSize)
-		}
-		fmt.Fprintf(writer, "[%s] Process %s (PID %d) writing to file: %s%s%s\n",
-			event.Timestamp, event.Process, event.Pid, event.Filename, fdInfo, sizeInfo)
-
-		if config.CaptureContent && event.Content != "" {
-			truncated := ""
-			if event.Truncated {
-				truncated = " [TRUNCATED]"
-			}
-			fmt.Fprintf(writer, "    Content: %q%s\n", event.Content, truncated)
-		}
-	case "close":
-		fmt.Fprintf(writer, "[%s] Process %s (PID %d) closing file descriptor%s\n",
-			event.Timestamp, event.Process, event.Pid, fdInfo)
-	}
-}
-
-func outputJSON(event EventOutput, writer *os.File) {
-	data, err := json.Marshal(event)
-	if err != nil {
-		if config.Verbose || config.Debug {
-			log.Printf("failed to marshal JSON: %v", err)
-		}
-		return
-	}
-	fmt.Fprintf(writer, "%s\n", data)
-}
-
-func printTableHeader(writer *os.File) {
-	if config.ShowFd {
-		fmt.Fprintf(writer, "%-8s %-12s %-8s %-8s %-8s %s\n",
-			"TIME", "PROCESS", "PID", "OPERATION", "FD", "FILENAME")
-		fmt.Fprintf(writer, "%-8s %-12s %-8s %-8s %-8s %s\n",
-			"--------", "------------", "--------", "--------", "--------", "--------")
-	} else {
-		fmt.Fprintf(writer, "%-8s %-12s %-8s %-8s %s\n",
-			"TIME", "PROCESS", "PID", "OPERATION", "FILENAME")
-		fmt.Fprintf(writer, "%-8s %-12s %-8s %-8s %s\n",
-			"--------", "------------", "--------", "--------", "--------")
-	}
-}
-
-func outputTable(event EventOutput, writer *os.File) {
-	// Truncate timestamp to show only time part for better readability
-	timestamp := event.Timestamp
-	if len(timestamp) > 19 {
-		timestamp = timestamp[11:19] // Extract HH:MM:SS part
-	}
-
-	fdCol := ""
-	if config.ShowFd && event.Fd != 0 {
-		fdCol = fmt.Sprintf("%d", event.Fd)
-	}
-
-	// Truncate filename if too long for better table formatting
-	filename := event.Filename
-	if len(filename) > 50 {
-		filename = "..." + filename[len(filename)-47:]
-	}
-
-	if config.ShowFd {
-		fmt.Fprintf(writer, "%-8s %-12s %-8d %-8s %-8s %s\n",
-			timestamp, event.Process, event.Pid, event.Operation, fdCol, filename)
-	} else {
-		fmt.Fprintf(writer, "%-8s %-12s %-8d %-8s %s\n",
-			timestamp, event.Process, event.Pid, event.Operation, filename)
-	}
-}
-
-func formatFilename(filename string) string {
-	if filename == "" {
-		return ""
-	}
-
-	cwd, err := os.Getwd()
-	if err != nil {
-		return filename
-	}
-
-	// Try to make path relative to current directory
-	if relPath, err := filepath.Rel(cwd, filename); err == nil && !strings.HasPrefix(relPath, "..") {
-		return relPath
-	}
-
-	// If not under current directory, try relative to target directory
-	if !filepath.IsAbs(config.Directory) {
-		absTargetDir := filepath.Join(cwd, config.Directory)
-		if relPath, err := filepath.Rel(absTargetDir, filename); err == nil && !strings.HasPrefix(relPath, "..") {
-			return filepath.Join(config.Directory, relPath)
-		}
-	} else {
-		if relPath, err := filepath.Rel(config.Directory, filename); err == nil && !strings.HasPrefix(relPath, "..") {
-			return relPath
-		}
-	}
-
-	// If path is too long, elide the beginning (keep the important end part)
-	const maxLen = 60
-	if len(filename) > maxLen {
-		return "..." + filename[len(filename)-maxLen+3:]
-	}
-
-	return filename
-}
-
-func cString(data []int8) string {
-	var buf []byte
-	for _, b := range data {
-		if b == 0 {
+func cString(b []int8) string {
+	n := -1
+	for i, v := range b {
+		if v == 0 {
+			n = i
 			break
 		}
-		buf = append(buf, byte(b))
 	}
-	return string(buf)
+	if n == -1 {
+		n = len(b)
+	}
+	// Convert []int8 to []byte
+	bytes := make([]byte, n)
+	for i := 0; i < n; i++ {
+		bytes[i] = byte(b[i])
+	}
+	return string(bytes)
 }
