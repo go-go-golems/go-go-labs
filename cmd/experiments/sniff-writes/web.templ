@@ -72,6 +72,9 @@ templ layout() {
 			let ws;
 			let eventCount = 0;
 			let filteredEventCount = 0;
+			let allEvents = []; // Store all events for filtering
+			const maxStoredEvents = 2000; // Limit stored events for performance
+			let showFilteredEvents = false; // Toggle to show filtered out events
 			
 			function connectWebSocket() {
 				const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -115,20 +118,62 @@ templ layout() {
 			function addEvent(eventData) {
 				eventCount++;
 				
-				if (!shouldShowEvent(eventData)) {
-					return;
+				// Store event for filtering
+				allEvents.push(eventData);
+				
+				// Limit stored events for performance
+				if (allEvents.length > maxStoredEvents) {
+					allEvents.shift();
 				}
 				
-				filteredEventCount++;
-				
+				// Re-render the filtered view
+				renderFilteredEvents();
+			}
+			
+			function renderFilteredEvents() {
 				const eventLog = document.getElementById('event-log');
+				eventLog.innerHTML = ''; // Clear existing events
+				
+				filteredEventCount = 0;
+				
+				// Filter and display events
+				for (const eventData of allEvents) {
+					const passesFilter = shouldShowEvent(eventData);
+					
+					if (passesFilter) {
+						filteredEventCount++;
+					}
+					
+					// Show event if it passes filter, or if we're showing filtered events and it doesn't pass
+					if (passesFilter || showFilteredEvents) {
+						const eventItem = createEventElement(eventData, !passesFilter);
+						eventLog.appendChild(eventItem);
+					}
+				}
+				
+				// Auto-scroll to bottom
+				eventLog.scrollTop = eventLog.scrollHeight;
+				
+				updateStats();
+			}
+			
+			function createEventElement(eventData, isFiltered = false) {
 				const eventItem = document.createElement('div');
-				eventItem.className = 'event-item';
+				eventItem.className = isFiltered ? 'event-item text-muted' : 'event-item';
+				
+				if (isFiltered) {
+					eventItem.style.opacity = '0.5';
+					eventItem.style.backgroundColor = '#f8f9fa';
+				}
 				
 				const timestamp = new Date(eventData.timestamp).toLocaleTimeString();
 				const operationClass = 'operation-' + eventData.operation;
 				
-				let content = `<span class="text-muted">[${timestamp}]</span> `;
+				let content = '';
+				if (isFiltered) {
+					content += `<span class="badge bg-secondary me-2">FILTERED</span>`;
+				}
+				content += `<span class="text-muted">[${timestamp}]</span> `;
 				content += `<span class="${operationClass}"><strong>${eventData.operation.toUpperCase()}</strong></span> `;
 				content += `<span class="text-primary">${eventData.process}</span> `;
 				content += `<span class="text-muted">(PID: ${eventData.pid})</span> `;
@@ -146,17 +191,7 @@ templ layout() {
 				}
 				
 				eventItem.innerHTML = content;
-				eventLog.appendChild(eventItem);
-				
-				// Auto-scroll to bottom
-				eventLog.scrollTop = eventLog.scrollHeight;
-				
-				// Limit to last 1000 events
-				while (eventLog.children.length > 1000) {
-					eventLog.removeChild(eventLog.firstChild);
-				}
-				
-				updateStats();
+				return eventItem;
 			}
 			
 			function shouldShowEvent(eventData) {
@@ -182,21 +217,40 @@ templ layout() {
 			}
 			
 			function updateStats() {
+				const filteredOutCount = allEvents.length - filteredEventCount;
 				document.getElementById('total-events').textContent = eventCount;
 				document.getElementById('filtered-events').textContent = filteredEventCount;
+				document.getElementById('filtered-out-events').textContent = filteredOutCount;
 			}
 			
 			function clearEvents() {
-				document.getElementById('event-log').innerHTML = '';
+				allEvents = [];
 				eventCount = 0;
 				filteredEventCount = 0;
+				document.getElementById('event-log').innerHTML = '';
 				updateStats();
 			}
 			
 			function applyFilters() {
 				// Re-render all events with current filters
-				// For simplicity, we'll just clear and let new events come in
-				// In a real implementation, you'd store events and re-filter
+				renderFilteredEvents();
+			}
+			
+			function toggleShowFiltered() {
+				showFilteredEvents = !showFilteredEvents;
+				const btn = document.getElementById('show-filtered-btn');
+				
+				if (showFilteredEvents) {
+					btn.textContent = 'Hide Filtered';
+					btn.classList.remove('btn-outline-info');
+					btn.classList.add('btn-info');
+				} else {
+					btn.textContent = 'Show Filtered';
+					btn.classList.remove('btn-info');
+					btn.classList.add('btn-outline-info');
+				}
+				
+				renderFilteredEvents();
 			}
 			
 			// Initialize WebSocket connection when page loads
@@ -234,10 +288,16 @@ templ index() {
 							<label for="file-filter" class="form-label">Filename</label>
 							<input type="text" class="form-control" id="file-filter" placeholder="e.g., .log, .tmp" oninput="applyFilters()">
 						</div>
-						<div class="col-md-3">
+						<div class="col-md-2">
 							<label class="form-label">&nbsp;</label>
 							<div class="d-grid">
 								<button type="button" class="btn btn-outline-secondary" onclick="clearEvents()">Clear Events</button>
+							</div>
+						</div>
+						<div class="col-md-2">
+							<label class="form-label">&nbsp;</label>
+							<div class="d-grid">
+								<button type="button" class="btn btn-outline-info" id="show-filtered-btn" onclick="toggleShowFiltered()">Show Filtered</button>
 							</div>
 						</div>
 					</div>
@@ -246,7 +306,7 @@ templ index() {
 		</div>
 		
 		<div class="row mb-3">
-			<div class="col-md-4">
+			<div class="col-md-3">
 				<div class="card">
 					<div class="card-body stats-card">
 						<h5 class="card-title">Total Events</h5>
@@ -254,15 +314,23 @@ templ index() {
 					</div>
 				</div>
 			</div>
-			<div class="col-md-4">
+			<div class="col-md-3">
 				<div class="card">
 					<div class="card-body stats-card">
-						<h5 class="card-title">Filtered Events</h5>
+						<h5 class="card-title">Visible Events</h5>
 						<h2 class="text-success" id="filtered-events">0</h2>
 					</div>
 				</div>
 			</div>
-			<div class="col-md-4">
+			<div class="col-md-3">
+				<div class="card">
+					<div class="card-body stats-card">
+						<h5 class="card-title">Filtered Out</h5>
+						<h2 class="text-warning" id="filtered-out-events">0</h2>
+					</div>
+				</div>
+			</div>
+			<div class="col-md-3">
 				<div class="card">
 					<div class="card-body stats-card">
 						<h5 class="card-title">Status</h5>
