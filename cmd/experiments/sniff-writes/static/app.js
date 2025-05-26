@@ -495,9 +495,195 @@ function loadSettings() {
 	}
 }
 
+// History search state
+let currentPage = 1;
+let currentSearchParams = {};
+
 // Initialize WebSocket connection when page loads
 document.addEventListener('DOMContentLoaded', function() {
 	loadSettings();
 	connectWebSocket();
 	updateStats();
+	
+	// Add tab switching event listeners
+	document.getElementById('live-tab').addEventListener('click', function() {
+		showLiveView();
+	});
+	
+	document.getElementById('history-tab').addEventListener('click', function() {
+		showHistoryView();
+	});
 });
+
+function showLiveView() {
+	document.getElementById('live-stats').style.display = 'block';
+	document.getElementById('live-log').style.display = 'block';
+}
+
+function showHistoryView() {
+	document.getElementById('live-stats').style.display = 'none';
+	document.getElementById('live-log').style.display = 'none';
+}
+
+function searchHistory(page = 1) {
+	currentPage = page;
+	
+	// Build search parameters
+	const params = new URLSearchParams();
+	
+	const startTime = document.getElementById('start-time').value;
+	const endTime = document.getElementById('end-time').value;
+	const process = document.getElementById('history-process').value;
+	const filename = document.getElementById('history-filename').value;
+	const pid = document.getElementById('history-pid').value;
+	const limit = document.getElementById('history-limit').value;
+	
+	if (startTime) params.append('start_time', new Date(startTime).toISOString());
+	if (endTime) params.append('end_time', new Date(endTime).toISOString());
+	if (process) params.append('process', process);
+	if (filename) params.append('filename', filename);
+	if (pid) params.append('pid', pid);
+	
+	// Get selected operations
+	const operations = [];
+	if (document.getElementById('hist-op-open').checked) operations.push('open');
+	if (document.getElementById('hist-op-read').checked) operations.push('read');
+	if (document.getElementById('hist-op-write').checked) operations.push('write');
+	if (document.getElementById('hist-op-close').checked) operations.push('close');
+	
+	if (operations.length > 0) {
+		params.append('operations', operations.join(','));
+	}
+	
+	params.append('limit', limit);
+	params.append('offset', (page - 1) * parseInt(limit));
+	
+	// Store current search params for pagination
+	currentSearchParams = Object.fromEntries(params);
+	
+	// Make API request
+	fetch('/api/events?' + params.toString())
+		.then(response => response.json())
+		.then(data => {
+			displayHistoryResults(data);
+			updatePagination(data);
+		})
+		.catch(error => {
+			console.error('Error searching history:', error);
+			document.getElementById('history-results').innerHTML = 
+				'<div class="text-center p-4 text-danger">Error loading results: ' + error.message + '</div>';
+		});
+}
+
+function displayHistoryResults(data) {
+	const resultsContainer = document.getElementById('history-results');
+	const countBadge = document.getElementById('history-count');
+	
+	countBadge.textContent = `${data.events.length} of ${data.total} results`;
+	
+	if (data.events.length === 0) {
+		resultsContainer.innerHTML = '<div class="text-center p-4 text-muted">No events found for the given criteria</div>';
+		return;
+	}
+	
+	resultsContainer.innerHTML = '';
+	
+	data.events.forEach(event => {
+		const eventElement = createHistoryEventElement(event);
+		resultsContainer.appendChild(eventElement);
+	});
+}
+
+function updatePagination(data) {
+	const paginationContainer = document.getElementById('pagination');
+	const paginationRow = document.getElementById('pagination-row');
+	
+	if (data.total_pages <= 1) {
+		paginationRow.style.display = 'none';
+		return;
+	}
+	
+	paginationRow.style.display = 'block';
+	paginationContainer.innerHTML = '';
+	
+	// Previous button
+	const prevLi = document.createElement('li');
+	prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+	prevLi.innerHTML = `<a class="page-link" href="#" onclick="searchHistory(${currentPage - 1})">Previous</a>`;
+	paginationContainer.appendChild(prevLi);
+	
+	// Page numbers
+	const startPage = Math.max(1, currentPage - 2);
+	const endPage = Math.min(data.total_pages, currentPage + 2);
+	
+	for (let i = startPage; i <= endPage; i++) {
+		const li = document.createElement('li');
+		li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+		li.innerHTML = `<a class="page-link" href="#" onclick="searchHistory(${i})">${i}</a>`;
+		paginationContainer.appendChild(li);
+	}
+	
+	// Next button
+	const nextLi = document.createElement('li');
+	nextLi.className = `page-item ${currentPage === data.total_pages ? 'disabled' : ''}`;
+	nextLi.innerHTML = `<a class="page-link" href="#" onclick="searchHistory(${currentPage + 1})">Next</a>`;
+	paginationContainer.appendChild(nextLi);
+}
+
+function exportData(format) {
+	// Build export URL with current search parameters
+	const params = new URLSearchParams(currentSearchParams);
+	params.set('format', format);
+	params.delete('limit');  // Remove pagination for export
+	params.delete('offset');
+	
+	// Create download link
+	const url = '/api/events/export?' + params.toString();
+	const link = document.createElement('a');
+	link.href = url;
+	link.download = `file_events.${format}`;
+	document.body.appendChild(link);
+	link.click();
+	document.body.removeChild(link);
+}
+
+function createHistoryEventElement(event) {
+	const div = document.createElement('div');
+	div.className = 'event-item';
+	
+	const timestamp = new Date(event.timestamp).toLocaleString();
+	const processInfo = `${event.process} (PID: ${event.pid})`;
+	const operationClass = `operation-${event.operation}`;
+	
+	let contentDisplay = '';
+	if (event.content && event.content.trim()) {
+		const truncated = event.truncated ? ' (truncated)' : '';
+		contentDisplay = `
+			<div class="event-content">
+				<strong>Content${truncated}:</strong>
+				<code>${escapeHtml(event.content)}</code>
+			</div>
+		`;
+	}
+	
+	div.innerHTML = `
+		<div class="event-header">
+			<span class="timestamp">${timestamp}</span>
+			<span class="operation ${operationClass}">${event.operation.toUpperCase()}</span>
+			<span class="process">${escapeHtml(processInfo)}</span>
+		</div>
+		<div class="event-details">
+			<div class="filename">${escapeHtml(event.filename || 'N/A')}</div>
+			${event.write_size > 0 ? `<div class="write-size">Size: ${event.write_size} bytes</div>` : ''}
+			${contentDisplay}
+		</div>
+	`;
+	
+	return div;
+}
+
+function escapeHtml(text) {
+	const div = document.createElement('div');
+	div.textContent = text;
+	return div.innerHTML;
+}

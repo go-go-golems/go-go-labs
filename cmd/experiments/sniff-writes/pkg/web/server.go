@@ -5,6 +5,9 @@ import (
 	"log"
 	"net/http"
 
+	
+	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/api"
+	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/database"
 	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/models"
 	"github.com/gorilla/websocket"
 )
@@ -126,10 +129,13 @@ func HandleWebSocket(hub *WebHub) http.HandlerFunc {
 	}
 }
 
-func StartServer(port int, styleCSS, appJS []byte, indexHandler http.HandlerFunc) *WebHub {
+func StartServer(port int, styleCSS, appJS []byte, indexHandler http.HandlerFunc, db *database.SQLiteDB) *WebHub {
 	hub := NewWebHub(false)
 	go hub.Run()
 
+	// Create API server for endpoints
+	apiServer := api.NewServer(db, port)
+	
 	// Serve embedded static files
 	http.HandleFunc("/static/style.css", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/css")
@@ -139,11 +145,20 @@ func StartServer(port int, styleCSS, appJS []byte, indexHandler http.HandlerFunc
 		w.Header().Set("Content-Type", "application/javascript")
 		w.Write(appJS)
 	})
+	
+	// Web UI routes
 	http.HandleFunc("/", indexHandler)
 	http.HandleFunc("/ws", HandleWebSocket(hub))
+	
+	// API routes
+	http.HandleFunc("/api/events", apiServer.HandleEvents)
+	http.HandleFunc("/api/events/export", apiServer.HandleExport)
+	http.HandleFunc("/api/stats", apiServer.HandleStats)
+	http.HandleFunc("/api/health", apiServer.HandleHealth)
 
 	addr := fmt.Sprintf(":%d", port)
 	fmt.Printf("Web UI available at http://localhost%s\n", addr)
+	fmt.Printf("API endpoints available at http://localhost%s/api/\n", addr)
 
 	go func() {
 		if err := http.ListenAndServe(addr, nil); err != nil {

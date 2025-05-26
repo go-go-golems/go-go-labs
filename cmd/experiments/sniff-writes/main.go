@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
@@ -17,9 +18,11 @@ import (
 	"github.com/cilium/ebpf/rlimit"
 	"github.com/spf13/cobra"
 
+	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/api"
 	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/cache"
 	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/database"
 	ebpfops "github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/ebpf"
+	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/export"
 	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/formatter"
 	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/models"
 	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/processor"
@@ -39,6 +42,22 @@ var sqliteDB *database.SQLiteDB
 var webHub *web.WebHub
 var pathCache *cache.PathCache
 
+// Query-specific flags
+var queryFlags struct {
+	startTime  string
+	endTime    string
+	filename   string
+	pid        uint32
+	exportFmt  string
+	limit      int
+	offset     int
+}
+
+// Server-specific flags  
+var serverFlags struct {
+	port int
+}
+
 func initSQLite() error {
 	var err error
 	sqliteDB, err = database.NewSQLiteDB(config.SqliteDB)
@@ -56,7 +75,7 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 func startWebServer() {
-	webHub = web.StartServer(config.WebPort, styleCSS, appJS, handleIndex)
+	webHub = web.StartServer(config.WebPort, styleCSS, appJS, handleIndex, sqliteDB)
 }
 
 func main() {
@@ -121,9 +140,25 @@ var monitorCmd = &cobra.Command{
 	RunE:  runMonitor,
 }
 
+var queryCmd = &cobra.Command{
+	Use:   "query",
+	Short: "Query past events from database",
+	Long:  "Query and search past file operation events stored in the database with filtering and pagination.",
+	RunE:  runQuery,
+}
+
+var serverCmd = &cobra.Command{
+	Use:   "server",
+	Short: "Start REST API server",
+	Long:  "Start a REST API server to query events via HTTP endpoints.",
+	RunE:  runServer,
+}
+
 func init() {
 	// Add subcommands
 	rootCmd.AddCommand(monitorCmd)
+	rootCmd.AddCommand(queryCmd)
+	rootCmd.AddCommand(serverCmd)
 
 	// Add flags to monitor command
 	monitorCmd.Flags().StringVarP(&config.Directory, "directory", "d", "cmd/n8n-cli", "Directory to monitor")
@@ -145,6 +180,26 @@ func init() {
 	monitorCmd.Flags().StringVar(&config.SqliteDB, "sqlite", "", "Log events to SQLite database (specify database file path)")
 	monitorCmd.Flags().BoolVar(&config.WebUI, "web", false, "Enable real-time web UI")
 	monitorCmd.Flags().IntVar(&config.WebPort, "web-port", 8080, "Web UI port (default: 8080)")
+
+	// Add flags to query command
+	queryCmd.Flags().StringVar(&config.SqliteDB, "sqlite", "", "SQLite database file path (required)")
+	queryCmd.Flags().StringVar(&config.ProcessFilter, "process", "", "Filter by process name (substring match)")
+	queryCmd.Flags().StringSliceVarP(&config.Operations, "operations", "o", []string{}, "Filter by operations: open, read, write, close")
+	queryCmd.Flags().StringVar(&config.OutputFormat, "format", "table", "Output format: plain, json, table")
+	queryCmd.Flags().StringVar(&config.OutputFile, "output", "", "Output to file instead of stdout")
+	queryCmd.Flags().IntVar(&queryFlags.limit, "limit", 100, "Maximum number of events to return")
+	queryCmd.Flags().IntVar(&queryFlags.offset, "offset", 0, "Number of events to skip (for pagination)")
+	queryCmd.Flags().StringVar(&queryFlags.startTime, "start-time", "", "Start time filter (RFC3339 format)")
+	queryCmd.Flags().StringVar(&queryFlags.endTime, "end-time", "", "End time filter (RFC3339 format)")
+	queryCmd.Flags().StringVar(&queryFlags.filename, "filename", "", "Filter by filename pattern")
+	queryCmd.Flags().Uint32Var(&queryFlags.pid, "pid", 0, "Filter by process ID")
+	queryCmd.Flags().StringVar(&queryFlags.exportFmt, "export", "", "Export format: json, csv, markdown")
+	queryCmd.MarkFlagRequired("sqlite")
+
+	// Add flags to server command
+	serverCmd.Flags().StringVar(&config.SqliteDB, "sqlite", "", "SQLite database file path (required)")
+	serverCmd.Flags().IntVar(&serverFlags.port, "port", 8080, "API server port (default: 8080)")
+	serverCmd.MarkFlagRequired("sqlite")
 }
 
 func runMonitor(cmd *cobra.Command, args []string) error {
@@ -404,4 +459,120 @@ func cString(b []int8) string {
 		bytes[i] = byte(b[i])
 	}
 	return string(bytes)
+}
+
+func runQuery(cmd *cobra.Command, args []string) error {
+	// Initialize SQLite database
+	if err := initSQLite(); err != nil {
+		return fmt.Errorf("failed to initialize SQLite: %w", err)
+	}
+	defer closeSQLite()
+
+	// Build query filter
+	filter := database.QueryFilter{
+		ProcessFilter:   config.ProcessFilter,
+		OperationFilter: config.Operations,
+		FilenamePattern: queryFlags.filename,
+		Limit:           queryFlags.limit,
+		Offset:          queryFlags.offset,
+	}
+
+	// Parse time filters
+	if queryFlags.startTime != "" {
+		startTime, err := time.Parse(time.RFC3339, queryFlags.startTime)
+		if err != nil {
+			return fmt.Errorf("invalid start-time format (use RFC3339): %w", err)
+		}
+		filter.StartTime = &startTime
+	}
+
+	if queryFlags.endTime != "" {
+		endTime, err := time.Parse(time.RFC3339, queryFlags.endTime)
+		if err != nil {
+			return fmt.Errorf("invalid end-time format (use RFC3339): %w", err)
+		}
+		filter.EndTime = &endTime
+	}
+
+	if queryFlags.pid != 0 {
+		filter.PID = &queryFlags.pid
+	}
+
+	// Query events
+	events, err := sqliteDB.QueryEvents(filter)
+	if err != nil {
+		return fmt.Errorf("failed to query events: %w", err)
+	}
+
+	// Handle export format
+	if queryFlags.exportFmt != "" {
+		var exportFormat export.ExportFormat
+		switch queryFlags.exportFmt {
+		case "json":
+			exportFormat = export.FormatJSON
+		case "csv":
+			exportFormat = export.FormatCSV
+		case "markdown":
+			exportFormat = export.FormatMarkdown
+		default:
+			return fmt.Errorf("unsupported export format: %s. Use: json, csv, markdown", queryFlags.exportFmt)
+		}
+
+		// Set up output writer
+		outputWriter := os.Stdout
+		if config.OutputFile != "" {
+			file, err := os.Create(config.OutputFile)
+			if err != nil {
+				return fmt.Errorf("failed to create output file: %w", err)
+			}
+			defer file.Close()
+			outputWriter = file
+		}
+
+		exporter := export.New(outputWriter, exportFormat)
+		return exporter.Export(events)
+	}
+
+	// Regular output using existing formatter
+	outputWriter := os.Stdout
+	if config.OutputFile != "" {
+		file, err := os.Create(config.OutputFile)
+		if err != nil {
+			return fmt.Errorf("failed to create output file: %w", err)
+		}
+		defer file.Close()
+		outputWriter = file
+	}
+
+	// Print table header if using table format
+	if config.OutputFormat == "table" {
+		formatter.PrintTableHeader(outputWriter, &config)
+	}
+
+	for _, event := range events {
+		switch config.OutputFormat {
+		case "json":
+			formatter.OutputJSON(event, outputWriter, &config)
+		case "table":
+			formatter.OutputTable(event, outputWriter, &config)
+		default:
+			formatter.OutputPlain(event, outputWriter, &config)
+		}
+	}
+
+	fmt.Printf("\nTotal events found: %d\n", len(events))
+	return nil
+}
+
+func runServer(cmd *cobra.Command, args []string) error {
+	// Initialize SQLite database
+	if err := initSQLite(); err != nil {
+		return fmt.Errorf("failed to initialize SQLite: %w", err)
+	}
+	defer closeSQLite()
+
+	// Create and start API server
+	server := api.NewServer(sqliteDB, serverFlags.port)
+	fmt.Printf("Starting API server on port %d\n", serverFlags.port)
+	return server.Start()
 }
