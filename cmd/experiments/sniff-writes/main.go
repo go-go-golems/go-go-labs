@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -19,6 +20,7 @@ import (
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/perf"
 	"github.com/cilium/ebpf/rlimit"
+	"github.com/gorilla/websocket"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/cobra"
 )
@@ -54,6 +56,8 @@ type Config struct {
 	ProcessGlob        []string // Include patterns for process name filtering
 	ProcessGlobExclude []string // Exclude patterns for process name filtering
 	SqliteDB           string   // Path to SQLite database for logging
+	WebUI              bool     // Enable web UI
+	WebPort            int      // Web UI port
 }
 
 type EventOutput struct {
@@ -70,6 +74,68 @@ type EventOutput struct {
 
 var config Config
 var sqliteDB *sql.DB
+
+// WebSocket upgrader
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true // Allow connections from any origin in development
+	},
+}
+
+// WebSocket clients
+type WebClient struct {
+	conn *websocket.Conn
+	send chan EventOutput
+}
+
+type WebHub struct {
+	clients    map[*WebClient]bool
+	register   chan *WebClient
+	unregister chan *WebClient
+	broadcast  chan EventOutput
+}
+
+func newWebHub() *WebHub {
+	return &WebHub{
+		clients:    make(map[*WebClient]bool),
+		register:   make(chan *WebClient),
+		unregister: make(chan *WebClient),
+		broadcast:  make(chan EventOutput),
+	}
+}
+
+func (h *WebHub) run() {
+	for {
+		select {
+		case client := <-h.register:
+			h.clients[client] = true
+			if config.Verbose {
+				log.Printf("WebSocket client connected. Total clients: %d", len(h.clients))
+			}
+
+		case client := <-h.unregister:
+			if _, ok := h.clients[client]; ok {
+				delete(h.clients, client)
+				close(client.send)
+				if config.Verbose {
+					log.Printf("WebSocket client disconnected. Total clients: %d", len(h.clients))
+				}
+			}
+
+		case event := <-h.broadcast:
+			for client := range h.clients {
+				select {
+				case client.send <- event:
+				default:
+					close(client.send)
+					delete(h.clients, client)
+				}
+			}
+		}
+	}
+}
+
+var webHub *WebHub
 
 // PathCache stores full paths by hash for quick lookup
 type PathCache struct {
@@ -194,6 +260,72 @@ func logEventToSQLite(event EventOutput) error {
 	return err
 }
 
+func handleWebSocket(w http.ResponseWriter, r *http.Request) {
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Printf("WebSocket upgrade failed: %v", err)
+		return
+	}
+
+	client := &WebClient{
+		conn: conn,
+		send: make(chan EventOutput, 256),
+	}
+
+	webHub.register <- client
+
+	go func() {
+		defer func() {
+			webHub.unregister <- client
+			conn.Close()
+		}()
+
+		for {
+			select {
+			case event, ok := <-client.send:
+				if !ok {
+					conn.WriteMessage(websocket.CloseMessage, []byte{})
+					return
+				}
+
+				if err := conn.WriteJSON(event); err != nil {
+					log.Printf("WebSocket write error: %v", err)
+					return
+				}
+			}
+		}
+	}()
+
+	// Keep connection alive
+	for {
+		_, _, err := conn.ReadMessage()
+		if err != nil {
+			break
+		}
+	}
+}
+
+func handleIndex(w http.ResponseWriter, r *http.Request) {
+	index().Render(r.Context(), w)
+}
+
+func startWebServer() {
+	webHub = newWebHub()
+	go webHub.run()
+
+	http.HandleFunc("/", handleIndex)
+	http.HandleFunc("/ws", handleWebSocket)
+
+	addr := fmt.Sprintf(":%d", config.WebPort)
+	fmt.Printf("Web UI available at http://localhost%s\n", addr)
+
+	go func() {
+		if err := http.ListenAndServe(addr, nil); err != nil {
+			log.Printf("Web server error: %v", err)
+		}
+	}()
+}
+
 func main() {
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -240,7 +372,13 @@ Examples:
   sudo sniff-writes monitor --sqlite /tmp/file_events.db
 
   # Combined filtering with database logging
-  sudo sniff-writes monitor --glob "*.go" --process-glob "*server" --sqlite /tmp/go_files.db -v`,
+  sudo sniff-writes monitor --glob "*.go" --process-glob "*server" --sqlite /tmp/go_files.db -v
+
+  # Enable real-time web UI
+  sudo sniff-writes monitor --web --web-port 8080
+
+  # Web UI with filtering and database logging
+  sudo sniff-writes monitor --web --glob "*.log" --sqlite /tmp/web_events.db`,
 }
 
 var monitorCmd = &cobra.Command{
@@ -272,6 +410,8 @@ func init() {
 	monitorCmd.Flags().StringSliceVar(&config.ProcessGlob, "process-glob", []string{}, "Include processes matching these glob patterns (e.g., 'nginx*', '*server')")
 	monitorCmd.Flags().StringSliceVar(&config.ProcessGlobExclude, "process-glob-exclude", []string{}, "Exclude processes matching these glob patterns")
 	monitorCmd.Flags().StringVar(&config.SqliteDB, "sqlite", "", "Log events to SQLite database (specify database file path)")
+	monitorCmd.Flags().BoolVar(&config.WebUI, "web", false, "Enable real-time web UI")
+	monitorCmd.Flags().IntVar(&config.WebPort, "web-port", 8080, "Web UI port (default: 8080)")
 }
 
 func runMonitor(cmd *cobra.Command, args []string) error {
@@ -300,6 +440,11 @@ func runMonitor(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to initialize SQLite: %w", err)
 	}
 	defer closeSQLite()
+
+	// Start web server if enabled
+	if config.WebUI {
+		startWebServer()
+	}
 
 	// Remove memory limit for eBPF
 	if err := rlimit.RemoveMemlock(); err != nil {
@@ -715,6 +860,15 @@ func outputEvent(event *Event, resolvedPath string, writer *os.File) {
 	// Log to SQLite if configured
 	if err := logEventToSQLite(eventOutput); err != nil && (config.Verbose || config.Debug) {
 		log.Printf("failed to log event to SQLite: %v", err)
+	}
+
+	// Broadcast to WebSocket clients if web UI is enabled
+	if config.WebUI && webHub != nil {
+		select {
+		case webHub.broadcast <- eventOutput:
+		default:
+			// Non-blocking send
+		}
 	}
 
 	switch config.OutputFormat {
