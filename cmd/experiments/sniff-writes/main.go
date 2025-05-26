@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -18,6 +19,7 @@ import (
 	"github.com/cilium/ebpf/link"
 	"github.com/cilium/ebpf/perf"
 	"github.com/cilium/ebpf/rlimit"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/cobra"
 )
 
@@ -27,26 +29,29 @@ type Event struct {
 	Pid        uint32
 	Fd         int32
 	Comm       [16]int8
-	PathHash   uint32 // 32-bit hash of the path for cache lookup
-	Type       uint32 // 0 = open, 1 = read, 2 = write, 3 = close
-	WriteSize  uint64 // Total size of write operation
-	ContentLen uint32 // Actual content captured
+	PathHash   uint32   // 32-bit hash of the path for cache lookup
+	Type       uint32   // 0 = open, 1 = read, 2 = write, 3 = close
+	WriteSize  uint64   // Total size of write operation
+	ContentLen uint32   // Actual content captured
 	Content    [64]int8 // Write content (for write events only)
 }
 
 type Config struct {
-	Directory    string
-	OutputFormat string
-	Operations   []string
-	ProcessFilter string
-	Duration     time.Duration
-	Verbose      bool
-	ShowFd       bool
-	OutputFile   string
-	Debug        bool
-	ShowAllFiles bool // Show pipes, sockets, etc. (default: false)
-	CaptureContent bool // Capture write content (default: false)
-	ContentSize  int  // Max content bytes to capture (default: 64)
+	Directory      string
+	OutputFormat   string
+	Operations     []string
+	ProcessFilter  string
+	Duration       time.Duration
+	Verbose        bool
+	ShowFd         bool
+	OutputFile     string
+	Debug          bool
+	ShowAllFiles   bool     // Show pipes, sockets, etc. (default: false)
+	CaptureContent bool     // Capture write content (default: false)
+	ContentSize    int      // Max content bytes to capture (default: 64)
+	GlobPatterns   []string // Include patterns for file filtering
+	GlobExclude    []string // Exclude patterns for file filtering
+	SqliteDB       string   // Path to SQLite database for logging
 }
 
 type EventOutput struct {
@@ -62,6 +67,7 @@ type EventOutput struct {
 }
 
 var config Config
+var sqliteDB *sql.DB
 
 // PathCache stores full paths by hash for quick lookup
 type PathCache struct {
@@ -102,6 +108,90 @@ func hashPath(path string) uint32 {
 
 var pathCache = NewPathCache()
 
+func initSQLite() error {
+	if config.SqliteDB == "" {
+		return nil
+	}
+
+	var err error
+	sqliteDB, err = sql.Open("sqlite3", config.SqliteDB)
+	if err != nil {
+		return fmt.Errorf("failed to open SQLite database: %w", err)
+	}
+
+	// Create the events table
+	createTableSQL := `
+	CREATE TABLE IF NOT EXISTS file_events (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		timestamp DATETIME NOT NULL,
+		pid INTEGER NOT NULL,
+		process TEXT NOT NULL,
+		operation TEXT NOT NULL,
+		filename TEXT,
+		fd INTEGER,
+		write_size INTEGER,
+		content TEXT,
+		truncated BOOLEAN DEFAULT FALSE
+	);
+	
+	CREATE INDEX IF NOT EXISTS idx_timestamp ON file_events(timestamp);
+	CREATE INDEX IF NOT EXISTS idx_pid ON file_events(pid);
+	CREATE INDEX IF NOT EXISTS idx_process ON file_events(process);
+	CREATE INDEX IF NOT EXISTS idx_operation ON file_events(operation);
+	`
+
+	if _, err := sqliteDB.Exec(createTableSQL); err != nil {
+		return fmt.Errorf("failed to create table: %w", err)
+	}
+
+	return nil
+}
+
+func closeSQLite() {
+	if sqliteDB != nil {
+		sqliteDB.Close()
+	}
+}
+
+func logEventToSQLite(event EventOutput) error {
+	if sqliteDB == nil {
+		return nil
+	}
+
+	insertSQL := `
+	INSERT INTO file_events (timestamp, pid, process, operation, filename, fd, write_size, content, truncated)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`
+
+	var fd *int32
+	if event.Fd != 0 {
+		fd = &event.Fd
+	}
+
+	var writeSize *uint64
+	if event.WriteSize > 0 {
+		writeSize = &event.WriteSize
+	}
+
+	var content *string
+	if event.Content != "" {
+		content = &event.Content
+	}
+
+	_, err := sqliteDB.Exec(insertSQL,
+		event.Timestamp,
+		event.Pid,
+		event.Process,
+		event.Operation,
+		event.Filename,
+		fd,
+		writeSize,
+		content,
+		event.Truncated)
+
+	return err
+}
+
 func main() {
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -135,8 +225,14 @@ Examples:
   # Capture more content (first 128 bytes) 
   sudo sniff-writes monitor --capture-content --content-size 128
 
-  # Filter by process name
-  sudo sniff-writes monitor -p nginx -v`,
+  # Filter by process name and file patterns
+  sudo sniff-writes monitor -p nginx --glob "*.log" --glob-exclude "*.tmp"
+
+  # Log events to SQLite database
+  sudo sniff-writes monitor --sqlite /tmp/file_events.db
+
+  # Combined filtering with database logging
+  sudo sniff-writes monitor --glob "*.go" --sqlite /tmp/go_files.db -v`,
 }
 
 var monitorCmd = &cobra.Command{
@@ -149,7 +245,7 @@ var monitorCmd = &cobra.Command{
 func init() {
 	// Add subcommands
 	rootCmd.AddCommand(monitorCmd)
-	
+
 	// Add flags to monitor command
 	monitorCmd.Flags().StringVarP(&config.Directory, "directory", "d", "cmd/n8n-cli", "Directory to monitor")
 	monitorCmd.Flags().StringVarP(&config.OutputFormat, "format", "f", "plain", "Output format: plain, json, table")
@@ -163,6 +259,9 @@ func init() {
 	monitorCmd.Flags().BoolVar(&config.ShowAllFiles, "show-all-files", false, "Show all file types including pipes, sockets, etc. (default: only regular files)")
 	monitorCmd.Flags().BoolVar(&config.CaptureContent, "capture-content", false, "Capture write content (warning: may impact performance)")
 	monitorCmd.Flags().IntVar(&config.ContentSize, "content-size", 64, "Maximum bytes of write content to capture (default: 64)")
+	monitorCmd.Flags().StringSliceVar(&config.GlobPatterns, "glob", []string{}, "Include files matching these glob patterns (e.g., '*.go', '*.txt')")
+	monitorCmd.Flags().StringSliceVar(&config.GlobExclude, "glob-exclude", []string{}, "Exclude files matching these glob patterns")
+	monitorCmd.Flags().StringVar(&config.SqliteDB, "sqlite", "", "Log events to SQLite database (specify database file path)")
 }
 
 func runMonitor(cmd *cobra.Command, args []string) error {
@@ -185,6 +284,12 @@ func runMonitor(cmd *cobra.Command, args []string) error {
 		defer durationCancel()
 		ctx = durationCtx
 	}
+
+	// Initialize SQLite database if specified
+	if err := initSQLite(); err != nil {
+		return fmt.Errorf("failed to initialize SQLite: %w", err)
+	}
+	defer closeSQLite()
 
 	// Remove memory limit for eBPF
 	if err := rlimit.RemoveMemlock(); err != nil {
@@ -227,7 +332,7 @@ func runMonitor(cmd *cobra.Command, args []string) error {
 	defer rd.Close()
 
 	if config.Verbose {
-		fmt.Printf("Monitoring %s operations on directory '%s'...\n", 
+		fmt.Printf("Monitoring %s operations on directory '%s'...\n",
 			strings.Join(config.Operations, ", "), config.Directory)
 		if config.ProcessFilter != "" {
 			fmt.Printf("Filtering processes containing: %s\n", config.ProcessFilter)
@@ -260,7 +365,7 @@ func runMonitor(cmd *cobra.Command, args []string) error {
 
 func attachTracepoints(coll *ebpf.Collection) ([]link.Link, error) {
 	links := make([]link.Link, 0)
-	
+
 	operationMap := map[string]bool{}
 	for _, op := range config.Operations {
 		operationMap[op] = true
@@ -314,18 +419,18 @@ func configureContentCapture(coll *ebpf.Collection) error {
 	if config.CaptureContent {
 		value = uint32(1)
 	}
-	
+
 	return coll.Maps["content_capture_enabled"].Put(key, value)
 }
 
 func processEvents(ctx context.Context, rd *perf.Reader, outputWriter *os.File) error {
 	var event Event
-	
+
 	// Print table header if using table format
 	if config.OutputFormat == "table" {
 		printTableHeader(outputWriter)
 	}
-	
+
 	for {
 		record, err := rd.Read()
 		if err != nil {
@@ -354,11 +459,11 @@ func processEvents(ctx context.Context, rd *perf.Reader, outputWriter *os.File) 
 
 		// Resolve the path before filtering
 		resolvedPath := resolvePath(&event)
-		
+
 		if config.Debug || shouldProcessEvent(&event, resolvedPath) {
 			if config.Debug {
 				comm := cString(event.Comm[:])
-				fmt.Printf("[DEBUG] PID=%d FD=%d COMM=%s FILE=%s HASH=%d TYPE=%d\n", 
+				fmt.Printf("[DEBUG] PID=%d FD=%d COMM=%s FILE=%s HASH=%d TYPE=%d\n",
 					event.Pid, event.Fd, comm, resolvedPath, event.PathHash, event.Type)
 			}
 			if !config.Debug || shouldProcessEvent(&event, resolvedPath) {
@@ -373,7 +478,7 @@ func parseEvent(data []byte, event *Event) error {
 	if len(data) < expectedSize {
 		return fmt.Errorf("data too short: got %d bytes, expected %d bytes", len(data), expectedSize)
 	}
-	
+
 	*event = *(*Event)(unsafe.Pointer(&data[0]))
 	return nil
 }
@@ -382,7 +487,7 @@ func isRealFile(path string) bool {
 	if path == "" {
 		return false
 	}
-	
+
 	// Filter out non-file descriptors by default
 	if strings.Contains(path, "pipe:") ||
 		strings.Contains(path, "anon_inode:") ||
@@ -392,53 +497,86 @@ func isRealFile(path string) bool {
 		strings.HasPrefix(path, "/sys/") {
 		return false
 	}
-	
+
 	return true
 }
 
 func shouldProcessEvent(event *Event, resolvedPath string) bool {
 	comm := cString(event.Comm[:])
-	
+
 	// Check process filter first (more efficient)
 	if config.ProcessFilter != "" && !strings.Contains(comm, config.ProcessFilter) {
 		return false
 	}
-	
+
 	// Skip if we still don't have a filename and it's not a close event
 	if resolvedPath == "" && event.Type != 3 {
 		return false
 	}
-	
+
 	// Filter out non-real files by default (unless in debug mode or show-all-files is enabled)
 	if !config.Debug && !config.ShowAllFiles && !isRealFile(resolvedPath) {
 		return false
 	}
-	
+
 	// Check directory filter - for close events without filename, we can't filter
 	if resolvedPath != "" {
 		// Get current working directory for relative path comparison
 		cwd, _ := os.Getwd()
-		
+
 		// Convert both paths to absolute for proper comparison
 		absFilename := resolvedPath
 		if !filepath.IsAbs(resolvedPath) {
 			absFilename = filepath.Join(cwd, resolvedPath)
 		}
 		absFilename = filepath.Clean(absFilename)
-		
+
 		absTargetDir := config.Directory
 		if !filepath.IsAbs(config.Directory) {
 			absTargetDir = filepath.Join(cwd, config.Directory)
 		}
 		absTargetDir = filepath.Clean(absTargetDir)
-		
+
 		// Check if file is within the target directory
 		relPath, err := filepath.Rel(absTargetDir, absFilename)
 		if err != nil || strings.HasPrefix(relPath, "..") {
 			return false
 		}
+
+		// Apply glob filtering
+		if !matchesGlobFilters(resolvedPath) {
+			return false
+		}
 	}
-	
+
+	return true
+}
+
+// matchesGlobFilters checks if the file path matches include patterns and doesn't match exclude patterns
+func matchesGlobFilters(path string) bool {
+	filename := filepath.Base(path)
+
+	// If we have include patterns, file must match at least one
+	if len(config.GlobPatterns) > 0 {
+		matched := false
+		for _, pattern := range config.GlobPatterns {
+			if match, _ := filepath.Match(pattern, filename); match {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return false
+		}
+	}
+
+	// If we have exclude patterns, file must not match any
+	for _, pattern := range config.GlobExclude {
+		if match, _ := filepath.Match(pattern, filename); match {
+			return false
+		}
+	}
+
 	return true
 }
 
@@ -454,14 +592,14 @@ func resolvePath(event *Event) string {
 		}
 		return ""
 	}
-	
+
 	// For other events, try cache first
 	if event.PathHash != 0 {
 		if path, exists := pathCache.Get(event.PathHash); exists {
 			return path
 		}
 	}
-	
+
 	// Fallback to /proc resolution
 	return resolveFilenameFromFd(event.Pid, event.Fd)
 }
@@ -469,7 +607,7 @@ func resolvePath(event *Event) string {
 func resolveFilenameFromFd(pid uint32, fd int32) string {
 	// Try to resolve filename from /proc/PID/fd/FD
 	procPath := fmt.Sprintf("/proc/%d/fd/%d", pid, fd)
-	
+
 	// Use readlink to get the actual file path
 	if link, err := os.Readlink(procPath); err == nil {
 		// Clean the path to make it more readable
@@ -478,27 +616,27 @@ func resolveFilenameFromFd(pid uint32, fd int32) string {
 		}
 		return link
 	}
-	
+
 	return ""
 }
 
 func outputEvent(event *Event, resolvedPath string, writer *os.File) {
 	comm := cString(event.Comm[:])
-	
+
 	// Format filename to be relative and user-friendly
 	displayFilename := formatFilename(resolvedPath)
-	
+
 	eventOutput := EventOutput{
 		Timestamp: time.Now().Format(time.RFC3339),
 		Pid:       event.Pid,
 		Process:   comm,
 		Filename:  displayFilename,
 	}
-	
+
 	// Add write-specific information if available
 	if event.Type == 2 && event.WriteSize > 0 { // write event
 		eventOutput.WriteSize = event.WriteSize
-		
+
 		if config.CaptureContent && event.ContentLen > 0 {
 			// Respect user's content size limit
 			contentLen := event.ContentLen
@@ -510,7 +648,7 @@ func outputEvent(event *Event, resolvedPath string, writer *os.File) {
 			eventOutput.Truncated = event.WriteSize > uint64(contentLen)
 		}
 	}
-	
+
 	switch event.Type {
 	case 0:
 		eventOutput.Operation = "open"
@@ -532,7 +670,12 @@ func outputEvent(event *Event, resolvedPath string, writer *os.File) {
 	default:
 		return
 	}
-	
+
+	// Log to SQLite if configured
+	if err := logEventToSQLite(eventOutput); err != nil && (config.Verbose || config.Debug) {
+		log.Printf("failed to log event to SQLite: %v", err)
+	}
+
 	switch config.OutputFormat {
 	case "json":
 		outputJSON(eventOutput, writer)
@@ -548,22 +691,22 @@ func outputPlain(event EventOutput, writer *os.File) {
 	if config.ShowFd && event.Fd != 0 {
 		fdInfo = fmt.Sprintf(" (fd: %d)", event.Fd)
 	}
-	
+
 	switch event.Operation {
 	case "open":
-		fmt.Fprintf(writer, "[%s] Process %s (PID %d) opening file: %s\n", 
+		fmt.Fprintf(writer, "[%s] Process %s (PID %d) opening file: %s\n",
 			event.Timestamp, event.Process, event.Pid, event.Filename)
 	case "read":
-		fmt.Fprintf(writer, "[%s] Process %s (PID %d) reading from file: %s%s\n", 
+		fmt.Fprintf(writer, "[%s] Process %s (PID %d) reading from file: %s%s\n",
 			event.Timestamp, event.Process, event.Pid, event.Filename, fdInfo)
 	case "write":
 		sizeInfo := ""
 		if event.WriteSize > 0 {
 			sizeInfo = fmt.Sprintf(" (%d bytes)", event.WriteSize)
 		}
-		fmt.Fprintf(writer, "[%s] Process %s (PID %d) writing to file: %s%s%s\n", 
+		fmt.Fprintf(writer, "[%s] Process %s (PID %d) writing to file: %s%s%s\n",
 			event.Timestamp, event.Process, event.Pid, event.Filename, fdInfo, sizeInfo)
-		
+
 		if config.CaptureContent && event.Content != "" {
 			truncated := ""
 			if event.Truncated {
@@ -572,7 +715,7 @@ func outputPlain(event EventOutput, writer *os.File) {
 			fmt.Fprintf(writer, "    Content: %q%s\n", event.Content, truncated)
 		}
 	case "close":
-		fmt.Fprintf(writer, "[%s] Process %s (PID %d) closing file descriptor%s\n", 
+		fmt.Fprintf(writer, "[%s] Process %s (PID %d) closing file descriptor%s\n",
 			event.Timestamp, event.Process, event.Pid, fdInfo)
 	}
 }
@@ -590,14 +733,14 @@ func outputJSON(event EventOutput, writer *os.File) {
 
 func printTableHeader(writer *os.File) {
 	if config.ShowFd {
-		fmt.Fprintf(writer, "%-8s %-12s %-8s %-8s %-8s %s\n", 
+		fmt.Fprintf(writer, "%-8s %-12s %-8s %-8s %-8s %s\n",
 			"TIME", "PROCESS", "PID", "OPERATION", "FD", "FILENAME")
-		fmt.Fprintf(writer, "%-8s %-12s %-8s %-8s %-8s %s\n", 
+		fmt.Fprintf(writer, "%-8s %-12s %-8s %-8s %-8s %s\n",
 			"--------", "------------", "--------", "--------", "--------", "--------")
 	} else {
-		fmt.Fprintf(writer, "%-8s %-12s %-8s %-8s %s\n", 
+		fmt.Fprintf(writer, "%-8s %-12s %-8s %-8s %s\n",
 			"TIME", "PROCESS", "PID", "OPERATION", "FILENAME")
-		fmt.Fprintf(writer, "%-8s %-12s %-8s %-8s %s\n", 
+		fmt.Fprintf(writer, "%-8s %-12s %-8s %-8s %s\n",
 			"--------", "------------", "--------", "--------", "--------")
 	}
 }
@@ -608,23 +751,23 @@ func outputTable(event EventOutput, writer *os.File) {
 	if len(timestamp) > 19 {
 		timestamp = timestamp[11:19] // Extract HH:MM:SS part
 	}
-	
+
 	fdCol := ""
 	if config.ShowFd && event.Fd != 0 {
 		fdCol = fmt.Sprintf("%d", event.Fd)
 	}
-	
+
 	// Truncate filename if too long for better table formatting
 	filename := event.Filename
 	if len(filename) > 50 {
 		filename = "..." + filename[len(filename)-47:]
 	}
-	
+
 	if config.ShowFd {
-		fmt.Fprintf(writer, "%-8s %-12s %-8d %-8s %-8s %s\n", 
+		fmt.Fprintf(writer, "%-8s %-12s %-8d %-8s %-8s %s\n",
 			timestamp, event.Process, event.Pid, event.Operation, fdCol, filename)
 	} else {
-		fmt.Fprintf(writer, "%-8s %-12s %-8d %-8s %s\n", 
+		fmt.Fprintf(writer, "%-8s %-12s %-8d %-8s %s\n",
 			timestamp, event.Process, event.Pid, event.Operation, filename)
 	}
 }
@@ -633,17 +776,17 @@ func formatFilename(filename string) string {
 	if filename == "" {
 		return ""
 	}
-	
+
 	cwd, err := os.Getwd()
 	if err != nil {
 		return filename
 	}
-	
+
 	// Try to make path relative to current directory
 	if relPath, err := filepath.Rel(cwd, filename); err == nil && !strings.HasPrefix(relPath, "..") {
 		return relPath
 	}
-	
+
 	// If not under current directory, try relative to target directory
 	if !filepath.IsAbs(config.Directory) {
 		absTargetDir := filepath.Join(cwd, config.Directory)
@@ -655,13 +798,13 @@ func formatFilename(filename string) string {
 			return relPath
 		}
 	}
-	
+
 	// If path is too long, elide the beginning (keep the important end part)
 	const maxLen = 60
 	if len(filename) > maxLen {
 		return "..." + filename[len(filename)-maxLen+3:]
 	}
-	
+
 	return filename
 }
 
