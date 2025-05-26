@@ -37,21 +37,23 @@ type Event struct {
 }
 
 type Config struct {
-	Directory      string
-	OutputFormat   string
-	Operations     []string
-	ProcessFilter  string
-	Duration       time.Duration
-	Verbose        bool
-	ShowFd         bool
-	OutputFile     string
-	Debug          bool
-	ShowAllFiles   bool     // Show pipes, sockets, etc. (default: false)
-	CaptureContent bool     // Capture write content (default: false)
-	ContentSize    int      // Max content bytes to capture (default: 64)
-	GlobPatterns   []string // Include patterns for file filtering
-	GlobExclude    []string // Exclude patterns for file filtering
-	SqliteDB       string   // Path to SQLite database for logging
+	Directory          string
+	OutputFormat       string
+	Operations         []string
+	ProcessFilter      string
+	Duration           time.Duration
+	Verbose            bool
+	ShowFd             bool
+	OutputFile         string
+	Debug              bool
+	ShowAllFiles       bool     // Show pipes, sockets, etc. (default: false)
+	CaptureContent     bool     // Capture write content (default: false)
+	ContentSize        int      // Max content bytes to capture (default: 64)
+	GlobPatterns       []string // Include patterns for file filtering
+	GlobExclude        []string // Exclude patterns for file filtering
+	ProcessGlob        []string // Include patterns for process name filtering
+	ProcessGlobExclude []string // Exclude patterns for process name filtering
+	SqliteDB           string   // Path to SQLite database for logging
 }
 
 type EventOutput struct {
@@ -228,11 +230,17 @@ Examples:
   # Filter by process name and file patterns
   sudo sniff-writes monitor -p nginx --glob "*.log" --glob-exclude "*.tmp"
 
+  # Filter by process glob patterns
+  sudo sniff-writes monitor --process-glob "nginx*" --process-glob "apache*"
+  
+  # Exclude specific process patterns
+  sudo sniff-writes monitor --process-glob-exclude "*kworker*" --process-glob-exclude "systemd*"
+
   # Log events to SQLite database
   sudo sniff-writes monitor --sqlite /tmp/file_events.db
 
   # Combined filtering with database logging
-  sudo sniff-writes monitor --glob "*.go" --sqlite /tmp/go_files.db -v`,
+  sudo sniff-writes monitor --glob "*.go" --process-glob "*server" --sqlite /tmp/go_files.db -v`,
 }
 
 var monitorCmd = &cobra.Command{
@@ -261,6 +269,8 @@ func init() {
 	monitorCmd.Flags().IntVar(&config.ContentSize, "content-size", 64, "Maximum bytes of write content to capture (default: 64)")
 	monitorCmd.Flags().StringSliceVar(&config.GlobPatterns, "glob", []string{}, "Include files matching these glob patterns (e.g., '*.go', '*.txt')")
 	monitorCmd.Flags().StringSliceVar(&config.GlobExclude, "glob-exclude", []string{}, "Exclude files matching these glob patterns")
+	monitorCmd.Flags().StringSliceVar(&config.ProcessGlob, "process-glob", []string{}, "Include processes matching these glob patterns (e.g., 'nginx*', '*server')")
+	monitorCmd.Flags().StringSliceVar(&config.ProcessGlobExclude, "process-glob-exclude", []string{}, "Exclude processes matching these glob patterns")
 	monitorCmd.Flags().StringVar(&config.SqliteDB, "sqlite", "", "Log events to SQLite database (specify database file path)")
 }
 
@@ -509,6 +519,11 @@ func shouldProcessEvent(event *Event, resolvedPath string) bool {
 		return false
 	}
 
+	// Apply process glob filtering
+	if !matchesProcessGlobFilters(comm) {
+		return false
+	}
+
 	// Skip if we still don't have a filename and it's not a close event
 	if resolvedPath == "" && event.Type != 3 {
 		return false
@@ -573,6 +588,32 @@ func matchesGlobFilters(path string) bool {
 	// If we have exclude patterns, file must not match any
 	for _, pattern := range config.GlobExclude {
 		if match, _ := filepath.Match(pattern, filename); match {
+			return false
+		}
+	}
+
+	return true
+}
+
+// matchesProcessGlobFilters checks if the process name matches include patterns and doesn't match exclude patterns
+func matchesProcessGlobFilters(processName string) bool {
+	// If we have include patterns, process must match at least one
+	if len(config.ProcessGlob) > 0 {
+		matched := false
+		for _, pattern := range config.ProcessGlob {
+			if match, _ := filepath.Match(pattern, processName); match {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return false
+		}
+	}
+
+	// If we have exclude patterns, process must not match any
+	for _, pattern := range config.ProcessGlobExclude {
+		if match, _ := filepath.Match(pattern, processName); match {
 			return false
 		}
 	}
