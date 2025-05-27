@@ -2,6 +2,8 @@ package formatter
 
 import (
 	"bufio"
+	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/fatih/color"
@@ -66,7 +68,7 @@ func (f *ColoredDiffFormatter) FormatDiff(diff string) string {
 	return result.String()
 }
 
-// FormatDiffForWeb takes a unified diff string and returns HTML with CSS classes
+// FormatDiffForWeb takes a unified diff string and returns HTML with CSS classes and line numbers
 func FormatDiffForWeb(diff string) string {
 	if diff == "" {
 		return diff
@@ -83,15 +85,34 @@ func FormatDiffForWeb(diff string) string {
 		case strings.HasPrefix(line, "---") || strings.HasPrefix(line, "+++"):
 			// File headers
 			result.WriteString(`<div class="diff-header">` + escapedLine + `</div>`)
-		case strings.HasPrefix(line, "@@"):
-			// Location headers (hunk headers)
-			result.WriteString(`<div class="diff-location">` + escapedLine + `</div>`)
+
 		case strings.HasPrefix(line, "+"):
-			// Added lines
-			result.WriteString(`<div class="diff-added">` + escapedLine + `</div>`)
+			// Added lines - extract line number and content
+			lineNum, content := parseWebDiffLine(line[1:])
+			if lineNum > 0 {
+				result.WriteString(`<div class="diff-added"><span class="line-number line-number-new">` +
+					fmt.Sprintf("%d", lineNum) + `</span><span class="line-content">+` + escapeHTMLString(content) + `</span></div>`)
+			} else {
+				result.WriteString(`<div class="diff-added">` + escapedLine + `</div>`)
+			}
 		case strings.HasPrefix(line, "-"):
-			// Removed lines
-			result.WriteString(`<div class="diff-removed">` + escapedLine + `</div>`)
+			// Removed lines - extract line number and content
+			lineNum, content := parseWebDiffLine(line[1:])
+			if lineNum > 0 {
+				result.WriteString(`<div class="diff-removed"><span class="line-number line-number-old">` +
+					fmt.Sprintf("%d", lineNum) + `</span><span class="line-content">-` + escapeHTMLString(content) + `</span></div>`)
+			} else {
+				result.WriteString(`<div class="diff-removed">` + escapedLine + `</div>`)
+			}
+		case strings.HasPrefix(line, " "):
+			// Context lines - extract line number and content
+			lineNum, content := parseWebDiffLine(line[1:])
+			if lineNum > 0 {
+				result.WriteString(`<div class="diff-context"><span class="line-number line-number-context">` +
+					fmt.Sprintf("%d", lineNum) + `</span><span class="line-content"> ` + escapeHTMLString(content) + `</span></div>`)
+			} else {
+				result.WriteString(`<div class="diff-context">` + escapedLine + `</div>`)
+			}
 		case line == "...":
 			// Elided content marker
 			result.WriteString(`<div class="diff-elided">` + escapedLine + `</div>`)
@@ -112,6 +133,29 @@ func escapeHTMLString(s string) string {
 	s = strings.ReplaceAll(s, "\"", "&quot;")
 	s = strings.ReplaceAll(s, "'", "&#x27;")
 	return s
+}
+
+// parseWebDiffLine parses a line in format "123:content" and extracts line number and content
+func parseWebDiffLine(line string) (lineNum int, content string) {
+	// Find the first colon
+	colonIndex := strings.Index(line, ":")
+	if colonIndex == -1 {
+		// No line number format, return original line
+		return 0, line
+	}
+
+	// Extract line number
+	lineNumStr := line[:colonIndex]
+	num, err := strconv.Atoi(lineNumStr)
+	if err != nil {
+		// Invalid line number, return original line
+		return 0, line
+	}
+
+	// Extract content (everything after the colon)
+	content = line[colonIndex+1:]
+
+	return num, content
 }
 
 // IsTerminalSupported checks if the current terminal supports colors

@@ -149,7 +149,8 @@ function createEventElement(eventData, isFiltered = false) {
 			content += '<span class="badge bg-warning text-dark">TRUNCATED</span>';
 		}
 		content += '</div>';
-		content += '<div class="content-display">' + escapedContent + '</div>';
+		const contentWithLineNumbers = addLineNumbers(eventData.content);
+		content += '<div class="content-display-with-lines">' + contentWithLineNumbers + '</div>';
 		content += '</div>';
 	} else if (displayMode === 'diff') {
 		// Handle diff display mode
@@ -881,10 +882,11 @@ function createHistoryEventElement(event) {
 	let contentDisplay = '';
 	if (event.content && event.content.trim()) {
 		const truncated = event.truncated ? ' (truncated)' : '';
+		const contentWithLineNumbers = addLineNumbers(event.content);
 		contentDisplay = `
 			<div class="event-content">
 				<strong>Content${truncated}:</strong>
-				<code>${escapeHtml(event.content)}</code>
+				<div class="content-display-with-lines">${contentWithLineNumbers}</div>
 			</div>
 		`;
 	}
@@ -942,4 +944,16 @@ function escapeHtml(text) {
 	const div = document.createElement('div');
 	div.textContent = text;
 	return div.innerHTML;
+}
+
+function addLineNumbers(content) {
+	const lines = content.split('\n');
+	const maxLineNum = lines.length;
+	const maxDigits = maxLineNum.toString().length;
+	
+	return lines.map((line, index) => {
+		const lineNum = (index + 1).toString().padStart(maxDigits, ' ');
+		const escapedLine = escapeHtml(line);
+		return `<div class="content-line"><span class="line-number">${lineNum}</span><span class="line-content">${escapedLine}</span></div>`;
+	}).join('');
 }

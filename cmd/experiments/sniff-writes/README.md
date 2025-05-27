@@ -1,7 +1,5 @@
 # sniff-writes
 
-foobar
-
 A Go port of the bpftrace script for monitoring file reads/writes to cmd/n8n-cli files.
 
 ## Prerequisites
@@ -36,14 +34,12 @@ The program requires root privileges to load eBPF programs:
 sudo make run
 ```
 
-test
+foobar
 
 Or manually:
 ```bash
 sudo ./sniff-writes
 ```
-
-foo
 
 ## What it does
 

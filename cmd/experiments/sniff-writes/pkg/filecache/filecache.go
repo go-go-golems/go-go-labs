@@ -99,15 +99,12 @@ func (fc *FileCache) GenerateDiff(pid uint32, fd int32, pathHash uint32, offset 
 	return dmp.DiffPrettyText(diffs), true
 }
 
-// GenerateUnifiedDiff generates a unified diff format
+// GenerateUnifiedDiff generates a unified diff format with proper line numbers
 func (fc *FileCache) GenerateUnifiedDiff(pid uint32, fd int32, pathHash uint32, offset uint64, newContent []byte, filename string) (string, bool) {
 	cachedContent, exists := fc.GetContentForDiff(pid, fd, pathHash, offset)
 	if !exists {
 		return "", false
 	}
-
-	oldLines := strings.Split(string(cachedContent.Content), "\n")
-	newLines := strings.Split(string(newContent), "\n")
 
 	dmp := diffmatchpatch.New()
 	a, b, c := dmp.DiffLinesToChars(string(cachedContent.Content), string(newContent))
@@ -121,7 +118,9 @@ func (fc *FileCache) GenerateUnifiedDiff(pid uint32, fd int32, pathHash uint32, 
 	var diff strings.Builder
 	diff.WriteString(fmt.Sprintf("--- %s (cached)\n", filename))
 	diff.WriteString(fmt.Sprintf("+++ %s (new write)\n", filename))
-	diff.WriteString(fmt.Sprintf("@@ -1,%d +1,%d @@\n", len(oldLines), len(newLines)))
+
+	oldLineNum := 1
+	newLineNum := 1
 
 	for _, d := range result {
 		lines := strings.Split(d.Text, "\n")
@@ -131,11 +130,15 @@ func (fc *FileCache) GenerateUnifiedDiff(pid uint32, fd int32, pathHash uint32, 
 			}
 			switch d.Type {
 			case diffmatchpatch.DiffDelete:
-				diff.WriteString("-" + line + "\n")
+				diff.WriteString(fmt.Sprintf("-%d:%s\n", oldLineNum, line))
+				oldLineNum++
 			case diffmatchpatch.DiffInsert:
-				diff.WriteString("+" + line + "\n")
+				diff.WriteString(fmt.Sprintf("+%d:%s\n", newLineNum, line))
+				newLineNum++
 			case diffmatchpatch.DiffEqual:
-				diff.WriteString(" " + line + "\n")
+				diff.WriteString(fmt.Sprintf(" %d:%s\n", newLineNum, line))
+				oldLineNum++
+				newLineNum++
 			}
 		}
 	}
@@ -150,13 +153,13 @@ func (fc *FileCache) GenerateElidedUnifiedDiff(pid uint32, fd int32, pathHash ui
 	if !hasDiff {
 		return "", false
 	}
-	
+
 	// Apply elision if context lines is specified and > 0
 	if contextLines > 0 {
 		elidedDiff := ElideUnifiedDiff(fullDiff, contextLines)
 		return elidedDiff, true
 	}
-	
+
 	return fullDiff, true
 }
 
