@@ -143,6 +143,23 @@ func (fc *FileCache) GenerateUnifiedDiff(pid uint32, fd int32, pathHash uint32, 
 	return diff.String(), true
 }
 
+// GenerateElidedUnifiedDiff generates a unified diff with context line limiting
+func (fc *FileCache) GenerateElidedUnifiedDiff(pid uint32, fd int32, pathHash uint32, offset uint64, newContent []byte, filename string, contextLines int) (string, bool) {
+	// Generate the full diff first
+	fullDiff, hasDiff := fc.GenerateUnifiedDiff(pid, fd, pathHash, offset, newContent, filename)
+	if !hasDiff {
+		return "", false
+	}
+	
+	// Apply elision if context lines is specified and > 0
+	if contextLines > 0 {
+		elidedDiff := ElideUnifiedDiff(fullDiff, contextLines)
+		return elidedDiff, true
+	}
+	
+	return fullDiff, true
+}
+
 // UpdateWriteContent updates the cache with new write content
 func (fc *FileCache) UpdateWriteContent(pid uint32, fd int32, pathHash uint32, content []byte, offset uint64) {
 	fc.mu.Lock()

@@ -7,7 +7,7 @@ let showFilteredEvents = false; // Toggle to show filtered out events
 let processFilters = []; // Array of process filter objects
 let filenameFilters = []; // Array of filename filter objects
 let selectedOperations = ['open', 'read', 'write', 'close', 'lseek']; // Selected operations
-let showContent = true; // Show content in events
+let displayMode = 'content'; // 'content', 'diff', 'none'
 let contentFilter = 'all'; // 'all', 'with-content', 'without-content'
 let cliOperations = []; // Operations set via CLI flags
 
@@ -132,7 +132,8 @@ function createEventElement(eventData, isFiltered = false) {
 		content += ' <span class="text-warning">(' + eventData.whence + ')</span>';
 	}
 	
-	if (eventData.content && showContent) {
+	// Handle content/diff display based on mode
+	if (displayMode === 'content' && eventData.content) {
 		// Escape HTML in content for safety
 		const escapedContent = eventData.content
 			.replace(/&/g, '&amp;')
@@ -150,25 +151,43 @@ function createEventElement(eventData, isFiltered = false) {
 		content += '</div>';
 		content += '<div class="content-display">' + escapedContent + '</div>';
 		content += '</div>';
+	} else if (displayMode === 'diff') {
+		// Handle diff display mode
+		if (eventData.diff && eventData.diff.trim()) {
+			// Show diff if available
+			content += '<div class="diff-container ms-3 mt-2">';
+			content += '<div class="d-flex align-items-center mb-1">';
+			content += '<small class="text-muted me-2"><strong>Diff:</strong></small>';
+			content += '<span class="badge bg-info">CHANGES DETECTED</span>';
+			content += '</div>';
+			
+			// Check if diff is already HTML formatted (contains div tags)
+			if (eventData.diff.includes('<div class="diff-')) {
+				// Already formatted HTML diff
+				content += '<div class="diff-display">' + eventData.diff + '</div>';
+			} else {
+				// Plain text diff, escape and wrap in pre/code
+				const escapedDiff = eventData.diff
+					.replace(/&/g, '&amp;')
+					.replace(/</g, '&lt;')
+					.replace(/>/g, '&gt;')
+					.replace(/"/g, '&quot;')
+					.replace(/'/g, '&#x27;');
+				content += '<pre class="diff-display"><code>' + escapedDiff + '</code></pre>';
+			}
+			content += '</div>';
+		} else if (eventData.operation === 'write' && eventData.content) {
+			// Show "no changes" message for write operations with content but no diff
+			content += '<div class="diff-container ms-3 mt-2">';
+			content += '<div class="d-flex align-items-center mb-1">';
+			content += '<small class="text-muted me-2"><strong>Diff:</strong></small>';
+			content += '<span class="badge bg-secondary">NO CHANGES DETECTED</span>';
+			content += '</div>';
+			content += '<div class="text-muted fst-italic">Content identical to previous read</div>';
+			content += '</div>';
+		}
 	}
-	
-	// Show diff if available
-	if (eventData.diff && eventData.diff.trim()) {
-		content += '<div class="diff-container ms-3 mt-2">';
-		content += '<div class="d-flex align-items-center mb-1">';
-		content += '<small class="text-muted me-2"><strong>Diff:</strong></small>';
-		content += '<span class="badge bg-info">CHANGES DETECTED</span>';
-		content += '</div>';
-		// Escape HTML in diff for safety
-		const escapedDiff = eventData.diff
-			.replace(/&/g, '&amp;')
-			.replace(/</g, '&lt;')
-			.replace(/>/g, '&gt;')
-			.replace(/"/g, '&quot;')
-			.replace(/'/g, '&#x27;');
-		content += '<pre class="diff-display"><code>' + escapedDiff + '</code></pre>';
-		content += '</div>';
-	}
+	// If displayMode is 'none', we don't show content or diff
 	
 	eventItem.innerHTML = content;
 	return eventItem;
@@ -245,10 +264,13 @@ function shouldShowEvent(eventData) {
 	// Content filter
 	if (contentFilter !== 'all') {
 		const hasContent = eventData.content && eventData.content.length > 0;
-		if (contentFilter === 'with-content' && !hasContent) {
+		const hasDiff = eventData.diff && eventData.diff.length > 0;
+		const hasDisplayableContent = hasContent || hasDiff;
+		
+		if (contentFilter === 'with-content' && !hasDisplayableContent) {
 			return false;
 		}
-		if (contentFilter === 'without-content' && hasContent) {
+		if (contentFilter === 'without-content' && hasDisplayableContent) {
 			return false;
 		}
 	}
@@ -276,7 +298,7 @@ function clearAllFilters() {
 	filenameFilters = [];
 	selectedOperations = ['open', 'read', 'write', 'close', 'lseek'];
 	showFilteredEvents = false;
-	showContent = true;
+	displayMode = 'content';
 	contentFilter = 'all';
 	
 	renderFilterPills();
@@ -289,13 +311,8 @@ function clearAllFilters() {
 	btn.classList.remove('btn-info');
 	btn.classList.add('btn-outline-info');
 	
-	// Reset content toggle button
-	const contentBtn = document.getElementById('toggle-content-btn');
-	if (contentBtn) {
-		contentBtn.textContent = 'Hide Content';
-		contentBtn.classList.remove('btn-outline-primary');
-		contentBtn.classList.add('btn-primary');
-	}
+	// Reset display mode buttons
+	setDisplayMode('content');
 	
 	saveSettings();
 	renderFilteredEvents();
@@ -323,19 +340,23 @@ function toggleShowFiltered() {
 	renderFilteredEvents();
 }
 
-function toggleContentDisplay() {
-	showContent = !showContent;
-	const btn = document.getElementById('toggle-content-btn');
+function setDisplayMode(mode) {
+	displayMode = mode;
 	
-	if (showContent) {
-		btn.textContent = 'Hide Content';
-		btn.classList.remove('btn-outline-primary');
-		btn.classList.add('btn-primary');
-	} else {
-		btn.textContent = 'Show Content';
-		btn.classList.remove('btn-primary');
-		btn.classList.add('btn-outline-primary');
-	}
+	// Update button states
+	const buttons = ['content', 'diff', 'none'];
+	buttons.forEach(btnMode => {
+		const btn = document.getElementById(`display-mode-${btnMode}`);
+		if (btn) {
+			if (btnMode === mode) {
+				btn.classList.remove('btn-outline-secondary');
+				btn.classList.add('btn-primary');
+			} else {
+				btn.classList.remove('btn-primary');
+				btn.classList.add('btn-outline-secondary');
+			}
+		}
+	});
 	
 	saveSettings();
 	renderFilteredEvents();
@@ -432,7 +453,7 @@ function toggleOperation(operation) {
 }
 
 function updateOperationCheckboxes() {
-	['open', 'read', 'write', 'close'].forEach(op => {
+	['open', 'read', 'write', 'close', 'lseek'].forEach(op => {
 		const checkbox = document.getElementById('op-' + op);
 		if (checkbox) {
 			checkbox.checked = selectedOperations.includes(op);
@@ -492,7 +513,7 @@ function saveSettings() {
 		filenameFilters,
 		selectedOperations,
 		showFilteredEvents,
-		showContent,
+		displayMode,
 		contentFilter,
 		maxStoredEvents
 	};
@@ -506,15 +527,16 @@ function loadSettings() {
 			const settings = JSON.parse(saved);
 			processFilters = settings.processFilters || [];
 			filenameFilters = settings.filenameFilters || [];
-			selectedOperations = settings.selectedOperations || ['open', 'read', 'write', 'close'];
+			selectedOperations = settings.selectedOperations || ['open', 'read', 'write', 'close', 'lseek'];
 			showFilteredEvents = settings.showFilteredEvents || false;
-			showContent = settings.showContent !== undefined ? settings.showContent : true;
+			displayMode = settings.displayMode || 'content';
 			contentFilter = settings.contentFilter || 'all';
 			maxStoredEvents = settings.maxStoredEvents || 2000;
 			
 			renderFilterPills();
 			updateOperationCheckboxes();
 			updateContentFilterButtons();
+			setDisplayMode(displayMode);
 			
 			// Update memory limit dropdown
 			const memorySelect = document.getElementById('memory-limit');
@@ -869,12 +891,22 @@ function createHistoryEventElement(event) {
 	
 	let diffDisplay = '';
 	if (event.diff && event.diff.trim()) {
-		diffDisplay = `
-			<div class="event-diff">
-				<strong>Diff:</strong>
-				<pre class="diff-display"><code>${escapeHtml(event.diff)}</code></pre>
-			</div>
-		`;
+		// Check if diff is already HTML formatted
+		if (event.diff.includes('<div class="diff-')) {
+			diffDisplay = `
+				<div class="event-diff">
+					<strong>Diff:</strong>
+					<div class="diff-display">${event.diff}</div>
+				</div>
+			`;
+		} else {
+			diffDisplay = `
+				<div class="event-diff">
+					<strong>Diff:</strong>
+					<pre class="diff-display"><code>${escapeHtml(event.diff)}</code></pre>
+				</div>
+			`;
+		}
 	}
 	
 	let offsetInfo = '';
