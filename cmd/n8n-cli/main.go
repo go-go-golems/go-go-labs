@@ -8,6 +8,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/logging"
 	"github.com/go-go-golems/glazed/pkg/help"
+	"github.com/go-go-golems/go-go-mcp/pkg/embeddable"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -56,6 +57,20 @@ Settings → n8n API → "Create an API key".
 	commands, err := createCommands()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating commands: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Add MCP server capability
+	mcpOptions := []embeddable.ServerOption{
+		embeddable.WithName("n8n-cli MCP Server"),
+		embeddable.WithVersion("1.0.0"),
+		embeddable.WithServerDescription("MCP server for n8n workflow management"),
+	}
+	mcpOptions = append(mcpOptions, registerMCPTools()...)
+	
+	err = embeddable.AddMCPCommand(rootCmd, mcpOptions...)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error adding MCP command: %v\n", err)
 		os.Exit(1)
 	}
 

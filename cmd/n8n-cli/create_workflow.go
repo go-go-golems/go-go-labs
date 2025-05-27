@@ -8,6 +8,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
+	"github.com/go-go-golems/go-go-labs/cmd/n8n-cli/pkg/n8n"
 )
 
 // CreateWorkflowCommand creates a new workflow
@@ -35,20 +36,20 @@ func (c *CreateWorkflowCommand) RunIntoGlazeProcessor(
 	}
 
 	// Get API settings
-	apiSettings, err := GetN8NAPISettingsFromParsedLayers(parsedLayers)
+	apiSettings, err := n8n.GetN8NAPISettingsFromParsedLayers(parsedLayers)
 	if err != nil {
 		return err
 	}
 
 	// Create API client
-	client := NewN8NClient(apiSettings.BaseURL, apiSettings.APIKey)
+	client := n8n.NewN8NClient(apiSettings.BaseURL, apiSettings.APIKey)
 
 	// Prepare workflow data
 	var workflowData map[string]interface{}
 
 	if s.File != "" {
 		// Read from JSON file
-		if err := ReadJSONFile(s.File, &workflowData); err != nil {
+		if err := n8n.ReadJSONFile(s.File, &workflowData); err != nil {
 			return err
 		}
 
@@ -88,7 +89,7 @@ func NewCreateWorkflowCommand() (*CreateWorkflowCommand, error) {
 	}
 
 	// Add the n8n API layer
-	apiLayer, err := NewN8NAPILayer()
+	apiLayer, err := n8n.NewN8NAPILayer()
 	if err != nil {
 		return nil, err
 	}

@@ -10,6 +10,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
+	"github.com/go-go-golems/go-go-labs/cmd/n8n-cli/pkg/n8n"
 	"io"
 	"net/http"
 )
@@ -41,13 +42,13 @@ func (c *GetWorkflowCommand) RunIntoGlazeProcessor(
 	}
 
 	// Get API settings
-	apiSettings, err := GetN8NAPISettingsFromParsedLayers(parsedLayers)
+	apiSettings, err := n8n.GetN8NAPISettingsFromParsedLayers(parsedLayers)
 	if err != nil {
 		return err
 	}
 
 	// Create API client
-	client := NewN8NClient(apiSettings.BaseURL, apiSettings.APIKey)
+	client := n8n.NewN8NClient(apiSettings.BaseURL, apiSettings.APIKey)
 
 	// Get workflow
 	endpoint := fmt.Sprintf("workflows/%s", s.ID)
@@ -100,7 +101,7 @@ func (c *GetWorkflowCommand) RunIntoGlazeProcessor(
 		// No need to refetch since n8n API always includes nodes
 
 		// Generate mermaid diagram and extract sticky notes
-		result := WorkflowToMermaid(workflow)
+		result := n8n.WorkflowToMermaid(workflow)
 
 		// Print sticky notes as markdown
 		for _, note := range result.Notes {
@@ -118,7 +119,7 @@ func (c *GetWorkflowCommand) RunIntoGlazeProcessor(
 
 	// Write to output file if specified
 	if s.SaveToFile != "" {
-		if err := WriteJSONFile(s.SaveToFile, workflow); err != nil {
+		if err := n8n.WriteJSONFile(s.SaveToFile, workflow); err != nil {
 			return err
 		}
 		fmt.Printf("Workflow written to %s\n", s.SaveToFile)
@@ -140,7 +141,7 @@ func NewGetWorkflowCommand() (*GetWorkflowCommand, error) {
 		return nil, err
 	}
 
-	apiLayer, err := NewN8NAPILayer()
+	apiLayer, err := n8n.NewN8NAPILayer()
 	if err != nil {
 		return nil, err
 	}

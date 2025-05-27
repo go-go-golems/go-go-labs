@@ -17,13 +17,15 @@
 - Pre-commit hooks use lefthook (configured in lefthook.yml)
 
 <goGuidelines>
-When implementing go interfaces, use the var _ Interface = &Foo{} to make sure the interface is always implemented correctly.
-When building web applications, use htmx, bootstrap and the templ templating language.
-Always use a context argument when appropriate.
-Use cobra for command-line applications.
-Use the "defaults" package name, instead of "default" package name, as it's reserved in go.
-Use github.com/pkg/errors for wrapping errors.
-When starting goroutines, use errgroup.
+- When implementing go interfaces, use the var _ Interface = &Foo{} to make sure the interface is always implemented correctly.
+- When building web applications, use htmx, bootstrap and the templ templating language.
+- Always use a context argument when appropriate.
+- Use cobra for command-line applications.
+- Use the "defaults" package name, instead of "default" package name, as it's reserved in go.
+- Use github.com/pkg/errors for wrapping errors.
+- When starting goroutines, use errgroup.
+- Don't create new go.mod in the subdirectories, instead rely on the top level one
+- Create apps in self-contained folders, usually in cmd/apps or in cmd/experiments
 </goGuidelines>
 
 <webGuidelines>

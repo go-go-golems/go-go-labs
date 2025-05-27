@@ -1,0 +1,607 @@
+package main
+
+import (
+	"context"
+	_ "embed"
+	"fmt"
+	"net/http"
+	"os"
+	"os/signal"
+	"strings"
+	"syscall"
+	"time"
+
+	"github.com/cilium/ebpf"
+	"github.com/cilium/ebpf/link"
+	"github.com/cilium/ebpf/perf"
+	"github.com/cilium/ebpf/rlimit"
+	"github.com/rs/zerolog"
+	zlog "github.com/rs/zerolog/log"
+	"github.com/spf13/cobra"
+
+	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/api"
+	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/cache"
+	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/database"
+	ebpfops "github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/ebpf"
+	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/export"
+	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/formatter"
+	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/models"
+	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/processor"
+	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/web"
+)
+
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target amd64 -cflags "-I/usr/include/x86_64-linux-gnu -mllvm -bpf-stack-size=8192" sniffwrites sniff_writes.c
+
+//go:embed static/style.css
+var styleCSS []byte
+
+//go:embed static/app.js
+var appJS []byte
+
+var config models.Config
+var sqliteDB *database.SQLiteDB
+var webHub *web.WebHub
+var pathCache *cache.PathCache
+
+// Query-specific flags
+var queryFlags struct {
+	startTime string
+	endTime   string
+	filename  string
+	pid       uint32
+	exportFmt string
+	limit     int
+	offset    int
+}
+
+// Server-specific flags
+var serverFlags struct {
+	port int
+}
+
+func initSQLite() error {
+	var err error
+	sqliteDB, err = database.NewSQLiteDB(config.SqliteDB)
+	return err
+}
+
+func closeSQLite() {
+	if sqliteDB != nil {
+		sqliteDB.Close()
+	}
+}
+
+func handleIndex(w http.ResponseWriter, r *http.Request) {
+	index().Render(r.Context(), w)
+}
+
+func startWebServer() {
+	webHub = web.StartServer(config.WebPort, styleCSS, appJS, handleIndex, sqliteDB)
+}
+
+func main() {
+	// Initialize logging
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	zlog.Logger = zlog.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+
+	if err := rootCmd.Execute(); err != nil {
+		zlog.Fatal().Err(err).Msg("Error executing command")
+	}
+}
+
+var rootCmd = &cobra.Command{
+	Use:   "sniff-writes",
+	Short: "Monitor file operations using eBPF",
+	Long: `sniff-writes monitors file operations (open, read, write, close) on specified 
+directories using eBPF tracepoints. By default, only shows regular files and excludes 
+pipes, sockets, and virtual filesystems.
+
+Examples:
+  # Monitor default directory with plain output (regular files only)
+  sudo sniff-writes monitor
+
+  # Monitor specific directory with JSON output for 30 seconds
+  sudo sniff-writes monitor -d /var/log -f json -t 30s
+
+  # Monitor only read/write operations with table format
+  sudo sniff-writes monitor -o read,write -f table --show-fd
+
+  # Show all file types including pipes and sockets
+  sudo sniff-writes monitor --show-all-files
+
+  # Capture write content (first 64 bytes)
+  sudo sniff-writes monitor --capture-content
+
+  # Capture more content (first 128 bytes) 
+  sudo sniff-writes monitor --capture-content --content-size 128
+
+  # Filter by process name and file patterns
+  sudo sniff-writes monitor -p nginx --glob "*.log" --glob-exclude "*.tmp"
+
+  # Filter by process glob patterns
+  sudo sniff-writes monitor --process-glob "nginx*" --process-glob "apache*"
+  
+  # Exclude specific process patterns
+  sudo sniff-writes monitor --process-glob-exclude "*kworker*" --process-glob-exclude "systemd*"
+
+  # Log events to SQLite database
+  sudo sniff-writes monitor --sqlite /tmp/file_events.db
+
+  # Combined filtering with database logging
+  sudo sniff-writes monitor --glob "*.go" --process-glob "*server" --sqlite /tmp/go_files.db -v
+
+  # Enable real-time web UI
+  sudo sniff-writes monitor --web --web-port 8080
+
+  # Web UI with filtering and database logging
+  sudo sniff-writes monitor --web --glob "*.log" --sqlite /tmp/web_events.db`,
+}
+
+var monitorCmd = &cobra.Command{
+	Use:   "monitor",
+	Short: "Start monitoring file operations",
+	Long:  "Start monitoring file operations on the specified directory using eBPF tracepoints.",
+	RunE:  runMonitor,
+}
+
+var queryCmd = &cobra.Command{
+	Use:   "query",
+	Short: "Query past events from database",
+	Long:  "Query and search past file operation events stored in the database with filtering and pagination.",
+	RunE:  runQuery,
+}
+
+var serverCmd = &cobra.Command{
+	Use:   "server",
+	Short: "Start REST API server",
+	Long:  "Start a REST API server to query events via HTTP endpoints.",
+	RunE:  runServer,
+}
+
+func init() {
+	// Add subcommands
+	rootCmd.AddCommand(monitorCmd)
+	rootCmd.AddCommand(queryCmd)
+	rootCmd.AddCommand(serverCmd)
+
+	// Add global logging flags
+	rootCmd.PersistentFlags().Bool("debug-logging", false, "Enable debug logging")
+	rootCmd.PersistentFlags().String("log-level", "info", "Set log level (debug, info, warn, error)")
+
+	// Set up pre-run hook to configure logging
+	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		debugLogging, _ := cmd.Flags().GetBool("debug-logging")
+		logLevel, _ := cmd.Flags().GetString("log-level")
+
+		if debugLogging {
+			zerolog.SetGlobalLevel(zerolog.DebugLevel)
+		} else {
+			level, err := zerolog.ParseLevel(logLevel)
+			if err != nil {
+				return fmt.Errorf("invalid log level: %s", logLevel)
+			}
+			zerolog.SetGlobalLevel(level)
+		}
+
+		zlog.Debug().Msg("Debug logging enabled")
+		return nil
+	}
+
+	// Add flags to monitor command
+	monitorCmd.Flags().StringVarP(&config.Directory, "directory", "d", "cmd/n8n-cli", "Directory to monitor")
+	monitorCmd.Flags().StringVarP(&config.OutputFormat, "format", "f", "plain", "Output format: plain, json, table")
+	monitorCmd.Flags().StringSliceVarP(&config.Operations, "operations", "o", []string{"open", "read", "write", "close"}, "Operations to monitor")
+	monitorCmd.Flags().StringVarP(&config.ProcessFilter, "process", "p", "", "Filter by process name (substring match)")
+	monitorCmd.Flags().DurationVarP(&config.Duration, "duration", "t", 0, "Duration to run (0 = infinite)")
+	monitorCmd.Flags().BoolVarP(&config.Verbose, "verbose", "v", false, "Verbose output")
+	monitorCmd.Flags().BoolVar(&config.ShowFd, "show-fd", false, "Show file descriptor numbers")
+	monitorCmd.Flags().StringVar(&config.OutputFile, "output", "", "Output to file instead of stdout")
+	monitorCmd.Flags().BoolVar(&config.Debug, "debug", false, "Debug mode - show all events regardless of filters")
+	monitorCmd.Flags().BoolVar(&config.ShowAllFiles, "show-all-files", false, "Show all file types including pipes, sockets, etc. (default: only regular files)")
+	monitorCmd.Flags().BoolVar(&config.CaptureContent, "capture-content", false, "Capture write content (warning: may impact performance)")
+	monitorCmd.Flags().IntVar(&config.ContentSize, "content-size", 64, "Maximum bytes of write content to capture (default: 64)")
+	monitorCmd.Flags().StringSliceVar(&config.GlobPatterns, "glob", []string{}, "Include files matching these glob patterns (e.g., '*.go', '*.txt')")
+	monitorCmd.Flags().StringSliceVar(&config.GlobExclude, "glob-exclude", []string{}, "Exclude files matching these glob patterns")
+	monitorCmd.Flags().StringSliceVar(&config.ProcessGlob, "process-glob", []string{}, "Include processes matching these glob patterns (e.g., 'nginx*', '*server')")
+	monitorCmd.Flags().StringSliceVar(&config.ProcessGlobExclude, "process-glob-exclude", []string{}, "Exclude processes matching these glob patterns")
+	monitorCmd.Flags().StringVar(&config.SqliteDB, "sqlite", "", "Log events to SQLite database (specify database file path)")
+	monitorCmd.Flags().BoolVar(&config.WebUI, "web", false, "Enable real-time web UI")
+	monitorCmd.Flags().IntVar(&config.WebPort, "web-port", 8080, "Web UI port (default: 8080)")
+
+	// Add flags to query command
+	queryCmd.Flags().StringVar(&config.SqliteDB, "sqlite", "", "SQLite database file path (required)")
+	queryCmd.Flags().StringVar(&config.ProcessFilter, "process", "", "Filter by process name (substring match)")
+	queryCmd.Flags().StringSliceVarP(&config.Operations, "operations", "o", []string{}, "Filter by operations: open, read, write, close")
+	queryCmd.Flags().StringVar(&config.OutputFormat, "format", "table", "Output format: plain, json, table")
+	queryCmd.Flags().StringVar(&config.OutputFile, "output", "", "Output to file instead of stdout")
+	queryCmd.Flags().IntVar(&queryFlags.limit, "limit", 100, "Maximum number of events to return")
+	queryCmd.Flags().IntVar(&queryFlags.offset, "offset", 0, "Number of events to skip (for pagination)")
+	queryCmd.Flags().StringVar(&queryFlags.startTime, "start-time", "", "Start time filter (RFC3339 format)")
+	queryCmd.Flags().StringVar(&queryFlags.endTime, "end-time", "", "End time filter (RFC3339 format)")
+	queryCmd.Flags().StringVar(&queryFlags.filename, "filename", "", "Filter by filename pattern")
+	queryCmd.Flags().Uint32Var(&queryFlags.pid, "pid", 0, "Filter by process ID")
+	queryCmd.Flags().StringVar(&queryFlags.exportFmt, "export", "", "Export format: json, csv, markdown")
+	queryCmd.MarkFlagRequired("sqlite")
+
+	// Add flags to server command
+	serverCmd.Flags().StringVar(&config.SqliteDB, "sqlite", "", "SQLite database file path (required)")
+	serverCmd.Flags().IntVar(&serverFlags.port, "port", 8080, "API server port (default: 8080)")
+	serverCmd.MarkFlagRequired("sqlite")
+}
+
+func runMonitor(cmd *cobra.Command, args []string) error {
+	// Check for root privileges
+	if os.Geteuid() != 0 {
+		return fmt.Errorf("this program requires root privileges to load eBPF programs")
+	}
+
+	// Validate content size parameter
+	if config.ContentSize < 1 || config.ContentSize > 64 {
+		return fmt.Errorf("content-size must be between 1 and 64 bytes (current eBPF limitation)")
+	}
+
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
+	// Set up duration-based cancellation if specified
+	if config.Duration > 0 {
+		durationCtx, durationCancel := context.WithTimeout(ctx, config.Duration)
+		defer durationCancel()
+		ctx = durationCtx
+	}
+
+	// Initialize path cache
+	pathCache = cache.New()
+
+	// Initialize SQLite database if specified
+	if err := initSQLite(); err != nil {
+		return fmt.Errorf("failed to initialize SQLite: %w", err)
+	}
+	defer closeSQLite()
+
+	// Start web server if enabled
+	if config.WebUI {
+		startWebServer()
+	}
+
+	// Remove memory limit for eBPF
+	if err := rlimit.RemoveMemlock(); err != nil {
+		return fmt.Errorf("failed to remove memlock limit: %w", err)
+	}
+
+	// Load pre-compiled programs and maps into the kernel
+	spec, err := loadSniffwrites()
+	if err != nil {
+		return fmt.Errorf("failed to load eBPF spec: %w", err)
+	}
+
+	coll, err := ebpf.NewCollection(spec)
+	if err != nil {
+		return fmt.Errorf("failed to create eBPF collection: %w", err)
+	}
+	defer coll.Close()
+
+	// Attach tracepoints based on selected operations
+	links, err := ebpfops.AttachTracepoints(coll, &config)
+	if err != nil {
+		return fmt.Errorf("failed to attach tracepoints: %w", err)
+	}
+	defer func() {
+		for _, l := range links {
+			l.Close()
+		}
+	}()
+
+	// Configure content capture in eBPF
+	if err := ebpfops.ConfigureContentCapture(coll, &config); err != nil {
+		return fmt.Errorf("failed to configure content capture: %w", err)
+	}
+
+	// Open perf event reader
+	rd, err := perf.NewReader(coll.Maps["events"], os.Getpagesize())
+	if err != nil {
+		return fmt.Errorf("failed to create perf reader: %w", err)
+	}
+	defer rd.Close()
+
+	if config.Verbose {
+		fmt.Printf("Monitoring %s operations on directory '%s'...\n",
+			strings.Join(config.Operations, ", "), config.Directory)
+		if config.ProcessFilter != "" {
+			fmt.Printf("Filtering processes containing: %s\n", config.ProcessFilter)
+		}
+		if config.Duration > 0 {
+			fmt.Printf("Running for: %s\n", config.Duration)
+		}
+	}
+
+	// Set up output writer
+	outputWriter := os.Stdout
+	if config.OutputFile != "" {
+		file, err := os.Create(config.OutputFile)
+		if err != nil {
+			return fmt.Errorf("failed to create output file: %w", err)
+		}
+		defer file.Close()
+		outputWriter = file
+	}
+
+	// Handle context cancellation
+	go func() {
+		<-ctx.Done()
+		rd.Close()
+	}()
+
+	// Process events
+	return processEvents(ctx, rd, outputWriter)
+}
+
+func attachTracepoints(coll *ebpf.Collection) ([]link.Link, error) {
+	links := make([]link.Link, 0)
+
+	operationMap := map[string]bool{}
+	for _, op := range config.Operations {
+		operationMap[op] = true
+	}
+
+	if operationMap["open"] {
+		l, err := link.Tracepoint("syscalls", "sys_enter_openat", coll.Programs["trace_openat_enter"], nil)
+		if err != nil {
+			return nil, err
+		}
+		links = append(links, l)
+
+		l, err = link.Tracepoint("syscalls", "sys_exit_openat", coll.Programs["trace_openat_exit"], nil)
+		if err != nil {
+			return nil, err
+		}
+		links = append(links, l)
+	}
+
+	if operationMap["read"] {
+		l, err := link.Tracepoint("syscalls", "sys_enter_read", coll.Programs["trace_read_enter"], nil)
+		if err != nil {
+			return nil, err
+		}
+		links = append(links, l)
+	}
+
+	if operationMap["write"] {
+		l, err := link.Tracepoint("syscalls", "sys_enter_write", coll.Programs["trace_write_enter"], nil)
+		if err != nil {
+			return nil, err
+		}
+		links = append(links, l)
+	}
+
+	if operationMap["close"] {
+		l, err := link.Tracepoint("syscalls", "sys_enter_close", coll.Programs["trace_close_enter"], nil)
+		if err != nil {
+			return nil, err
+		}
+		links = append(links, l)
+	}
+
+	return links, nil
+}
+
+func configureContentCapture(coll *ebpf.Collection) error {
+	// Set content capture flag in eBPF map
+	key := uint32(0)
+	value := uint32(0)
+	if config.CaptureContent {
+		value = uint32(1)
+	}
+
+	return coll.Maps["content_capture_enabled"].Put(key, value)
+}
+
+func processEvents(ctx context.Context, rd *perf.Reader, outputWriter *os.File) error {
+	var event models.Event
+
+	// Print table header if using table format
+	if config.OutputFormat == "table" {
+		formatter.PrintTableHeader(outputWriter, &config)
+	}
+
+	for {
+		record, err := rd.Read()
+		if err != nil {
+			if ctx.Err() != nil {
+				return nil
+			}
+			zlog.Debug().Err(err).Msg("Error reading from perf event reader")
+			continue
+		}
+
+		if record.LostSamples != 0 {
+			if config.Debug {	
+				zlog.Warn().Uint64("lost_samples", record.LostSamples).Msg("Lost perf event samples")
+			}
+			continue
+		}
+
+		if err := processor.ParseEvent(record.RawSample, &event); err != nil {
+			zlog.Debug().Err(err).Msg("Failed to parse event")
+			continue
+		}
+
+		// Resolve the path before filtering
+		resolvedPath := cache.ResolvePath(&event, pathCache)
+
+		if config.Debug || processor.ShouldProcessEvent(&event, resolvedPath, &config) {
+			if config.Debug {
+				comm := cString(event.Comm[:])
+				fmt.Printf("[DEBUG] PID=%d FD=%d COMM=%s FILE=%s HASH=%d TYPE=%d\n",
+					event.Pid, event.Fd, comm, resolvedPath, event.PathHash, event.Type)
+			}
+			if !config.Debug || processor.ShouldProcessEvent(&event, resolvedPath, &config) {
+				outputEvent(&event, resolvedPath, outputWriter)
+			}
+		}
+	}
+}
+
+func outputEvent(event *models.Event, resolvedPath string, writer *os.File) {
+	eventOutput := formatter.CreateEventOutput(event, resolvedPath, &config)
+
+	// Log to SQLite if configured
+	if err := sqliteDB.LogEvent(eventOutput); err != nil {
+		zlog.Error().Err(err).Msg("Failed to log event to SQLite")
+	}
+
+	// Broadcast to WebSocket clients if web UI is enabled
+	if config.WebUI && webHub != nil {
+		webHub.Broadcast(eventOutput)
+	}
+
+	switch config.OutputFormat {
+	case "json":
+		formatter.OutputJSON(eventOutput, writer, &config)
+	case "table":
+		formatter.OutputTable(eventOutput, writer, &config)
+	default:
+		formatter.OutputPlain(eventOutput, writer, &config)
+	}
+}
+
+func cString(b []int8) string {
+	n := -1
+	for i, v := range b {
+		if v == 0 {
+			n = i
+			break
+		}
+	}
+	if n == -1 {
+		n = len(b)
+	}
+	// Convert []int8 to []byte
+	bytes := make([]byte, n)
+	for i := 0; i < n; i++ {
+		bytes[i] = byte(b[i])
+	}
+	return string(bytes)
+}
+
+func runQuery(cmd *cobra.Command, args []string) error {
+	// Initialize SQLite database
+	if err := initSQLite(); err != nil {
+		return fmt.Errorf("failed to initialize SQLite: %w", err)
+	}
+	defer closeSQLite()
+
+	// Build query filter
+	filter := database.QueryFilter{
+		ProcessFilter:   config.ProcessFilter,
+		OperationFilter: config.Operations,
+		FilenamePattern: queryFlags.filename,
+		Limit:           queryFlags.limit,
+		Offset:          queryFlags.offset,
+	}
+
+	// Parse time filters
+	if queryFlags.startTime != "" {
+		startTime, err := time.Parse(time.RFC3339, queryFlags.startTime)
+		if err != nil {
+			return fmt.Errorf("invalid start-time format (use RFC3339): %w", err)
+		}
+		filter.StartTime = &startTime
+	}
+
+	if queryFlags.endTime != "" {
+		endTime, err := time.Parse(time.RFC3339, queryFlags.endTime)
+		if err != nil {
+			return fmt.Errorf("invalid end-time format (use RFC3339): %w", err)
+		}
+		filter.EndTime = &endTime
+	}
+
+	if queryFlags.pid != 0 {
+		filter.PID = &queryFlags.pid
+	}
+
+	// Query events
+	events, err := sqliteDB.QueryEvents(filter)
+	if err != nil {
+		return fmt.Errorf("failed to query events: %w", err)
+	}
+
+	// Handle export format
+	if queryFlags.exportFmt != "" {
+		var exportFormat export.ExportFormat
+		switch queryFlags.exportFmt {
+		case "json":
+			exportFormat = export.FormatJSON
+		case "csv":
+			exportFormat = export.FormatCSV
+		case "markdown":
+			exportFormat = export.FormatMarkdown
+		default:
+			return fmt.Errorf("unsupported export format: %s. Use: json, csv, markdown", queryFlags.exportFmt)
+		}
+
+		// Set up output writer
+		outputWriter := os.Stdout
+		if config.OutputFile != "" {
+			file, err := os.Create(config.OutputFile)
+			if err != nil {
+				return fmt.Errorf("failed to create output file: %w", err)
+			}
+			defer file.Close()
+			outputWriter = file
+		}
+
+		exporter := export.New(outputWriter, exportFormat)
+		return exporter.Export(events)
+	}
+
+	// Regular output using existing formatter
+	outputWriter := os.Stdout
+	if config.OutputFile != "" {
+		file, err := os.Create(config.OutputFile)
+		if err != nil {
+			return fmt.Errorf("failed to create output file: %w", err)
+		}
+		defer file.Close()
+		outputWriter = file
+	}
+
+	// Print table header if using table format
+	if config.OutputFormat == "table" {
+		formatter.PrintTableHeader(outputWriter, &config)
+	}
+
+	for _, event := range events {
+		switch config.OutputFormat {
+		case "json":
+			formatter.OutputJSON(event, outputWriter, &config)
+		case "table":
+			formatter.OutputTable(event, outputWriter, &config)
+		default:
+			formatter.OutputPlain(event, outputWriter, &config)
+		}
+	}
+
+	fmt.Printf("\nTotal events found: %d\n", len(events))
+	return nil
+}
+
+func runServer(cmd *cobra.Command, args []string) error {
+	zlog.Info().Msg("Starting sniff-writes REST API server")
+
+	// Initialize SQLite database
+	if err := initSQLite(); err != nil {
+		zlog.Error().Err(err).Str("database", config.SqliteDB).Msg("Failed to initialize SQLite database")
+		return fmt.Errorf("failed to initialize SQLite: %w", err)
+	}
+	defer closeSQLite()
+
+	zlog.Info().Str("database", config.SqliteDB).Msg("SQLite database initialized successfully")
+
+	// Create and start API server
+	server := api.NewServer(sqliteDB, serverFlags.port)
+	zlog.Info().Int("port", serverFlags.port).Msg("Starting API server")
+	fmt.Printf("Starting API server on port %d\n", serverFlags.port)
+	return server.Start()
+}
