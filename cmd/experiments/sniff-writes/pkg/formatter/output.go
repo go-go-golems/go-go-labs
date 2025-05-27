@@ -23,6 +23,7 @@ func CreateEventOutput(event *models.Event, resolvedPath string, config *models.
 		Process:     comm,
 		Filename:    displayFilename,
 		FileOffset:  event.FileOffset,
+		NewOffset:   event.NewOffset,
 		ChunkSeq:    event.ChunkSeq,
 		TotalChunks: event.TotalChunks,
 	}
@@ -61,6 +62,22 @@ func CreateEventOutput(event *models.Event, resolvedPath string, config *models.
 		eventOutput.Operation = "close"
 		if config.ShowFd {
 			eventOutput.Fd = event.Fd
+		}
+	case 4:
+		eventOutput.Operation = "lseek"
+		if config.ShowFd {
+			eventOutput.Fd = event.Fd
+		}
+		// Add human-readable whence value
+		switch event.Whence {
+		case 0:
+			eventOutput.Whence = "SEEK_SET"
+		case 1:
+			eventOutput.Whence = "SEEK_CUR"
+		case 2:
+			eventOutput.Whence = "SEEK_END"
+		default:
+			eventOutput.Whence = fmt.Sprintf("unknown(%d)", event.Whence)
 		}
 	}
 
@@ -123,6 +140,18 @@ func OutputPlain(event models.EventOutput, writer *os.File, config *models.Confi
 			}
 			fmt.Fprintf(writer, "    Content: %q%s\n", event.Content, truncated)
 		}
+
+		if config.ShowDiffs && event.Diff != "" {
+			fmt.Fprintf(writer, "    Diff:\n%s\n", event.Diff)
+		}
+	case "lseek":
+		whenceInfo := ""
+		if event.Whence != "" {
+			whenceInfo = fmt.Sprintf(" (%s)", event.Whence)
+		}
+		offsetInfo := fmt.Sprintf(" to offset %d", event.FileOffset)
+		fmt.Fprintf(writer, "[%s] Process %s (PID %d) seeking in file: %s%s%s%s\n",
+			event.Timestamp, event.Process, event.Pid, event.Filename, fdInfo, offsetInfo, whenceInfo)
 	case "close":
 		fmt.Fprintf(writer, "[%s] Process %s (PID %d) closing file descriptor%s\n",
 			event.Timestamp, event.Process, event.Pid, fdInfo)

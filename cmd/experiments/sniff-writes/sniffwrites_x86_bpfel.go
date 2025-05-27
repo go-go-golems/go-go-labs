@@ -63,6 +63,7 @@ type sniffwritesSpecs struct {
 // It can be passed ebpf.CollectionSpec.Assign.
 type sniffwritesProgramSpecs struct {
 	TraceCloseEnter  *ebpf.ProgramSpec `ebpf:"trace_close_enter"`
+	TraceLseekEnter  *ebpf.ProgramSpec `ebpf:"trace_lseek_enter"`
 	TraceOpenatEnter *ebpf.ProgramSpec `ebpf:"trace_openat_enter"`
 	TraceOpenatExit  *ebpf.ProgramSpec `ebpf:"trace_openat_exit"`
 	TraceReadEnter   *ebpf.ProgramSpec `ebpf:"trace_read_enter"`
@@ -132,6 +133,7 @@ type sniffwritesVariables struct {
 // It can be passed to loadSniffwritesObjects or ebpf.CollectionSpec.LoadAndAssign.
 type sniffwritesPrograms struct {
 	TraceCloseEnter  *ebpf.Program `ebpf:"trace_close_enter"`
+	TraceLseekEnter  *ebpf.Program `ebpf:"trace_lseek_enter"`
 	TraceOpenatEnter *ebpf.Program `ebpf:"trace_openat_enter"`
 	TraceOpenatExit  *ebpf.Program `ebpf:"trace_openat_exit"`
 	TraceReadEnter   *ebpf.Program `ebpf:"trace_read_enter"`
@@ -142,6 +144,7 @@ type sniffwritesPrograms struct {
 func (p *sniffwritesPrograms) Close() error {
 	return _SniffwritesClose(
 		p.TraceCloseEnter,
+		p.TraceLseekEnter,
 		p.TraceOpenatEnter,
 		p.TraceOpenatExit,
 		p.TraceReadEnter,

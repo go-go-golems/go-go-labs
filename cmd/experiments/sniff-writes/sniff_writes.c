@@ -12,9 +12,11 @@ struct event {
     __s32 fd;
     char comm[MAX_COMM_LEN];
     __u32 path_hash; // 32-bit hash of the path for cache lookup
-    __u32 type; // 0 = open, 1 = read, 2 = write, 3 = close
+    __u32 type; // 0 = open, 1 = read, 2 = write, 3 = close, 4 = lseek
     __u64 write_size; // Total size of write operation
     __u64 file_offset; // File offset where the operation occurs
+    __u64 new_offset; // New offset for lseek operations
+    __u32 whence; // Whence parameter for lseek (SEEK_SET, SEEK_CUR, SEEK_END)
     __u32 content_len; // Actual content captured in this chunk
     __u32 chunk_seq; // Sequence number for chunked events (0-based)
     __u32 total_chunks; // Total number of chunks for this operation
@@ -124,6 +126,8 @@ int trace_openat_exit(struct sys_exit_ctx *ctx) {
     e->path_hash = path_hash;
     e->write_size = 0;
     e->file_offset = 0;
+    e->new_offset = 0;
+    e->whence = 0;
     e->content_len = 0;
     e->chunk_seq = 0;
     e->total_chunks = 1;
@@ -175,6 +179,8 @@ static inline void emit_read_chunk(struct sys_exit_ctx *ctx, __u32 pid, __s32 fd
     e->type = 1; // read
     e->write_size = total_size; // For reads, this is the bytes read
     e->file_offset = offset;
+    e->new_offset = 0;
+    e->whence = 0;
     e->content_len = chunk_size;
     e->chunk_seq = chunk_seq;
     e->total_chunks = total_chunks;
@@ -262,6 +268,8 @@ static inline void emit_write_chunk(struct sys_enter_ctx *ctx, __u32 pid, __s32 
     e->type = 2; // write
     e->write_size = total_size;
     e->file_offset = offset;
+    e->new_offset = 0;
+    e->whence = 0;
     e->content_len = chunk_size;
     e->chunk_seq = chunk_seq;
     e->total_chunks = total_chunks;
@@ -352,6 +360,8 @@ int trace_close_enter(struct sys_enter_ctx *ctx) {
             e->path_hash = *path_hash;
             e->write_size = 0;
             e->file_offset = 0;
+            e->new_offset = 0;
+            e->whence = 0;
             e->content_len = 0;
             e->chunk_seq = 0;
             e->total_chunks = 1;
@@ -363,6 +373,44 @@ int trace_close_enter(struct sys_enter_ctx *ctx) {
     
     // Clean up our tracking regardless
     bpf_map_delete_elem(&fd_to_hash, &fd_key);
+    
+    return 0;
+}
+
+SEC("tracepoint/syscalls/sys_enter_lseek")
+int trace_lseek_enter(struct sys_enter_ctx *ctx) {
+    __u64 pid_tgid = bpf_get_current_pid_tgid();
+    __u32 pid = pid_tgid >> 32;
+    __s32 fd = (__s32)ctx->args[0];
+    __u64 offset = (__u64)ctx->args[1];
+    __u32 whence = (__u32)ctx->args[2];
+    
+    // Skip obvious non-file descriptors (stdin, stdout, stderr)
+    if (fd <= 2) return 0;
+    
+    __u64 fd_key = ((__u64)pid << 32) | (__u32)fd;
+    
+    // Only send lseek events if we have hash info (file is being tracked)
+    __u32 *path_hash = bpf_map_lookup_elem(&fd_to_hash, &fd_key);
+    if (path_hash) {
+        struct event *e = bpf_ringbuf_reserve(&events, sizeof(struct event), 0);
+        if (e) {
+            e->pid = pid;
+            e->fd = fd;
+            e->type = 4; // lseek
+            e->path_hash = *path_hash;
+            e->write_size = 0;
+            e->file_offset = offset;
+            e->new_offset = 0; // Will be set in exit handler with actual result
+            e->whence = whence;
+            e->content_len = 0;
+            e->chunk_seq = 0;
+            e->total_chunks = 1;
+            bpf_get_current_comm(e->comm, sizeof(e->comm));
+            
+            bpf_ringbuf_submit(e, 0);
+        }
+    }
     
     return 0;
 }

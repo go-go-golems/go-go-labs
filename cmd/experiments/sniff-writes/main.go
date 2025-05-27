@@ -23,6 +23,7 @@ import (
 	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/database"
 	ebpfops "github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/ebpf"
 	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/export"
+	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/filecache"
 	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/formatter"
 	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/models"
 	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/processor"
@@ -41,6 +42,7 @@ var config models.Config
 var sqliteDB *database.SQLiteDB
 var webHub *web.WebHub
 var pathCache *cache.PathCache
+var fileCache *filecache.FileCache
 
 // Query-specific flags
 var queryFlags struct {
@@ -118,6 +120,12 @@ Examples:
 
   # Capture more content (first 8192 bytes with chunking) 
   sudo sniff-writes monitor --capture-content --content-size 8192
+  
+  # Show diffs when writes occur (requires content capture)
+  sudo sniff-writes monitor --capture-content --show-diffs
+  
+  # Show read/write sizes and include lseek operations
+  sudo sniff-writes monitor --show-sizes -o open,read,write,close,lseek
 
   # Filter by process name and file patterns
   sudo sniff-writes monitor -p nginx --glob "*.log" --glob "!*.tmp"
@@ -194,16 +202,19 @@ func init() {
 	// Add flags to monitor command
 	monitorCmd.Flags().StringVarP(&config.Directory, "directory", "d", "cmd/n8n-cli", "Directory to monitor")
 	monitorCmd.Flags().StringVarP(&config.OutputFormat, "format", "f", "plain", "Output format: plain, json, table")
-	monitorCmd.Flags().StringSliceVarP(&config.Operations, "operations", "o", []string{"open", "write", "close"}, "Operations to monitor (add 'read' for read operations)")
+	monitorCmd.Flags().StringSliceVarP(&config.Operations, "operations", "o", []string{"open", "write", "close"}, "Operations to monitor (add 'read' for read operations, 'lseek' for seek operations)")
 	monitorCmd.Flags().StringVarP(&config.ProcessFilter, "process", "p", "", "Filter by process name (substring match)")
 	monitorCmd.Flags().DurationVarP(&config.Duration, "duration", "t", 0, "Duration to run (0 = infinite)")
 	monitorCmd.Flags().BoolVarP(&config.Verbose, "verbose", "v", false, "Verbose output")
 	monitorCmd.Flags().BoolVar(&config.ShowFd, "show-fd", false, "Show file descriptor numbers")
+	monitorCmd.Flags().BoolVar(&config.ShowSizes, "show-sizes", false, "Show read/write sizes in output")
 	monitorCmd.Flags().StringVar(&config.OutputFile, "output", "", "Output to file instead of stdout")
 	monitorCmd.Flags().BoolVar(&config.Debug, "debug", false, "Debug mode - show all events regardless of filters")
 	monitorCmd.Flags().BoolVar(&config.ShowAllFiles, "show-all-files", false, "Show all file types including pipes, sockets, etc. (default: only regular files)")
 	monitorCmd.Flags().BoolVar(&config.CaptureContent, "capture-content", false, "Capture write content (warning: may impact performance)")
 	monitorCmd.Flags().IntVar(&config.ContentSize, "content-size", 4096, "Maximum bytes of write content to capture (default: 4096)")
+	monitorCmd.Flags().BoolVar(&config.ShowDiffs, "show-diffs", false, "Show diffs for write operations (requires --capture-content)")
+	monitorCmd.Flags().StringVar(&config.DiffFormat, "diff-format", "unified", "Diff format: unified, pretty (default: unified)")
 	monitorCmd.Flags().StringSliceVar(&config.GlobPatterns, "glob", []string{}, "Include/exclude files with glob patterns (e.g., '*.go', '!*.tmp')")
 	monitorCmd.Flags().StringSliceVar(&config.GlobExclude, "glob-exclude", []string{}, "Exclude files matching these glob patterns (legacy, use --glob '!pattern')")
 	monitorCmd.Flags().StringSliceVar(&config.ProcessGlob, "process-glob", []string{}, "Include/exclude processes with glob patterns (e.g., 'nginx*', '!systemd*')")
@@ -240,8 +251,13 @@ func runMonitor(cmd *cobra.Command, args []string) error {
 	}
 
 	// Validate content size parameter
-	if config.ContentSize < 1 || config.ContentSize > 4096 {
-		return fmt.Errorf("content-size must be between 1 and 4096 bytes")
+	if config.ContentSize < 1 || config.ContentSize > 131072 { // Allow up to 128KB (32 chunks * 4096)
+		return fmt.Errorf("content-size must be between 1 and 131072 bytes (128KB)")
+	}
+
+	// Validate diff options
+	if config.ShowDiffs && !config.CaptureContent {
+		return fmt.Errorf("--show-diffs requires --capture-content to be enabled")
 	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -254,8 +270,9 @@ func runMonitor(cmd *cobra.Command, args []string) error {
 		ctx = durationCtx
 	}
 
-	// Initialize path cache
+	// Initialize path cache and file cache
 	pathCache = cache.New()
+	fileCache = filecache.New()
 
 	// Initialize SQLite database if specified
 	if err := initSQLite(); err != nil {
@@ -393,6 +410,37 @@ func processEvents(ctx context.Context, rd *ringbuf.Reader, outputWriter *os.Fil
 
 func outputEvent(event *models.Event, resolvedPath string, writer *os.File) {
 	eventOutput := formatter.CreateEventOutput(event, resolvedPath, &config)
+
+	// Handle content caching and diff generation
+	if config.CaptureContent && event.ContentLen > 0 {
+		content := cString(event.Content[:event.ContentLen])
+		contentBytes := []byte(content)
+
+		switch event.Type {
+		case 1: // read
+			// Store read content for future diff comparison
+			fileCache.StoreReadContent(event.Pid, event.Fd, event.PathHash, contentBytes, event.FileOffset)
+		case 2: // write
+			// Generate diff if we have cached read content and diffs are enabled
+			if config.ShowDiffs {
+				var diffText string
+				var hasDiff bool
+
+				if config.DiffFormat == "pretty" {
+					diffText, hasDiff = fileCache.GenerateDiff(event.Pid, event.Fd, event.PathHash, event.FileOffset, contentBytes)
+				} else {
+					diffText, hasDiff = fileCache.GenerateUnifiedDiff(event.Pid, event.Fd, event.PathHash, event.FileOffset, contentBytes, resolvedPath)
+				}
+
+				if hasDiff {
+					eventOutput.Diff = diffText
+				}
+			}
+
+			// Update cache with new written content
+			fileCache.UpdateWriteContent(event.Pid, event.Fd, event.PathHash, contentBytes, event.FileOffset)
+		}
+	}
 
 	// Log to SQLite if configured
 	if err := sqliteDB.LogEvent(eventOutput); err != nil {

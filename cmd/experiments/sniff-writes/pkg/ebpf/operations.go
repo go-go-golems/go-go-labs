@@ -58,6 +58,14 @@ func AttachTracepoints(coll *ebpf.Collection, config *models.Config) ([]link.Lin
 		links = append(links, l)
 	}
 
+	if operationMap["lseek"] {
+		l, err := link.Tracepoint("syscalls", "sys_enter_lseek", coll.Programs["trace_lseek_enter"], nil)
+		if err != nil {
+			return nil, err
+		}
+		links = append(links, l)
+	}
+
 	return links, nil
 }
 

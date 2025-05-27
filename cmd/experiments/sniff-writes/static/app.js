@@ -6,7 +6,7 @@ let maxStoredEvents = 2000; // Limit stored events for performance (configurable
 let showFilteredEvents = false; // Toggle to show filtered out events
 let processFilters = []; // Array of process filter objects
 let filenameFilters = []; // Array of filename filter objects
-let selectedOperations = ['open', 'read', 'write', 'close']; // Selected operations
+let selectedOperations = ['open', 'read', 'write', 'close', 'lseek']; // Selected operations
 let showContent = true; // Show content in events
 let contentFilter = 'all'; // 'all', 'with-content', 'without-content'
 let cliOperations = []; // Operations set via CLI flags
@@ -112,12 +112,26 @@ function createEventElement(eventData, isFiltered = false) {
 	content += '<span class="' + operationClass + '"><strong>' + eventData.operation.toUpperCase() + '</strong></span> ';
 	content += '<span class="text-primary">' + eventData.process + '</span> ';
 	content += '<span class="text-muted">(PID: ' + eventData.pid + ')</span> ';
+	
 	if (eventData.filename) {
 		content += '<span class="text-dark">' + eventData.filename + '</span>';
 	}
+	
+	// Show size information for read/write operations
 	if (eventData.write_size > 0) {
 		content += ' <span class="text-info">(' + eventData.write_size + ' bytes)</span>';
 	}
+	
+	// Show offset information
+	if (eventData.file_offset > 0) {
+		content += ' <span class="text-secondary">@' + eventData.file_offset + '</span>';
+	}
+	
+	// Show lseek specific information
+	if (eventData.operation === 'lseek' && eventData.whence) {
+		content += ' <span class="text-warning">(' + eventData.whence + ')</span>';
+	}
+	
 	if (eventData.content && showContent) {
 		// Escape HTML in content for safety
 		const escapedContent = eventData.content
@@ -135,6 +149,24 @@ function createEventElement(eventData, isFiltered = false) {
 		}
 		content += '</div>';
 		content += '<div class="content-display">' + escapedContent + '</div>';
+		content += '</div>';
+	}
+	
+	// Show diff if available
+	if (eventData.diff && eventData.diff.trim()) {
+		content += '<div class="diff-container ms-3 mt-2">';
+		content += '<div class="d-flex align-items-center mb-1">';
+		content += '<small class="text-muted me-2"><strong>Diff:</strong></small>';
+		content += '<span class="badge bg-info">CHANGES DETECTED</span>';
+		content += '</div>';
+		// Escape HTML in diff for safety
+		const escapedDiff = eventData.diff
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;')
+			.replace(/'/g, '&#x27;');
+		content += '<pre class="diff-display"><code>' + escapedDiff + '</code></pre>';
 		content += '</div>';
 	}
 	
@@ -242,7 +274,7 @@ function clearEvents() {
 function clearAllFilters() {
 	processFilters = [];
 	filenameFilters = [];
-	selectedOperations = ['open', 'read', 'write', 'close'];
+	selectedOperations = ['open', 'read', 'write', 'close', 'lseek'];
 	showFilteredEvents = false;
 	showContent = true;
 	contentFilter = 'all';
@@ -835,6 +867,26 @@ function createHistoryEventElement(event) {
 		`;
 	}
 	
+	let diffDisplay = '';
+	if (event.diff && event.diff.trim()) {
+		diffDisplay = `
+			<div class="event-diff">
+				<strong>Diff:</strong>
+				<pre class="diff-display"><code>${escapeHtml(event.diff)}</code></pre>
+			</div>
+		`;
+	}
+	
+	let offsetInfo = '';
+	if (event.file_offset > 0) {
+		offsetInfo = `<div class="file-offset">Offset: ${event.file_offset}</div>`;
+	}
+	
+	let whenceInfo = '';
+	if (event.operation === 'lseek' && event.whence) {
+		whenceInfo = `<div class="whence-info">Mode: ${event.whence}</div>`;
+	}
+	
 	div.innerHTML = `
 		<div class="event-header">
 			<span class="timestamp">${timestamp}</span>
@@ -844,7 +896,10 @@ function createHistoryEventElement(event) {
 		<div class="event-details">
 			<div class="filename">${escapeHtml(event.filename || 'N/A')}</div>
 			${event.write_size > 0 ? `<div class="write-size">Size: ${event.write_size} bytes</div>` : ''}
+			${offsetInfo}
+			${whenceInfo}
 			${contentDisplay}
+			${diffDisplay}
 		</div>
 	`;
 	

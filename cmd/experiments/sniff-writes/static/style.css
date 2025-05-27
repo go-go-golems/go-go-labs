@@ -21,6 +21,7 @@
 .operation-read { color: #007bff; }
 .operation-write { color: #fd7e14; }
 .operation-close { color: #6c757d; }
+.operation-lseek { color: #9c27b0; }
 
 .filter-section {
 	background-color: #f8f9fa;
@@ -121,4 +122,36 @@
 
 .content-controls-section {
 	padding-bottom: 1.5rem;
+}
+
+.diff-container {
+	border-left: 3px solid #17a2b8;
+	padding-left: 8px;
+	margin-top: 4px;
+	background-color: #e7f3ff;
+	border-radius: 0 4px 4px 0;
+}
+
+.diff-display {
+	max-width: 100%;
+	overflow-x: auto;
+	white-space: pre;
+	font-family: 'Courier New', monospace;
+	font-size: 0.8em;
+	line-height: 1.3;
+	background-color: #f8f9fa;
+	border: 1px solid #dee2e6;
+	border-radius: 4px;
+	padding: 8px;
+	margin: 4px 0;
+}
+
+.event-diff {
+	margin: 8px 0;
+}
+
+.file-offset, .whence-info {
+	color: #6c757d;
+	font-size: 0.9em;
+	margin: 2px 0;
 }

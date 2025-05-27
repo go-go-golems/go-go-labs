@@ -1,3 +1,4 @@
+test
 # sniff-writes
 :
 
