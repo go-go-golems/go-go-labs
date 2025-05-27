@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "Film Development Timer",
+    "slug": "film-development-timer",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#111827"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.filmdev.timer",
+      "infoPlist": {
+        "NSUserNotificationUsageDescription": "We use notifications to remind you when film development steps are done."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#111827"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.filmdev.timer",
+      "permissions": ["android.permission.SCHEDULE_EXACT_ALARM"]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-sqlite",
+      "expo-notifications"
+    ],
+    "notification": {
+      "icon": "./assets/notification-icon.png",
+      "color": "#3B82F6"
+    }
+  }
+}

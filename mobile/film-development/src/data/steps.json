@@ -1,0 +1,7 @@
+[
+  { "id": "presoak", "name": "Pre-soak", "time": "1:00", "description": "Plain water to stabilize temperature" },
+  { "id": "developer", "name": "Developer", "time": "varies", "description": "Continuous gentle agitation first 10s of every 30s" },
+  { "id": "blix", "name": "Bleach-fix (Blix)", "time": "6:30", "description": "No time change needed" },
+  { "id": "wash", "name": "Wash", "time": "3:00", "description": "Running water 3-4 min" },
+  { "id": "stabilizer", "name": "Stabilizer", "time": "1:00", "description": "Then hang to dry" }
+]

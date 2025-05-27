@@ -1,0 +1,19 @@
+[
+  { "id": 1, "roll": 1, "film": "120", "pushPull": "+1 stop", "devTime": "4:55", "notes": "Fresh chemistry—no fatigue compensation needed." },
+  { "id": 2, "roll": 2, "film": "120", "pushPull": "normal", "devTime": "3:30", "notes": "First \"tired\" run; replenished." },
+  { "id": 3, "roll": 3, "film": "120", "pushPull": "normal", "devTime": "3:36", "notes": "" },
+  { "id": 4, "roll": 4, "film": "120", "pushPull": "normal", "devTime": "3:43", "notes": "" },
+  { "id": 5, "roll": 5, "film": "120", "pushPull": "normal", "devTime": "3:49", "notes": "" },
+  { "id": 6, "roll": 6, "film": "120", "pushPull": "normal", "devTime": "3:55", "notes": "" },
+  { "id": 7, "roll": 7, "film": "120", "pushPull": "normal", "devTime": "4:01", "notes": "" },
+  { "id": 8, "roll": 8, "film": "35mm", "pushPull": "normal", "devTime": "4:08", "notes": "" },
+  { "id": 9, "roll": 9, "film": "35mm", "pushPull": "normal", "devTime": "4:14", "notes": "" },
+  { "id": 10, "roll": 10, "film": "35mm", "pushPull": "normal", "devTime": "4:20", "notes": "" },
+  { "id": 11, "roll": 11, "film": "35mm", "pushPull": "normal", "devTime": "4:27", "notes": "" },
+  { "id": 12, "roll": 12, "film": "35mm", "pushPull": "normal", "devTime": "4:33", "notes": "" },
+  { "id": 13, "roll": 13, "film": "35mm", "pushPull": "normal", "devTime": "4:39", "notes": "" },
+  { "id": 14, "roll": 14, "film": "35mm", "pushPull": "normal", "devTime": "4:46", "notes": "" },
+  { "id": 15, "roll": 15, "film": "35mm", "pushPull": "normal", "devTime": "4:52", "notes": "" },
+  { "id": 16, "roll": 16, "film": "35mm", "pushPull": "normal", "devTime": "4:58", "notes": "" },
+  { "id": 17, "roll": 17, "film": "35mm", "pushPull": "normal", "devTime": "5:04", "notes": "Final roll uses the last 25 mL from the reserve." }
+]

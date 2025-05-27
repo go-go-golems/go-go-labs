@@ -252,7 +252,87 @@ After completing Step 5 (Stabilizer), the app shows replenishment instructions:
 
 **Sound**: Brief notification tone (if device audio enabled)
 
+**Troubleshooting**:
+- **No sound**: Check device volume and browser permissions
+- **Multiple alerts**: Only plays once per timer crossing zero
+- **Disable**: Mute device if alerts not wanted
+
 ---
+
+## Troubleshooting
+
+### Timer Issues
+
+#### Timer Won't Start
+**Possible causes**:
+- Step shows "varies" (Developer step with invalid time)
+- Browser frozen or slow
+- Audio permission blocking
+
+**Solutions**:
+1. **Refresh browser** and try again
+2. **Check step selection** - click step card to select properly
+3. **Verify time display** shows valid time (not "varies")
+
+#### Timer Stops Unexpectedly
+**Possible causes**:
+- Browser background mode
+- Device sleep mode
+- Network connectivity (shouldn't affect timer)
+
+**Solutions**:
+1. **Keep browser active** - don't switch apps during timing
+2. **Adjust device settings** to prevent sleep
+3. **Use pause/resume** if interruption needed
+
+#### Wrong Time Showing
+**Check these items**:
+- **Correct roll selected**: Verify roll number matches your film
+- **Right step active**: Ensure proper step is highlighted
+- **App not cached**: Refresh if updates aren't showing
+
+### Chemistry Problems
+
+#### Inconsistent Results
+**Timer-related causes**:
+- **Wrong development time**: Double-check roll number
+- **Temperature drift**: Verify 102°F maintenance
+- **Timing errors**: Use pause rather than stopping mid-step
+
+**Solutions**:
+1. **Follow timer exactly** - resist urges to "adjust"
+2. **Pre-warm tanks** before each roll
+3. **Track actual times** using overtime feature
+
+#### Running Out of Reserve Early
+**Calculation check**:
+- 25mL × 16 rolls = 400mL total reserve needed
+- If running short, measure more carefully
+
+**Prevention**:
+1. **Measure exactly**: Use proper graduated cylinder
+2. **Track usage**: Note actual amounts used
+3. **Start with full liter**: Ensure complete mixing
+
+### Technical Issues
+
+#### App Won't Load
+**Browser compatibility**:
+- **Use modern browser**: Chrome, Safari, Firefox, Edge
+- **Clear cache**: Force refresh with Ctrl+F5 (PC) or Cmd+Shift+R (Mac)
+- **Try different device**: Phone, tablet, or computer
+
+#### Buttons Not Responsive
+**Touch issues**:
+- **Screen sensitivity**: Clean screen if touch problems
+- **Button size**: Designed for fingers, not stylus
+- **Network delay**: App works offline once loaded
+
+#### Lost Progress
+**Data persistence**:
+- **Refresh resets**: App doesn't save between sessions
+- **Manual tracking**: Keep paper backup of completed rolls
+- **Browser bookmarks**: Save app URL for quick access
 
 ---
 
