@@ -34,6 +34,12 @@ func AttachTracepoints(coll *ebpf.Collection, config *models.Config) ([]link.Lin
 			return nil, err
 		}
 		links = append(links, l)
+
+		l, err = link.Tracepoint("syscalls", "sys_exit_read", coll.Programs["trace_read_exit"], nil)
+		if err != nil {
+			return nil, err
+		}
+		links = append(links, l)
 	}
 
 	if operationMap["write"] {

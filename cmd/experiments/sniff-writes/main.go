@@ -12,8 +12,7 @@ import (
 	"time"
 
 	"github.com/cilium/ebpf"
-	"github.com/cilium/ebpf/link"
-	"github.com/cilium/ebpf/perf"
+	"github.com/cilium/ebpf/ringbuf"
 	"github.com/cilium/ebpf/rlimit"
 	"github.com/rs/zerolog"
 	zlog "github.com/rs/zerolog/log"
@@ -92,28 +91,33 @@ func main() {
 var rootCmd = &cobra.Command{
 	Use:   "sniff-writes",
 	Short: "Monitor file operations using eBPF",
-	Long: `sniff-writes monitors file operations (open, read, write, close) on specified 
-directories using eBPF tracepoints. By default, only shows regular files and excludes 
-pipes, sockets, and virtual filesystems.
+	Long: `sniff-writes monitors file operations on specified directories using eBPF 
+tracepoints. By default, monitors open, write, and close operations (read operations 
+are excluded by default as they can be very noisy). Only shows regular files and 
+excludes pipes, sockets, and virtual filesystems. Supports capturing full write/read 
+content with automatic chunking for large I/O operations, and tracks file offsets.
 
 Examples:
-  # Monitor default directory with plain output (regular files only)
+  # Monitor default directory with plain output (open, write, close only)
   sudo sniff-writes monitor
 
   # Monitor specific directory with JSON output for 30 seconds
   sudo sniff-writes monitor -d /var/log -f json -t 30s
 
-  # Monitor only read/write operations with table format
-  sudo sniff-writes monitor -o read,write -f table --show-fd
+  # Monitor only write operations with table format
+  sudo sniff-writes monitor -o write -f table --show-fd
+  
+  # Include read operations (can be noisy)
+  sudo sniff-writes monitor -o open,read,write,close
 
   # Show all file types including pipes and sockets
   sudo sniff-writes monitor --show-all-files
 
-  # Capture write content (first 64 bytes)
+  # Capture write content (first 4096 bytes)
   sudo sniff-writes monitor --capture-content
 
-  # Capture more content (first 128 bytes) 
-  sudo sniff-writes monitor --capture-content --content-size 128
+  # Capture more content (first 8192 bytes with chunking) 
+  sudo sniff-writes monitor --capture-content --content-size 8192
 
   # Filter by process name and file patterns
   sudo sniff-writes monitor -p nginx --glob "*.log" --glob-exclude "*.tmp"
@@ -190,7 +194,7 @@ func init() {
 	// Add flags to monitor command
 	monitorCmd.Flags().StringVarP(&config.Directory, "directory", "d", "cmd/n8n-cli", "Directory to monitor")
 	monitorCmd.Flags().StringVarP(&config.OutputFormat, "format", "f", "plain", "Output format: plain, json, table")
-	monitorCmd.Flags().StringSliceVarP(&config.Operations, "operations", "o", []string{"open", "read", "write", "close"}, "Operations to monitor")
+	monitorCmd.Flags().StringSliceVarP(&config.Operations, "operations", "o", []string{"open", "write", "close"}, "Operations to monitor (add 'read' for read operations)")
 	monitorCmd.Flags().StringVarP(&config.ProcessFilter, "process", "p", "", "Filter by process name (substring match)")
 	monitorCmd.Flags().DurationVarP(&config.Duration, "duration", "t", 0, "Duration to run (0 = infinite)")
 	monitorCmd.Flags().BoolVarP(&config.Verbose, "verbose", "v", false, "Verbose output")
@@ -199,7 +203,7 @@ func init() {
 	monitorCmd.Flags().BoolVar(&config.Debug, "debug", false, "Debug mode - show all events regardless of filters")
 	monitorCmd.Flags().BoolVar(&config.ShowAllFiles, "show-all-files", false, "Show all file types including pipes, sockets, etc. (default: only regular files)")
 	monitorCmd.Flags().BoolVar(&config.CaptureContent, "capture-content", false, "Capture write content (warning: may impact performance)")
-	monitorCmd.Flags().IntVar(&config.ContentSize, "content-size", 64, "Maximum bytes of write content to capture (default: 64)")
+	monitorCmd.Flags().IntVar(&config.ContentSize, "content-size", 4096, "Maximum bytes of write content to capture (default: 4096)")
 	monitorCmd.Flags().StringSliceVar(&config.GlobPatterns, "glob", []string{}, "Include files matching these glob patterns (e.g., '*.go', '*.txt')")
 	monitorCmd.Flags().StringSliceVar(&config.GlobExclude, "glob-exclude", []string{}, "Exclude files matching these glob patterns")
 	monitorCmd.Flags().StringSliceVar(&config.ProcessGlob, "process-glob", []string{}, "Include processes matching these glob patterns (e.g., 'nginx*', '*server')")
@@ -236,8 +240,8 @@ func runMonitor(cmd *cobra.Command, args []string) error {
 	}
 
 	// Validate content size parameter
-	if config.ContentSize < 1 || config.ContentSize > 64 {
-		return fmt.Errorf("content-size must be between 1 and 64 bytes (current eBPF limitation)")
+	if config.ContentSize < 1 || config.ContentSize > 4096 {
+		return fmt.Errorf("content-size must be between 1 and 4096 bytes")
 	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -297,10 +301,10 @@ func runMonitor(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to configure content capture: %w", err)
 	}
 
-	// Open perf event reader
-	rd, err := perf.NewReader(coll.Maps["events"], os.Getpagesize())
+	// Open ring buffer reader
+	rd, err := ringbuf.NewReader(coll.Maps["events"])
 	if err != nil {
-		return fmt.Errorf("failed to create perf reader: %w", err)
+		return fmt.Errorf("failed to create ring buffer reader: %w", err)
 	}
 	defer rd.Close()
 
@@ -312,6 +316,15 @@ func runMonitor(cmd *cobra.Command, args []string) error {
 		}
 		if config.Duration > 0 {
 			fmt.Printf("Running for: %s\n", config.Duration)
+		}
+		if config.CaptureContent {
+			fmt.Printf("Content capture enabled (max %d bytes per chunk)\n", config.ContentSize)
+		}
+	} else {
+		// Always show which operations are being monitored for clarity
+		fmt.Printf("Monitoring operations: %s\n", strings.Join(config.Operations, ", "))
+		if config.CaptureContent {
+			fmt.Printf("Content capture enabled\n")
 		}
 	}
 
@@ -336,67 +349,7 @@ func runMonitor(cmd *cobra.Command, args []string) error {
 	return processEvents(ctx, rd, outputWriter)
 }
 
-func attachTracepoints(coll *ebpf.Collection) ([]link.Link, error) {
-	links := make([]link.Link, 0)
-
-	operationMap := map[string]bool{}
-	for _, op := range config.Operations {
-		operationMap[op] = true
-	}
-
-	if operationMap["open"] {
-		l, err := link.Tracepoint("syscalls", "sys_enter_openat", coll.Programs["trace_openat_enter"], nil)
-		if err != nil {
-			return nil, err
-		}
-		links = append(links, l)
-
-		l, err = link.Tracepoint("syscalls", "sys_exit_openat", coll.Programs["trace_openat_exit"], nil)
-		if err != nil {
-			return nil, err
-		}
-		links = append(links, l)
-	}
-
-	if operationMap["read"] {
-		l, err := link.Tracepoint("syscalls", "sys_enter_read", coll.Programs["trace_read_enter"], nil)
-		if err != nil {
-			return nil, err
-		}
-		links = append(links, l)
-	}
-
-	if operationMap["write"] {
-		l, err := link.Tracepoint("syscalls", "sys_enter_write", coll.Programs["trace_write_enter"], nil)
-		if err != nil {
-			return nil, err
-		}
-		links = append(links, l)
-	}
-
-	if operationMap["close"] {
-		l, err := link.Tracepoint("syscalls", "sys_enter_close", coll.Programs["trace_close_enter"], nil)
-		if err != nil {
-			return nil, err
-		}
-		links = append(links, l)
-	}
-
-	return links, nil
-}
-
-func configureContentCapture(coll *ebpf.Collection) error {
-	// Set content capture flag in eBPF map
-	key := uint32(0)
-	value := uint32(0)
-	if config.CaptureContent {
-		value = uint32(1)
-	}
-
-	return coll.Maps["content_capture_enabled"].Put(key, value)
-}
-
-func processEvents(ctx context.Context, rd *perf.Reader, outputWriter *os.File) error {
+func processEvents(ctx context.Context, rd *ringbuf.Reader, outputWriter *os.File) error {
 	var event models.Event
 
 	// Print table header if using table format
@@ -414,12 +367,8 @@ func processEvents(ctx context.Context, rd *perf.Reader, outputWriter *os.File) 
 			continue
 		}
 
-		if record.LostSamples != 0 {
-			if config.Debug {	
-				zlog.Warn().Uint64("lost_samples", record.LostSamples).Msg("Lost perf event samples")
-			}
-			continue
-		}
+		// Ring buffer doesn't have LostSamples like perf events
+		// Ring buffer handles overflow differently
 
 		if err := processor.ParseEvent(record.RawSample, &event); err != nil {
 			zlog.Debug().Err(err).Msg("Failed to parse event")

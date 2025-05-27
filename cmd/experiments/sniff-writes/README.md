@@ -1,4 +1,5 @@
 # sniff-writes
+:
 
 A Go port of the bpftrace script for monitoring file reads/writes to cmd/n8n-cli files.
 

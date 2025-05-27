@@ -12,16 +12,12 @@ import (
 	"github.com/cilium/ebpf"
 )
 
-type sniffwritesEvent struct {
-	Pid        uint32
-	Fd         int32
-	Comm       [16]int8
-	PathHash   uint32
-	Type       uint32
-	WriteSize  uint64
-	ContentLen uint32
-	Content    [64]int8
-	_          [4]byte
+type sniffwritesReadInfo struct {
+	BufAddr uint64
+	Count   uint64
+	Offset  uint64
+	Fd      int32
+	_       [4]byte
 }
 
 // loadSniffwrites returns the embedded CollectionSpec for sniffwrites.
@@ -70,6 +66,7 @@ type sniffwritesProgramSpecs struct {
 	TraceOpenatEnter *ebpf.ProgramSpec `ebpf:"trace_openat_enter"`
 	TraceOpenatExit  *ebpf.ProgramSpec `ebpf:"trace_openat_exit"`
 	TraceReadEnter   *ebpf.ProgramSpec `ebpf:"trace_read_enter"`
+	TraceReadExit    *ebpf.ProgramSpec `ebpf:"trace_read_exit"`
 	TraceWriteEnter  *ebpf.ProgramSpec `ebpf:"trace_write_enter"`
 }
 
@@ -80,7 +77,7 @@ type sniffwritesMapSpecs struct {
 	ContentCaptureEnabled *ebpf.MapSpec `ebpf:"content_capture_enabled"`
 	Events                *ebpf.MapSpec `ebpf:"events"`
 	FdToHash              *ebpf.MapSpec `ebpf:"fd_to_hash"`
-	ScratchEvent          *ebpf.MapSpec `ebpf:"scratch_event"`
+	ReadBuffers           *ebpf.MapSpec `ebpf:"read_buffers"`
 }
 
 // sniffwritesVariableSpecs contains global variables before they are loaded into the kernel.
@@ -112,7 +109,7 @@ type sniffwritesMaps struct {
 	ContentCaptureEnabled *ebpf.Map `ebpf:"content_capture_enabled"`
 	Events                *ebpf.Map `ebpf:"events"`
 	FdToHash              *ebpf.Map `ebpf:"fd_to_hash"`
-	ScratchEvent          *ebpf.Map `ebpf:"scratch_event"`
+	ReadBuffers           *ebpf.Map `ebpf:"read_buffers"`
 }
 
 func (m *sniffwritesMaps) Close() error {
@@ -120,7 +117,7 @@ func (m *sniffwritesMaps) Close() error {
 		m.ContentCaptureEnabled,
 		m.Events,
 		m.FdToHash,
-		m.ScratchEvent,
+		m.ReadBuffers,
 	)
 }
 
@@ -138,6 +135,7 @@ type sniffwritesPrograms struct {
 	TraceOpenatEnter *ebpf.Program `ebpf:"trace_openat_enter"`
 	TraceOpenatExit  *ebpf.Program `ebpf:"trace_openat_exit"`
 	TraceReadEnter   *ebpf.Program `ebpf:"trace_read_enter"`
+	TraceReadExit    *ebpf.Program `ebpf:"trace_read_exit"`
 	TraceWriteEnter  *ebpf.Program `ebpf:"trace_write_enter"`
 }
 
@@ -147,6 +145,7 @@ func (p *sniffwritesPrograms) Close() error {
 		p.TraceOpenatEnter,
 		p.TraceOpenatExit,
 		p.TraceReadEnter,
+		p.TraceReadExit,
 		p.TraceWriteEnter,
 	)
 }

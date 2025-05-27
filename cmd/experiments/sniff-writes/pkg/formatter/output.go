@@ -18,14 +18,17 @@ func CreateEventOutput(event *models.Event, resolvedPath string, config *models.
 	displayFilename := formatFilename(resolvedPath)
 
 	eventOutput := models.EventOutput{
-		Timestamp: time.Now().Format(time.RFC3339),
-		Pid:       event.Pid,
-		Process:   comm,
-		Filename:  displayFilename,
+		Timestamp:   time.Now().Format(time.RFC3339),
+		Pid:         event.Pid,
+		Process:     comm,
+		Filename:    displayFilename,
+		FileOffset:  event.FileOffset,
+		ChunkSeq:    event.ChunkSeq,
+		TotalChunks: event.TotalChunks,
 	}
 
-	// Add write-specific information if available
-	if event.Type == 2 && event.WriteSize > 0 { // write event
+	// Add write/read-specific information if available
+	if (event.Type == 2 || event.Type == 1) && event.WriteSize > 0 { // write or read event
 		eventOutput.WriteSize = event.WriteSize
 
 		if config.CaptureContent && event.ContentLen > 0 {
@@ -36,7 +39,8 @@ func CreateEventOutput(event *models.Event, resolvedPath string, config *models.
 			}
 			content := cString(event.Content[:contentLen])
 			eventOutput.Content = content
-			eventOutput.Truncated = event.WriteSize > uint64(contentLen)
+			// For chunked events, check if this chunk is truncated or if there are more chunks
+			eventOutput.Truncated = (event.WriteSize > uint64(contentLen)) || (event.TotalChunks > 1)
 		}
 	}
 
@@ -74,15 +78,43 @@ func OutputPlain(event models.EventOutput, writer *os.File, config *models.Confi
 		fmt.Fprintf(writer, "[%s] Process %s (PID %d) opening file: %s\n",
 			event.Timestamp, event.Process, event.Pid, event.Filename)
 	case "read":
-		fmt.Fprintf(writer, "[%s] Process %s (PID %d) reading from file: %s%s\n",
-			event.Timestamp, event.Process, event.Pid, event.Filename, fdInfo)
+		sizeInfo := ""
+		if event.WriteSize > 0 {
+			sizeInfo = fmt.Sprintf(" (%d bytes)", event.WriteSize)
+		}
+		offsetInfo := ""
+		if event.FileOffset > 0 {
+			offsetInfo = fmt.Sprintf(" at offset %d", event.FileOffset)
+		}
+		chunkInfo := ""
+		if event.TotalChunks > 1 {
+			chunkInfo = fmt.Sprintf(" [chunk %d/%d]", event.ChunkSeq+1, event.TotalChunks)
+		}
+		fmt.Fprintf(writer, "[%s] Process %s (PID %d) reading from file: %s%s%s%s%s\n",
+			event.Timestamp, event.Process, event.Pid, event.Filename, fdInfo, sizeInfo, offsetInfo, chunkInfo)
+
+		if config.CaptureContent && event.Content != "" {
+			truncated := ""
+			if event.Truncated {
+				truncated = " [TRUNCATED]"
+			}
+			fmt.Fprintf(writer, "    Content: %q%s\n", event.Content, truncated)
+		}
 	case "write":
 		sizeInfo := ""
 		if event.WriteSize > 0 {
 			sizeInfo = fmt.Sprintf(" (%d bytes)", event.WriteSize)
 		}
-		fmt.Fprintf(writer, "[%s] Process %s (PID %d) writing to file: %s%s%s\n",
-			event.Timestamp, event.Process, event.Pid, event.Filename, fdInfo, sizeInfo)
+		offsetInfo := ""
+		if event.FileOffset > 0 {
+			offsetInfo = fmt.Sprintf(" at offset %d", event.FileOffset)
+		}
+		chunkInfo := ""
+		if event.TotalChunks > 1 {
+			chunkInfo = fmt.Sprintf(" [chunk %d/%d]", event.ChunkSeq+1, event.TotalChunks)
+		}
+		fmt.Fprintf(writer, "[%s] Process %s (PID %d) writing to file: %s%s%s%s%s\n",
+			event.Timestamp, event.Process, event.Pid, event.Filename, fdInfo, sizeInfo, offsetInfo, chunkInfo)
 
 		if config.CaptureContent && event.Content != "" {
 			truncated := ""
