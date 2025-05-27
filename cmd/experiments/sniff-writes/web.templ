@@ -101,20 +101,30 @@ templ index() {
 						</div>
 					</div>
 					<div class="row g-3 mt-2">
-						<div class="col-md-4">
+						<div class="col-md-3">
 							<div class="d-grid">
 								<button type="button" class="btn btn-outline-secondary" onclick="clearEvents()">Clear Events</button>
 							</div>
 						</div>
-						<div class="col-md-4">
+						<div class="col-md-3">
 							<div class="d-grid">
 								<button type="button" class="btn btn-outline-warning" onclick="clearAllFilters()">Clear Filters</button>
 							</div>
 						</div>
-						<div class="col-md-4">
+						<div class="col-md-3">
 							<div class="d-grid">
 								<button type="button" class="btn btn-outline-info" id="show-filtered-btn" onclick="toggleShowFiltered()">Show Filtered</button>
 							</div>
+						</div>
+						<div class="col-md-3">
+							<label class="form-label small">Memory Limit</label>
+							<select class="form-select form-select-sm" id="memory-limit" onchange="changeMemoryLimit()">
+								<option value="500">500 events</option>
+								<option value="1000">1000 events</option>
+								<option value="2000" selected>2000 events</option>
+								<option value="5000">5000 events</option>
+								<option value="10000">10k events</option>
+							</select>
 						</div>
 						</div>
 					</div>
@@ -268,8 +278,9 @@ templ index() {
 			<div class="col-md-3">
 				<div class="card">
 					<div class="card-body stats-card">
-						<h5 class="card-title">Status</h5>
-						<h6 class="text-muted">Real-time Monitoring</h6>
+						<h5 class="card-title">CLI Scope</h5>
+						<h6 class="text-info" id="cli-operations">Unknown</h6>
+						<small class="text-muted">Operations set via CLI</small>
 					</div>
 				</div>
 			</div>

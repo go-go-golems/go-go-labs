@@ -75,7 +75,7 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 func startWebServer() {
-	webHub = web.StartServer(config.WebPort, styleCSS, appJS, handleIndex, sqliteDB)
+	webHub = web.StartServer(config.WebPort, styleCSS, appJS, handleIndex, sqliteDB, &config)
 }
 
 func main() {
@@ -120,13 +120,13 @@ Examples:
   sudo sniff-writes monitor --capture-content --content-size 8192
 
   # Filter by process name and file patterns
-  sudo sniff-writes monitor -p nginx --glob "*.log" --glob-exclude "*.tmp"
+  sudo sniff-writes monitor -p nginx --glob "*.log" --glob "!*.tmp"
 
-  # Filter by process glob patterns
-  sudo sniff-writes monitor --process-glob "nginx*" --process-glob "apache*"
+  # Filter by process glob patterns (include nginx*, exclude systemd*)
+  sudo sniff-writes monitor --process-glob "nginx*" --process-glob "!systemd*"
   
-  # Exclude specific process patterns
-  sudo sniff-writes monitor --process-glob-exclude "*kworker*" --process-glob-exclude "systemd*"
+  # Mix positive and negative patterns
+  sudo sniff-writes monitor --glob "*.log" --glob "*.txt" --glob "!*debug*"
 
   # Log events to SQLite database
   sudo sniff-writes monitor --sqlite /tmp/file_events.db
@@ -204,10 +204,10 @@ func init() {
 	monitorCmd.Flags().BoolVar(&config.ShowAllFiles, "show-all-files", false, "Show all file types including pipes, sockets, etc. (default: only regular files)")
 	monitorCmd.Flags().BoolVar(&config.CaptureContent, "capture-content", false, "Capture write content (warning: may impact performance)")
 	monitorCmd.Flags().IntVar(&config.ContentSize, "content-size", 4096, "Maximum bytes of write content to capture (default: 4096)")
-	monitorCmd.Flags().StringSliceVar(&config.GlobPatterns, "glob", []string{}, "Include files matching these glob patterns (e.g., '*.go', '*.txt')")
-	monitorCmd.Flags().StringSliceVar(&config.GlobExclude, "glob-exclude", []string{}, "Exclude files matching these glob patterns")
-	monitorCmd.Flags().StringSliceVar(&config.ProcessGlob, "process-glob", []string{}, "Include processes matching these glob patterns (e.g., 'nginx*', '*server')")
-	monitorCmd.Flags().StringSliceVar(&config.ProcessGlobExclude, "process-glob-exclude", []string{}, "Exclude processes matching these glob patterns")
+	monitorCmd.Flags().StringSliceVar(&config.GlobPatterns, "glob", []string{}, "Include/exclude files with glob patterns (e.g., '*.go', '!*.tmp')")
+	monitorCmd.Flags().StringSliceVar(&config.GlobExclude, "glob-exclude", []string{}, "Exclude files matching these glob patterns (legacy, use --glob '!pattern')")
+	monitorCmd.Flags().StringSliceVar(&config.ProcessGlob, "process-glob", []string{}, "Include/exclude processes with glob patterns (e.g., 'nginx*', '!systemd*')")
+	monitorCmd.Flags().StringSliceVar(&config.ProcessGlobExclude, "process-glob-exclude", []string{}, "Exclude processes matching these glob patterns (legacy, use --process-glob '!pattern')")
 	monitorCmd.Flags().StringVar(&config.SqliteDB, "sqlite", "", "Log events to SQLite database (specify database file path)")
 	monitorCmd.Flags().BoolVar(&config.WebUI, "web", false, "Enable real-time web UI")
 	monitorCmd.Flags().IntVar(&config.WebPort, "web-port", 8080, "Web UI port (default: 8080)")
@@ -549,7 +549,7 @@ func runServer(cmd *cobra.Command, args []string) error {
 	zlog.Info().Str("database", config.SqliteDB).Msg("SQLite database initialized successfully")
 
 	// Create and start API server
-	server := api.NewServer(sqliteDB, serverFlags.port)
+	server := api.NewServer(sqliteDB, &config, serverFlags.port)
 	zlog.Info().Int("port", serverFlags.port).Msg("Starting API server")
 	fmt.Printf("Starting API server on port %d\n", serverFlags.port)
 	return server.Start()

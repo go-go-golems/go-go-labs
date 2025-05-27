@@ -2,13 +2,14 @@ let ws;
 let eventCount = 0;
 let filteredEventCount = 0;
 let allEvents = []; // Store all events for filtering
-const maxStoredEvents = 2000; // Limit stored events for performance
+let maxStoredEvents = 2000; // Limit stored events for performance (configurable)
 let showFilteredEvents = false; // Toggle to show filtered out events
 let processFilters = []; // Array of process filter objects
 let filenameFilters = []; // Array of filename filter objects
 let selectedOperations = ['open', 'read', 'write', 'close']; // Selected operations
 let showContent = true; // Show content in events
 let contentFilter = 'all'; // 'all', 'with-content', 'without-content'
+let cliOperations = []; // Operations set via CLI flags
 
 function connectWebSocket() {
 	const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -330,6 +331,19 @@ function updateContentFilterButtons() {
 	});
 }
 
+function changeMemoryLimit() {
+	const select = document.getElementById('memory-limit');
+	maxStoredEvents = parseInt(select.value);
+	
+	// Trim stored events if necessary
+	if (allEvents.length > maxStoredEvents) {
+		allEvents = allEvents.slice(allEvents.length - maxStoredEvents);
+	}
+	
+	saveSettings();
+	renderFilteredEvents();
+}
+
 // Filter management functions
 function addProcessFilter(text) {
 	if (!text) return;
@@ -447,7 +461,8 @@ function saveSettings() {
 		selectedOperations,
 		showFilteredEvents,
 		showContent,
-		contentFilter
+		contentFilter,
+		maxStoredEvents
 	};
 	localStorage.setItem('sniff-writes-settings', JSON.stringify(settings));
 }
@@ -463,10 +478,17 @@ function loadSettings() {
 			showFilteredEvents = settings.showFilteredEvents || false;
 			showContent = settings.showContent !== undefined ? settings.showContent : true;
 			contentFilter = settings.contentFilter || 'all';
+			maxStoredEvents = settings.maxStoredEvents || 2000;
 			
 			renderFilterPills();
 			updateOperationCheckboxes();
 			updateContentFilterButtons();
+			
+			// Update memory limit dropdown
+			const memorySelect = document.getElementById('memory-limit');
+			if (memorySelect) {
+				memorySelect.value = maxStoredEvents.toString();
+			}
 			
 			// Update show filtered button
 			const btn = document.getElementById('show-filtered-btn');
@@ -533,11 +555,24 @@ function checkSystemStatus() {
 		.then(data => {
 			systemStatus = data;
 			updateHistorySearchUI();
+			updateCLIOperationsDisplay();
 		})
 		.catch(error => {
 			console.error('Error checking system status:', error);
 			showSystemStatusError();
 		});
+}
+
+function updateCLIOperationsDisplay() {
+	const cliOpsElement = document.getElementById('cli-operations');
+	if (systemStatus && systemStatus.operations) {
+		cliOperations = systemStatus.operations;
+		cliOpsElement.textContent = cliOperations.join(', ');
+		cliOpsElement.className = 'text-info';
+	} else {
+		cliOpsElement.textContent = 'Unknown';
+		cliOpsElement.className = 'text-muted';
+	}
 }
 
 function updateHistorySearchUI() {

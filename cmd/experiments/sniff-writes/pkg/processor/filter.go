@@ -95,57 +95,83 @@ func ShouldProcessEvent(event *models.Event, resolvedPath string, config *models
 }
 
 // matchesGlobFilters checks if the file path matches include patterns and doesn't match exclude patterns
+// Supports both separate --glob-exclude flags and !pattern syntax in --glob flags
 func matchesGlobFilters(path string, config *models.Config) bool {
 	filename := filepath.Base(path)
 
-	// If we have include patterns, file must match at least one
-	if len(config.GlobPatterns) > 0 {
-		matched := false
-		for _, pattern := range config.GlobPatterns {
-			if match, _ := filepath.Match(pattern, filename); match {
-				matched = true
-				break
-			}
-		}
-		if !matched {
-			return false
+	// Parse patterns and separate positive/negative patterns
+	var includePatterns []string
+	var excludePatterns []string
+
+	// Process --glob patterns (support !prefix for exclusion)
+	for _, pattern := range config.GlobPatterns {
+		if strings.HasPrefix(pattern, "!") {
+			excludePatterns = append(excludePatterns, pattern[1:]) // Remove ! prefix
+		} else {
+			includePatterns = append(includePatterns, pattern)
 		}
 	}
 
-	// If we have exclude patterns, file must not match any
-	for _, pattern := range config.GlobExclude {
+	// Add patterns from --glob-exclude (for backwards compatibility)
+	excludePatterns = append(excludePatterns, config.GlobExclude...)
+
+	// Check exclude patterns first - if any match, exclude the file
+	for _, pattern := range excludePatterns {
 		if match, _ := filepath.Match(pattern, filename); match {
 			return false
 		}
 	}
 
-	return true
+	// If we have include patterns, file must match at least one
+	if len(includePatterns) > 0 {
+		for _, pattern := range includePatterns {
+			if match, _ := filepath.Match(pattern, filename); match {
+				return true
+			}
+		}
+		return false // No include patterns matched
+	}
+
+	return true // No include patterns specified, file passes
 }
 
 // matchesProcessGlobFilters checks if the process name matches include patterns and doesn't match exclude patterns
+// Supports both separate --process-glob-exclude flags and !pattern syntax in --process-glob flags
 func matchesProcessGlobFilters(processName string, config *models.Config) bool {
-	// If we have include patterns, process must match at least one
-	if len(config.ProcessGlob) > 0 {
-		matched := false
-		for _, pattern := range config.ProcessGlob {
-			if match, _ := filepath.Match(pattern, processName); match {
-				matched = true
-				break
-			}
-		}
-		if !matched {
-			return false
+	// Parse patterns and separate positive/negative patterns
+	var includePatterns []string
+	var excludePatterns []string
+
+	// Process --process-glob patterns (support !prefix for exclusion)
+	for _, pattern := range config.ProcessGlob {
+		if strings.HasPrefix(pattern, "!") {
+			excludePatterns = append(excludePatterns, pattern[1:]) // Remove ! prefix
+		} else {
+			includePatterns = append(includePatterns, pattern)
 		}
 	}
 
-	// If we have exclude patterns, process must not match any
-	for _, pattern := range config.ProcessGlobExclude {
+	// Add patterns from --process-glob-exclude (for backwards compatibility)
+	excludePatterns = append(excludePatterns, config.ProcessGlobExclude...)
+
+	// Check exclude patterns first - if any match, exclude the process
+	for _, pattern := range excludePatterns {
 		if match, _ := filepath.Match(pattern, processName); match {
 			return false
 		}
 	}
 
-	return true
+	// If we have include patterns, process must match at least one
+	if len(includePatterns) > 0 {
+		for _, pattern := range includePatterns {
+			if match, _ := filepath.Match(pattern, processName); match {
+				return true
+			}
+		}
+		return false // No include patterns matched
+	}
+
+	return true // No include patterns specified, process passes
 }
 
 func cString(b []int8) string {

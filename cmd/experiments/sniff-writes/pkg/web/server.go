@@ -129,12 +129,12 @@ func HandleWebSocket(hub *WebHub) http.HandlerFunc {
 	}
 }
 
-func StartServer(port int, styleCSS, appJS []byte, indexHandler http.HandlerFunc, db *database.SQLiteDB) *WebHub {
+func StartServer(port int, styleCSS, appJS []byte, indexHandler http.HandlerFunc, db *database.SQLiteDB, config *models.Config) *WebHub {
 	hub := NewWebHub(false)
 	go hub.Run()
 
 	// Create API server for endpoints
-	apiServer := api.NewServer(db, port)
+	apiServer := api.NewServer(db, config, port)
 	
 	// Serve embedded static files
 	http.HandleFunc("/static/style.css", func(w http.ResponseWriter, r *http.Request) {

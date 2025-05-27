@@ -18,17 +18,19 @@ import (
 
 // Server represents the API server
 type Server struct {
-	db   *database.SQLiteDB
-	mux  *mux.Router
-	port int
+	db     *database.SQLiteDB
+	config *models.Config
+	mux    *mux.Router
+	port   int
 }
 
 // NewServer creates a new API server
-func NewServer(db *database.SQLiteDB, port int) *Server {
+func NewServer(db *database.SQLiteDB, config *models.Config, port int) *Server {
 	server := &Server{
-		db:   db,
-		mux:  mux.NewRouter(),
-		port: port,
+		db:     db,
+		config: config,
+		mux:    mux.NewRouter(),
+		port:   port,
 	}
 	server.setupRoutes()
 	return server
@@ -426,12 +428,14 @@ func (s *Server) HandleHealth(w http.ResponseWriter, r *http.Request) {
 
 // StatusResponse represents the system status
 type StatusResponse struct {
-	Status         string `json:"status"`
-	DatabaseStatus string `json:"database_status"`
-	DatabaseError  string `json:"database_error,omitempty"`
-	CanSearch      bool   `json:"can_search"`
-	Message        string `json:"message"`
-	Timestamp      string `json:"timestamp"`
+	Status         string   `json:"status"`
+	DatabaseStatus string   `json:"database_status"`
+	DatabaseError  string   `json:"database_error,omitempty"`
+	CanSearch      bool     `json:"can_search"`
+	Message        string   `json:"message"`
+	Operations     []string `json:"operations"`
+	Directory      string   `json:"directory"`
+	Timestamp      string   `json:"timestamp"`
 }
 
 func (s *Server) HandleStatus(w http.ResponseWriter, r *http.Request) {
@@ -443,6 +447,12 @@ func (s *Server) HandleStatus(w http.ResponseWriter, r *http.Request) {
 	response := StatusResponse{
 		Status:    "ok",
 		Timestamp: time.Now().Format(time.RFC3339),
+	}
+	
+	// Include configuration information
+	if s.config != nil {
+		response.Operations = s.config.Operations
+		response.Directory = s.config.Directory
 	}
 
 	// Check database status
