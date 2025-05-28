@@ -7,261 +7,242 @@ import (
 	"time"
 )
 
-// TestLargeSegmentHandling tests behavior with 128KB segments
-func TestLargeSegmentHandling(t *testing.T) {
-	fc := NewFileCache(128*1024, 10*1024*1024, time.Hour, NewMockTimeProvider(time.Now())) // 128KB per file, 10MB total
-	
-	pathHash := uint32(42)
-	
-	// Create a 128KB data segment
-	largeData := make([]byte, 128*1024)
+func TestLargeDataHandling(t *testing.T) {
+	// Test with 128KB segments - maximum expected size
+	const maxSegmentSize = 128 * 1024
+
+	mockTime := NewMockTimeProvider(time.Now())
+	fc := NewFileCache(
+		200*1024,     // 200KB per file limit
+		1024*1024,    // 1MB global limit
+		time.Hour,
+		mockTime,
+	)
+
+	pathHash := uint32(12345)
+
+	// Test 1: Store and retrieve 128KB segment
+	largeData := make([]byte, maxSegmentSize)
 	for i := range largeData {
 		largeData[i] = byte(i % 256)
 	}
-	
-	// Test adding large segment
+
 	fc.AddRead(pathHash, 0, largeData)
-	
-	// Verify retrieval
-	retrieved, exists := fc.GetOldContent(pathHash, 0, uint64(len(largeData)))
+
+	retrieved, exists := fc.GetOldContent(pathHash, 0, maxSegmentSize)
 	if !exists {
-		t.Error("Large segment not found")
+		t.Fatal("Expected large data to be stored")
 	}
-	if !bytes.Equal(retrieved, largeData) {
-		t.Error("Large segment data mismatch on retrieval")
+
+	if !bytes.Equal(largeData, retrieved) {
+		t.Fatal("Large data corruption detected")
 	}
-	
-	// Test segment exactly at per-file limit
-	fc2 := NewFileCache(128*1024, 10*1024*1024, time.Hour, NewMockTimeProvider(time.Now()))
-	
-	// This should succeed
-	fc2.AddRead(pathHash, 0, largeData)
-	
-	// Adding one more byte should fail or succeed depending on implementation
-	// (Current implementation doesn't enforce strict limits at AddRead time)
-	fc2.AddRead(pathHash, uint64(len(largeData)), []byte{0xFF})
+
+	// Test 2: Multiple large segments that exceed per-file limit
+	// This should trigger eviction
+	secondLargeData := make([]byte, maxSegmentSize)
+	for i := range secondLargeData {
+		secondLargeData[i] = byte((i + 128) % 256)
+	}
+
+	fc.AddRead(pathHash, maxSegmentSize, secondLargeData)
+
+	// Should have evicted first segment due to per-file limit (200KB < 256KB)
+	_, exists1 := fc.GetOldContent(pathHash, 0, maxSegmentSize)
+	retrieved2, exists2 := fc.GetOldContent(pathHash, maxSegmentSize, maxSegmentSize)
+
+	if exists1 {
+		t.Error("Expected first large segment to be evicted due to per-file limit")
+	}
+	if !exists2 {
+		t.Fatal("Expected second large segment to be retained")
+	}
+	if !bytes.Equal(secondLargeData, retrieved2) {
+		t.Fatal("Second large data corrupted")
+	}
 }
 
-// TestMaximumOffsetHandling tests operations near uint64 limit
-func TestMaximumOffsetHandling(t *testing.T) {
-	fc := NewFileCache(64*1024, 1024*1024, time.Hour, NewMockTimeProvider(time.Now()))
-	pathHash := uint32(123)
-	
-	// Test with maximum possible offset
-	maxOffset := uint64(math.MaxUint64 - 1000) // Leave some room
-	testData := []byte("test data at max offset")
-	
+func TestMaxOffsetHandling(t *testing.T) {
+	mockTime := NewMockTimeProvider(time.Now())
+	fc := NewFileCache(1024*1024, 10*1024*1024, time.Hour, mockTime)
+
+	pathHash := uint32(67890)
+
+	// Test with maximum possible offset (near uint64 limit)
+	maxOffset := uint64(math.MaxUint64 - 1000) // Leave some room to avoid overflow
+	testData := []byte("data at max offset")
+
 	fc.AddRead(pathHash, maxOffset, testData)
-	
-	// Verify retrieval
+
 	retrieved, exists := fc.GetOldContent(pathHash, maxOffset, uint64(len(testData)))
 	if !exists {
-		t.Error("Data not found at maximum offset")
+		t.Fatal("Expected data at max offset to be stored")
 	}
-	if !bytes.Equal(retrieved, testData) {
-		t.Error("Data mismatch at maximum offset")
+
+	if !bytes.Equal(testData, retrieved) {
+		t.Fatal("Data at max offset corrupted")
 	}
-	
-	// Test offset overflow protection
-	overflowOffset := uint64(math.MaxUint64)
-	fc.AddRead(pathHash, overflowOffset, []byte("overflow"))
-	// This should either succeed or fail gracefully, not panic
-	
-	// Verify cache state remains consistent
-	fc.mu.RLock()
-	sparseFile := fc.files[pathHash]
-	fc.mu.RUnlock()
-	
-	if sparseFile != nil {
-		sparseFile.mu.RLock()
-		segmentCount := len(sparseFile.Segments)
-		sparseFile.mu.RUnlock()
-		
-		if segmentCount < 0 {
-			t.Error("Invalid segment count after max offset operations")
-		}
+
+	// Test write invalidation at max offset
+	writeData := []byte("overwrite at max")
+	fc.UpdateWithWrite(pathHash, maxOffset, writeData)
+
+	_, exists = fc.GetOldContent(pathHash, maxOffset, uint64(len(testData)))
+	if exists {
+		t.Error("Expected data at max offset to be invalidated by write")
 	}
 }
 
-// TestMultipleKBSegments tests handling of multiple large segments
-func TestMultipleKBSegments(t *testing.T) {
-	fc := NewFileCache(512*1024, 2*1024*1024, time.Hour, NewMockTimeProvider(time.Now())) // 512KB per file, 2MB total
-	pathHash := uint32(456)
-	
-	// Create multiple 64KB segments
-	segmentSize := 64 * 1024
-	segmentCount := 6 // 384KB total
-	
-	segments := make([][]byte, segmentCount)
-	for i := 0; i < segmentCount; i++ {
-		segments[i] = make([]byte, segmentSize)
-		// Fill with recognizable pattern
-		for j := range segments[i] {
-			segments[i][j] = byte((i*256 + j) % 256)
-		}
-		
-		offset := uint64(i * segmentSize * 2) // Leave gaps between segments
-		fc.AddRead(pathHash, offset, segments[i])
+func TestLargeOffsetRanges(t *testing.T) {
+	mockTime := NewMockTimeProvider(time.Now())
+	fc := NewFileCache(512*1024, 2*1024*1024, time.Hour, mockTime)
+
+	pathHash := uint32(11111)
+
+	// Test segments at various large offsets
+	offsets := []uint64{
+		1 << 20,                              // 1MB
+		1 << 30,                              // 1GB
+		1 << 40,                              // 1TB
+		uint64(math.MaxUint32),               // 4GB boundary
+		uint64(math.MaxUint32) + 1000,        // Just over 4GB
+		uint64(math.MaxUint64/2),             // Half of max
+		uint64(math.MaxUint64 - 10000),       // Near max
 	}
-	
-	// Verify all segments
-	for i := 0; i < segmentCount; i++ {
-		offset := uint64(i * segmentSize * 2)
-		retrieved, exists := fc.GetOldContent(pathHash, offset, uint64(segmentSize))
+
+	dataMap := make(map[uint64][]byte)
+
+	// Store data at each offset
+	for _, offset := range offsets {
+		data := make([]byte, 100)
+		for i := range data {
+			data[i] = byte(offset % 256) // Unique pattern based on offset
+		}
+		dataMap[offset] = data
+		fc.AddRead(pathHash, offset, data)
+	}
+
+	// Verify all data can be retrieved correctly
+	for _, offset := range offsets {
+		expected := dataMap[offset]
+		retrieved, exists := fc.GetOldContent(pathHash, offset, uint64(len(expected)))
+		
 		if !exists {
-			t.Errorf("Segment %d not found", i)
+			t.Errorf("Expected data at offset %d to exist", offset)
 			continue
 		}
-		if !bytes.Equal(retrieved, segments[i]) {
-			t.Errorf("Segment %d data mismatch", i)
+
+		if !bytes.Equal(expected, retrieved) {
+			t.Errorf("Data corruption at offset %d", offset)
 		}
 	}
-	
-	// Test merging adjacent large segments
-	gapFill := make([]byte, segmentSize) // Fill the gap between segment 0 and 1
-	for i := range gapFill {
-		gapFill[i] = 0xAA
-	}
-	
-	fc.AddRead(pathHash, uint64(segmentSize), gapFill)
-	
-	// Verify merged content spans multiple segments
-	largeRetrieved, exists := fc.GetOldContent(pathHash, 0, uint64(segmentSize*3))
-	if !exists {
-		t.Error("Large merged content not found")
-	}
-	if len(largeRetrieved) != segmentSize*3 {
-		t.Errorf("Expected %d bytes, got %d", segmentSize*3, len(largeRetrieved))
-	}
 }
 
-// TestMemoryPressureWithLargeData tests behavior under memory pressure
-func TestMemoryPressureWithLargeData(t *testing.T) {
-	// Small cache with large per-file limit
-	fc := NewFileCache(128*1024, 256*1024, time.Hour, NewMockTimeProvider(time.Now())) // 128KB per file, 256KB total
-	
-	largeSegment := make([]byte, 100*1024) // 100KB
-	for i := range largeSegment {
-		largeSegment[i] = byte(i % 256)
-	}
-	
-	// Add segments until memory pressure
-	pathHashes := []uint32{1, 2, 3, 4, 5}
-	
-	for i, pathHash := range pathHashes {
-		fc.AddRead(pathHash, 0, largeSegment)
-		t.Logf("Added segment %d (100KB)", i+1)
-	}
-	
-	// Verify cache remains functional
-	fc.mu.RLock()
-	fileCount := len(fc.files)
-	fc.mu.RUnlock()
-	
-	if fileCount == 0 {
-		t.Error("Cache became completely empty under memory pressure")
-	}
-	
-	// Verify we can still add small segments
-	smallData := []byte("small data")
-	fc.AddRead(999, 0, smallData)
-	retrieved, exists := fc.GetOldContent(999, 0, uint64(len(smallData)))
-	if exists && !bytes.Equal(retrieved, smallData) {
-		t.Error("Small segment handling failed after memory pressure")
-	}
-}
+func TestLargeContentReconstruction(t *testing.T) {
+	mockTime := NewMockTimeProvider(time.Now())
+	fc := NewFileCache(1024*1024, 10*1024*1024, time.Hour, mockTime)
 
-// TestLargeOffsetArithmetic tests arithmetic operations with large offsets
-func TestLargeOffsetArithmetic(t *testing.T) {
-	fc := NewFileCache(64*1024, 1024*1024, time.Hour, NewMockTimeProvider(time.Now()))
-	pathHash := uint32(789)
-	
-	// Test segments near boundaries that might cause overflow
-	testCases := []struct {
-		name   string
+	pathHash := uint32(22222)
+
+	// Create large sparse file with gaps
+	segmentSize := 32 * 1024 // 32KB segments
+	gapSize := 16 * 1024     // 16KB gaps
+
+	segments := []struct {
 		offset uint64
 		data   []byte
 	}{
-		{
-			name:   "Near 32-bit boundary",
-			offset: uint64(math.MaxUint32) - 100,
-			data:   []byte("data near 32-bit max"),
-		},
-		{
-			name:   "At 32-bit boundary",
-			offset: uint64(math.MaxUint32),
-			data:   []byte("data at 32-bit max"),
-		},
-		{
-			name:   "Past 32-bit boundary",
-			offset: uint64(math.MaxUint32) + 1000,
-			data:   []byte("data past 32-bit max"),
-		},
-		{
-			name:   "Large power of 2",
-			offset: uint64(1) << 40, // 1TB offset
-			data:   []byte("data at 1TB offset"),
-		},
+		{0, make([]byte, segmentSize)},
+		{uint64(segmentSize + gapSize), make([]byte, segmentSize)},
+		{uint64(2*(segmentSize+gapSize)), make([]byte, segmentSize)},
+		{uint64(3*(segmentSize+gapSize)), make([]byte, segmentSize)},
 	}
-	
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			fc.AddRead(pathHash, tc.offset, tc.data)
-			
-			retrieved, exists := fc.GetOldContent(pathHash, tc.offset, uint64(len(tc.data)))
-			if !exists {
-				t.Errorf("Data not found for %s", tc.name)
-				return
-			}
-			if !bytes.Equal(retrieved, tc.data) {
-				t.Errorf("Data mismatch for %s", tc.name)
-			}
-		})
+
+	// Fill each segment with unique data
+	for i, seg := range segments {
+		for j := range seg.data {
+			seg.data[j] = byte(i*100 + j%256)
+		}
+		fc.AddRead(pathHash, seg.offset, seg.data)
 	}
+
+	// Reconstruct large range spanning all segments and gaps
+	totalRange := uint64(4 * (segmentSize + gapSize))
+	reconstructed, exists := fc.GetOldContent(pathHash, 0, totalRange)
 	
-	// Verify segments are properly ordered despite large offsets
-	fc.mu.RLock()
-	sparseFile := fc.files[pathHash]
-	fc.mu.RUnlock()
-	
-	if sparseFile != nil {
-		sparseFile.mu.RLock()
-		defer sparseFile.mu.RUnlock()
+	if !exists {
+		t.Fatal("Expected reconstruction to succeed")
+	}
+
+	if len(reconstructed) != int(totalRange) {
+		t.Fatalf("Expected reconstructed length %d, got %d", totalRange, len(reconstructed))
+	}
+
+	// Verify segment data and gaps
+	for i, seg := range segments {
+		segmentStart := int(seg.offset)
+		segmentEnd := segmentStart + len(seg.data)
 		
-		// Check segments are in ascending order
-		for i := 1; i < len(sparseFile.Segments); i++ {
-			if sparseFile.Segments[i-1].Start >= sparseFile.Segments[i].Start {
-				t.Error("Segments not properly ordered with large offsets")
+		if !bytes.Equal(reconstructed[segmentStart:segmentEnd], seg.data) {
+			t.Errorf("Segment %d data corrupted during reconstruction", i)
+		}
+
+		// Check gap after segment (except last)
+		if i < len(segments)-1 {
+			gapStart := segmentEnd
+			nextSegmentStart := int(segments[i+1].offset)
+			gap := reconstructed[gapStart:nextSegmentStart]
+			
+			// All gap bytes should be zero
+			for j, b := range gap {
+				if b != 0 {
+					t.Errorf("Gap byte at position %d should be 0, got %d", gapStart+j, b)
+					break
+				}
 			}
 		}
 	}
 }
 
-// TestSegmentSizeLimits tests behavior at segment size boundaries
 func TestSegmentSizeLimits(t *testing.T) {
-	fc := NewFileCache(512*1024, 1024*1024, time.Hour, NewMockTimeProvider(time.Now()))
-	pathHash := uint32(321)
-	
-	// Test empty segment
-	fc.AddRead(pathHash, 0, []byte{})
-	
-	// Test nil data
-	fc.AddRead(pathHash, 100, nil)
-	
-	// Test exactly at per-file limit
-	maxData := make([]byte, 512*1024)
-	for i := range maxData {
-		maxData[i] = byte(i % 256)
+	mockTime := NewMockTimeProvider(time.Now())
+	fc := NewFileCache(64*1024, 256*1024, time.Hour, mockTime) // Small limits
+
+	pathHash := uint32(33333)
+
+	// Test segment exactly at per-file limit
+	limitData := make([]byte, 64*1024)
+	for i := range limitData {
+		limitData[i] = byte(i % 256)
 	}
-	
-	fc.AddRead(pathHash+1, 0, maxData)
-	
-	// Verify retrieval of max-size segment
-	retrieved, exists := fc.GetOldContent(pathHash+1, 0, uint64(len(maxData)))
+
+	fc.AddRead(pathHash, 0, limitData)
+
+	retrieved, exists := fc.GetOldContent(pathHash, 0, uint64(len(limitData)))
 	if !exists {
-		t.Error("Max-size segment not found")
+		t.Fatal("Expected data at limit size to be stored")
 	}
-	if !bytes.Equal(retrieved, maxData) {
-		t.Error("Max-size segment data mismatch")
+
+	if !bytes.Equal(limitData, retrieved) {
+		t.Fatal("Data at limit size corrupted")
+	}
+
+	// Test segment slightly over per-file limit should trigger eviction
+	overLimitData := make([]byte, 65*1024)
+	for i := range overLimitData {
+		overLimitData[i] = byte((i + 50) % 256)
+	}
+
+	fc.AddRead(pathHash, 64*1024, overLimitData)
+
+	// First segment should be evicted
+	_, exists1 := fc.GetOldContent(pathHash, 0, uint64(len(limitData)))
+	_, exists2 := fc.GetOldContent(pathHash, 64*1024, uint64(len(overLimitData)))
+
+	if exists1 {
+		t.Error("Expected first segment to be evicted when adding over-limit segment")
+	}
+	if !exists2 {
+		t.Error("Expected over-limit segment to be stored (after eviction)")
 	}
 }

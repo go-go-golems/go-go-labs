@@ -655,13 +655,15 @@ func (fc *FileCache) enforceGlobalLimit() {
 	for fc.totalSize > fc.globalLimit && len(fc.files) > 0 {
 		// Find least recently used file
 		var oldestPathHash uint32
-		var oldestTime time.Time = fc.timeProvider.Now()
+		var oldestTime time.Time
+		first := true
 
 		for pathHash, sf := range fc.files {
 			sf.mu.RLock()
-			if sf.LastUsed.Before(oldestTime) {
+			if first || sf.LastUsed.Before(oldestTime) {
 				oldestTime = sf.LastUsed
 				oldestPathHash = pathHash
+				first = false
 			}
 			sf.mu.RUnlock()
 		}
