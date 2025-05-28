@@ -76,6 +76,18 @@ func New() *FileCache {
 	}
 }
 
+// NewFileCache creates a new file cache with specified limits
+func NewFileCache(perFileLimit, globalLimit uint64, maxAge time.Duration, timeProvider TimeProvider) *FileCache {
+	return &FileCache{
+		files:        make(map[uint32]*SparseFile),
+		cache:        make(map[string]*FileContent),
+		maxAge:       maxAge,
+		perFileLimit: perFileLimit,
+		globalLimit:  globalLimit,
+		timeProvider: timeProvider,
+	}
+}
+
 // NewWithTimeProvider creates a new file cache with custom time provider (for testing)
 func NewWithTimeProvider(tp TimeProvider) *FileCache {
 	fc := New()
@@ -295,7 +307,10 @@ func (fc *FileCache) Cleanup() {
 }
 
 // insertSegment adds a segment to the sparse file, merging with adjacent/overlapping segments
-func (sf *SparseFile) insertSegment(newSeg *Segment) {
+func (sf *SparseFile) insertSegment(newSeg *Segment, timeProvider TimeProvider) {
+	sf.mu.Lock()
+	defer sf.mu.Unlock()
+
 	if newSeg.Start >= newSeg.End {
 		return // Invalid segment
 	}
@@ -352,7 +367,7 @@ func (sf *SparseFile) insertSegment(newSeg *Segment) {
 		Start:   start,
 		End:     end,
 		Data:    mergedData,
-		AddedAt: time.Now(),
+		AddedAt: timeProvider.Now(),
 	}
 
 	// Update size accounting
@@ -367,15 +382,16 @@ func (sf *SparseFile) insertSegment(newSeg *Segment) {
 	})
 
 	sf.Segments = toKeep
-	sf.LastUsed = time.Now()
+	sf.LastUsed = timeProvider.Now()
 }
 
 // UpdateWithWrite invalidates segments that overlap with the write and adds the new write segment
-func (sf *SparseFile) UpdateWithWrite(offset uint64, data []byte) {
+func (sf *SparseFile) UpdateWithWrite(offset uint64, data []byte, timeProvider TimeProvider) {
 	sf.mu.Lock()
 	defer sf.mu.Unlock()
 
 	writeEnd := offset + uint64(len(data))
+	// Debug logging would go here but we need a way to conditionally enable it
 
 	// Find all segments that overlap [offset, writeEnd)
 	var toRemove []int
@@ -397,7 +413,7 @@ func (sf *SparseFile) UpdateWithWrite(offset uint64, data []byte) {
 				Start:   seg.Start,
 				End:     offset,
 				Data:    make([]byte, prefixLen),
-				AddedAt: time.Now(),
+				AddedAt: timeProvider.Now(),
 			})
 			copy(toAdd[len(toAdd)-1].Data, seg.Data[:prefixLen])
 		}
@@ -411,7 +427,7 @@ func (sf *SparseFile) UpdateWithWrite(offset uint64, data []byte) {
 					Start:   writeEnd,
 					End:     seg.End,
 					Data:    make([]byte, suffixLen),
-					AddedAt: time.Now(),
+					AddedAt: timeProvider.Now(),
 				})
 				copy(toAdd[len(toAdd)-1].Data, seg.Data[suffixStart:])
 			}
@@ -432,7 +448,7 @@ func (sf *SparseFile) UpdateWithWrite(offset uint64, data []byte) {
 		Start:   offset,
 		End:     writeEnd,
 		Data:    make([]byte, len(data)),
-		AddedAt: time.Now(),
+		AddedAt: timeProvider.Now(),
 	}
 	copy(newSeg.Data, data)
 	toAdd = append(toAdd, newSeg)
@@ -489,46 +505,46 @@ func (sf *SparseFile) GetContentRange(offset, length uint64, gapByte byte) ([]by
 		}
 	}
 
-	sf.LastUsed = time.Now()
+	// Note: sf.LastUsed should be updated by caller
 	return result, hasData
 }
 
 // AddRead adds a read segment to the sparse file representation
 func (fc *FileCache) AddRead(pathHash uint32, offset uint64, data []byte) {
+	// Ensure we always follow the fc.mu -> sf.mu lock ordering to avoid
+	// circular wait with global eviction routines.
 	fc.mu.Lock()
-	defer fc.mu.Unlock()
 
 	sf, exists := fc.files[pathHash]
 	if !exists {
 		sf = &SparseFile{
 			Segments: make([]*Segment, 0),
-			LastUsed: time.Now(),
+			LastUsed: fc.timeProvider.Now(),
 		}
 		fc.files[pathHash] = sf
 	}
 
-	sf.mu.Lock()
-	defer sf.mu.Unlock()
-
-	// Create new segment
+	// Create new segment while still holding fc.mu so the subsequent sf lock
+	// respects ordering.
 	newSeg := &Segment{
 		Start:   offset,
 		End:     offset + uint64(len(data)),
 		Data:    make([]byte, len(data)),
-		AddedAt: time.Now(),
+		AddedAt: fc.timeProvider.Now(),
 	}
 	copy(newSeg.Data, data)
 
-	// Insert and merge
-	sf.insertSegment(newSeg)
+	// Perform insertion (insertSegment obtains sf.mu internally); since we
+	// still hold fc.mu, the lock acquisition order remains fc.mu -> sf.mu.
+	sf.insertSegment(newSeg, fc.timeProvider)
 
-	// Update global size accounting
+	// Update global size accounting while fc.mu is still held.
 	fc.totalSize += uint64(len(data))
 
-	// Enforce per-file limit
-	fc.enforcePerFileLimit(sf)
+	fc.mu.Unlock()
 
-	// Enforce global limit
+	// Enforce limits (these functions manage their own locking).
+	fc.enforcePerFileLimit(sf)
 	fc.enforceGlobalLimit()
 }
 
@@ -542,29 +558,41 @@ func (fc *FileCache) GetOldContent(pathHash uint32, offset uint64, size uint64) 
 		return nil, false
 	}
 
-	return sf.GetContentRange(offset, size, 0x00)
+	result, exists := sf.GetContentRange(offset, size, 0x00)
+	if exists {
+		sf.mu.Lock()
+		sf.LastUsed = fc.timeProvider.Now()
+		sf.mu.Unlock()
+	}
+	return result, exists
 }
 
 // UpdateWithWrite updates the cache with new write content
 func (fc *FileCache) UpdateWithWrite(pathHash uint32, offset uint64, data []byte) {
+	// Acquire cache-level lock only for map access / size update.
 	fc.mu.Lock()
-	defer fc.mu.Unlock()
 
 	sf, exists := fc.files[pathHash]
 	if !exists {
 		sf = &SparseFile{
 			Segments: make([]*Segment, 0),
-			LastUsed: time.Now(),
+			LastUsed: fc.timeProvider.Now(),
 		}
 		fc.files[pathHash] = sf
 	}
+	// fc.mu.Unlock()  // removed to maintain lock ordering
 
-	sf.UpdateWithWrite(offset, data)
+	// NOTE: maintain lock ordering by keeping fc.mu locked until size update
 
-	// Update global size accounting
+	// Perform the write while holding fc.mu so that lock acquisition order
+	sf.UpdateWithWrite(offset, data, fc.timeProvider)
+
+	// Update global size accounting before releasing cache mutex.
 	fc.totalSize += uint64(len(data))
 
-	// Enforce limits
+	fc.mu.Unlock()
+
+	// Enforce limits (these functions acquire the required locks themselves).
 	fc.enforcePerFileLimit(sf)
 	fc.enforceGlobalLimit()
 }
@@ -586,11 +614,15 @@ func minUint64(a, b uint64) uint64 {
 
 // enforcePerFileLimit removes oldest segments if file exceeds per-file limit
 func (fc *FileCache) enforcePerFileLimit(sf *SparseFile) {
+	// Lock order: acquire cache lock first, then the sparse file lock to
+	// maintain the global fc.mu -> sf.mu hierarchy and prevent deadlocks.
+	fc.mu.Lock()
 	sf.mu.Lock()
-	defer sf.mu.Unlock()
+
+	removedBytes := uint64(0)
 
 	for sf.Size > fc.perFileLimit && len(sf.Segments) > 0 {
-		// Find oldest segment
+		// Find oldest segment within the file.
 		oldestIdx := 0
 		for i := 1; i < len(sf.Segments); i++ {
 			if sf.Segments[i].AddedAt.Before(sf.Segments[oldestIdx].AddedAt) {
@@ -598,21 +630,32 @@ func (fc *FileCache) enforcePerFileLimit(sf *SparseFile) {
 			}
 		}
 
-		// Remove oldest segment
+		// Remove oldest segment and update accounting.
 		removed := sf.Segments[oldestIdx]
-		sf.Size -= uint64(len(removed.Data))
-		fc.totalSize -= uint64(len(removed.Data))
+		segSize := uint64(len(removed.Data))
+		sf.Size -= segSize
+		removedBytes += segSize
 
 		sf.Segments = append(sf.Segments[:oldestIdx], sf.Segments[oldestIdx+1:]...)
 	}
+
+	sf.mu.Unlock()
+	// Update global size outside of sf.mu but still within fc.mu.
+	if removedBytes > 0 {
+		fc.totalSize -= removedBytes
+	}
+	fc.mu.Unlock()
 }
 
 // enforceGlobalLimit removes least recently used files if global limit exceeded
 func (fc *FileCache) enforceGlobalLimit() {
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
+
 	for fc.totalSize > fc.globalLimit && len(fc.files) > 0 {
 		// Find least recently used file
 		var oldestPathHash uint32
-		var oldestTime time.Time = time.Now()
+		var oldestTime time.Time = fc.timeProvider.Now()
 
 		for pathHash, sf := range fc.files {
 			sf.mu.RLock()
