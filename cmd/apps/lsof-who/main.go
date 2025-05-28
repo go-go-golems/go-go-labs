@@ -15,16 +15,24 @@ import (
 )
 
 type ProcessInfo struct {
-	PID        int32   `json:"pid"`
-	Name       string  `json:"name"`
-	Cmdline    string  `json:"cmdline,omitempty"`
-	Exe        string  `json:"exe,omitempty"`
-	Username   string  `json:"username,omitempty"`
-	ParentPID  int32   `json:"parent_pid,omitempty"`
-	CPUPercent float64 `json:"cpu_percent,omitempty"`
-	RSS        uint64  `json:"rss_bytes,omitempty"`
-	StartTime  int64   `json:"create_time,omitempty"`
-	OpenFiles  int     `json:"open_files,omitempty"`
+	PID        int32             `json:"pid"`
+	Name       string            `json:"name"`
+	Cmdline    string            `json:"cmdline,omitempty"`
+	Exe        string            `json:"exe,omitempty"`
+	Username   string            `json:"username,omitempty"`
+	ParentPID  int32             `json:"parent_pid,omitempty"`
+	CPUPercent float64           `json:"cpu_percent,omitempty"`
+	RSS        uint64            `json:"rss_bytes,omitempty"`
+	StartTime  int64             `json:"create_time,omitempty"`
+	OpenFiles  int               `json:"open_files,omitempty"`
+	ParentTree []ProcessAncestor `json:"parent_tree,omitempty"`
+}
+
+type ProcessAncestor struct {
+	PID      int32  `json:"pid"`
+	Name     string `json:"name"`
+	Cmdline  string `json:"cmdline,omitempty"`
+	Username string `json:"username,omitempty"`
 }
 
 func findProcessByPort(port uint32) (*process.Process, error) {
@@ -38,6 +46,44 @@ func findProcessByPort(port uint32) (*process.Process, error) {
 		}
 	}
 	return nil, fmt.Errorf("no process listening on port %d", port)
+}
+
+func buildParentTree(p *process.Process) ([]ProcessAncestor, error) {
+	var ancestors []ProcessAncestor
+	current := p
+
+	for {
+		parentPID, err := current.Ppid()
+		if err != nil || parentPID <= 1 {
+			break
+		}
+
+		parent, err := process.NewProcess(parentPID)
+		if err != nil {
+			break
+		}
+
+		name, _ := parent.Name()
+		cmdline, _ := parent.Cmdline()
+		username, _ := parent.Username()
+
+		ancestor := ProcessAncestor{
+			PID:      parentPID,
+			Name:     name,
+			Cmdline:  cmdline,
+			Username: username,
+		}
+
+		ancestors = append(ancestors, ancestor)
+		current = parent
+
+		// Prevent infinite loops
+		if len(ancestors) > 20 {
+			break
+		}
+	}
+
+	return ancestors, nil
 }
 
 func gatherInfo(p *process.Process) (*ProcessInfo, error) {
@@ -54,6 +100,9 @@ func gatherInfo(p *process.Process) (*ProcessInfo, error) {
 	if err != nil {
 		log.Fatalln(err)
 	}
+
+	parentTree, _ := buildParentTree(p)
+
 	info := &ProcessInfo{
 		PID:        p.Pid,
 		Name:       name,
@@ -65,6 +114,7 @@ func gatherInfo(p *process.Process) (*ProcessInfo, error) {
 		RSS:        memInfo.RSS,
 		StartTime:  timestamp,
 		OpenFiles:  len(openfiles),
+		ParentTree: parentTree,
 	}
 	return info, nil
 }
@@ -103,6 +153,21 @@ func main() {
 				fmt.Printf("RSS: %d bytes\n", info.RSS)
 				fmt.Printf("Start Time (ms since epoch): %d\n", info.StartTime)
 				fmt.Printf("Open Files: %d\n", info.OpenFiles)
+
+				if len(info.ParentTree) > 0 {
+					fmt.Printf("\nParent Process Tree:\n")
+					for i, ancestor := range info.ParentTree {
+						indent := strings.Repeat("  ", i+1)
+						fmt.Printf("%s└─ PID: %d, Name: %s", indent, ancestor.PID, ancestor.Name)
+						if ancestor.Username != "" {
+							fmt.Printf(", User: %s", ancestor.Username)
+						}
+						if ancestor.Cmdline != "" {
+							fmt.Printf(", Cmd: %s", ancestor.Cmdline)
+						}
+						fmt.Printf("\n")
+					}
+				}
 			}
 
 			// Create a form to ask the user if they want to kill the process and select a signal
