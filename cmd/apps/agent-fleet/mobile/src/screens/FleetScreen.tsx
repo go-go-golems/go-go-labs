@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback } from "react";
 import {
   View,
   Text,
@@ -7,19 +7,25 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-} from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useGetAgentsQuery, useGetFleetStatusQuery } from '@/services/api';
-import { RootStackParamList } from '@/types/navigation';
-import { Agent } from '@/types/api';
-import AgentCard from '@/components/AgentCard';
+} from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import {
+  useGetAgentsQuery,
+  useGetFleetStatusQuery,
+} from "@/services/api";
+import { RootStackParamList } from "@/types/navigation";
+import { Agent } from "@/types/api";
+import AgentCard from "@/components/AgentCard";
+import NotificationBanner from "@/components/NotificationBanner";
+import FeedbackModal from "@/components/FeedbackModal";
+import { useSSEConnection } from "@/services/sse";
 
 type FleetScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function FleetScreen() {
   const navigation = useNavigation<FleetScreenNavigationProp>();
-  
+
   const {
     data: agentsData,
     isLoading: agentsLoading,
@@ -39,21 +45,27 @@ export default function FleetScreen() {
     refetchStatus();
   }, [refetchAgents, refetchStatus]);
 
-  const handleAgentPress = useCallback((agent: Agent) => {
-    navigation.navigate('AgentDetail', { agent });
-  }, [navigation]);
+  const handleAgentPress = useCallback(
+    (agent: Agent) => {
+      navigation.navigate("AgentDetail", { agent });
+    },
+    [navigation]
+  );
 
   const handleSyncAll = useCallback(() => {
     // TODO: Implement sync all functionality
     handleRefresh();
   }, [handleRefresh]);
 
-  const renderAgentCard = useCallback(({ item }: { item: Agent }) => (
-    <AgentCard
-      agent={item}
-      onPress={() => handleAgentPress(item)}
-    />
-  ), [handleAgentPress]);
+  // Set up SSE connection for real-time updates
+  useSSEConnection();
+
+  const renderAgentCard = useCallback(
+    ({ item }: { item: Agent }) => (
+      <AgentCard agent={item} onPress={() => handleAgentPress(item)} />
+    ),
+    [handleAgentPress]
+  );
 
   const renderHeader = () => (
     <View style={styles.header}>
@@ -69,7 +81,7 @@ export default function FleetScreen() {
               <Text style={styles.statLabel}>Active</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={[styles.statNumber, { color: '#F59E0B' }]}>
+              <Text style={[styles.statNumber, { color: "#F59E0B" }]}>
                 {fleetStatus.agents_needing_feedback}
               </Text>
               <Text style={styles.statLabel}>Need Feedback</Text>
@@ -81,17 +93,21 @@ export default function FleetScreen() {
               <Text style={styles.statLabel}>Pending Tasks</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{fleetStatus.total_files_changed}</Text>
+              <Text style={styles.statNumber}>
+                {fleetStatus.total_files_changed}
+              </Text>
               <Text style={styles.statLabel}>Files Changed</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{fleetStatus.total_commits_today}</Text>
+              <Text style={styles.statNumber}>
+                {fleetStatus.total_commits_today}
+              </Text>
               <Text style={styles.statLabel}>Commits Today</Text>
             </View>
           </View>
         </View>
       )}
-      
+
       <TouchableOpacity style={styles.syncButton} onPress={handleSyncAll}>
         <Text style={styles.syncButtonText}>🔄 Sync All</Text>
       </TouchableOpacity>
@@ -130,10 +146,14 @@ export default function FleetScreen() {
     return renderError();
   }
 
-  const agents = agentsData?.agents || [];
+  // Filter out finished agents to reduce clutter
+  const agents = (agentsData?.agents || []).filter(
+    (agent) => agent.status !== "finished"
+  );
 
   return (
     <View style={styles.container}>
+      <NotificationBanner />
       <FlatList
         data={agents}
         renderItem={renderAgentCard}
@@ -145,7 +165,7 @@ export default function FleetScreen() {
             refreshing={agentsLoading}
             onRefresh={handleRefresh}
             tintColor="#3B82F6"
-            colors={['#3B82F6']}
+            colors={["#3B82F6"]}
           />
         }
         contentContainerStyle={
@@ -153,6 +173,7 @@ export default function FleetScreen() {
         }
         showsVerticalScrollIndicator={false}
       />
+      <FeedbackModal />
     </View>
   );
 }
@@ -160,54 +181,54 @@ export default function FleetScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: "#000000",
   },
   header: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#374151',
+    borderBottomColor: "#374151",
   },
   statsContainer: {
     marginBottom: 16,
   },
   statRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+    flexDirection: "row",
+    justifyContent: "space-around",
     marginBottom: 8,
   },
   statItem: {
-    alignItems: 'center',
+    alignItems: "center",
   },
   statNumber: {
-    color: '#ffffff',
+    color: "#ffffff",
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   statLabel: {
-    color: '#9CA3AF',
+    color: "#9CA3AF",
     fontSize: 12,
     marginTop: 4,
   },
   syncButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: "#3B82F6",
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
   },
   syncButtonText: {
-    color: '#ffffff',
+    color: "#ffffff",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#000000',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#000000",
+    justifyContent: "center",
+    alignItems: "center",
   },
   loadingText: {
-    color: '#9CA3AF',
+    color: "#9CA3AF",
     fontSize: 16,
     marginTop: 16,
   },
@@ -216,8 +237,8 @@ const styles = StyleSheet.create({
   },
   emptyState: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 32,
   },
   emptyStateText: {
@@ -225,38 +246,38 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   emptyStateTitle: {
-    color: '#ffffff',
+    color: "#ffffff",
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 8,
   },
   emptyStateSubtitle: {
-    color: '#9CA3AF',
+    color: "#9CA3AF",
     fontSize: 16,
-    textAlign: 'center',
+    textAlign: "center",
   },
   errorState: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 32,
-    backgroundColor: '#000000',
+    backgroundColor: "#000000",
   },
   errorText: {
-    color: '#EF4444',
+    color: "#EF4444",
     fontSize: 18,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: 16,
   },
   retryButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: "#3B82F6",
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
   },
   retryButtonText: {
-    color: '#ffffff',
+    color: "#ffffff",
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });

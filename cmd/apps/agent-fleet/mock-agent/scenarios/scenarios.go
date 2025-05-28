@@ -56,7 +56,7 @@ var predefinedScenarios = []Scenario{
 		Description:       "Implement a new user dashboard with metrics and preferences",
 		EstimatedDuration: 2 * time.Hour,
 		ErrorProbability:  0.1,
-		QuestionProbability: 0.25,
+		QuestionProbability: 0.05,
 		Steps: []string{
 			"Analyze dashboard requirements and create mockups",
 			"Design database schema for user preferences",
@@ -90,7 +90,7 @@ var predefinedScenarios = []Scenario{
 		Description:       "Optimize slow database queries affecting application performance",
 		EstimatedDuration: 90 * time.Minute,
 		ErrorProbability:  0.15,
-		QuestionProbability: 0.2,
+		QuestionProbability: 0.04,
 		Steps: []string{
 			"Identify slow queries using performance monitoring",
 			"Analyze query execution plans",
@@ -122,7 +122,7 @@ var predefinedScenarios = []Scenario{
 		Description:       "Conduct security audit of API endpoints and implement fixes",
 		EstimatedDuration: 3 * time.Hour,
 		ErrorProbability:  0.3,
-		QuestionProbability: 0.35,
+		QuestionProbability: 0.03,
 		Steps: []string{
 			"Catalog all API endpoints and their authentication requirements",
 			"Review input validation and sanitization",
@@ -157,7 +157,7 @@ var predefinedScenarios = []Scenario{
 		Description:       "Refactor legacy code module to use modern patterns and practices",
 		EstimatedDuration: 4 * time.Hour,
 		ErrorProbability:  0.25,
-		QuestionProbability: 0.3,
+		QuestionProbability: 0.02,
 		Steps: []string{
 			"Analyze legacy code structure and dependencies",
 			"Identify code smells and technical debt",
@@ -191,7 +191,7 @@ var predefinedScenarios = []Scenario{
 		Description:       "Improve continuous integration and deployment pipeline",
 		EstimatedDuration: 150 * time.Minute,
 		ErrorProbability:  0.2,
-		QuestionProbability: 0.25,
+		QuestionProbability: 0.01,
 		Steps: []string{
 			"Audit current CI/CD pipeline performance and reliability",
 			"Identify bottlenecks in build and deployment process",
@@ -224,7 +224,7 @@ var predefinedScenarios = []Scenario{
 		Description:       "Perform major database schema migration with zero downtime",
 		EstimatedDuration: 5 * time.Hour,
 		ErrorProbability:  0.4,
-		QuestionProbability: 0.45,
+		QuestionProbability: 0.05,
 		Steps: []string{
 			"Analyze current schema and migration requirements",
 			"Design backward-compatible migration strategy",
@@ -258,7 +258,7 @@ var predefinedScenarios = []Scenario{
 		Description:       "Integrate new third-party service for enhanced functionality",
 		EstimatedDuration: 210 * time.Minute,
 		ErrorProbability:  0.3,
-		QuestionProbability: 0.4,
+		QuestionProbability: 0.05,
 		Steps: []string{
 			"Research third-party service API and capabilities",
 			"Set up developer accounts and obtain API credentials",

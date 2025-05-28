@@ -99,6 +99,7 @@ func (m *SSEManager) broadcast(event SSEEvent) {
 // Event broadcasting methods
 
 func (m *SSEManager) BroadcastAgentStatusChanged(agentID, oldStatus, newStatus string, agent *models.Agent) {
+	log.Debug().Str("event", "agent_status_changed").Str("agent_id", agentID).Str("old_status", oldStatus).Str("new_status", newStatus).Msg("Broadcasting agent status changed event")
 	event := SSEEvent{
 		Event: "agent_status_changed",
 		Data: map[string]interface{}{
@@ -112,6 +113,7 @@ func (m *SSEManager) BroadcastAgentStatusChanged(agentID, oldStatus, newStatus s
 }
 
 func (m *SSEManager) BroadcastAgentEventCreated(agentID string, agentEvent *models.Event) {
+	log.Debug().Str("event", "agent_event_created").Str("agent_id", agentID).Interface("event_data", agentEvent).Msg("Broadcasting agent event created")
 	event := SSEEvent{
 		Event: "agent_event_created",
 		Data: map[string]interface{}{
@@ -123,6 +125,7 @@ func (m *SSEManager) BroadcastAgentEventCreated(agentID string, agentEvent *mode
 }
 
 func (m *SSEManager) BroadcastAgentQuestionPosted(agentID, question string, agent *models.Agent) {
+	log.Debug().Str("event", "agent_question_posted").Str("agent_id", agentID).Str("question", question).Msg("Broadcasting agent question posted")
 	event := SSEEvent{
 		Event: "agent_question_posted",
 		Data: map[string]interface{}{
@@ -135,6 +138,7 @@ func (m *SSEManager) BroadcastAgentQuestionPosted(agentID, question string, agen
 }
 
 func (m *SSEManager) BroadcastAgentProgressUpdated(agentID string, progress, filesChanged, linesAdded, linesRemoved int) {
+	log.Debug().Str("event", "agent_progress_updated").Str("agent_id", agentID).Int("progress", progress).Int("files_changed", filesChanged).Int("lines_added", linesAdded).Int("lines_removed", linesRemoved).Msg("Broadcasting agent progress updated")
 	event := SSEEvent{
 		Event: "agent_progress_updated",
 		Data: map[string]interface{}{
@@ -149,6 +153,7 @@ func (m *SSEManager) BroadcastAgentProgressUpdated(agentID string, progress, fil
 }
 
 func (m *SSEManager) BroadcastTodoUpdated(agentID string, todo *models.TodoItem, action string) {
+	log.Debug().Str("event", "todo_updated").Str("agent_id", agentID).Str("action", action).Interface("todo", todo).Msg("Broadcasting todo updated")
 	event := SSEEvent{
 		Event: "todo_updated",
 		Data: map[string]interface{}{
@@ -161,6 +166,7 @@ func (m *SSEManager) BroadcastTodoUpdated(agentID string, todo *models.TodoItem,
 }
 
 func (m *SSEManager) BroadcastTaskAssigned(task *models.Task, agentID string) {
+	log.Debug().Str("event", "task_assigned").Str("agent_id", agentID).Interface("task", task).Msg("Broadcasting task assigned")
 	event := SSEEvent{
 		Event: "task_assigned",
 		Data: map[string]interface{}{
@@ -172,11 +178,51 @@ func (m *SSEManager) BroadcastTaskAssigned(task *models.Task, agentID string) {
 }
 
 func (m *SSEManager) BroadcastCommandReceived(agentID string, command *models.Command) {
+	log.Debug().Str("event", "command_received").Str("agent_id", agentID).Interface("command", command).Msg("Broadcasting command received")
 	event := SSEEvent{
 		Event: "command_received",
 		Data: map[string]interface{}{
 			"agent_id": agentID,
 			"command":  command,
+		},
+	}
+	m.broadcast(event)
+}
+
+func (m *SSEManager) BroadcastAgentStepUpdated(agentID, currentStep string, recentSteps []map[string]interface{}) {
+	log.Debug().Str("event", "agent_step_updated").Str("agent_id", agentID).Str("current_step", currentStep).Interface("recent_steps", recentSteps).Msg("Broadcasting agent step updated")
+	event := SSEEvent{
+		Event: "agent_step_updated",
+		Data: map[string]interface{}{
+			"agent_id":     agentID,
+			"current_step": currentStep,
+			"recent_steps": recentSteps,
+		},
+	}
+	m.broadcast(event)
+}
+
+func (m *SSEManager) BroadcastAgentWarningPosted(agentID, warning string, agent *models.Agent) {
+	log.Debug().Str("event", "agent_warning_posted").Str("agent_id", agentID).Str("warning", warning).Msg("Broadcasting agent warning posted")
+	event := SSEEvent{
+		Event: "agent_warning_posted",
+		Data: map[string]interface{}{
+			"agent_id": agentID,
+			"warning":  warning,
+			"agent":    agent,
+		},
+	}
+	m.broadcast(event)
+}
+
+func (m *SSEManager) BroadcastAgentErrorPosted(agentID, errorMsg string, agent *models.Agent) {
+	log.Debug().Str("event", "agent_error_posted").Str("agent_id", agentID).Str("error", errorMsg).Msg("Broadcasting agent error posted")
+	event := SSEEvent{
+		Event: "agent_error_posted",
+		Data: map[string]interface{}{
+			"agent_id": agentID,
+			"error":    errorMsg,
+			"agent":    agent,
 		},
 	}
 	m.broadcast(event)

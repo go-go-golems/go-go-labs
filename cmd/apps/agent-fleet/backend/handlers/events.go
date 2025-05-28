@@ -81,6 +81,14 @@ func (h *Handlers) CreateAgentEvent(w http.ResponseWriter, r *http.Request) {
 
 	// Broadcast event creation
 	h.sse.BroadcastAgentEventCreated(agentID, event)
+	
+	// Also broadcast specific events for errors and warnings
+	switch event.Type {
+	case "error":
+		h.sse.BroadcastAgentErrorPosted(agentID, event.Message, nil)
+	case "warning":
+		h.sse.BroadcastAgentWarningPosted(agentID, event.Message, nil)
+	}
 
 	writeJSONResponse(w, http.StatusCreated, event)
 }

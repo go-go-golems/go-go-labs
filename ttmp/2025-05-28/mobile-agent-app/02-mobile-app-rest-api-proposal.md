@@ -20,8 +20,8 @@ Authorization: Bearer <token>
 {
   "id": "string",
   "name": "string",
-  "status": "active|idle|waiting_feedback|error",
-  "current_task": "string",
+  "status": "starting|idle|active|waiting_feedback|error|shutting_down|finished",
+  "current_task": "string|null",
   "worktree": "string",
   "files_changed": "integer",
   "lines_added": "integer", 
@@ -33,6 +33,15 @@ Authorization: Bearer <token>
   "updated_at": "string (ISO 8601)"
 }
 ```
+
+#### Agent Status Values
+- `starting` - Agent is initializing and registering with the fleet
+- `idle` - Agent is available and waiting for work
+- `active` - Agent is actively working on a task or scenario
+- `waiting_feedback` - Agent has posted a question and is waiting for response
+- `error` - Agent has encountered an error and requires attention
+- `shutting_down` - Agent is gracefully shutting down
+- `finished` - Agent has completed shutdown and is no longer active
 
 ### Event
 ```json

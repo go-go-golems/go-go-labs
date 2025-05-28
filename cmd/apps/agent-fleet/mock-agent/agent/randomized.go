@@ -37,6 +37,11 @@ func (a *Agent) maybeChangeState() {
 		return
 	}
 	
+	// Don't randomly change state if we're in final states
+	if a.state == StateShuttingDown || a.state == StateFinished {
+		return
+	}
+	
 	// Don't randomly change state if we're actively working on a scenario
 	if a.scenario != nil && a.state == StateActive {
 		log.Debug().Str("agent", a.id).Msg("Skipping random state change - actively working on scenario")
@@ -708,10 +713,21 @@ func (a *Agent) simulateWorkActivity() {
 	work := workTypes[rand.Intn(len(workTypes))]
 	
 	// Simulate file changes
-	filesChanged := rand.Intn(work.filesChange) + 1
-	linesAdded := rand.Intn(work.linesAdd) + 5
-	linesRemoved := rand.Intn(work.linesRemove)
-	
+	filesChanged := 0
+	if work.filesChange > 0 {
+		filesChanged = rand.Intn(work.filesChange) + 1
+	}
+
+	linesAdded := 0
+	if work.linesAdd > 0 {
+		linesAdded = rand.Intn(work.linesAdd) + 5
+	}
+
+	linesRemoved := 0
+	if work.linesRemove > 0 {
+		linesRemoved = rand.Intn(work.linesRemove)
+	}
+
 	a.filesChanged += filesChanged
 	a.linesAdded += linesAdded
 	a.linesRemoved += linesRemoved

@@ -1,10 +1,25 @@
-export type AgentStatus = 'active' | 'idle' | 'waiting_feedback' | 'error';
+export type AgentStatus =
+  | "active"
+  | "idle"
+  | "waiting_feedback"
+  | "error"
+  | "finished"
+  | "warning";
+
+export interface AgentStep {
+  id: string;
+  text: string;
+  status: "current" | "completed" | "failed";
+  timestamp: string;
+}
 
 export interface Agent {
   id: string;
   name: string;
   status: AgentStatus;
   current_task: string;
+  current_step: string | null;
+  recent_steps: AgentStep[];
   worktree: string;
   files_changed: number;
   lines_added: number;
@@ -12,11 +27,20 @@ export interface Agent {
   last_commit: string;
   progress: number;
   pending_question: string | null;
+  warning_message: string | null;
+  error_message: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export type EventType = 'start' | 'commit' | 'question' | 'success' | 'error' | 'info' | 'command';
+export type EventType =
+  | "start"
+  | "commit"
+  | "question"
+  | "success"
+  | "error"
+  | "info"
+  | "command";
 
 export interface Event {
   id: string;
@@ -38,8 +62,13 @@ export interface TodoItem {
   completed_at: string | null;
 }
 
-export type TaskStatus = 'pending' | 'assigned' | 'in_progress' | 'completed' | 'failed';
-export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
+export type TaskStatus =
+  | "pending"
+  | "assigned"
+  | "in_progress"
+  | "completed"
+  | "failed";
+export type TaskPriority = "low" | "medium" | "high" | "urgent";
 
 export interface Task {
   id: string;
@@ -53,8 +82,8 @@ export interface Task {
   completed_at: string | null;
 }
 
-export type CommandType = 'instruction' | 'feedback' | 'question';
-export type CommandStatus = 'sent' | 'acknowledged' | 'completed';
+export type CommandType = "instruction" | "feedback" | "question";
+export type CommandStatus = "sent" | "acknowledged" | "completed";
 
 export interface Command {
   id: string;
@@ -117,14 +146,17 @@ export interface RecentUpdatesResponse {
 }
 
 // SSE Event Types
-export type SSEEventType = 
-  | 'agent_status_changed'
-  | 'agent_event_created'
-  | 'agent_question_posted'
-  | 'agent_progress_updated'
-  | 'todo_updated'
-  | 'task_assigned'
-  | 'command_received';
+export type SSEEventType =
+  | "agent_status_changed"
+  | "agent_event_created"
+  | "agent_question_posted"
+  | "agent_progress_updated"
+  | "agent_step_updated"
+  | "agent_warning_posted"
+  | "agent_error_posted"
+  | "todo_updated"
+  | "task_assigned"
+  | "command_received";
 
 export interface SSEEvent {
   event: SSEEventType;

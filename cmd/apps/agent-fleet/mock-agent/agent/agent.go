@@ -24,6 +24,7 @@ const (
 	StateWaitingFeedback AgentState = "waiting_feedback"
 	StateError           AgentState = "error"
 	StateShuttingDown    AgentState = "shutting_down"
+	StateFinished        AgentState = "finished"
 )
 
 // Config holds agent configuration
@@ -174,6 +175,9 @@ func (a *Agent) tick() error {
 		return a.handleWaitingFeedbackState()
 	case StateError:
 		return a.handleErrorState()
+	case StateShuttingDown, StateFinished:
+		// Do nothing for shutdown/finished states
+		return nil
 	default:
 		return nil
 	}
@@ -181,7 +185,7 @@ func (a *Agent) tick() error {
 
 // handleIdleState handles logic when agent is idle
 func (a *Agent) handleIdleState() error {
-	log.Debug().Str("agent", a.id).
+	log.Info().Str("agent", a.id).
 		Bool("randomized", a.config.Randomized).
 		Bool("has_scenario", a.scenario != nil).
 		Msg("Agent is idle")
@@ -194,7 +198,7 @@ func (a *Agent) handleIdleState() error {
 	
 	// Pick up a task if available
 	taskRoll := rand.Float64()
-	log.Debug().Str("agent", a.id).
+	log.Info().Str("agent", a.id).
 		Int("available_tasks", len(tasks)).
 		Float64("task_roll", taskRoll).
 		Msg("Checking for available tasks")
@@ -207,13 +211,13 @@ func (a *Agent) handleIdleState() error {
 	
 	// Start a random scenario if in randomized mode
 	scenarioRoll := rand.Float64()
-	log.Debug().Str("agent", a.id).
+	log.Info().Str("agent", a.id).
 		Bool("randomized", a.config.Randomized).
 		Bool("no_scenario", a.scenario == nil).
 		Float64("scenario_roll", scenarioRoll).
 		Msg("Checking scenario conditions")
 	
-	if a.config.Randomized && a.scenario == nil && scenarioRoll < 0.7 {
+	if a.config.Randomized && scenarioRoll < 0.7 {
 		log.Info().Str("agent", a.id).Msg("Starting random scenario selection")
 		a.selectNewScenario()
 		if a.scenario != nil {
@@ -223,7 +227,7 @@ func (a *Agent) handleIdleState() error {
 			log.Warn().Str("agent", a.id).Msg("No scenario selected despite calling selectNewScenario")
 		}
 	} else {
-		log.Debug().Str("agent", a.id).Msg("Scenario conditions not met - staying idle")
+		log.Info().Str("agent", a.id).Msg("Scenario conditions not met - staying idle")
 	}
 	
 	return nil
@@ -272,7 +276,7 @@ func (a *Agent) handleActiveState() error {
 
 // handleWaitingFeedbackState handles logic when agent is waiting for feedback
 func (a *Agent) handleWaitingFeedbackState() error {
-	log.Debug().Str("agent", a.id).Msg("Agent waiting for feedback")
+	log.Info().Str("agent", a.id).Msg("Agent waiting for feedback")
 	
 	// If we've been waiting too long, assume no response and continue
 	if a.questionPosted && time.Since(a.workStartTime) > 10*time.Minute {
@@ -288,7 +292,7 @@ func (a *Agent) handleWaitingFeedbackState() error {
 
 // handleErrorState handles logic when agent is in error state
 func (a *Agent) handleErrorState() error {
-	log.Debug().Str("agent", a.id).Msg("Agent in error state, attempting recovery")
+	log.Info().Str("agent", a.id).Msg("Agent in error state, attempting recovery")
 	
 	// Random recovery after some time
 	if rand.Float64() < 0.9 { // 10% chance per tick

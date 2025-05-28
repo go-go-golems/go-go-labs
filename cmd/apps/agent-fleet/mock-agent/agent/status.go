@@ -106,6 +106,35 @@ func (a *Agent) shutdown() error {
 	// Clean up - mark incomplete todos, etc.
 	a.cleanupOnShutdown()
 	
+	// Transition to finished state
+	a.state = StateFinished
+	
+	// Log finished event
+	_, err = a.client.CreateEvent(a.id, models.CreateEventRequest{
+		Type:    string(models.EventTypeInfo),
+		Message: "Agent shutdown completed",
+		Metadata: map[string]interface{}{
+			"final_state":    string(a.state),
+			"work_summary": map[string]interface{}{
+				"files_changed":  a.filesChanged,
+				"lines_added":    a.linesAdded,
+				"lines_removed":  a.linesRemoved,
+				"final_progress": a.progress,
+			},
+		},
+	})
+	
+	if err != nil {
+		log.Warn().Err(err).Msg("Failed to log finished event")
+	}
+	
+	// Update final status to finished
+	if err := a.updateStatus(); err != nil {
+		log.Warn().Err(err).Msg("Failed to update finished status")
+	}
+	
+	log.Info().Str("agent", a.id).Str("state", string(a.state)).Msg("Agent finished")
+	
 	// Optionally delete agent from backend (or leave for historical purposes)
 	// Uncomment the next lines if you want to remove agent on shutdown
 	// if err := a.client.DeleteAgent(a.id); err != nil {
