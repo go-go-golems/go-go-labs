@@ -40,8 +40,8 @@ templ AgentCard(agent models.Agent) {
 			<span class={ "badge", statusBadgeClass(agent.Status), "status" }>{ agent.Status }</span>
 		</div>
 		<div class="card-body">
-			if agent.CurrentTask != "" {
-				<p class="card-text"><strong>Task:</strong> { agent.CurrentTask }</p>
+			if agent.CurrentTask != nil && *agent.CurrentTask != "" {
+			<p class="card-text"><strong>Task:</strong> { *agent.CurrentTask }</p>
 			}
 			
 			if agent.PendingQuestion != nil && *agent.PendingQuestion != "" {

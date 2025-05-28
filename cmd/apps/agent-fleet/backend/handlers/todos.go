@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -59,6 +60,14 @@ func (h *Handlers) CreateAgentTodo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Info().
+		Str("agent_id", agentID).
+		Str("todo_id", todo.ID).
+		Str("todo_text", todo.Text).
+		Bool("completed", todo.Completed).
+		Bool("current", todo.Current).
+		Msg("Todo created")
+
 	// Broadcast todo creation
 	h.sse.BroadcastTodoUpdated(agentID, todo, "created")
 
@@ -94,6 +103,24 @@ func (h *Handlers) UpdateAgentTodo(w http.ResponseWriter, r *http.Request) {
 		writeErrorResponse(w, http.StatusInternalServerError, "DATABASE_ERROR", "Failed to update todo")
 		return
 	}
+
+	// Log the update
+	changes := []string{}
+	if req.Completed != nil {
+		changes = append(changes, fmt.Sprintf("completed: %t", *req.Completed))
+	}
+	if req.Current != nil {
+		changes = append(changes, fmt.Sprintf("current: %t", *req.Current))
+	}
+	if req.Text != nil {
+		changes = append(changes, fmt.Sprintf("text: %s", *req.Text))
+	}
+
+	log.Info().
+		Str("agent_id", agentID).
+		Str("todo_id", todoID).
+		Strs("changes", changes).
+		Msg("Todo updated")
 
 	// Broadcast todo update
 	h.sse.BroadcastTodoUpdated(agentID, todo, "updated")

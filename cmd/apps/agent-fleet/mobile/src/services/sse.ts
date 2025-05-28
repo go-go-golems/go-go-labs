@@ -3,43 +3,41 @@ import { useDispatch } from 'react-redux';
 import { agentFleetApi } from './api';
 import { setConnectionStatus } from '@/store/slices/uiSlice';
 import { SSEEvent } from '@/types/api';
+import EventSource from 'react-native-sse';
+import { AGENT_FLEET_API_BASE_URL } from './api';
 
 export function useSSEConnection() {
   const dispatch = useDispatch();
   const eventSourceRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
+    let es: EventSource | null = null;
     const connectSSE = () => {
       try {
         dispatch(setConnectionStatus('reconnecting'));
-        
-        eventSourceRef.current = new EventSource('https://api.agentfleet.dev/v1/stream', {
-          // Note: EventSource doesn't support custom headers in browser
-          // For auth, the API would need to use URL-based auth or cookies
-        });
 
-        eventSourceRef.current.onopen = () => {
+        es = new EventSource(`${AGENT_FLEET_API_BASE_URL}stream`);
+
+        es.addEventListener('open', () => {
           console.log('SSE connected');
           dispatch(setConnectionStatus('connected'));
-        };
+        });
 
-        eventSourceRef.current.onmessage = (event) => {
+        es.addEventListener('message', (event: any) => {
           try {
             const sseEvent: SSEEvent = JSON.parse(event.data);
             handleSSEEvent(sseEvent);
           } catch (error) {
             console.error('Failed to parse SSE event:', error);
           }
-        };
+        });
 
-        eventSourceRef.current.onerror = (error) => {
-          console.error('SSE error:', error);
+        es.addEventListener('error', (event: any) => {
+          console.error('SSE error:', event);
           dispatch(setConnectionStatus('disconnected'));
-          
           // Reconnect after 5 seconds
           setTimeout(connectSSE, 5000);
-        };
-
+        });
       } catch (error) {
         console.error('Failed to connect SSE:', error);
         dispatch(setConnectionStatus('disconnected'));
@@ -96,9 +94,10 @@ export function useSSEConnection() {
 
     // Cleanup on unmount
     return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
+      if (es) {
+        es.removeAllEventListeners();
+        es.close();
+        es = null;
       }
       dispatch(setConnectionStatus('disconnected'));
     };
@@ -106,16 +105,10 @@ export function useSSEConnection() {
 
   return {
     disconnect: () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
-        dispatch(setConnectionStatus('disconnected'));
-      }
+      // Not strictly needed, as cleanup handles it
+      dispatch(setConnectionStatus('disconnected'));
     },
     reconnect: () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-      }
       // The effect will automatically reconnect
     }
   };

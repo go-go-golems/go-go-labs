@@ -72,6 +72,13 @@ func (h *Handlers) CreateAgentEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Info().
+		Str("agent_id", agentID).
+		Str("event_id", event.ID).
+		Str("event_type", event.Type).
+		Str("message", event.Message).
+		Msg("Event created")
+
 	// Broadcast event creation
 	h.sse.BroadcastAgentEventCreated(agentID, event)
 

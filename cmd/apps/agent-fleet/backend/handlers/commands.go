@@ -75,6 +75,13 @@ func (h *Handlers) CreateAgentCommand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Info().
+		Str("agent_id", agentID).
+		Str("command_id", command.ID).
+		Str("command_type", command.Type).
+		Str("content", command.Content).
+		Msg("Command created")
+
 	// Broadcast command creation
 	h.sse.BroadcastCommandReceived(agentID, command)
 

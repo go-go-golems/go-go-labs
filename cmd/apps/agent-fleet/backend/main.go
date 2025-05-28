@@ -41,12 +41,14 @@ func init() {
 	rootCmd.PersistentFlags().StringP("database", "d", "./agent-fleet.db", "SQLite database file path")
 	rootCmd.PersistentFlags().StringP("log-level", "l", "info", "Log level (trace, debug, info, warn, error)")
 	rootCmd.PersistentFlags().BoolP("dev", "", false, "Development mode")
+	rootCmd.PersistentFlags().BoolP("disable-auth", "", false, "Disable authentication for testing")
 	
 	viper.BindPFlag("port", rootCmd.PersistentFlags().Lookup("port"))
 	viper.BindPFlag("host", rootCmd.PersistentFlags().Lookup("host"))
 	viper.BindPFlag("database", rootCmd.PersistentFlags().Lookup("database"))
 	viper.BindPFlag("log-level", rootCmd.PersistentFlags().Lookup("log-level"))
 	viper.BindPFlag("dev", rootCmd.PersistentFlags().Lookup("dev"))
+	viper.BindPFlag("disable-auth", rootCmd.PersistentFlags().Lookup("disable-auth"))
 }
 
 func initConfig() {
@@ -76,9 +78,21 @@ func setupLogger() {
 	}
 	
 	zerolog.SetGlobalLevel(logLevel)
+	zerolog.CallerMarshalFunc = func(pc uintptr, file string, line int) string {
+		short := file
+		for i := len(file) - 1; i > 0; i-- {
+			if file[i] == '/' {
+				short = file[i+1:]
+				break
+			}
+		}
+		return fmt.Sprintf("%s:%d", short, line)
+	}
 	
 	if viper.GetBool("dev") {
-		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr}).With().Caller().Logger()
+	} else {
+		log.Logger = log.With().Caller().Logger()
 	}
 }
 
@@ -120,8 +134,10 @@ func runServer(cmd *cobra.Command, args []string) {
 	
 	// API routes
 	r.Route("/v1", func(r chi.Router) {
-		// Authentication middleware for API routes
-		r.Use(auth.BearerTokenMiddleware)
+		// Authentication middleware for API routes (unless disabled)
+		if !viper.GetBool("disable-auth") {
+			r.Use(auth.BearerTokenMiddleware)
+		}
 		
 		// Agents
 		r.Route("/agents", func(r chi.Router) {
@@ -187,7 +203,10 @@ func runServer(cmd *cobra.Command, args []string) {
 	
 	// Start server in a goroutine
 	go func() {
-		log.Info().Str("address", addr).Msg("Starting server")
+		log.Info().
+		Str("address", addr).
+		Bool("auth_disabled", viper.GetBool("disable-auth")).
+		Msg("Starting server")
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal().Err(err).Msg("Server failed to start")
 		}

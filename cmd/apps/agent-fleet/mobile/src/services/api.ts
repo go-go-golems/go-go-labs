@@ -14,8 +14,11 @@ import type {
   RecentUpdatesResponse,
 } from '@/types/api';
 
+export const AGENT_FLEET_API_BASE_URL = 'http://192.168.0.79:8080/v1/';
+
 const baseQuery = fetchBaseQuery({
-  baseUrl: 'https://api.agentfleet.dev/v1/',
+  // baseUrl: 'https://api.agentfleet.dev/v1/',
+  baseUrl: AGENT_FLEET_API_BASE_URL,
   prepareHeaders: (headers, { getState }) => {
     // TODO: Add auth token from state
     // const token = (getState() as RootState).auth.token;

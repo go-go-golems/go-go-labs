@@ -39,7 +39,7 @@ func (db *DB) migrate() error {
 	schema := `
 	CREATE TABLE IF NOT EXISTS agents (
 		id TEXT PRIMARY KEY,
-		name TEXT NOT NULL UNIQUE,
+		name TEXT NOT NULL,
 		status TEXT NOT NULL DEFAULT 'idle',
 		current_task TEXT,
 		worktree TEXT NOT NULL,

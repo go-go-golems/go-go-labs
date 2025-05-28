@@ -9,7 +9,7 @@ type Agent struct {
 	ID              string     `json:"id" db:"id"`
 	Name            string     `json:"name" db:"name"`
 	Status          string     `json:"status" db:"status"` // active|idle|waiting_feedback|error
-	CurrentTask     string     `json:"current_task" db:"current_task"`
+	CurrentTask     *string    `json:"current_task" db:"current_task"`
 	Worktree        string     `json:"worktree" db:"worktree"`
 	FilesChanged    int        `json:"files_changed" db:"files_changed"`
 	LinesAdded      int        `json:"lines_added" db:"lines_added"`

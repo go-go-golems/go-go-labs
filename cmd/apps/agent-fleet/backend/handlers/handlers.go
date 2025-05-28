@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -149,6 +150,13 @@ func (h *Handlers) CreateAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Info().
+		Str("agent_id", agent.ID).
+		Str("agent_name", agent.Name).
+		Str("status", agent.Status).
+		Str("worktree", agent.Worktree).
+		Msg("Agent created successfully")
+
 	// Broadcast agent creation
 	h.sse.BroadcastAgentStatusChanged(agent.ID, "", agent.Status, agent)
 
@@ -185,6 +193,32 @@ func (h *Handlers) UpdateAgent(w http.ResponseWriter, r *http.Request) {
 		log.Error().Err(err).Str("agentID", agentID).Interface("request", req).Msg("Failed to update agent")
 		writeErrorResponse(w, http.StatusInternalServerError, "DATABASE_ERROR", "Failed to update agent")
 		return
+	}
+
+	// Log significant changes
+	changes := []string{}
+	if req.Status != nil && *req.Status != currentAgent.Status {
+		changes = append(changes, fmt.Sprintf("status: %s->%s", currentAgent.Status, *req.Status))
+	}
+	if req.CurrentTask != nil {
+		oldTask := ""
+		if currentAgent.CurrentTask != nil {
+			oldTask = *currentAgent.CurrentTask
+		}
+		if *req.CurrentTask != oldTask {
+			changes = append(changes, fmt.Sprintf("task: %s->%s", oldTask, *req.CurrentTask))
+		}
+	}
+	if req.Progress != nil && *req.Progress != currentAgent.Progress {
+		changes = append(changes, fmt.Sprintf("progress: %d%%->%d%%", currentAgent.Progress, *req.Progress))
+	}
+	
+	if len(changes) > 0 {
+		log.Info().
+			Str("agent_id", agentID).
+			Str("agent_name", agent.Name).
+			Strs("changes", changes).
+			Msg("Agent updated")
 	}
 
 	// Broadcast status change if status changed
