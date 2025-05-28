@@ -3,6 +3,7 @@ package filecache
 import (
 	"crypto/sha256"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -10,7 +11,35 @@ import (
 	"github.com/sergi/go-diff/diffmatchpatch"
 )
 
-// FileContent represents cached file content
+// TimeProvider interface allows mocking time for testing
+type TimeProvider interface {
+	Now() time.Time
+}
+
+// RealTimeProvider implements TimeProvider using real time
+type RealTimeProvider struct{}
+
+func (r RealTimeProvider) Now() time.Time {
+	return time.Now()
+}
+
+// Segment represents a contiguous range of file content
+type Segment struct {
+	Start   uint64 // inclusive
+	End     uint64 // exclusive (Start+len(Data))
+	Data    []byte // len == End-Start
+	AddedAt time.Time
+}
+
+// SparseFile represents a file as a collection of segments
+type SparseFile struct {
+	mu       sync.RWMutex
+	Segments []*Segment // sorted, non-overlapping, non-adjacent (merged)
+	Size     uint64     // bytes stored (for limit accounting)
+	LastUsed time.Time  // for LRU eviction
+}
+
+// FileContent represents cached file content (legacy compatibility)
 type FileContent struct {
 	Content   []byte
 	Hash      string
@@ -21,21 +50,45 @@ type FileContent struct {
 
 // FileCache caches file contents for diff generation
 type FileCache struct {
-	cache  map[string]*FileContent // key: "pid:fd" or "hash:offset"
-	mu     sync.RWMutex
-	maxAge time.Duration
+	// New sparse file representation
+	files map[uint32]*SparseFile // pathHash -> sparse file representation
+
+	// Legacy single-offset cache for backward compatibility
+	cache map[string]*FileContent // key: "pid:fd:pathHash:offset"
+
+	mu           sync.RWMutex
+	maxAge       time.Duration
+	perFileLimit uint64       // bytes per file
+	globalLimit  uint64       // total bytes across all files
+	totalSize    uint64       // current total bytes stored
+	timeProvider TimeProvider // for mocking time in tests
 }
 
 // New creates a new file cache
 func New() *FileCache {
 	return &FileCache{
-		cache:  make(map[string]*FileContent),
-		maxAge: 10 * time.Minute, // Cache for 10 minutes
+		files:        make(map[uint32]*SparseFile),
+		cache:        make(map[string]*FileContent),
+		maxAge:       10 * time.Minute, // Cache for 10 minutes
+		perFileLimit: 512 * 1024,       // 512 KB per file
+		globalLimit:  64 * 1024 * 1024, // 64 MB total
+		timeProvider: RealTimeProvider{},
 	}
+}
+
+// NewWithTimeProvider creates a new file cache with custom time provider (for testing)
+func NewWithTimeProvider(tp TimeProvider) *FileCache {
+	fc := New()
+	fc.timeProvider = tp
+	return fc
 }
 
 // StoreReadContent stores content from a read operation
 func (fc *FileCache) StoreReadContent(pid uint32, fd int32, pathHash uint32, content []byte, offset uint64) {
+	// Store in new sparse cache
+	fc.AddRead(pathHash, offset, content)
+
+	// Also store in legacy cache for backward compatibility
 	fc.mu.Lock()
 	defer fc.mu.Unlock()
 
@@ -47,7 +100,7 @@ func (fc *FileCache) StoreReadContent(pid uint32, fd int32, pathHash uint32, con
 	fc.cache[key] = &FileContent{
 		Content:   make([]byte, len(content)),
 		Hash:      hash,
-		Timestamp: time.Now(),
+		Timestamp: fc.timeProvider.Now(),
 		Offset:    offset,
 		Size:      uint64(len(content)),
 	}
@@ -75,13 +128,19 @@ func (fc *FileCache) GetContentForDiff(pid uint32, fd int32, pathHash uint32, of
 
 // GenerateDiff compares cached content with new write content
 func (fc *FileCache) GenerateDiff(pid uint32, fd int32, pathHash uint32, offset uint64, newContent []byte) (string, bool) {
-	cachedContent, exists := fc.GetContentForDiff(pid, fd, pathHash, offset)
+	// Try new sparse cache first
+	oldContent, exists := fc.GetOldContent(pathHash, offset, uint64(len(newContent)))
 	if !exists {
-		return "", false
+		// Fall back to legacy cache
+		cachedContent, exists := fc.GetContentForDiff(pid, fd, pathHash, offset)
+		if !exists {
+			return "", false
+		}
+		oldContent = cachedContent.Content
 	}
 
 	dmp := diffmatchpatch.New()
-	diffs := dmp.DiffMain(string(cachedContent.Content), string(newContent), false)
+	diffs := dmp.DiffMain(string(oldContent), string(newContent), false)
 
 	// Only return diff if there are actual changes
 	hasChanges := false
@@ -96,18 +155,27 @@ func (fc *FileCache) GenerateDiff(pid uint32, fd int32, pathHash uint32, offset 
 		return "", false
 	}
 
+	// Update cache with new write content
+	fc.UpdateWithWrite(pathHash, offset, newContent)
+
 	return dmp.DiffPrettyText(diffs), true
 }
 
 // GenerateUnifiedDiff generates a unified diff format with proper line numbers
 func (fc *FileCache) GenerateUnifiedDiff(pid uint32, fd int32, pathHash uint32, offset uint64, newContent []byte, filename string) (string, bool) {
-	cachedContent, exists := fc.GetContentForDiff(pid, fd, pathHash, offset)
+	// Try new sparse cache first
+	oldContent, exists := fc.GetOldContent(pathHash, offset, uint64(len(newContent)))
 	if !exists {
-		return "", false
+		// Fall back to legacy cache
+		cachedContent, exists := fc.GetContentForDiff(pid, fd, pathHash, offset)
+		if !exists {
+			return "", false
+		}
+		oldContent = cachedContent.Content
 	}
 
 	dmp := diffmatchpatch.New()
-	a, b, c := dmp.DiffLinesToChars(string(cachedContent.Content), string(newContent))
+	a, b, c := dmp.DiffLinesToChars(string(oldContent), string(newContent))
 	diffs := dmp.DiffMain(a, b, false)
 	result := dmp.DiffCharsToLines(diffs, c)
 
@@ -142,6 +210,9 @@ func (fc *FileCache) GenerateUnifiedDiff(pid uint32, fd int32, pathHash uint32, 
 			}
 		}
 	}
+
+	// Update cache with new write content
+	fc.UpdateWithWrite(pathHash, offset, newContent)
 
 	return diff.String(), true
 }
@@ -188,10 +259,378 @@ func (fc *FileCache) Cleanup() {
 	fc.mu.Lock()
 	defer fc.mu.Unlock()
 
-	now := time.Now()
+	now := fc.timeProvider.Now()
+
+	// Clean up legacy cache
 	for key, content := range fc.cache {
 		if now.Sub(content.Timestamp) > fc.maxAge {
 			delete(fc.cache, key)
+		}
+	}
+
+	// Clean up sparse files
+	for pathHash, sf := range fc.files {
+		sf.mu.Lock()
+
+		// Remove expired segments
+		validSegments := make([]*Segment, 0, len(sf.Segments))
+		for _, seg := range sf.Segments {
+			if now.Sub(seg.AddedAt) <= fc.maxAge {
+				validSegments = append(validSegments, seg)
+			} else {
+				sf.Size -= uint64(len(seg.Data))
+				fc.totalSize -= uint64(len(seg.Data))
+			}
+		}
+		sf.Segments = validSegments
+
+		// Remove empty files
+		if len(sf.Segments) == 0 {
+			sf.mu.Unlock()
+			delete(fc.files, pathHash)
+		} else {
+			sf.mu.Unlock()
+		}
+	}
+}
+
+// insertSegment adds a segment to the sparse file, merging with adjacent/overlapping segments
+func (sf *SparseFile) insertSegment(newSeg *Segment) {
+	if newSeg.Start >= newSeg.End {
+		return // Invalid segment
+	}
+
+	// Simple case: no existing segments
+	if len(sf.Segments) == 0 {
+		sf.Segments = []*Segment{newSeg}
+		sf.Size += uint64(len(newSeg.Data))
+		sf.LastUsed = time.Now()
+		return
+	}
+
+	// Find all segments that overlap or are adjacent to the new segment
+	var toMerge []*Segment
+	var toKeep []*Segment
+
+	for _, seg := range sf.Segments {
+		// Check if segments overlap or are adjacent
+		if seg.End >= newSeg.Start && seg.Start <= newSeg.End {
+			toMerge = append(toMerge, seg)
+			sf.Size -= uint64(len(seg.Data)) // Remove from size accounting
+		} else {
+			toKeep = append(toKeep, seg)
+		}
+	}
+
+	// Add the new segment to the merge list
+	toMerge = append(toMerge, newSeg)
+
+	// Find the overall bounds
+	start := newSeg.Start
+	end := newSeg.End
+
+	for _, seg := range toMerge {
+		if seg.Start < start {
+			start = seg.Start
+		}
+		if seg.End > end {
+			end = seg.End
+		}
+	}
+
+	// Create merged data
+	mergedData := make([]byte, end-start)
+
+	// Fill with data from all segments, with later segments overwriting earlier ones
+	for _, seg := range toMerge {
+		relStart := seg.Start - start
+		copy(mergedData[relStart:relStart+uint64(len(seg.Data))], seg.Data)
+	}
+
+	// Create the final merged segment
+	finalSeg := &Segment{
+		Start:   start,
+		End:     end,
+		Data:    mergedData,
+		AddedAt: time.Now(),
+	}
+
+	// Update size accounting
+	sf.Size += uint64(len(finalSeg.Data))
+
+	// Add the merged segment to the keep list
+	toKeep = append(toKeep, finalSeg)
+
+	// Sort segments by start position
+	sort.Slice(toKeep, func(i, j int) bool {
+		return toKeep[i].Start < toKeep[j].Start
+	})
+
+	sf.Segments = toKeep
+	sf.LastUsed = time.Now()
+}
+
+// UpdateWithWrite invalidates segments that overlap with the write and adds the new write segment
+func (sf *SparseFile) UpdateWithWrite(offset uint64, data []byte) {
+	sf.mu.Lock()
+	defer sf.mu.Unlock()
+
+	writeEnd := offset + uint64(len(data))
+
+	// Find all segments that overlap [offset, writeEnd)
+	var toRemove []int
+	var toAdd []*Segment
+
+	for i, seg := range sf.Segments {
+		if seg.End <= offset || seg.Start >= writeEnd {
+			continue // No overlap
+		}
+
+		// Mark for removal
+		toRemove = append(toRemove, i)
+
+		// Keep non-overlapping parts only if they exist
+		if seg.Start < offset {
+			// Keep prefix [seg.Start, offset)
+			prefixLen := offset - seg.Start
+			toAdd = append(toAdd, &Segment{
+				Start:   seg.Start,
+				End:     offset,
+				Data:    make([]byte, prefixLen),
+				AddedAt: time.Now(),
+			})
+			copy(toAdd[len(toAdd)-1].Data, seg.Data[:prefixLen])
+		}
+
+		if seg.End > writeEnd {
+			// Keep suffix [writeEnd, seg.End) only if there's actual content
+			suffixStart := writeEnd - seg.Start
+			suffixLen := seg.End - writeEnd
+			if suffixLen > 0 && suffixStart < uint64(len(seg.Data)) {
+				toAdd = append(toAdd, &Segment{
+					Start:   writeEnd,
+					End:     seg.End,
+					Data:    make([]byte, suffixLen),
+					AddedAt: time.Now(),
+				})
+				copy(toAdd[len(toAdd)-1].Data, seg.Data[suffixStart:])
+			}
+		}
+
+		// Update size accounting for removed segment
+		sf.Size -= uint64(len(seg.Data))
+	}
+
+	// Remove overlapping segments (in reverse order to maintain indices)
+	for i := len(toRemove) - 1; i >= 0; i-- {
+		idx := toRemove[i]
+		sf.Segments = append(sf.Segments[:idx], sf.Segments[idx+1:]...)
+	}
+
+	// Add the new write segment
+	newSeg := &Segment{
+		Start:   offset,
+		End:     writeEnd,
+		Data:    make([]byte, len(data)),
+		AddedAt: time.Now(),
+	}
+	copy(newSeg.Data, data)
+	toAdd = append(toAdd, newSeg)
+
+	// Add all new segments to the segments list
+	sf.Segments = append(sf.Segments, toAdd...)
+
+	// Sort segments by start position
+	sort.Slice(sf.Segments, func(i, j int) bool {
+		return sf.Segments[i].Start < sf.Segments[j].Start
+	})
+}
+
+// GetContentRange reconstructs content for the given range, filling gaps with gapByte
+func (sf *SparseFile) GetContentRange(offset, length uint64, gapByte byte) ([]byte, bool) {
+	sf.mu.RLock()
+	defer sf.mu.RUnlock()
+
+	if length == 0 {
+		return []byte{}, false
+	}
+
+	endOffset := offset + length
+	result := make([]byte, length)
+	filled := make([]bool, length)
+
+	// Fill with gap bytes initially
+	for i := range result {
+		result[i] = gapByte
+	}
+
+	hasData := false
+
+	// Find segments that overlap with the requested range
+	for _, seg := range sf.Segments {
+		if seg.End <= offset || seg.Start >= endOffset {
+			continue // No overlap
+		}
+
+		hasData = true
+
+		// Calculate overlap
+		overlapStart := maxUint64(seg.Start, offset)
+		overlapEnd := minUint64(seg.End, endOffset)
+
+		// Copy data from segment
+		segDataStart := overlapStart - seg.Start
+		resultStart := overlapStart - offset
+		copyLen := overlapEnd - overlapStart
+
+		copy(result[resultStart:resultStart+copyLen], seg.Data[segDataStart:segDataStart+copyLen])
+		for i := resultStart; i < resultStart+copyLen; i++ {
+			filled[i] = true
+		}
+	}
+
+	sf.LastUsed = time.Now()
+	return result, hasData
+}
+
+// AddRead adds a read segment to the sparse file representation
+func (fc *FileCache) AddRead(pathHash uint32, offset uint64, data []byte) {
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
+
+	sf, exists := fc.files[pathHash]
+	if !exists {
+		sf = &SparseFile{
+			Segments: make([]*Segment, 0),
+			LastUsed: time.Now(),
+		}
+		fc.files[pathHash] = sf
+	}
+
+	sf.mu.Lock()
+	defer sf.mu.Unlock()
+
+	// Create new segment
+	newSeg := &Segment{
+		Start:   offset,
+		End:     offset + uint64(len(data)),
+		Data:    make([]byte, len(data)),
+		AddedAt: time.Now(),
+	}
+	copy(newSeg.Data, data)
+
+	// Insert and merge
+	sf.insertSegment(newSeg)
+
+	// Update global size accounting
+	fc.totalSize += uint64(len(data))
+
+	// Enforce per-file limit
+	fc.enforcePerFileLimit(sf)
+
+	// Enforce global limit
+	fc.enforceGlobalLimit()
+}
+
+// GetOldContent retrieves cached content for diff comparison
+func (fc *FileCache) GetOldContent(pathHash uint32, offset uint64, size uint64) ([]byte, bool) {
+	fc.mu.RLock()
+	sf, exists := fc.files[pathHash]
+	fc.mu.RUnlock()
+
+	if !exists {
+		return nil, false
+	}
+
+	return sf.GetContentRange(offset, size, 0x00)
+}
+
+// UpdateWithWrite updates the cache with new write content
+func (fc *FileCache) UpdateWithWrite(pathHash uint32, offset uint64, data []byte) {
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
+
+	sf, exists := fc.files[pathHash]
+	if !exists {
+		sf = &SparseFile{
+			Segments: make([]*Segment, 0),
+			LastUsed: time.Now(),
+		}
+		fc.files[pathHash] = sf
+	}
+
+	sf.UpdateWithWrite(offset, data)
+
+	// Update global size accounting
+	fc.totalSize += uint64(len(data))
+
+	// Enforce limits
+	fc.enforcePerFileLimit(sf)
+	fc.enforceGlobalLimit()
+}
+
+// Helper functions
+func maxUint64(a, b uint64) uint64 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func minUint64(a, b uint64) uint64 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+// enforcePerFileLimit removes oldest segments if file exceeds per-file limit
+func (fc *FileCache) enforcePerFileLimit(sf *SparseFile) {
+	sf.mu.Lock()
+	defer sf.mu.Unlock()
+
+	for sf.Size > fc.perFileLimit && len(sf.Segments) > 0 {
+		// Find oldest segment
+		oldestIdx := 0
+		for i := 1; i < len(sf.Segments); i++ {
+			if sf.Segments[i].AddedAt.Before(sf.Segments[oldestIdx].AddedAt) {
+				oldestIdx = i
+			}
+		}
+
+		// Remove oldest segment
+		removed := sf.Segments[oldestIdx]
+		sf.Size -= uint64(len(removed.Data))
+		fc.totalSize -= uint64(len(removed.Data))
+
+		sf.Segments = append(sf.Segments[:oldestIdx], sf.Segments[oldestIdx+1:]...)
+	}
+}
+
+// enforceGlobalLimit removes least recently used files if global limit exceeded
+func (fc *FileCache) enforceGlobalLimit() {
+	for fc.totalSize > fc.globalLimit && len(fc.files) > 0 {
+		// Find least recently used file
+		var oldestPathHash uint32
+		var oldestTime time.Time = time.Now()
+
+		for pathHash, sf := range fc.files {
+			sf.mu.RLock()
+			if sf.LastUsed.Before(oldestTime) {
+				oldestTime = sf.LastUsed
+				oldestPathHash = pathHash
+			}
+			sf.mu.RUnlock()
+		}
+
+		// Remove entire file
+		if sf, exists := fc.files[oldestPathHash]; exists {
+			sf.mu.Lock()
+			for _, seg := range sf.Segments {
+				fc.totalSize -= uint64(len(seg.Data))
+			}
+			sf.mu.Unlock()
+			delete(fc.files, oldestPathHash)
 		}
 	}
 }
@@ -200,5 +639,12 @@ func (fc *FileCache) Cleanup() {
 func (fc *FileCache) Size() int {
 	fc.mu.RLock()
 	defer fc.mu.RUnlock()
-	return len(fc.cache)
+
+	size := len(fc.cache) // Legacy cache entries
+	for _, sf := range fc.files {
+		sf.mu.RLock()
+		size += len(sf.Segments)
+		sf.mu.RUnlock()
+	}
+	return size
 }
