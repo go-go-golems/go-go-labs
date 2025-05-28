@@ -268,21 +268,21 @@ If `GetOldContent` returns `false` (no overlap), we still call `UpdateWithWrite`
 
 **Test File Organization:**
 
-- `api_test.go` - API compatibility and parameter validation
-- `segment_test.go` - Segment merging and insertion logic
-- `write_invalidation_test.go` - Write operations and segment invalidation
-- `content_reconstruction_test.go` - Content reconstruction with gaps
-- `cache_management_test.go` - Memory limits, TTL expiration, LRU eviction
-- `concurrency_test.go` - Race condition detection and concurrent access
-- `integration_test.go` - End-to-end workflow testing
-- `diff_utils_test.go` - Unified diff generation and parsing
+- [`api_test.go`](file:///home/manuel/code/wesen/corporate-headquarters/go-go-labs/cmd/experiments/sniff-writes/pkg/filecache/api_test.go) - API compatibility and parameter validation
+- [`segment_test.go`](file:///home/manuel/code/wesen/corporate-headquarters/go-go-labs/cmd/experiments/sniff-writes/pkg/filecache/segment_test.go) - Segment merging and insertion logic
+- [`write_invalidation_test.go`](file:///home/manuel/code/wesen/corporate-headquarters/go-go-labs/cmd/experiments/sniff-writes/pkg/filecache/write_invalidation_test.go) - Write operations and segment invalidation
+- [`content_reconstruction_test.go`](file:///home/manuel/code/wesen/corporate-headquarters/go-go-labs/cmd/experiments/sniff-writes/pkg/filecache/content_reconstruction_test.go) - Content reconstruction with gaps
+- [`cache_management_test.go`](file:///home/manuel/code/wesen/corporate-headquarters/go-go-labs/cmd/experiments/sniff-writes/pkg/filecache/cache_management_test.go) - Memory limits, TTL expiration, LRU eviction
+- [`concurrency_test.go`](file:///home/manuel/code/wesen/corporate-headquarters/go-go-labs/cmd/experiments/sniff-writes/pkg/filecache/concurrency_test.go) - Race condition detection and concurrent access
+- [`integration_test.go`](file:///home/manuel/code/wesen/corporate-headquarters/go-go-labs/cmd/experiments/sniff-writes/pkg/filecache/integration_test.go) - End-to-end workflow testing
+- [`diff_utils_test.go`](file:///home/manuel/code/wesen/corporate-headquarters/go-go-labs/cmd/experiments/sniff-writes/pkg/filecache/diff_utils_test.go) - Unified diff generation and parsing
 
 **Basic Read Operations - ✅ IMPLEMENTED:**
-• Single read at offset 0 creates first segment (`TestSegmentMerging/single_segment_to_empty`)
-• Multiple non-overlapping reads create separate segments (`TestMultipleFileWorkflow`)
-• Sequential reads merge into single segment (`TestSegmentMerging/adjacent_segments_merge`)
-• Adjacent reads merge correctly (`TestSegmentMerging/adjacent_segments_merge`)
-• Read at arbitrary offset works correctly (`TestSegmentMerging/*`)
+• Single read at offset 0 creates first segment ([`TestSegmentMerging/single_segment_to_empty`](file:///home/manuel/code/wesen/corporate-headquarters/go-go-labs/cmd/experiments/sniff-writes/pkg/filecache/segment_test.go))
+• Multiple non-overlapping reads create separate segments ([`TestMultipleFileWorkflow`](file:///home/manuel/code/wesen/corporate-headquarters/go-go-labs/cmd/experiments/sniff-writes/pkg/filecache/integration_test.go))
+• Sequential reads merge into single segment ([`TestSegmentMerging/adjacent_segments_merge`](file:///home/manuel/code/wesen/corporate-headquarters/go-go-labs/cmd/experiments/sniff-writes/pkg/filecache/segment_test.go))
+• Adjacent reads merge correctly ([`TestSegmentMerging/adjacent_segments_merge`](file:///home/manuel/code/wesen/corporate-headquarters/go-go-labs/cmd/experiments/sniff-writes/pkg/filecache/segment_test.go))
+• Read at arbitrary offset works correctly ([`TestSegmentMerging/*`](file:///home/manuel/code/wesen/corporate-headquarters/go-go-labs/cmd/experiments/sniff-writes/pkg/filecache/segment_test.go))
 
 **Edge Cases - ✅ IMPLEMENTED:**
 • Zero-length read handling (`TestSegmentMergingEdgeCases/zero-length_segment_ignored`)
