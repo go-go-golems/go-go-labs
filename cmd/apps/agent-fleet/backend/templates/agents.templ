@@ -1,0 +1,104 @@
+package templates
+
+import (
+	"strconv"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/agent-fleet/backend/models"
+)
+
+templ Agents(agents []models.Agent) {
+	@Base("Agents") {
+		<div class="row">
+			<div class="col-12">
+				<div class="d-flex justify-content-between align-items-center mb-4">
+					<h1>Agents</h1>
+					<button class="btn btn-primary" onclick="window.location.reload()">Refresh</button>
+				</div>
+			</div>
+		</div>
+		
+		if len(agents) == 0 {
+			<div class="alert alert-info">
+				<h4>No agents found</h4>
+				<p>Create your first agent to get started with the fleet management system.</p>
+			</div>
+		} else {
+			<div class="row">
+				for _, agent := range agents {
+					<div class="col-md-6 col-lg-4 mb-4">
+						@AgentCard(agent)
+					</div>
+				}
+			</div>
+		}
+	}
+}
+
+templ AgentCard(agent models.Agent) {
+	<div class={ "card", "agent-card", "h-100", templ.KV("needs-feedback", agent.Status == "waiting_feedback") } data-agent-id={ agent.ID }>
+		<div class="card-header d-flex justify-content-between align-items-center">
+			<h6 class="mb-0">{ agent.Name }</h6>
+			<span class={ "badge", statusBadgeClass(agent.Status), "status" }>{ agent.Status }</span>
+		</div>
+		<div class="card-body">
+			if agent.CurrentTask != "" {
+				<p class="card-text"><strong>Task:</strong> { agent.CurrentTask }</p>
+			}
+			
+			if agent.PendingQuestion != nil && *agent.PendingQuestion != "" {
+				<div class="alert alert-warning alert-sm mb-2">
+					<strong>Question:</strong> { *agent.PendingQuestion }
+				</div>
+			}
+			
+			<div class="row text-center mb-2">
+				<div class="col-6">
+					<small class="text-muted">Worktree</small><br/>
+					<strong>{ agent.Worktree }</strong>
+				</div>
+				<div class="col-6">
+					<small class="text-muted">Progress</small><br/>
+					<strong>{ strconv.Itoa(agent.Progress) }%</strong>
+				</div>
+			</div>
+			
+			<div class="row text-center">
+				<div class="col-4">
+					<small class="text-muted">Files</small><br/>
+					<span class="text-info">{ strconv.Itoa(agent.FilesChanged) }</span>
+				</div>
+				<div class="col-4">
+					<small class="text-muted">Added</small><br/>
+					<span class="text-success">+{ strconv.Itoa(agent.LinesAdded) }</span>
+				</div>
+				<div class="col-4">
+					<small class="text-muted">Removed</small><br/>
+					<span class="text-danger">-{ strconv.Itoa(agent.LinesRemoved) }</span>
+				</div>
+			</div>
+			
+			if agent.Progress > 0 {
+				<div class="progress mt-2" style="height: 6px;">
+					<div class="progress-bar" role="progressbar" style={ "width: " + strconv.Itoa(agent.Progress) + "%" }></div>
+				</div>
+			}
+		</div>
+		<div class="card-footer text-muted">
+			<small>Updated: { agent.UpdatedAt.Format("Jan 2, 15:04") }</small>
+		</div>
+	</div>
+}
+
+func statusBadgeClass(status string) string {
+	switch status {
+	case "active":
+		return "bg-success"
+	case "idle":
+		return "bg-secondary"
+	case "waiting_feedback":
+		return "bg-warning"
+	case "error":
+		return "bg-danger"
+	default:
+		return "bg-secondary"
+	}
+}
