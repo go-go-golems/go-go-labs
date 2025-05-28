@@ -693,3 +693,52 @@ func (fc *FileCache) Size() int {
 	}
 	return size
 }
+
+// CleanExpired removes expired cache entries based on TTL
+func (fc *FileCache) CleanExpired() {
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
+
+	now := fc.timeProvider.Now()
+	
+	// Remove expired files
+	for pathHash, sf := range fc.files {
+		sf.mu.Lock()
+		
+		// Check if file is expired
+		if now.Sub(sf.LastUsed) > fc.maxAge {
+			// Remove entire file
+			for _, seg := range sf.Segments {
+				fc.totalSize -= uint64(len(seg.Data))
+			}
+			sf.mu.Unlock()
+			delete(fc.files, pathHash)
+		} else {
+			// Check individual segments for expiration
+			var validSegments []*Segment
+			removedBytes := uint64(0)
+			
+			for _, seg := range sf.Segments {
+				if now.Sub(seg.AddedAt) > fc.maxAge {
+					// Segment is expired
+					removedBytes += uint64(len(seg.Data))
+				} else {
+					// Segment is still valid
+					validSegments = append(validSegments, seg)
+				}
+			}
+			
+			sf.Segments = validSegments
+			sf.Size -= removedBytes
+			fc.totalSize -= removedBytes
+			sf.mu.Unlock()
+		}
+	}
+	
+	// Clean legacy cache entries
+	for key, content := range fc.cache {
+		if now.Sub(content.Timestamp) > fc.maxAge {
+			delete(fc.cache, key)
+		}
+	}
+}
