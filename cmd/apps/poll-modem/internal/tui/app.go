@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -53,6 +54,11 @@ type fetchResultMsg struct {
 	info *modem.ModemInfo
 	err  error
 }
+type loginStartMsg struct{}
+type loginResultMsg struct {
+	info *modem.ModemInfo
+	err  error
+}
 type csvExportMsg struct {
 	success bool
 	files   []string
@@ -84,6 +90,7 @@ type App struct {
 	width        int
 	height       int
 	loading      bool
+	loggingIn    bool // New field to track login state
 	currentView  int // 0: overview, 1: downstream, 2: upstream, 3: errors
 	showHistory  bool // Toggle between current and history view
 	lastExport   string // Status of last CSV export
@@ -288,6 +295,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, tea.Quit
 		case key.Matches(msg, a.keys.Refresh):
 			a.loading = true
+			a.loggingIn = false
 			return a, a.fetchData()
 		case key.Matches(msg, a.keys.NextView):
 			a.currentView = (a.currentView + 1) % 4
@@ -354,7 +362,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tickMsg:
-		if !a.loading {
+		if !a.loading && !a.loggingIn {
 			a.loading = true
 			return a, tea.Batch(a.fetchData(), a.tickCmd())
 		}
@@ -362,6 +370,36 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case fetchResultMsg:
 		a.loading = false
+		if msg.err != nil {
+			// Check if it's a logout error
+			if modem.IsLogoutError(msg.err) {
+				// Start login process if credentials are available
+				if a.client != nil {
+					// Check if we have credentials before attempting login
+					// This is a simple check - the actual validation happens in LoginAndFetch
+					a.loggingIn = true
+					return a, a.performLogin()
+				} else {
+					a.lastError = errors.New("authentication required but no credentials provided - use --username and --password flags")
+				}
+			} else {
+				a.lastError = msg.err
+			}
+		} else {
+			a.lastError = nil
+			a.modemInfo = msg.info
+			a.addToHistory(*msg.info)
+			a.updateTables()
+			a.updateHistoryTables()
+		}
+		return a, nil
+
+	case loginStartMsg:
+		a.loggingIn = true
+		return a, nil
+
+	case loginResultMsg:
+		a.loggingIn = false
 		if msg.err != nil {
 			a.lastError = msg.err
 		} else {
@@ -405,11 +443,15 @@ func (a *App) View() string {
 	// Status line
 	if a.loading {
 		content.WriteString(fmt.Sprintf("%s Fetching data...", a.spinner.View()))
+	} else if a.loggingIn {
+		content.WriteString(fmt.Sprintf("%s Logging in...", a.spinner.View()))
 	} else if a.lastError != nil {
 		errorMsg := fmt.Sprintf("Error: %v", a.lastError)
 		// Add helpful hints for common errors
-		if strings.Contains(a.lastError.Error(), "logged out") {
-			errorMsg += "\nHint: Session expired - will attempt re-authentication on next refresh"
+		if modem.IsLogoutError(a.lastError) {
+			errorMsg += "\nHint: Session expired - authentication will be attempted automatically if credentials are provided"
+		} else if strings.Contains(a.lastError.Error(), "credentials provided") {
+			errorMsg += "\nHint: Use --username and --password flags when starting the application"
 		} else if strings.Contains(a.lastError.Error(), "forbidden") || strings.Contains(a.lastError.Error(), "403") {
 			errorMsg += "\nHint: Try providing --username and --password flags for authentication"
 		} else if strings.Contains(a.lastError.Error(), "connection refused") {
@@ -447,7 +489,11 @@ func (a *App) View() string {
 	if a.currentView == 0 {
 		content.WriteString(infoStyle.Render("Press 'r' to refresh, 'tab' to switch views, 'h' to toggle history, 'e' to export CSV, 'q' to quit"))
 	} else {
-		content.WriteString(infoStyle.Render("Press 'r' to refresh, 'tab' to switch views, '↑/↓' or 'j/k' to navigate table, 'h' to toggle history, 'e' to export CSV, 'q' to quit"))
+		if a.showHistory {
+			content.WriteString(infoStyle.Render("Press 'r' to refresh, 'tab' to switch views, '↑/↓' or 'j/k' to navigate history, 'h' to return to current data, 'e' to export CSV, 'q' to quit"))
+		} else {
+			content.WriteString(infoStyle.Render("Press 'r' to refresh, 'tab' to switch views, '↑/↓' or 'j/k' to navigate table, 'h' to view history, 'e' to export CSV, 'q' to quit"))
+		}
 	}
 
 	return content.String()
@@ -500,21 +546,21 @@ func (a *App) renderOverview() string {
 
 func (a *App) renderDownstream() string {
 	var content strings.Builder
-	content.WriteString(headerStyle.Render("Downstream Channels"))
-	content.WriteString("\n\n")
-	
-	if a.showHistory && len(a.history) > 0 && a.selectedChannelID != "" {
-		// Show filtered history for selected channel in the top table
-		content.WriteString(tableStyle.Render(a.getFilteredDownstreamTable().View()))
-	} else {
-		content.WriteString(tableStyle.Render(a.downTable.View()))
-	}
 	
 	if a.showHistory && len(a.history) > 0 {
-		content.WriteString("\n\n")
-		content.WriteString(headerStyle.Render("Downstream History"))
+		// Show history view with descriptive header
+		if a.selectedChannelID != "" {
+			content.WriteString(headerStyle.Render(fmt.Sprintf("Downstream History - Channel %s", a.selectedChannelID)))
+		} else {
+			content.WriteString(headerStyle.Render("Downstream History - All Channels"))
+		}
 		content.WriteString("\n\n")
 		content.WriteString(tableStyle.Render(a.downHistoryTable.View()))
+	} else {
+		// Show current data view
+		content.WriteString(headerStyle.Render("Downstream Channels"))
+		content.WriteString("\n\n")
+		content.WriteString(tableStyle.Render(a.downTable.View()))
 	}
 	
 	return content.String()
@@ -522,21 +568,21 @@ func (a *App) renderDownstream() string {
 
 func (a *App) renderUpstream() string {
 	var content strings.Builder
-	content.WriteString(headerStyle.Render("Upstream Channels"))
-	content.WriteString("\n\n")
-	
-	if a.showHistory && len(a.history) > 0 && a.selectedChannelID != "" {
-		// Show filtered history for selected channel in the top table
-		content.WriteString(tableStyle.Render(a.getFilteredUpstreamTable().View()))
-	} else {
-		content.WriteString(tableStyle.Render(a.upTable.View()))
-	}
 	
 	if a.showHistory && len(a.history) > 0 {
-		content.WriteString("\n\n")
-		content.WriteString(headerStyle.Render("Upstream History"))
+		// Show history view with descriptive header
+		if a.selectedChannelID != "" {
+			content.WriteString(headerStyle.Render(fmt.Sprintf("Upstream History - Channel %s", a.selectedChannelID)))
+		} else {
+			content.WriteString(headerStyle.Render("Upstream History - All Channels"))
+		}
 		content.WriteString("\n\n")
 		content.WriteString(tableStyle.Render(a.upHistoryTable.View()))
+	} else {
+		// Show current data view
+		content.WriteString(headerStyle.Render("Upstream Channels"))
+		content.WriteString("\n\n")
+		content.WriteString(tableStyle.Render(a.upTable.View()))
 	}
 	
 	return content.String()
@@ -544,21 +590,21 @@ func (a *App) renderUpstream() string {
 
 func (a *App) renderErrors() string {
 	var content strings.Builder
-	content.WriteString(headerStyle.Render("Error Codewords"))
-	content.WriteString("\n\n")
-	
-	if a.showHistory && len(a.history) > 0 && a.selectedChannelID != "" {
-		// Show filtered history for selected channel in the top table
-		content.WriteString(tableStyle.Render(a.getFilteredErrorTable().View()))
-	} else {
-		content.WriteString(tableStyle.Render(a.errorTable.View()))
-	}
 	
 	if a.showHistory && len(a.history) > 0 {
-		content.WriteString("\n\n")
-		content.WriteString(headerStyle.Render("Error History"))
+		// Show history view with descriptive header
+		if a.selectedChannelID != "" {
+			content.WriteString(headerStyle.Render(fmt.Sprintf("Error History - Channel %s", a.selectedChannelID)))
+		} else {
+			content.WriteString(headerStyle.Render("Error History - All Channels"))
+		}
 		content.WriteString("\n\n")
 		content.WriteString(tableStyle.Render(a.errorHistoryTable.View()))
+	} else {
+		// Show current data view
+		content.WriteString(headerStyle.Render("Error Codewords"))
+		content.WriteString("\n\n")
+		content.WriteString(tableStyle.Render(a.errorTable.View()))
 	}
 	
 	return content.String()
@@ -621,6 +667,16 @@ func (a *App) fetchData() tea.Cmd {
 	}
 }
 
+func (a *App) performLogin() tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		info, err := a.client.LoginAndFetch(ctx)
+		return loginResultMsg{info: info, err: err}
+	}
+}
+
 func (a *App) tickCmd() tea.Cmd {
 	return tea.Tick(a.pollInterval, func(t time.Time) tea.Msg {
 		return tickMsg(t)
@@ -640,42 +696,23 @@ func (a *App) updateTableHeights() {
 	// - Margins and spacing: 2 lines
 	fixedHeight := 12
 
-	// If showing history, we need space for two tables
-	if a.showHistory {
-		// Split available height between current and history tables
-		availableHeight := (a.height - fixedHeight - 3) / 2 // 3 lines for "History" header
-		if availableHeight < 3 {
-			availableHeight = 3
-		}
-		
-		// Update current tables
-		a.downTable.SetHeight(availableHeight)
-		a.upTable.SetHeight(availableHeight)
-		a.errorTable.SetHeight(availableHeight)
-		
-		// Update history tables
-		a.downHistoryTable.SetHeight(availableHeight)
-		a.upHistoryTable.SetHeight(availableHeight)
-		a.errorHistoryTable.SetHeight(availableHeight)
-	} else {
-		// Calculate available height for the table
-		availableHeight := a.height - fixedHeight
-		
-		// Ensure minimum height of 3 for usability
-		if availableHeight < 3 {
-			availableHeight = 3
-		}
-
-		// Update all table heights to use the available space
-		a.downTable.SetHeight(availableHeight)
-		a.upTable.SetHeight(availableHeight)
-		a.errorTable.SetHeight(availableHeight)
-		
-		// Set history tables to minimum height when not shown
-		a.downHistoryTable.SetHeight(3)
-		a.upHistoryTable.SetHeight(3)
-		a.errorHistoryTable.SetHeight(3)
+	// Calculate available height for the table
+	availableHeight := a.height - fixedHeight
+	
+	// Ensure minimum height of 3 for usability
+	if availableHeight < 3 {
+		availableHeight = 3
 	}
+
+	// Update all table heights to use the available space
+	a.downTable.SetHeight(availableHeight)
+	a.upTable.SetHeight(availableHeight)
+	a.errorTable.SetHeight(availableHeight)
+	
+	// History tables get the same full height since they're shown exclusively
+	a.downHistoryTable.SetHeight(availableHeight)
+	a.upHistoryTable.SetHeight(availableHeight)
+	a.errorHistoryTable.SetHeight(availableHeight)
 }
 
 func (a *App) exportCSV() tea.Cmd {
@@ -919,185 +956,4 @@ func (a *App) updateSelectedChannel() {
 		// Update history tables to reflect the new selection
 		a.updateHistoryTables()
 	}
-}
-
-func (a *App) getFilteredDownstreamTable() table.Model {
-	if a.modemInfo == nil {
-		return table.Model{}
-	}
-
-	var filteredRows []table.Row
-	for _, info := range a.history {
-		for _, ch := range info.Downstream {
-			if ch.ChannelID == a.selectedChannelID {
-				filteredRows = append(filteredRows, table.Row{
-					ch.ChannelID,
-					ch.LockStatus,
-					ch.Frequency,
-					ch.SNR,
-					ch.PowerLevel,
-					ch.Modulation,
-				})
-			}
-		}
-	}
-
-	// Limit to max entries
-	if len(filteredRows) > a.maxHistoryEntries {
-		filteredRows = filteredRows[len(filteredRows)-a.maxHistoryEntries:]
-	}
-
-	filteredTable := table.New(
-		table.WithColumns([]table.Column{
-			{Title: "ID", Width: 4},
-			{Title: "Status", Width: 8},
-			{Title: "Frequency", Width: 12},
-			{Title: "SNR", Width: 8},
-			{Title: "Power", Width: 10},
-			{Title: "Modulation", Width: 12},
-		}),
-		table.WithRows(filteredRows),
-	)
-	filteredTable.SetStyles(table.Styles{
-		Header: lipgloss.NewStyle().
-			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(lipgloss.Color("240")).
-			BorderBottom(true).
-			Bold(false),
-		Selected: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("229")).
-			Background(lipgloss.Color("57")).
-			Bold(false),
-	})
-
-	// Set appropriate height
-	if a.showHistory {
-		availableHeight := (a.height - 12 - 3) / 2 // Same calculation as updateTableHeights
-		if availableHeight < 3 {
-			availableHeight = 3
-		}
-		filteredTable.SetHeight(availableHeight)
-	}
-
-	return filteredTable
-}
-
-func (a *App) getFilteredUpstreamTable() table.Model {
-	if a.modemInfo == nil {
-		return table.Model{}
-	}
-
-	var filteredRows []table.Row
-	for _, info := range a.history {
-		for _, ch := range info.Upstream {
-			if ch.ChannelID == a.selectedChannelID {
-				filteredRows = append(filteredRows, table.Row{
-					ch.ChannelID,
-					ch.LockStatus,
-					ch.Frequency,
-					ch.SymbolRate,
-					ch.PowerLevel,
-					ch.Modulation,
-					ch.ChannelType,
-				})
-			}
-		}
-	}
-
-	// Limit to max entries
-	if len(filteredRows) > a.maxHistoryEntries {
-		filteredRows = filteredRows[len(filteredRows)-a.maxHistoryEntries:]
-	}
-
-	filteredTable := table.New(
-		table.WithColumns([]table.Column{
-			{Title: "ID", Width: 4},
-			{Title: "Status", Width: 8},
-			{Title: "Frequency", Width: 12},
-			{Title: "Symbol Rate", Width: 12},
-			{Title: "Power", Width: 10},
-			{Title: "Modulation", Width: 12},
-			{Title: "Channel Type", Width: 8},
-		}),
-		table.WithRows(filteredRows),
-	)
-	filteredTable.SetStyles(table.Styles{
-		Header: lipgloss.NewStyle().
-			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(lipgloss.Color("240")).
-			BorderBottom(true).
-			Bold(false),
-		Selected: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("229")).
-			Background(lipgloss.Color("57")).
-			Bold(false),
-	})
-
-	// Set appropriate height
-	if a.showHistory {
-		availableHeight := (a.height - 12 - 3) / 2 // Same calculation as updateTableHeights
-		if availableHeight < 3 {
-			availableHeight = 3
-		}
-		filteredTable.SetHeight(availableHeight)
-	}
-
-	return filteredTable
-}
-
-func (a *App) getFilteredErrorTable() table.Model {
-	if a.modemInfo == nil {
-		return table.Model{}
-	}
-
-	var filteredRows []table.Row
-	for _, info := range a.history {
-		for _, ch := range info.ErrorCodewords {
-			if ch.ChannelID == a.selectedChannelID {
-				filteredRows = append(filteredRows, table.Row{
-					ch.ChannelID,
-					ch.UnerroredCodewords,
-					ch.CorrectableCodewords,
-					ch.UncorrectableCodewords,
-				})
-			}
-		}
-	}
-
-	// Limit to max entries
-	if len(filteredRows) > a.maxHistoryEntries {
-		filteredRows = filteredRows[len(filteredRows)-a.maxHistoryEntries:]
-	}
-
-	filteredTable := table.New(
-		table.WithColumns([]table.Column{
-			{Title: "ID", Width: 4},
-			{Title: "Unerrored", Width: 12},
-			{Title: "Correctable", Width: 12},
-			{Title: "Uncorrectable", Width: 14},
-		}),
-		table.WithRows(filteredRows),
-	)
-	filteredTable.SetStyles(table.Styles{
-		Header: lipgloss.NewStyle().
-			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(lipgloss.Color("240")).
-			BorderBottom(true).
-			Bold(false),
-		Selected: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("229")).
-			Background(lipgloss.Color("57")).
-			Bold(false),
-	})
-
-	// Set appropriate height
-	if a.showHistory {
-		availableHeight := (a.height - 12 - 3) / 2 // Same calculation as updateTableHeights
-		if availableHeight < 3 {
-			availableHeight = 3
-		}
-		filteredTable.SetHeight(availableHeight)
-	}
-
-	return filteredTable
 } 

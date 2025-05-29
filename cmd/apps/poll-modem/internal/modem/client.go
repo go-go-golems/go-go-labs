@@ -17,6 +17,21 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// LogoutError represents an error when the user is logged out and needs to authenticate
+type LogoutError struct {
+	Message string
+}
+
+func (e LogoutError) Error() string {
+	return e.Message
+}
+
+// IsLogoutError checks if an error is a LogoutError
+func IsLogoutError(err error) bool {
+	_, ok := err.(LogoutError)
+	return ok
+}
+
 // StoredCookie represents a cookie that can be serialized to JSON
 type StoredCookie struct {
 	Name     string    `json:"name"`
@@ -426,6 +441,21 @@ func (c *Client) Login(ctx context.Context) error {
 	return nil
 }
 
+// LoginAndFetch performs login and then fetches modem information
+func (c *Client) LoginAndFetch(ctx context.Context) (*ModemInfo, error) {
+	if c.username == "" || c.password == "" {
+		return nil, errors.New("username and password must be set before login")
+	}
+	
+	log.Debug().Msg("Performing login before fetching data")
+	if err := c.Login(ctx); err != nil {
+		return nil, errors.Wrap(err, "authentication failed")
+	}
+	
+	log.Debug().Msg("Login successful, fetching data")
+	return c.fetchModemInfoInternal(ctx)
+}
+
 // FetchModemInfo fetches and parses modem information
 func (c *Client) FetchModemInfo(ctx context.Context) (*ModemInfo, error) {
 	// Load saved cookies first
@@ -433,24 +463,17 @@ func (c *Client) FetchModemInfo(ctx context.Context) (*ModemInfo, error) {
 		log.Debug().Err(err).Msg("Failed to load cookies from file, will proceed without them")
 	}
 	
-	// Try to fetch data first
+	// Try to fetch data
 	info, err := c.fetchModemInfoInternal(ctx)
 	if err != nil {
-		// Check if it's a forbidden error or logout detection (likely needs authentication)
+		// Check if it's a logout error - return it directly for the UI to handle
+		if IsLogoutError(err) {
+			return nil, err
+		}
+		// Check if it's other forbidden errors that might indicate logout
 		if strings.Contains(err.Error(), "403") || 
-		   strings.Contains(err.Error(), "forbidden") ||
-		   strings.Contains(err.Error(), "logged out") {
-			// Try to login and retry
-			if c.username != "" && c.password != "" {
-				log.Debug().Msg("Authentication error detected, attempting login")
-				if loginErr := c.Login(ctx); loginErr != nil {
-					return nil, errors.Wrap(loginErr, "authentication failed")
-				}
-				// Retry after login
-				log.Debug().Msg("Login successful, retrying data fetch")
-				return c.fetchModemInfoInternal(ctx)
-			}
-			return nil, errors.New("access forbidden - authentication required")
+		   strings.Contains(err.Error(), "forbidden") {
+			return nil, LogoutError{Message: "access forbidden - authentication required"}
 		}
 		return nil, err
 	}
@@ -543,8 +566,7 @@ func (c *Client) fetchModemInfoInternal(ctx context.Context) (*ModemInfo, error)
 		Msg("Received connection status response")
 
 	// Check for logout detection script in response body
-	if strings.Contains(bodyString, `alertLoc("Please Login First!")`) || 
-	   strings.Contains(bodyString, `location.href="home_loggedout.jst"`) {
+	if strings.Contains(bodyString, `alertLoc("Please Login First!")`) {
 		log.Debug().
 			Msg("Detected logout script in response - authentication required")
 		// Store response body to temporary file for debugging
@@ -555,7 +577,7 @@ func (c *Client) fetchModemInfoInternal(ctx context.Context) (*ModemInfo, error)
 		} else {
 			log.Debug().Str("file", tmpFile).Msg("Saved response body to temp file")
 		}
-		return nil, fmt.Errorf("access forbidden (logged out) - authentication required")
+		return nil, LogoutError{Message: "access forbidden (logged out) - authentication required"}
 	}
 
 	if resp.StatusCode == http.StatusForbidden {
