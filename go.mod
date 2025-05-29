@@ -1,6 +1,6 @@
 module github.com/go-go-golems/go-go-labs
 
-go 1.24.2
+go 1.24.3
 
 require (
 	github.com/BobuSumisu/aho-corasick v1.0.3
@@ -241,7 +241,7 @@ require (
 	github.com/dustin/go-humanize v1.0.1
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
-	github.com/fatih/color v1.18.0 // indirect
+	github.com/fatih/color v1.18.0
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.2 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
