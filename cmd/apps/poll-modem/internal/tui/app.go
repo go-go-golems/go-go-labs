@@ -62,11 +62,15 @@ type loginResultMsg struct {
 type csvExportMsg struct {
 	success bool
 	files   []string
+	message string
 }
+type exportModeSelectMsg struct{}
 
 // App represents the main TUI application
 type App struct {
 	client            *modem.Client
+	database          *modem.Database
+	sessionID         int64
 	modemInfo         *modem.ModemInfo
 	lastError         error
 	pollInterval      time.Duration
@@ -95,6 +99,8 @@ type App struct {
 	showHistory  bool // Toggle between current and history view
 	lastExport   string // Status of last CSV export
 	selectedChannelID string // Track selected channel for history filtering
+	showExportMenu bool // Show export mode selection
+	exportMode   modem.ExportMode // Current export mode selection
 	
 	// Key bindings
 	keys keyMap
@@ -108,6 +114,9 @@ type keyMap struct {
 	Help        key.Binding
 	ToggleHistory key.Binding
 	ExportCSV   key.Binding
+	ExportMode1 key.Binding
+	ExportMode2 key.Binding
+	ExportMode3 key.Binding
 }
 
 var defaultKeys = keyMap{
@@ -139,6 +148,18 @@ var defaultKeys = keyMap{
 		key.WithKeys("e"),
 		key.WithHelp("e", "export CSV"),
 	),
+	ExportMode1: key.NewBinding(
+		key.WithKeys("1"),
+		key.WithHelp("1", "export current"),
+	),
+	ExportMode2: key.NewBinding(
+		key.WithKeys("2"),
+		key.WithHelp("2", "export session"),
+	),
+	ExportMode3: key.NewBinding(
+		key.WithKeys("3"),
+		key.WithHelp("3", "export all"),
+	),
 }
 
 // NewApp creates a new TUI application
@@ -153,14 +174,33 @@ func NewApp(baseURL string, pollInterval time.Duration, username, password strin
 		client.SetCredentials(username, password)
 	}
 
+	// Initialize database
+	database, err := modem.NewDatabase()
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to initialize database")
+		// Continue without database - we'll handle this gracefully
+	}
+
+	// Start a new session
+	var sessionID int64
+	if database != nil {
+		sessionID, err = database.StartSession()
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to start database session")
+		}
+	}
+
 	app := &App{
 		client:            client,
+		database:          database,
+		sessionID:         sessionID,
 		pollInterval:      pollInterval,
 		spinner:           s,
 		keys:              defaultKeys,
 		loading:           true,
 		maxHistoryEntries: 100, // Keep last 100 readings
 		history:           make([]modem.ModemInfo, 0),
+		exportMode:        modem.ExportSession, // Default to session export
 	}
 
 	app.initTables()
@@ -313,7 +353,35 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.updateHistoryTables()
 			return a, nil
 		case key.Matches(msg, a.keys.ExportCSV):
-			return a, a.exportCSV()
+			if a.showExportMenu {
+				// Hide export menu if already showing
+				a.showExportMenu = false
+			} else {
+				// Show export menu
+				a.showExportMenu = true
+			}
+			return a, nil
+		case key.Matches(msg, a.keys.ExportMode1):
+			if a.showExportMenu {
+				a.exportMode = modem.ExportCurrent
+				a.showExportMenu = false
+				return a, a.exportCSVWithMode()
+			}
+			return a, nil
+		case key.Matches(msg, a.keys.ExportMode2):
+			if a.showExportMenu {
+				a.exportMode = modem.ExportSession
+				a.showExportMenu = false
+				return a, a.exportCSVWithMode()
+			}
+			return a, nil
+		case key.Matches(msg, a.keys.ExportMode3):
+			if a.showExportMenu {
+				a.exportMode = modem.ExportAll
+				a.showExportMenu = false
+				return a, a.exportCSVWithMode()
+			}
+			return a, nil
 		default:
 			// Forward navigation keys to the active table
 			if a.modemInfo != nil {
@@ -391,6 +459,13 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.addToHistory(*msg.info)
 			a.updateTables()
 			a.updateHistoryTables()
+			
+			// Store in database
+			if a.database != nil && a.sessionID > 0 {
+				if err := a.database.StoreModemInfo(a.sessionID, msg.info); err != nil {
+					log.Error().Err(err).Msg("Failed to store modem info in database")
+				}
+			}
 		}
 		return a, nil
 
@@ -408,6 +483,13 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.addToHistory(*msg.info)
 			a.updateTables()
 			a.updateHistoryTables()
+			
+			// Store in database
+			if a.database != nil && a.sessionID > 0 {
+				if err := a.database.StoreModemInfo(a.sessionID, msg.info); err != nil {
+					log.Error().Err(err).Msg("Failed to store modem info in database")
+				}
+			}
 		}
 		return a, nil
 
@@ -418,10 +500,15 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		
 	case csvExportMsg:
 		if msg.success {
-			a.lastExport = "CSV files exported successfully"
+			a.lastExport = msg.message
 		} else {
-			a.lastExport = "CSV export failed"
+			a.lastExport = msg.message
 		}
+		return a, nil
+
+	case exportModeSelectMsg:
+		// Handle export mode selection
+		// This is a placeholder and should be replaced with actual implementation
 		return a, nil
 	}
 
@@ -482,6 +569,19 @@ func (a *App) View() string {
 		case 3:
 			content.WriteString(a.renderErrors())
 		}
+	}
+
+	// Show export menu if active
+	if a.showExportMenu {
+		content.WriteString("\n")
+		content.WriteString(headerStyle.Render("Export Options"))
+		content.WriteString("\n\n")
+		content.WriteString("1. Export Current Data Only\n")
+		content.WriteString("2. Export Current Session\n")
+		content.WriteString("3. Export All History\n")
+		content.WriteString("\n")
+		content.WriteString(infoStyle.Render("Press 1, 2, or 3 to select export mode, or 'e' to cancel"))
+		return content.String()
 	}
 
 	// Help
@@ -718,7 +818,7 @@ func (a *App) updateTableHeights() {
 func (a *App) exportCSV() tea.Cmd {
 	return func() tea.Msg {
 		if len(a.history) == 0 {
-			return csvExportMsg{success: false, files: []string{}}
+			return csvExportMsg{success: false, files: []string{}, message: "No data to export"}
 		}
 
 		timestamp := time.Now().Format("2006-01-02_15-04-05")
@@ -745,7 +845,7 @@ func (a *App) exportCSV() tea.Cmd {
 		}
 		files = append(files, errorFile)
 		
-		return csvExportMsg{success: true, files: files}
+		return csvExportMsg{success: true, files: files, message: "CSV export completed successfully"}
 	}
 }
 
@@ -955,5 +1055,186 @@ func (a *App) updateSelectedChannel() {
 		}
 		// Update history tables to reflect the new selection
 		a.updateHistoryTables()
+	}
+}
+
+func (a *App) exportCSVWithMode() tea.Cmd {
+	return func() tea.Msg {
+		if a.database == nil {
+			return csvExportMsg{success: false, files: []string{}, message: "Database not available"}
+		}
+
+		// Export data from database based on mode
+		exportResult, err := a.database.ExportData(a.exportMode, a.sessionID)
+		if err != nil {
+			return csvExportMsg{success: false, files: []string{}, message: fmt.Sprintf("Export failed: %v", err)}
+		}
+
+		timestamp := time.Now().Format("2006-01-02_15-04-05")
+		var files []string
+		var modeStr string
+
+		switch a.exportMode {
+		case modem.ExportCurrent:
+			modeStr = "current"
+		case modem.ExportSession:
+			modeStr = "session"
+		case modem.ExportAll:
+			modeStr = "all"
+		}
+
+		// Export downstream data
+		if len(exportResult.Downstream) > 0 {
+			downFile := fmt.Sprintf("modem_downstream_%s_%s.csv", modeStr, timestamp)
+			if err := a.exportDownstreamFromDB(downFile, exportResult.Downstream); err != nil {
+				return csvExportMsg{success: false, files: []string{}, message: fmt.Sprintf("Failed to export downstream: %v", err)}
+			}
+			files = append(files, downFile)
+		}
+
+		// Export upstream data
+		if len(exportResult.Upstream) > 0 {
+			upFile := fmt.Sprintf("modem_upstream_%s_%s.csv", modeStr, timestamp)
+			if err := a.exportUpstreamFromDB(upFile, exportResult.Upstream); err != nil {
+				return csvExportMsg{success: false, files: []string{}, message: fmt.Sprintf("Failed to export upstream: %v", err)}
+			}
+			files = append(files, upFile)
+		}
+
+		// Export error data
+		if len(exportResult.Errors) > 0 {
+			errorFile := fmt.Sprintf("modem_errors_%s_%s.csv", modeStr, timestamp)
+			if err := a.exportErrorsFromDB(errorFile, exportResult.Errors); err != nil {
+				return csvExportMsg{success: false, files: []string{}, message: fmt.Sprintf("Failed to export errors: %v", err)}
+			}
+			files = append(files, errorFile)
+		}
+
+		if len(files) == 0 {
+			return csvExportMsg{success: false, files: []string{}, message: "No data to export"}
+		}
+
+		return csvExportMsg{success: true, files: files, message: fmt.Sprintf("Exported %d files (%s mode)", len(files), modeStr)}
+	}
+}
+
+func (a *App) exportDownstreamFromDB(filename string, data []modem.DownstreamExport) error {
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	// Write header
+	header := []string{"Session_ID", "Timestamp", "Channel_ID", "Lock_Status", "Frequency", "SNR", "Power_Level", "Modulation"}
+	if err := writer.Write(header); err != nil {
+		return err
+	}
+
+	// Write data
+	for _, record := range data {
+		row := []string{
+			fmt.Sprintf("%d", record.SessionID),
+			record.Timestamp.Format("2006-01-02 15:04:05"),
+			record.ChannelID,
+			record.LockStatus,
+			record.Frequency,
+			record.SNR,
+			record.PowerLevel,
+			record.Modulation,
+		}
+		if err := writer.Write(row); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (a *App) exportUpstreamFromDB(filename string, data []modem.UpstreamExport) error {
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	// Write header
+	header := []string{"Session_ID", "Timestamp", "Channel_ID", "Lock_Status", "Frequency", "Symbol_Rate", "Power_Level", "Modulation", "Channel_Type"}
+	if err := writer.Write(header); err != nil {
+		return err
+	}
+
+	// Write data
+	for _, record := range data {
+		row := []string{
+			fmt.Sprintf("%d", record.SessionID),
+			record.Timestamp.Format("2006-01-02 15:04:05"),
+			record.ChannelID,
+			record.LockStatus,
+			record.Frequency,
+			record.SymbolRate,
+			record.PowerLevel,
+			record.Modulation,
+			record.ChannelType,
+		}
+		if err := writer.Write(row); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (a *App) exportErrorsFromDB(filename string, data []modem.ErrorExport) error {
+	file, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	// Write header
+	header := []string{"Session_ID", "Timestamp", "Channel_ID", "Unerrored_Codewords", "Correctable_Codewords", "Uncorrectable_Codewords"}
+	if err := writer.Write(header); err != nil {
+		return err
+	}
+
+	// Write data
+	for _, record := range data {
+		row := []string{
+			fmt.Sprintf("%d", record.SessionID),
+			record.Timestamp.Format("2006-01-02 15:04:05"),
+			record.ChannelID,
+			record.UnerroredCodewords,
+			record.CorrectableCodewords,
+			record.UncorrectableCodewords,
+		}
+		if err := writer.Write(row); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Cleanup performs cleanup operations when the app is shutting down
+func (a *App) Cleanup() {
+	if a.database != nil {
+		if a.sessionID > 0 {
+			if err := a.database.EndSession(a.sessionID); err != nil {
+				log.Error().Err(err).Msg("Failed to end database session")
+			}
+		}
+		if err := a.database.Close(); err != nil {
+			log.Error().Err(err).Msg("Failed to close database")
+		}
 	}
 } 

@@ -69,6 +69,7 @@ func runTUI(cmd *cobra.Command, args []string) error {
 	}
 
 	app := tui.NewApp(baseURL, pollInterval, username, password)
+	defer app.Cleanup() // Ensure cleanup is called when function exits
 
 	p := tea.NewProgram(app, tea.WithAltScreen())
 	_, err := p.Run()
