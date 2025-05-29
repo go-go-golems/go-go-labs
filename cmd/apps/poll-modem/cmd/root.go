@@ -2,21 +2,22 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/go-go-golems/glazed/pkg/cmds/logging"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 
+	clay "github.com/go-go-golems/clay/pkg"
 	"github.com/go-go-golems/go-go-labs/cmd/apps/poll-modem/internal/tui"
 )
 
 var (
 	url          string
 	pollInterval time.Duration
+	username     string
+	password     string
 
 	rootCmd = &cobra.Command{
 		Use:   "poll-modem",
@@ -30,7 +31,9 @@ The application continuously polls the modem endpoint and displays:
 - Upstream channel details
 - Error codeword statistics
 
-Use tab/shift+tab to navigate between different views.`,
+Use tab/shift+tab to navigate between different views.
+
+If the modem requires authentication, provide username and password flags.`,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			return logging.InitLoggerFromViper()
 		},
@@ -43,30 +46,29 @@ func Execute() error {
 }
 
 func init() {
-	// Initialize logging
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
-
-	// Add logging layer to root command
-	err := logging.AddLoggingLayerToRootCommand(rootCmd, "poll-modem")
+	err := clay.InitViper("poll-modem", rootCmd)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to add logging layer")
+		log.Fatal().Err(err).Msg("Failed to initialize Viper")
 	}
 
 	// Add application-specific flags
-	rootCmd.PersistentFlags().StringVarP(&url, "url", "u", "http://192.168.0.1/network_setup.jst", "Modem URL to poll")
+	rootCmd.PersistentFlags().StringVarP(&url, "url", "u", "http://192.168.0.1", "Modem base URL (e.g., http://192.168.0.1)")
 	rootCmd.PersistentFlags().DurationVarP(&pollInterval, "interval", "i", 30*time.Second, "Poll interval (e.g., 30s, 1m, 5m)")
+	rootCmd.PersistentFlags().StringVarP(&username, "username", "n", "", "Modem username for authentication")
+	rootCmd.PersistentFlags().StringVarP(&password, "password", "p", "", "Modem password for authentication")
 }
 
 func runTUI(cmd *cobra.Command, args []string) error {
-	// For TUI applications, we want to disable logging to avoid interfering with the display
-	// unless debug logging is specifically enabled
-	logLevel, _ := cmd.Flags().GetString("log-level")
-	if logLevel != "debug" && logLevel != "trace" {
-		zerolog.SetGlobalLevel(zerolog.Disabled)
+	logging.InitLoggerFromViper()
+	log.Info().Msg("Running TUI")
+
+	// Use the provided URL as base URL
+	baseURL := url
+	if baseURL == "" {
+		baseURL = "http://192.168.0.1"
 	}
 
-	app := tui.NewApp(url, pollInterval)
+	app := tui.NewApp(baseURL, pollInterval, username, password)
 
 	p := tea.NewProgram(app, tea.WithAltScreen())
 	_, err := p.Run()
@@ -76,4 +78,4 @@ func runTUI(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
-} 
+}

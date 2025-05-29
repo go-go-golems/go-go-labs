@@ -1,0 +1,48 @@
+#!/usr/bin/env bpftrace
+
+BEGIN {
+    printf("Tracing exec calls... Hit Ctrl-C to end.\n");
+    printf("%-10s %-8s %-8s %-16s %-16s %s\n", "TIME", "PID", "PPID", "COMM", "PCOMM", "FILENAME");
+}
+
+tracepoint:syscalls:sys_enter_execve {
+    $filename = str(args->filename);
+    $comm = comm;
+    $pid = pid;
+    $ppid = ((struct task_struct *)curtask)->real_parent->pid;
+    $pcomm = ((struct task_struct *)curtask)->real_parent->comm;
+    
+    printf("%-10u %-8d %-8d %-16s %-16s %s", nsecs / 1000000, $pid, $ppid, $comm, $pcomm, $filename);
+    
+    // Print arguments if available
+    if (args->argv != 0) {
+        $argv = (char **)args->argv;
+        $i = 0;
+        while ($i < 10 && $argv[$i] != 0) {
+            printf(" %s", str($argv[$i]));
+            $i++;
+        }
+    }
+    printf("\n");
+}
+
+tracepoint:syscalls:sys_enter_execveat {
+    $filename = str(args->filename);
+    $comm = comm;
+    $pid = pid;
+    $ppid = ((struct task_struct *)curtask)->real_parent->pid;
+    $pcomm = ((struct task_struct *)curtask)->real_parent->comm;
+    
+    printf("%-10u %-8d %-8d %-16s %-16s %s", nsecs / 1000000, $pid, $ppid, $comm, $pcomm, $filename);
+    
+    // Print arguments if available
+    if (args->argv != 0) {
+        $argv = (char **)args->argv;
+        $i = 0;
+        while ($i < 10 && $argv[$i] != 0) {
+            printf(" %s", str($argv[$i]));
+            $i++;
+        }
+    }
+    printf("\n");
+} 
