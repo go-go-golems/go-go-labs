@@ -1,0 +1,35 @@
+{
+  "name": "agent-fleet-mobile",
+  "version": "1.0.0",
+  "main": "expo/AppEntry.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "^14.0.0",
+    "@react-navigation/bottom-tabs": "^6.5.20",
+    "@react-navigation/native": "^6.1.17",
+    "@react-navigation/native-stack": "^6.9.26",
+    "@reduxjs/toolkit": "^2.2.3",
+    "babel-plugin-module-resolver": "^5.0.0",
+    "expo": "^53.0.9",
+    "expo-font": "~13.3.1",
+    "expo-splash-screen": "~0.30.8",
+    "expo-status-bar": "~2.2.3",
+    "react": "19.0.0",
+    "react-native": "0.79.2",
+    "react-native-safe-area-context": "5.4.0",
+    "react-native-screens": "~4.10.0",
+    "react-native-sse": "^1.2.1",
+    "react-redux": "^9.1.2"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.20.0",
+    "@types/react": "~19.0.10",
+    "typescript": "~5.8.3"
+  },
+  "private": true
+}

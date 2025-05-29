@@ -1,0 +1,101 @@
+package templates
+
+import (
+	"strconv"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/agent-fleet/backend/models"
+)
+
+templ Index(fleetStatus *models.FleetStatus, recentUpdates []models.Event) {
+	@Base("Dashboard") {
+		<div class="row">
+			<div class="col-12">
+				<h1>Fleet Dashboard</h1>
+				<p class="text-muted">Monitor and manage your AI agent fleet</p>
+			</div>
+		</div>
+		
+		<!-- Fleet Statistics -->
+		<div class="row mb-4">
+			<div class="col-md-3">
+				<div class="card text-center">
+					<div class="card-body">
+						<h5 class="card-title">Total Agents</h5>
+						<h2 class="text-primary">{ strconv.Itoa(fleetStatus.TotalAgents) }</h2>
+					</div>
+				</div>
+			</div>
+			<div class="col-md-3">
+				<div class="card text-center">
+					<div class="card-body">
+						<h5 class="card-title">Active Agents</h5>
+						<h2 class="text-success">{ strconv.Itoa(fleetStatus.ActiveAgents) }</h2>
+					</div>
+				</div>
+			</div>
+			<div class="col-md-3">
+				<div class="card text-center">
+					<div class="card-body">
+						<h5 class="card-title">Pending Tasks</h5>
+						<h2 class="text-info">{ strconv.Itoa(fleetStatus.PendingTasks) }</h2>
+					</div>
+				</div>
+			</div>
+			<div class="col-md-3">
+				<div class="card text-center">
+					<div class="card-body">
+						<h5 class="card-title">Need Feedback</h5>
+						<h2 class="text-warning">{ strconv.Itoa(fleetStatus.AgentsNeedingFeedback) }</h2>
+					</div>
+				</div>
+			</div>
+		</div>
+		
+		<!-- Recent Updates -->
+		<div class="row">
+			<div class="col-12">
+				<div class="card">
+					<div class="card-header">
+						<h5 class="mb-0">Recent Updates</h5>
+					</div>
+					<div class="card-body">
+						if len(recentUpdates) == 0 {
+							<p class="text-muted">No recent updates</p>
+						} else {
+							<div class="list-group list-group-flush">
+								for _, event := range recentUpdates {
+									<div class="list-group-item">
+										<div class="d-flex w-100 justify-content-between">
+											<h6 class="mb-1">
+												<span class={ "badge", "me-2", eventTypeBadgeClass(event.Type) }>{ event.Type }</span>
+												{ event.Message }
+											</h6>
+											<small>{ event.Timestamp.Format("15:04:05") }</small>
+										</div>
+										<small class="text-muted">Agent: { event.AgentID }</small>
+									</div>
+								}
+							</div>
+						}
+					</div>
+				</div>
+			</div>
+		</div>
+	}
+}
+
+func eventTypeBadgeClass(eventType string) string {
+	switch eventType {
+	case "success":
+		return "bg-success"
+	case "error":
+		return "bg-danger"
+	case "warning":
+		return "bg-warning"
+	case "commit":
+		return "bg-primary"
+	case "question":
+		return "bg-info"
+	default:
+		return "bg-secondary"
+	}
+}
