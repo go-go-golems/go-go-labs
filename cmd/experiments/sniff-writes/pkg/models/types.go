@@ -34,8 +34,6 @@ type Config struct {
 	ContentSize        int      // Max content bytes to capture (default: 4096)
 	ShowDiffs          bool     // Show diffs for write operations (default: false)
 	DiffFormat         string   // Diff format: "unified", "pretty" (default: "unified")
-	NoColor            bool     // Disable colored output for diffs
-	DiffContextLines   int      // Number of context lines to show around changes (default: 3)
 	GlobPatterns       []string // Include patterns for file filtering
 	GlobExclude        []string // Exclude patterns for file filtering
 	ProcessGlob        []string // Include patterns for process name filtering

@@ -121,17 +121,8 @@ Examples:
   # Capture more content (first 8192 bytes with chunking) 
   sudo sniff-writes monitor --capture-content --content-size 8192
   
-  # Show colored diffs when writes occur (requires content capture)
+  # Show diffs when writes occur (requires content capture)
   sudo sniff-writes monitor --capture-content --show-diffs
-  
-  # Show diffs without colors (for scripting/logging)
-  sudo sniff-writes monitor --capture-content --show-diffs --no-color
-  
-  # Show compact diffs (only 1 line of context around changes)
-  sudo sniff-writes monitor --capture-content --show-diffs --diff-context 1
-  
-  # Show only changed lines (no context)
-  sudo sniff-writes monitor --capture-content --show-diffs --diff-context 0
   
   # Show read/write sizes and include lseek operations
   sudo sniff-writes monitor --show-sizes -o open,read,write,close,lseek
@@ -224,8 +215,6 @@ func init() {
 	monitorCmd.Flags().IntVar(&config.ContentSize, "content-size", 4096, "Maximum bytes of write content to capture (default: 4096)")
 	monitorCmd.Flags().BoolVar(&config.ShowDiffs, "show-diffs", false, "Show diffs for write operations (requires --capture-content)")
 	monitorCmd.Flags().StringVar(&config.DiffFormat, "diff-format", "unified", "Diff format: unified, pretty (default: unified)")
-	monitorCmd.Flags().BoolVar(&config.NoColor, "no-color", false, "Disable colored output for diffs")
-	monitorCmd.Flags().IntVar(&config.DiffContextLines, "diff-context", 3, "Number of context lines to show around changes in diffs (default: 3)")
 	monitorCmd.Flags().StringSliceVar(&config.GlobPatterns, "glob", []string{}, "Include/exclude files with glob patterns (e.g., '*.go', '!*.tmp')")
 	monitorCmd.Flags().StringSliceVar(&config.GlobExclude, "glob-exclude", []string{}, "Exclude files matching these glob patterns (legacy, use --glob '!pattern')")
 	monitorCmd.Flags().StringSliceVar(&config.ProcessGlob, "process-glob", []string{}, "Include/exclude processes with glob patterns (e.g., 'nginx*', '!systemd*')")
@@ -269,11 +258,6 @@ func runMonitor(cmd *cobra.Command, args []string) error {
 	// Validate diff options
 	if config.ShowDiffs && !config.CaptureContent {
 		return fmt.Errorf("--show-diffs requires --capture-content to be enabled")
-	}
-	
-	// Validate diff context lines
-	if config.DiffContextLines < 0 {
-		return fmt.Errorf("--diff-context must be >= 0")
 	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -445,21 +429,11 @@ func outputEvent(event *models.Event, resolvedPath string, writer *os.File) {
 				if config.DiffFormat == "pretty" {
 					diffText, hasDiff = fileCache.GenerateDiff(event.Pid, event.Fd, event.PathHash, event.FileOffset, contentBytes)
 				} else {
-					// Use elided diff if context lines is configured
-					if config.DiffContextLines >= 0 {
-						diffText, hasDiff = fileCache.GenerateElidedUnifiedDiff(event.Pid, event.Fd, event.PathHash, event.FileOffset, contentBytes, resolvedPath, config.DiffContextLines)
-					} else {
-						diffText, hasDiff = fileCache.GenerateUnifiedDiff(event.Pid, event.Fd, event.PathHash, event.FileOffset, contentBytes, resolvedPath)
-					}
+					diffText, hasDiff = fileCache.GenerateUnifiedDiff(event.Pid, event.Fd, event.PathHash, event.FileOffset, contentBytes, resolvedPath)
 				}
 
 				if hasDiff {
-					// For web UI, format the diff with HTML
-					if config.WebUI {
-						eventOutput.Diff = formatter.FormatDiffForWeb(diffText)
-					} else {
-						eventOutput.Diff = diffText
-					}
+					eventOutput.Diff = diffText
 				}
 			}
 

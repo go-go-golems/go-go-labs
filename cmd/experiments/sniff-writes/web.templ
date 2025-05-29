@@ -93,14 +93,10 @@ templ index() {
 					</div>
 					<div class="row g-3 mt-3 content-controls-section">
 						<div class="col-md-12">
-							<label class="form-label">Content & Diff Display</label>
-							<div class="d-flex flex-wrap gap-2 align-items-center">
-								<div class="btn-group" role="group" aria-label="Content display mode">
-									<button type="button" class="btn btn-primary" id="display-mode-content" onclick="setDisplayMode('content')">Show Content</button>
-									<button type="button" class="btn btn-outline-secondary" id="display-mode-diff" onclick="setDisplayMode('diff')">Show Diffs</button>
-									<button type="button" class="btn btn-outline-secondary" id="display-mode-none" onclick="setDisplayMode('none')">Hide All</button>
-								</div>
-								<div class="btn-group" role="group" aria-label="Event filtering">
+							<label class="form-label">Content Controls</label>
+							<div class="d-flex flex-wrap gap-2">
+								<button type="button" class="btn btn-outline-primary" id="toggle-content-btn" onclick="toggleContentDisplay()">Hide Content</button>
+								<div class="btn-group" role="group">
 									<button type="button" class="btn btn-outline-secondary" id="content-filter-all" onclick="changeContentFilter('all')">All Events</button>
 									<button type="button" class="btn btn-outline-secondary" id="content-filter-with-content" onclick="changeContentFilter('with-content')">With Content</button>
 									<button type="button" class="btn btn-outline-secondary" id="content-filter-without-content" onclick="changeContentFilter('without-content')">Without Content</button>

@@ -142,13 +142,7 @@ func OutputPlain(event models.EventOutput, writer *os.File, config *models.Confi
 		}
 
 		if config.ShowDiffs && event.Diff != "" {
-			if config.NoColor {
-				fmt.Fprintf(writer, "    Diff:\n%s\n", event.Diff)
-			} else {
-				diffFormatter := NewColoredDiffFormatter()
-				coloredDiff := diffFormatter.FormatDiff(event.Diff)
-				fmt.Fprintf(writer, "    Diff:\n%s\n", coloredDiff)
-			}
+			fmt.Fprintf(writer, "    Diff:\n%s\n", event.Diff)
 		}
 	case "lseek":
 		whenceInfo := ""
