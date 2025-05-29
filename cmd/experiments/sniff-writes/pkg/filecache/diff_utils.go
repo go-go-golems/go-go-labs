@@ -151,12 +151,13 @@ func ElideUnifiedDiff(diff string, contextLines int) string {
 	}
 
 	// Add content with elision
-	lastKeptLine := -2 // Start before any valid index
+	lastKeptLine := -1 // Start before any valid index
 
 	for i, line := range contentLines {
 		if linesToKeep[i] {
 			// Check if we need to add an elision marker
-			if i > lastKeptLine+1 {
+			// Only add "..." if there's a gap between kept lines
+			if lastKeptLine >= 0 && i > lastKeptLine+1 {
 				result.WriteString("...\n")
 			}
 			result.WriteString(line.Content + "\n")

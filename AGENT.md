@@ -39,4 +39,19 @@ If me or you the LLM agent seem to go down too deep in a debugging/fixing rabbit
 
 <generalGuidelines>
 Run the format_file tool at the end of each response.
-</generalGuidelines>%
+</generalGuidelines>
+
+<concurrencyGuidelines>
+When building caches or collections with per-item locking:
+
+1. **Strict Lock Hierarchy**: Always acquire global mutex before per-item mutex (`globalMu → itemMu`)
+2. **Single Ownership**: Each data structure should have one clear owner of its mutex
+3. **Minimize Critical Sections**: Release locks before calling functions that may re-acquire them
+4. **Prefer RWMutex**: Use read locks for readers, write locks for writers
+5. **Test with Race Detector**: Always run `go test -race` to catch data races
+
+**Common Pitfalls**:
+- Calling methods that re-acquire locks while holding locks
+- Updating shared state without proper locking
+- Mixed read/write lock usage on same data
+</concurrencyGuidelines>
