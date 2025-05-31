@@ -38,7 +38,14 @@ func main() {
 
 	// Show result
 	if selected, ok := fp.GetSelected(); ok {
-		fmt.Printf("Selected file: %s\n", selected)
+		if len(selected) == 1 {
+			fmt.Printf("Selected file: %s\n", selected[0])
+		} else {
+			fmt.Printf("Selected %d files:\n", len(selected))
+			for _, file := range selected {
+				fmt.Printf("  %s\n", file)
+			}
+		}
 	} else {
 		fmt.Println("No file selected (cancelled)")
 	}
