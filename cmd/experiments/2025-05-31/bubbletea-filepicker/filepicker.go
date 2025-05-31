@@ -351,7 +351,7 @@ func NewFilePicker(startPath string) *FilePicker {
 		showHidden:    false,
 		detailedView:  true,
 		sortMode:      SortByName,
-		previewWidth:  30,
+		previewWidth:  40,
 	}
 
 	// Resolve the starting path
@@ -996,7 +996,7 @@ func (fp *FilePicker) viewNormal() string {
 	if fp.showPreview {
 		previewWidth = (fp.width * fp.previewWidth) / 100
 		if previewWidth < 20 {
-			previewWidth = 20
+			previewWidth = 2
 		}
 		if previewWidth > fp.width-40 {
 			previewWidth = fp.width - 40
@@ -1015,11 +1015,18 @@ func (fp *FilePicker) viewNormal() string {
 		previewPanel := fp.buildPreviewPanel(previewWidth)
 
 		// Combine panels side by side
-		return lipgloss.JoinHorizontal(
+		panelsView := lipgloss.JoinHorizontal(
 			lipgloss.Top,
 			borderStyle.Width(fileListWidth).Render(filePanel),
 			borderStyle.Width(previewWidth).Render(previewPanel),
-		) + "\n" + fp.help.View(fp.keys)
+		)
+
+		// Add help below panels
+		helpView := fp.help.View(fp.keys)
+		if helpView != "" {
+			return panelsView + "\n" + helpView
+		}
+		return panelsView
 	} else {
 		return borderStyle.Width(fileListWidth).Render(filePanel) + "\n" + fp.help.View(fp.keys)
 	}
@@ -1048,7 +1055,7 @@ func (fp *FilePicker) buildFileListPanel(width int) string {
 	b.WriteString(strings.Repeat("─", contentWidth) + "\n")
 
 	// File list
-	contentHeight := fp.height - 10 // Account for title, path, status, search, help
+	contentHeight := fp.height - 9 // Account for title, path, status, search, help
 
 	startIdx := 0
 	endIdx := len(fp.filteredFiles)
@@ -1087,11 +1094,9 @@ func (fp *FilePicker) buildFileListPanel(width int) string {
 
 	// Search input (if active)
 	if fp.viewState == ViewStateSearch {
-		b.WriteString(searchStyle.Render("Search: ") + fp.searchInput.View() + "\n")
+		b.WriteString(searchStyle.Render("Search: ") + fp.searchInput.View())
 	} else if fp.searchQuery != "" {
-		b.WriteString(searchStyle.Render(fmt.Sprintf("Search: %s (%d matches)", fp.searchQuery, len(fp.filteredFiles))) + "\n")
-	} else {
-		b.WriteString("\n")
+		b.WriteString(searchStyle.Render(fmt.Sprintf("Search: %s (%d matches)", fp.searchQuery, len(fp.filteredFiles))))
 	}
 
 	// Text input (if active)
@@ -1105,21 +1110,27 @@ func (fp *FilePicker) buildFileListPanel(width int) string {
 		case ViewStateCreateDir:
 			prompt = "New directory: "
 		}
-		b.WriteString(prompt + fp.textInput.View() + "\n")
-	} else {
+		if fp.viewState == ViewStateSearch {
+			b.WriteString("\n")
+		}
+		b.WriteString(prompt + fp.textInput.View())
+	}
+
+	// Add line break only if we had search or text input
+	if fp.viewState == ViewStateSearch || fp.viewState == ViewStateRename ||
+		fp.viewState == ViewStateCreateFile || fp.viewState == ViewStateCreateDir ||
+		fp.searchQuery != "" {
 		b.WriteString("\n")
 	}
 
 	// Status line
 	status := fp.buildStatusLine()
-	b.WriteString(status + "\n")
+	b.WriteString(status)
 
 	// Error display
 	if fp.err != nil {
-		b.WriteString(errorStyle.Render("Error: "+fp.err.Error()) + "\n")
+		b.WriteString("\n" + errorStyle.Render("Error: "+fp.err.Error()))
 		fp.err = nil
-	} else {
-		b.WriteString("\n")
 	}
 
 	return b.String()
@@ -1134,7 +1145,7 @@ func (fp *FilePicker) buildPreviewPanel(width int) string {
 	b.WriteString(previewTitleStyle.Render("Preview") + "\n")
 	b.WriteString(strings.Repeat("─", contentWidth) + "\n")
 
-	// Preview content
+	// Preview content with better formatting
 	if fp.previewContent != "" {
 		lines := strings.Split(fp.previewContent, "\n")
 		maxLines := fp.height - 8
@@ -1144,13 +1155,13 @@ func (fp *FilePicker) buildPreviewPanel(width int) string {
 				b.WriteString("...\n")
 				break
 			}
-			if len(line) > contentWidth {
+			if len(line) > contentWidth-1 {
 				line = line[:contentWidth-3] + "..."
 			}
-			b.WriteString(line + "\n")
+			b.WriteString(" " + line + "\n") // Add leading space for readability
 		}
 	} else {
-		b.WriteString("No preview available\n")
+		b.WriteString(" No preview available\n")
 	}
 
 	return b.String()
