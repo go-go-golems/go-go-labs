@@ -28,6 +28,7 @@ simultaneously by automating workspace setup, git operations, and status trackin
 		NewListCommand(),
 		NewCreateCommand(),
 		NewStatusCommand(),
+		NewTUICommand(),
 	)
 
 	return cmd
