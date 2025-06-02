@@ -14,3 +14,23 @@ func printJSON(data interface{}) error {
 	fmt.Println(string(jsonData))
 	return nil
 }
+
+// getStatusSymbol returns a symbol for the git status
+func getStatusSymbol(status string) string {
+	switch status {
+	case "A":
+		return "+"
+	case "M":
+		return "~"
+	case "D":
+		return "-"
+	case "R":
+		return "→"
+	case "C":
+		return "©"
+	case "?":
+		return "?"
+	default:
+		return status
+	}
+}

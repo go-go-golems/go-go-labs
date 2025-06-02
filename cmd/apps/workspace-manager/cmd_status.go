@@ -134,7 +134,7 @@ func printStatusShort(status *WorkspaceStatus, includeUntracked bool) error {
 	fmt.Printf("Workspace: %s (%s)\n", status.Workspace.Name, status.Overall)
 	
 	for _, repoStatus := range status.Repositories {
-		symbol := getStatusSymbol(repoStatus)
+		symbol := getRepositoryStatusSymbol(repoStatus)
 		fmt.Printf("%s %s", symbol, repoStatus.Repository.Name)
 		
 		if repoStatus.CurrentBranch != "" {
@@ -225,7 +225,7 @@ func printStatusDetailed(status *WorkspaceStatus, includeUntracked bool) error {
 	return nil
 }
 
-func getStatusSymbol(status RepositoryStatus) string {
+func getRepositoryStatusSymbol(status RepositoryStatus) string {
 	if status.HasConflicts {
 		return "⚠️ "
 	}
