@@ -1,4 +1,5 @@
 // DSL for declarative interaction scripting
+import React from 'react';
 
 export interface MessageTypeConfig {
 	bg: string;
@@ -36,11 +37,12 @@ export interface InteractionState {
 export interface MessageDefinition {
 	id: string;
 	type: string;
-	content: string | ((state: InteractionState) => string);
+	content: string | ((state: InteractionState) => string) | React.ReactNode | ((state: InteractionState) => React.ReactNode);
 	column?: 'left' | 'right' | 'auto'; // auto fills left to right
 	visibleStates: string[]; // which states this message is visible in
 	fadeOutStates?: string[]; // states where this message should fade out
 	customOpacity?: number; // override opacity
+	isReactContent?: boolean; // indicates if content is React component
 }
 
 export interface OverlayElement {
@@ -79,9 +81,9 @@ export interface InteractionSequence {
 
 // Helper function to resolve dynamic content
 export const resolveContent = (
-	content: string | ((state: InteractionState) => string),
+	content: string | ((state: InteractionState) => string) | React.ReactNode | ((state: InteractionState) => React.ReactNode),
 	state: InteractionState
-): string => {
+): string | React.ReactNode => {
 	return typeof content === 'function' ? content(state) : content;
 };
 
@@ -119,7 +121,7 @@ export const createState = (
 export const createMessage = (
 	id: string,
 	type: string,
-	content: string | ((state: InteractionState) => string),
+	content: string | ((state: InteractionState) => string) | React.ReactNode | ((state: InteractionState) => React.ReactNode),
 	visibleStates: string[],
 	options: Partial<MessageDefinition> = {}
 ): MessageDefinition => ({

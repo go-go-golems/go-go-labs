@@ -30,6 +30,9 @@ const Message: React.FC<MessageProps> = ({message, config, opacity, fadeOut = fa
 	const icon = resolveContent(config.icon, state);
 	const label = resolveContent(config.label, state);
 	
+	// Check if content is React component
+	const isReactContent = message.isReactContent || React.isValidElement(content);
+	
 	return (
 		<div
 			style={{
@@ -41,7 +44,7 @@ const Message: React.FC<MessageProps> = ({message, config, opacity, fadeOut = fa
 				fontSize: config.fontSize,
 				margin: '3px 0',
 				display: 'flex',
-				alignItems: 'center',
+				alignItems: isReactContent ? 'flex-start' : 'center',
 				gap: '10px',
 				boxShadow: config.boxShadow,
 				border: config.border,
@@ -49,9 +52,10 @@ const Message: React.FC<MessageProps> = ({message, config, opacity, fadeOut = fa
 		>
 			<span style={{
 				fontSize: config.fontSize === '11px' ? '14px' : 
-					config.fontSize === '13px' && message.type === 'summary' ? '18px' : '16px'
+					config.fontSize === '13px' && message.type === 'summary' ? '18px' : '16px',
+				marginTop: isReactContent ? '2px' : '0'
 			}}>{icon}</span>
-			<div>
+			<div style={{ flex: 1 }}>
 				<div style={{
 					fontSize: config.fontSize === '11px' ? '8px' : 
 						config.fontSize === '13px' && message.type === 'summary' ? '10px' : '9px', 
@@ -61,15 +65,21 @@ const Message: React.FC<MessageProps> = ({message, config, opacity, fadeOut = fa
 				}}>
 					{label}
 				</div>
-				<div style={{
-					fontSize: config.fontSize === '11px' ? '10px' : 
-						config.fontSize === '13px' && message.type === 'summary' ? '12px' : '12px', 
-					lineHeight: 1.2,
-					fontWeight: config.fontWeight,
-					fontStyle: config.fontStyle
-				}}>
-					{content}
-				</div>
+				{isReactContent ? (
+					<div style={{ width: '100%' }}>
+						{content}
+					</div>
+				) : (
+					<div style={{
+						fontSize: config.fontSize === '11px' ? '10px' : 
+							config.fontSize === '13px' && message.type === 'summary' ? '12px' : '12px', 
+						lineHeight: 1.2,
+						fontWeight: config.fontWeight,
+						fontStyle: config.fontStyle
+					}}>
+						{content}
+					</div>
+				)}
 			</div>
 		</div>
 	);
@@ -271,7 +281,7 @@ export const InteractionRenderer: React.FC<InteractionRendererProps> = ({
 					left: '50%',
 					transform: 'translate(-50%, 0)',
 					width: '950px',
-					height: '500px',
+					height: '800px',
 					border: '2px solid rgba(255, 255, 255, 0.3)',
 					borderRadius: '16px',
 					backgroundColor: 'rgba(255, 255, 255, 0.05)',
@@ -293,7 +303,7 @@ export const InteractionRenderer: React.FC<InteractionRendererProps> = ({
 
 				{/* Messages Layout */}
 				{sequence.layout.columns === 1 ? (
-					<div style={{height: '420px', overflowY: 'auto', paddingRight: '10px'}}>
+					<div style={{height: '700px', overflowY: 'auto', paddingRight: '10px'}}>
 						{leftMessages.map((message) => {
 							const { opacity, fadeOut } = getMessageOpacity(message);
 							const config = sequence.messageTypes[message.type];
@@ -312,7 +322,7 @@ export const InteractionRenderer: React.FC<InteractionRendererProps> = ({
 						})}
 					</div>
 				) : (
-					<div style={{display: 'flex', gap: '20px', height: '420px', overflow: 'hidden'}}>
+					<div style={{display: 'flex', gap: '20px', height: '700px', overflow: 'hidden'}}>
 						{/* Left Column */}
 						<div style={{flex: 1}}>
 							{leftMessages.map((message) => {
@@ -395,8 +405,13 @@ export const InteractionRenderer: React.FC<InteractionRendererProps> = ({
 							opacity,
 							...overlay.style,
 						}}
-						dangerouslySetInnerHTML={{ __html: overlayContent }}
-					/>
+					>
+						{typeof overlayContent === 'string' ? (
+							<div dangerouslySetInnerHTML={{ __html: overlayContent }} />
+						) : (
+							overlayContent
+						)}
+					</div>
 				);
 			})}
 		</AbsoluteFill>

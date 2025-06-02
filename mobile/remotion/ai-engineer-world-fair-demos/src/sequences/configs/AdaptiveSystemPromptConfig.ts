@@ -155,7 +155,7 @@ Selected Mode: RESEARCHER`;
 		createMessage(
 			'researcher-response',
 			'researcher_response',
-			'Based on recent research, quantum computing has made significant strides in 2024:\n\n**Key Developments:**\n• IBM\'s 1000+ qubit processors\n• Google\'s error correction breakthroughs\n• Microsoft\'s topological qubits progress\n\n**Cryptographic Impact:**\n• RSA encryption increasingly vulnerable\n• Post-quantum cryptography standards emerging\n• Timeline: 10-15 years for practical threat',
+			'Based on recent research, quantum computing has made significant strides in 2024 with IBM\'s 1000+ qubit processors and Google\'s error correction breakthroughs. This progress makes RSA encryption increasingly vulnerable, with post-quantum cryptography standards emerging to address the threat within 10-15 years.',
 			['researcherMode'],
 			{ column: 'left' }
 		),
@@ -190,7 +190,7 @@ Selected Mode: CODER`;
 		createMessage(
 			'coder-response',
 			'coder_response',
-			'Here\'s a basic Kyber implementation:\n\n```python\nimport numpy as np\n\nclass KyberKEM:\n    def __init__(self, n=256, q=3329):\n        self.n = n  # polynomial degree\n        self.q = q  # modulus\n    \n    def keygen(self):\n        # Generate secret key\n        s = np.random.randint(0, self.q, self.n)\n        # Generate public key\n        a = np.random.randint(0, self.q, (self.n, self.n))\n        e = np.random.normal(0, 1, self.n).astype(int)\n        t = (a @ s + e) % self.q\n        return (s, (a, t))\n```',
+			'Here\'s a basic Kyber implementation:\n\n```python\nclass KyberKEM:\n    def __init__(self, n=256, q=3329):\n        self.n, self.q = n, q\n    \n    def keygen(self):\n        s = np.random.randint(0, self.q, self.n)\n        a = np.random.randint(0, self.q, (self.n, self.n))\n        e = np.random.normal(0, 1, self.n).astype(int)\n        return (s, (a, (a @ s + e) % self.q))\n```',
 			['coderMode'],
 			{ column: 'left' }
 		),
@@ -224,7 +224,7 @@ Selected Mode: COACH`;
 		createMessage(
 			'coach-response',
 			'coach_response',
-			'Let\'s break this down step by step! 🎓\n\n**Step 1: The Problem**\nCurrent encryption is like a jigsaw puzzle. Classical computers try pieces randomly, but quantum computers can "see" the solution.\n\n**Step 2: The Solution**\nPost-quantum algorithms use different math problems that even quantum computers find hard.\n\n**Step 3: Kyber\'s Approach**\nKyber adds "mathematical noise" that only the intended recipient can filter out.\n\nWhat part would you like me to explain further?',
+			'Let\'s break this down! 🎓 Current encryption is like a jigsaw puzzle - classical computers try pieces randomly, but quantum computers can "see" the solution. Post-quantum algorithms like Kyber use different math problems that even quantum computers find hard by adding "mathematical noise" that only the intended recipient can filter out. What part would you like me to explain further?',
 			['coachMode'],
 			{ column: 'left' }
 		),
@@ -289,7 +289,7 @@ Selected Mode: COACH`;
 
 	layout: {
 		columns: 2,
-		autoFill: false,
+		autoFill: true,
 		maxMessagesPerColumn: 6,
 	},
 

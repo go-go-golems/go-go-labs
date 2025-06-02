@@ -7,6 +7,9 @@ import {ComprehensiveComparisonAnimation} from './ComprehensiveComparisonAnimati
 import {ContextBuildupAnimation} from './ContextBuildupAnimation';
 import {PostResponseEditingAnimation} from './PostResponseEditingAnimation';
 import {AdaptiveSystemPromptAnimation} from './AdaptiveSystemPromptAnimation';
+import {AssistantDiscussionAnimation} from './AssistantDiscussionAnimation';
+import {UserControlledToolsAnimation} from './UserControlledToolsAnimation';
+import {LLMGeneratedUIAnimation} from './LLMGeneratedUIAnimation';
 
 // Individual step components
 import {UserRequestSequence} from './sequences/UserRequestSequence';
@@ -103,6 +106,30 @@ export const RemotionRoot: React.FC = () => {
 				id="AdaptiveSystemPromptAnimation"
 				component={AdaptiveSystemPromptAnimation}
 				durationInFrames={630}
+				fps={30}
+				width={1920}
+				height={1080}
+			/>
+			<Composition
+				id="AssistantDiscussionAnimation"
+				component={AssistantDiscussionAnimation}
+				durationInFrames={360}
+				fps={30}
+				width={1920}
+				height={1080}
+			/>
+			<Composition
+				id="UserControlledToolsAnimation"
+				component={UserControlledToolsAnimation}
+				durationInFrames={480}
+				fps={30}
+				width={1920}
+				height={1080}
+			/>
+			<Composition
+				id="LLMGeneratedUIAnimation"
+				component={LLMGeneratedUIAnimation}
+				durationInFrames={460}
 				fps={30}
 				width={1920}
 				height={1080}
