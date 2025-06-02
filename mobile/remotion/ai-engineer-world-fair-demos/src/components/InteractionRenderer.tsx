@@ -10,6 +10,8 @@ import {
 	MessageTypeConfig,
 	StateTransition,
 	OverlayElement,
+	InteractionState,
+	resolveContent,
 } from '../types/InteractionDSL';
 
 interface MessageProps {
@@ -17,10 +19,16 @@ interface MessageProps {
 	config: MessageTypeConfig;
 	opacity: number;
 	fadeOut?: boolean;
+	state: InteractionState;
 }
 
-const Message: React.FC<MessageProps> = ({message, config, opacity, fadeOut = false}) => {
+const Message: React.FC<MessageProps> = ({message, config, opacity, fadeOut = false, state}) => {
 	const finalOpacity = message.customOpacity ?? opacity;
+	
+	// Resolve dynamic content
+	const content = resolveContent(message.content, state);
+	const icon = resolveContent(config.icon, state);
+	const label = resolveContent(config.label, state);
 	
 	return (
 		<div
@@ -42,7 +50,7 @@ const Message: React.FC<MessageProps> = ({message, config, opacity, fadeOut = fa
 			<span style={{
 				fontSize: config.fontSize === '11px' ? '14px' : 
 					config.fontSize === '13px' && message.type === 'summary' ? '18px' : '16px'
-			}}>{config.icon}</span>
+			}}>{icon}</span>
 			<div>
 				<div style={{
 					fontSize: config.fontSize === '11px' ? '8px' : 
@@ -51,7 +59,7 @@ const Message: React.FC<MessageProps> = ({message, config, opacity, fadeOut = fa
 					marginBottom: '3px',
 					fontWeight: config.fontWeight === 'bold' || config.fontWeight === '500' ? 'bold' : 'normal'
 				}}>
-					{config.label}
+					{label}
 				</div>
 				<div style={{
 					fontSize: config.fontSize === '11px' ? '10px' : 
@@ -60,7 +68,7 @@ const Message: React.FC<MessageProps> = ({message, config, opacity, fadeOut = fa
 					fontWeight: config.fontWeight,
 					fontStyle: config.fontStyle
 				}}>
-					{message.content}
+					{content}
 				</div>
 			</div>
 		</div>
@@ -99,6 +107,37 @@ export const InteractionRenderer: React.FC<InteractionRendererProps> = ({
 		return sequence.states
 			.filter(state => frame > state.endFrame)
 			.map(state => state.name);
+	};
+
+	// Token counter calculation
+	const calculateTokens = (): { current: number; isOptimized: boolean } => {
+		if (!sequence.tokenCounter?.enabled) return { current: 0, isOptimized: false };
+
+		const activeStates = getActiveStates();
+		const { tokenCounter } = sequence;
+		
+		// Find the most recent state with token count
+		let currentTokens = tokenCounter.initialTokens;
+		for (const state of sequence.states) {
+			if (frame >= state.startFrame && tokenCounter.stateTokenCounts[state.name]) {
+				currentTokens = tokenCounter.stateTokenCounts[state.name];
+			}
+		}
+
+		const isOptimized = tokenCounter.optimizedStates?.some(state => activeStates.includes(state)) ?? false;
+		return { current: currentTokens, isOptimized };
+	};
+
+	const { current: currentTokens, isOptimized } = calculateTokens();
+
+	// Create interaction state for dynamic content
+	const interactionState: InteractionState = {
+		currentFrame: frame,
+		activeStates: getActiveStates(),
+		fadeOutStates: getFadeOutStates(),
+		tokenCount: currentTokens,
+		isOptimized,
+		customData: {},
 	};
 
 	// Calculate message visibility and opacity
@@ -158,27 +197,6 @@ export const InteractionRenderer: React.FC<InteractionRendererProps> = ({
 		extrapolateRight: 'clamp',
 	});
 
-	// Token counter calculation
-	const calculateTokens = (): { current: number; isOptimized: boolean } => {
-		if (!sequence.tokenCounter?.enabled) return { current: 0, isOptimized: false };
-
-		const activeStates = getActiveStates();
-		const { tokenCounter } = sequence;
-		
-		// Find the most recent state with token count
-		let currentTokens = tokenCounter.initialTokens;
-		for (const state of sequence.states) {
-			if (frame >= state.startFrame && tokenCounter.stateTokenCounts[state.name]) {
-				currentTokens = tokenCounter.stateTokenCounts[state.name];
-			}
-		}
-
-		const isOptimized = tokenCounter.optimizedStates?.some(state => activeStates.includes(state)) ?? false;
-		return { current: currentTokens, isOptimized };
-	};
-
-	const { current: currentTokens, isOptimized } = calculateTokens();
-
 	// Calculate overlay visibility
 	const getOverlayOpacity = (overlay: OverlayElement): number => {
 		const hasStarted = overlay.visibleStates.some(stateName => {
@@ -197,6 +215,10 @@ export const InteractionRenderer: React.FC<InteractionRendererProps> = ({
 		const relevantState = startedStates[0];
 		return relevantState ? getStateOpacity(relevantState) : 1;
 	};
+
+	// Resolve dynamic title and subtitle
+	const title = resolveContent(sequence.title, interactionState);
+	const subtitle = sequence.subtitle ? resolveContent(sequence.subtitle, interactionState) : undefined;
 
 	return (
 		<AbsoluteFill
@@ -220,11 +242,11 @@ export const InteractionRenderer: React.FC<InteractionRendererProps> = ({
 					opacity: containerOpacity,
 				}}
 			>
-				{sequence.title}
+				{title}
 			</div>
 
 			{/* Subtitle */}
-			{sequence.subtitle && (
+			{subtitle && (
 				<div
 					style={{
 						position: 'absolute',
@@ -237,7 +259,7 @@ export const InteractionRenderer: React.FC<InteractionRendererProps> = ({
 						opacity: containerOpacity,
 					}}
 				>
-					{sequence.subtitle}
+					{subtitle}
 				</div>
 			)}
 
@@ -284,6 +306,7 @@ export const InteractionRenderer: React.FC<InteractionRendererProps> = ({
 									config={config}
 									opacity={opacity}
 									fadeOut={fadeOut}
+									state={interactionState}
 								/>
 							);
 						})}
@@ -304,6 +327,7 @@ export const InteractionRenderer: React.FC<InteractionRendererProps> = ({
 										config={config}
 										opacity={opacity}
 										fadeOut={fadeOut}
+										state={interactionState}
 									/>
 								);
 							})}
@@ -323,6 +347,7 @@ export const InteractionRenderer: React.FC<InteractionRendererProps> = ({
 										config={config}
 										opacity={opacity}
 										fadeOut={fadeOut}
+										state={interactionState}
 									/>
 								);
 							})}
@@ -359,6 +384,8 @@ export const InteractionRenderer: React.FC<InteractionRendererProps> = ({
 				const opacity = getOverlayOpacity(overlay);
 				if (opacity === 0) return null;
 
+				const overlayContent = resolveContent(overlay.content, interactionState);
+
 				return (
 					<div
 						key={overlay.id}
@@ -368,7 +395,7 @@ export const InteractionRenderer: React.FC<InteractionRendererProps> = ({
 							opacity,
 							...overlay.style,
 						}}
-						dangerouslySetInnerHTML={{ __html: overlay.content }}
+						dangerouslySetInnerHTML={{ __html: overlayContent }}
 					/>
 				);
 			})}

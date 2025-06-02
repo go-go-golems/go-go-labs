@@ -2,8 +2,8 @@
 
 export interface MessageTypeConfig {
 	bg: string;
-	icon: string;
-	label: string;
+	icon: string | ((state: InteractionState) => string);
+	label: string | ((state: InteractionState) => string);
 	fontSize?: string;
 	padding?: string;
 	boxShadow?: string;
@@ -23,10 +23,20 @@ export interface StateTransition {
 	easing?: 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out';
 }
 
+// State context for dynamic content
+export interface InteractionState {
+	currentFrame: number;
+	activeStates: string[];
+	fadeOutStates: string[];
+	tokenCount?: number;
+	isOptimized?: boolean;
+	customData?: { [key: string]: any };
+}
+
 export interface MessageDefinition {
 	id: string;
 	type: string;
-	content: string;
+	content: string | ((state: InteractionState) => string);
 	column?: 'left' | 'right' | 'auto'; // auto fills left to right
 	visibleStates: string[]; // which states this message is visible in
 	fadeOutStates?: string[]; // states where this message should fade out
@@ -35,7 +45,7 @@ export interface MessageDefinition {
 
 export interface OverlayElement {
 	id: string;
-	content: string;
+	content: string | ((state: InteractionState) => string);
 	position: {
 		bottom?: string;
 		top?: string;
@@ -47,8 +57,8 @@ export interface OverlayElement {
 }
 
 export interface InteractionSequence {
-	title: string;
-	subtitle?: string;
+	title: string | ((state: InteractionState) => string);
+	subtitle?: string | ((state: InteractionState) => string);
 	messageTypes: MessageTypeRegistry;
 	states: StateTransition[];
 	messages: MessageDefinition[];
@@ -67,11 +77,19 @@ export interface InteractionSequence {
 	};
 }
 
+// Helper function to resolve dynamic content
+export const resolveContent = (
+	content: string | ((state: InteractionState) => string),
+	state: InteractionState
+): string => {
+	return typeof content === 'function' ? content(state) : content;
+};
+
 // Helper functions for creating common configurations
 export const createMessageType = (
 	bg: string,
-	icon: string,
-	label: string,
+	icon: string | ((state: InteractionState) => string),
+	label: string | ((state: InteractionState) => string),
 	options: Partial<MessageTypeConfig> = {}
 ): MessageTypeConfig => ({
 	bg,
@@ -101,7 +119,7 @@ export const createState = (
 export const createMessage = (
 	id: string,
 	type: string,
-	content: string,
+	content: string | ((state: InteractionState) => string),
 	visibleStates: string[],
 	options: Partial<MessageDefinition> = {}
 ): MessageDefinition => ({
@@ -141,4 +159,8 @@ export const DEFAULT_MESSAGE_TYPES: MessageTypeRegistry = {
 		border: '1px solid rgba(255, 255, 255, 0.2)',
 		fontWeight: '500',
 	}),
+	// New message types for editing scenarios
+	edit_indicator: createMessageType('#f39c12', '✏️', 'Edit Mode'),
+	document_insert: createMessageType('#16a085', '📄', 'Document'),
+	version_control: createMessageType('#34495e', '��', 'Version'),
 }; 

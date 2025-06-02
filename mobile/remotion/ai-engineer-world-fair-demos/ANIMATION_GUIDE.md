@@ -5,14 +5,15 @@
 2. [Project Structure](#project-structure)
 3. [Core Concepts](#core-concepts)
 4. [Animation Architecture](#animation-architecture)
-5. [Timing and Choreography](#timing-and-choreography)
-6. [Visual Design Principles](#visual-design-principles)
-7. [Component Patterns](#component-patterns)
-8. [Building Individual Sequences](#building-individual-sequences)
-9. [Advanced Techniques](#advanced-techniques)
-10. [Rendering and Distribution](#rendering-and-distribution)
-11. [Best Practices](#best-practices)
-12. [Troubleshooting](#troubleshooting)
+5. [Interaction DSL](#interaction-dsl)
+6. [Timing and Choreography](#timing-and-choreography)
+7. [Visual Design Principles](#visual-design-principles)
+8. [Component Patterns](#component-patterns)
+9. [Building Individual Sequences](#building-individual-sequences)
+10. [Advanced Techniques](#advanced-techniques)
+11. [Rendering and Distribution](#rendering-and-distribution)
+12. [Best Practices](#best-practices)
+13. [Troubleshooting](#troubleshooting)
 
 ## Introduction
 
@@ -184,6 +185,300 @@ export const UserRequestSequence: React.FC = () => {
 - Each sequence has its own background (for individual rendering)
 - Frame numbers reset to 0 for each sequence
 - Self-contained timing logic
+
+## Interaction DSL
+
+The Interaction DSL (Domain Specific Language) provides a declarative way to create complex conversation animations with dynamic content, state-based transitions, and interactive elements.
+
+### Core DSL Concepts
+
+**1. State-Driven Animation**
+The DSL revolves around states that control when elements appear, disappear, and change:
+
+```tsx
+// Define animation states
+const states = [
+  createState('userInput', 30, 60),      // Start at frame 30, duration 60
+  createState('llmThinking', 90, 40),    // Start at frame 90, duration 40
+  createState('response', 130, 80),      // Start at frame 130, duration 80
+];
+```
+
+**2. Dynamic Content Functions**
+Content can be static strings or functions that change based on the current state:
+
+```tsx
+// Static content
+content: "Hello, how can I help you?"
+
+// Dynamic content that changes based on state
+content: (state: InteractionState) => {
+  if (state.activeStates.includes('editing')) {
+    return "✏️ Editing: How can I help you with your specific task?";
+  }
+  return "Hello, how can I help you?";
+}
+```
+
+**3. Message Types with Visual Styling**
+Define reusable message types with consistent styling:
+
+```tsx
+const messageTypes = {
+  user: createMessageType('#3498db', '👤', 'User'),
+  assistant: createMessageType('#9b59b6', '🧠', 'Assistant'),
+  edit_indicator: createMessageType('#f39c12', '✏️', 'Edit Mode'),
+};
+```
+
+### Building an Interaction Sequence
+
+**1. Define the Sequence Structure**
+
+```tsx
+export const myInteractionSequence: InteractionSequence = {
+  title: "My Interactive Animation",
+  subtitle: "Demonstrating dynamic content",
+  
+  // Message type definitions
+  messageTypes: {
+    ...DEFAULT_MESSAGE_TYPES,
+    custom_type: createMessageType('#e74c3c', '🔥', 'Custom'),
+  },
+  
+  // Animation states
+  states: [
+    createState('intro', 0, 30),
+    createState('conversation', 30, 120),
+    createState('editing', 150, 60),
+  ],
+  
+  // Messages with visibility rules
+  messages: [
+    createMessage(
+      'greeting',
+      'user', 
+      'Hello!',
+      ['intro', 'conversation', 'editing']
+    ),
+  ],
+  
+  // Layout configuration
+  layout: {
+    columns: 2,
+    autoFill: true,
+  },
+};
+```
+
+**2. Dynamic Content Examples**
+
+```tsx
+// Title that changes based on state
+title: (state: InteractionState) => {
+  if (state.activeStates.includes('editing')) {
+    return 'Editing Mode Active';
+  }
+  return 'Normal Conversation';
+},
+
+// Message content that evolves
+content: (state: InteractionState) => {
+  const editCount = state.activeStates.filter(s => 
+    s.includes('edit')
+  ).length;
+  return `Message edited ${editCount} times`;
+},
+
+// Icons that change based on context
+icon: (state: InteractionState) => 
+  state.activeStates.includes('thinking') ? '🤔' : '🧠',
+```
+
+**3. State Management**
+
+The `InteractionState` object provides context for dynamic content:
+
+```tsx
+interface InteractionState {
+  currentFrame: number;        // Current animation frame
+  activeStates: string[];      // Currently active state names
+  fadeOutStates: string[];     // States that have ended
+  tokenCount?: number;         // Current token count (if enabled)
+  isOptimized?: boolean;       // Whether optimization is active
+  customData?: any;            // Custom data for specific use cases
+}
+```
+
+### Advanced DSL Features
+
+**1. Conditional Visibility**
+
+```tsx
+createMessage(
+  'edit-hint',
+  'edit_indicator',
+  'Click to edit this message',
+  ['conversation'],           // Visible during conversation
+  { 
+    fadeOutStates: ['editing'], // Fade out when editing starts
+    column: 'right' 
+  }
+)
+```
+
+**2. Overlays with Dynamic Content**
+
+```tsx
+overlays: [
+  {
+    id: 'status-indicator',
+    content: (state: InteractionState) => {
+      const activeCount = state.activeStates.length;
+      return `<div>Active states: ${activeCount}</div>`;
+    },
+    position: { top: '10%', right: '10%' },
+    visibleStates: ['conversation', 'editing'],
+  }
+]
+```
+
+**3. Token Counter Integration**
+
+```tsx
+tokenCounter: {
+  enabled: true,
+  initialTokens: 1000,
+  maxTokens: 128000,
+  stateTokenCounts: {
+    'conversation': 1500,
+    'editing': 2000,
+    'final': 1800,
+  },
+  optimizedStates: ['final'],
+}
+```
+
+### Using the InteractionRenderer
+
+The `InteractionRenderer` component handles all the DSL logic:
+
+```tsx
+import { InteractionRenderer } from './components/InteractionRenderer';
+import { myInteractionSequence } from './configs/MyConfig';
+
+export const MyAnimation: React.FC = () => {
+  return (
+    <AbsoluteFill>
+      <InteractionRenderer
+        sequence={myInteractionSequence}
+        background="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+      />
+    </AbsoluteFill>
+  );
+};
+```
+
+### DSL Best Practices
+
+**1. State Naming Convention**
+- Use descriptive names: `userInput`, `llmThinking`, `editingMode`
+- Group related states: `editing`, `editingUser`, `editingAssistant`
+- Use consistent prefixes: `show`, `hide`, `fade`
+
+**2. Dynamic Content Guidelines**
+- Keep functions simple and fast
+- Avoid complex calculations in content functions
+- Use state.customData for complex state management
+- Test dynamic content with different state combinations
+
+**3. Performance Considerations**
+- Limit the number of dynamic content functions
+- Cache expensive calculations in state.customData
+- Use static content when possible
+- Test with long sequences to ensure smooth playback
+
+**4. Debugging DSL Sequences**
+```tsx
+// Add debug overlay to see current state
+{
+  id: 'debug-overlay',
+  content: (state: InteractionState) => `
+    <div style="background: rgba(0,0,0,0.8); color: white; padding: 10px;">
+      Frame: ${state.currentFrame}<br/>
+      Active: ${state.activeStates.join(', ')}<br/>
+      Tokens: ${state.tokenCount}
+    </div>
+  `,
+  position: { top: '10px', left: '10px' },
+  visibleStates: ['all'], // Show always for debugging
+}
+```
+
+### Example: Post-Response Editing Animation
+
+The `PostResponseEditingAnimation` demonstrates advanced DSL usage with a realistic code-test-fix workflow:
+
+```tsx
+// Dynamic title based on current workflow state
+title: (state: InteractionState) => {
+  if (state.activeStates.includes('editingResponse')) {
+    return 'Post-Response Editing: Fixing Code Issues';
+  }
+  return 'Post-Response Editing: Code → Test → Fix → Success';
+},
+
+// AI response that evolves when user edits it
+createMessage(
+  'ai-code-response',
+  'assistant_editing',
+  (state: InteractionState) => {
+    if (state.activeStates.includes('editingResponse') || 
+        state.activeStates.includes('secondToolCall') || 
+        state.activeStates.includes('testSuccess')) {
+      // Fixed version with error handling
+      return 'def factorial(n):\n    if n < 0:\n        raise ValueError("Negative numbers not allowed")\n    if n <= 1:\n        return 1\n    return n * factorial(n - 1)';
+    }
+    // Original version without error handling
+    return 'def factorial(n):\n    if n <= 1:\n        return 1\n    return n * factorial(n - 1)';
+  },
+  ['aiResponse', 'firstToolCall', 'testFailure', 'editingResponse', 'secondToolCall', 'testSuccess']
+),
+
+// Tool calls that disappear when code is edited
+createMessage(
+  'first-tool-call',
+  'tool_use_failed',
+  'run_tests("test_factorial.py")',
+  ['firstToolCall', 'testFailure'],
+  { 
+    column: 'right',
+    fadeOutStates: ['toolsDisappear'] // Fade out when user edits
+  }
+),
+
+// Dynamic overlay explaining the current workflow step
+content: (state: InteractionState) => {
+  if (state.activeStates.includes('testFailure')) {
+    return '<div style="background: #e74c3c;">❌ Tests Failed</div>';
+  } else if (state.activeStates.includes('editingResponse')) {
+    return '<div style="background: #f39c12;">✏️ User Editing AI Response</div>';
+  } else if (state.activeStates.includes('toolsDisappear')) {
+    return '<div style="background: #95a5a6;">🔄 Tool Calls Cleared</div>';
+  } else if (state.activeStates.includes('testSuccess')) {
+    return '<div style="background: #27ae60;">✅ Tests Passed</div>';
+  }
+  return '<div>🔄 Edit-Test-Fix Workflow</div>';
+}
+```
+
+**Key Features Demonstrated:**
+- **Dynamic content**: AI response changes when user edits it
+- **State-based visibility**: Tool calls disappear and reappear based on editing
+- **Visual feedback**: Different message types for failed vs successful tests
+- **Realistic workflow**: Shows actual development process of test-driven fixes
+
+This DSL approach makes complex interactive animations maintainable and allows for sophisticated state-based storytelling while keeping the animation logic declarative and easy to understand.
 
 ## Timing and Choreography
 
