@@ -478,6 +478,93 @@ content: (state: InteractionState) => {
 - **Visual feedback**: Different message types for failed vs successful tests
 - **Realistic workflow**: Shows actual development process of test-driven fixes
 
+### Example: Adaptive System Prompt Animation
+
+The `AdaptiveSystemPromptAnimation` demonstrates how LLMs can dynamically switch between different assistant modes based on context, with a persistent system prompt that changes content:
+
+```tsx
+// Dynamic subtitle that changes based on active mode
+subtitle: (state: InteractionState) => {
+  if (state.activeStates.includes('researcherMode')) {
+    return 'RESEARCHER MODE: Gathering and analyzing information';
+  } else if (state.activeStates.includes('coderMode')) {
+    return 'CODER MODE: Writing and debugging code';
+  } else if (state.activeStates.includes('coachMode')) {
+    return 'COACH MODE: Teaching and guiding learning';
+  }
+  return 'How LLMs adapt their behavior by changing system prompts';
+},
+
+// Persistent system prompt at the top that changes content based on mode
+createMessage(
+  'persistent-system-prompt',
+  'system_prompt',
+  (state: InteractionState) => {
+    if (state.activeStates.includes('researcherMode') || 
+        state.activeStates.includes('systemPrompt1')) {
+      return `SYSTEM PROMPT:
+
+You are a research assistant specializing in cutting-edge technology analysis. Your role is to:
+- Gather and synthesize current information from multiple sources
+- Provide comprehensive overviews of complex technical topics
+- Analyze implications and future trends`;
+    } else if (state.activeStates.includes('coderMode') || 
+               state.activeStates.includes('systemPrompt2')) {
+      return `SYSTEM PROMPT:
+
+You are a senior software engineer specializing in cryptography and security. Your role is to:
+- Write clean, efficient, and secure code
+- Provide detailed implementation explanations
+- Follow best practices and coding standards`;
+    } else if (state.activeStates.includes('coachMode') || 
+               state.activeStates.includes('systemPrompt3')) {
+      return `SYSTEM PROMPT:
+
+You are an expert educator and learning coach specializing in complex technical concepts. Your role is to:
+- Break down complex topics into digestible steps
+- Use analogies and real-world examples
+- Encourage questions and active learning`;
+    }
+    return `SYSTEM PROMPT:
+
+You are a helpful AI assistant. Analyze the user's request and select the most appropriate mode to respond effectively.`;
+  },
+  ['container', 'userQuestion1', 'modeSelection1', 'systemPrompt1', 'researcherMode', 'userQuestion2', 'modeSelection2', 'systemPrompt2', 'coderMode', 'userQuestion3', 'modeSelection3', 'systemPrompt3', 'coachMode'],
+  { column: 'left' }
+),
+
+// Mode selection block showing Chain of Thought reasoning
+createMessage(
+  'mode-selection-1',
+  'mode_selection',
+  (state: InteractionState) => {
+    return `ASSISTANT_MODE: RESEARCHER
+
+Chain of Thought:
+- User asking about "latest developments" → research needed
+- Complex technical domain → comprehensive analysis required
+- Best served by research-focused approach
+
+Selected Mode: RESEARCHER`;
+  },
+  ['modeSelection1', 'systemPrompt1', 'researcherMode'],
+  { column: 'right' }
+),
+```
+
+**Key Features Demonstrated:**
+- **Mode Selection Logic**: Shows explicit Chain of Thought reasoning for mode selection
+- **Persistent System Prompt**: Single system prompt at top that changes content based on selected mode
+- **Context-Aware Responses**: Each mode produces different response styles and content
+- **Multi-Step Workflow**: Demonstrates progression through research → coding → teaching modes
+- **Visual Mode Indicators**: Clear visual feedback showing which mode is currently active
+- **Interleaved Messages**: Proper conversation flow with user questions, mode selection, and responses
+
+**Three Modes Showcased:**
+1. **Researcher Mode**: Academic, comprehensive analysis with citations
+2. **Coder Mode**: Technical implementation with code examples and best practices
+3. **Coach Mode**: Educational, step-by-step explanations with analogies
+
 This DSL approach makes complex interactive animations maintainable and allows for sophisticated state-based storytelling while keeping the animation logic declarative and easy to understand.
 
 ## Timing and Choreography

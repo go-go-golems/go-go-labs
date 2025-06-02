@@ -6,6 +6,7 @@ import {SQLiteViewOptimizationAnimation} from './SQLiteViewOptimizationAnimation
 import {ComprehensiveComparisonAnimation} from './ComprehensiveComparisonAnimation';
 import {ContextBuildupAnimation} from './ContextBuildupAnimation';
 import {PostResponseEditingAnimation} from './PostResponseEditingAnimation';
+import {AdaptiveSystemPromptAnimation} from './AdaptiveSystemPromptAnimation';
 
 // Individual step components
 import {UserRequestSequence} from './sequences/UserRequestSequence';
@@ -94,6 +95,14 @@ export const RemotionRoot: React.FC = () => {
 				id="PostResponseEditingAnimation"
 				component={PostResponseEditingAnimation}
 				durationInFrames={400}
+				fps={30}
+				width={1920}
+				height={1080}
+			/>
+			<Composition
+				id="AdaptiveSystemPromptAnimation"
+				component={AdaptiveSystemPromptAnimation}
+				durationInFrames={630}
 				fps={30}
 				width={1920}
 				height={1080}
