@@ -108,6 +108,10 @@ func main() {
 			initStorage()
 			return playbook.NewGetMetadataCommand(storage)
 		},
+		func() (cmds.Command, error) {
+			initStorage()
+			return playbook.NewRefreshCommand(storage)
+		},
 	}
 
 	// Convert commands to Cobra commands and add to root

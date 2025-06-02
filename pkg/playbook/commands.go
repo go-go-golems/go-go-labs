@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -33,6 +34,7 @@ type RegisterSettings struct {
 	Tags        []string `glazed.parameter:"tags"`
 	Filename    string   `glazed.parameter:"filename"`
 	Source      string   `glazed.parameter:"source"`
+	IsCommand   bool     `glazed.parameter:"command"`
 }
 
 var _ cmds.WriterCommand = &RegisterCommand{}
@@ -40,12 +42,12 @@ var _ cmds.WriterCommand = &RegisterCommand{}
 func NewRegisterCommand(storage *Storage) (*RegisterCommand, error) {
 	cmdDesc := cmds.NewCommandDescription(
 		"register",
-		cmds.WithShort("Register a playbook from file or URL"),
+		cmds.WithShort("Register a playbook from file, URL, or shell command"),
 		cmds.WithArguments(
 			parameters.NewParameterDefinition(
 				"source",
 				parameters.ParameterTypeString,
-				parameters.WithHelp("Path or URL to the playbook"),
+				parameters.WithHelp("Path, URL to the playbook, or shell command (when using --command)"),
 				parameters.WithRequired(true),
 			),
 		),
@@ -81,6 +83,12 @@ func NewRegisterCommand(storage *Storage) (*RegisterCommand, error) {
 				parameters.ParameterTypeString,
 				parameters.WithHelp("Override filename"),
 			),
+			parameters.NewParameterDefinition(
+				"command",
+				parameters.ParameterTypeBool,
+				parameters.WithHelp("Register source as a shell command instead of file/URL"),
+				parameters.WithDefault(false),
+			),
 		),
 	)
 
@@ -96,34 +104,43 @@ func (c *RegisterCommand) RunIntoWriter(ctx context.Context, parsedLayers *layer
 		return err
 	}
 
-	// Read content from file or URL
-	var content string
-	var canonicalURL *string
-	var err error
-
-	if strings.HasPrefix(s.Source, "http://") || strings.HasPrefix(s.Source, "https://") {
-		content, err = fetchURL(s.Source)
-		canonicalURL = &s.Source
-	} else {
-		content, err = readFile(s.Source)
-		if s.Filename == "" {
-			s.Filename = filepath.Base(s.Source)
-		}
-	}
-	if err != nil {
-		return fmt.Errorf("failed to read content: %w", err)
-	}
-
 	// Create entity
 	entity := &Entity{
-		Type:         TypePlaybook,
-		Title:        s.Title,
-		Description:  s.Description,
-		Summary:      s.Summary,
-		CanonicalURL: canonicalURL,
-		Content:      &content,
-		Tags:         s.Tags,
-		LastFetched:  timePtr(time.Now()),
+		Type:        TypePlaybook,
+		Title:       s.Title,
+		Description: s.Description,
+		Summary:     s.Summary,
+		Tags:        s.Tags,
+		LastFetched: timePtr(time.Now()),
+	}
+
+	if s.IsCommand {
+		// Register as shell command
+		entity.Command = &s.Source
+		if s.Filename == "" {
+			s.Filename = s.Title + "-output.txt"
+		}
+	} else {
+		// Read content from file or URL
+		var content string
+		var canonicalURL *string
+		var err error
+
+		if strings.HasPrefix(s.Source, "http://") || strings.HasPrefix(s.Source, "https://") {
+			content, err = fetchURL(s.Source)
+			canonicalURL = &s.Source
+		} else {
+			content, err = readFile(s.Source)
+			if s.Filename == "" {
+				s.Filename = filepath.Base(s.Source)
+			}
+		}
+		if err != nil {
+			return fmt.Errorf("failed to read content: %w", err)
+		}
+
+		entity.CanonicalURL = canonicalURL
+		entity.Content = &content
 	}
 
 	if s.Filename != "" {
@@ -541,10 +558,15 @@ func (c *ShowCommand) RunIntoWriter(ctx context.Context, parsedLayers *layers.Pa
 		}
 	}
 
-	// Show content if it's a playbook
-	if entity.Type == TypePlaybook && entity.Content != nil {
-		fmt.Fprintf(w, "\nContent:\n")
-		fmt.Fprintf(w, "%s\n", *entity.Content)
+	// Show content or command if it's a playbook
+	if entity.Type == TypePlaybook {
+		if entity.IsCommand() {
+			fmt.Fprintf(w, "\nCommand:\n")
+			fmt.Fprintf(w, "%s\n", *entity.Command)
+		} else if entity.Content != nil {
+			fmt.Fprintf(w, "\nContent:\n")
+			fmt.Fprintf(w, "%s\n", *entity.Content)
+		}
 	}
 
 	return nil
@@ -619,15 +641,28 @@ func (c *DeployCommand) RunIntoWriter(ctx context.Context, parsedLayers *layers.
 			filename = *entity.Filename
 		}
 		if filename == "" {
-			filename = entity.Slug + ".md"
+			if entity.IsCommand() {
+				filename = entity.Slug + "-output.txt"
+			} else {
+				filename = entity.Slug + ".md"
+			}
 		}
 
 		filePath := filepath.Join(s.TargetDirectory, filename)
-		if err := os.WriteFile(filePath, []byte(*entity.Content), 0644); err != nil {
-			return fmt.Errorf("failed to write file: %w", err)
-		}
 
-		fmt.Fprintf(w, "Deployed playbook %s to %s\n", entity.Title, filePath)
+		if entity.IsCommand() {
+			// Execute shell command and capture output
+			if err := executeCommandToFile(ctx, *entity.Command, filePath); err != nil {
+				return fmt.Errorf("failed to execute command: %w", err)
+			}
+			fmt.Fprintf(w, "Executed command and deployed output %s to %s\n", entity.Title, filePath)
+		} else {
+			// Deploy regular content
+			if err := os.WriteFile(filePath, []byte(*entity.Content), 0644); err != nil {
+				return fmt.Errorf("failed to write file: %w", err)
+			}
+			fmt.Fprintf(w, "Deployed playbook %s to %s\n", entity.Title, filePath)
+		}
 	} else {
 		// Deploy collection - create subdirectory with collection slug
 		collectionDir := filepath.Join(s.TargetDirectory, entity.Slug)
@@ -647,14 +682,18 @@ func (c *DeployCommand) RunIntoWriter(ctx context.Context, parsedLayers *layers.
 				continue
 			}
 
-			if memberEntity.Type == TypePlaybook && memberEntity.Content != nil {
+			if memberEntity.Type == TypePlaybook {
 				filename := ""
 				if member.RelativePath != nil {
 					filename = *member.RelativePath
 				} else if memberEntity.Filename != nil {
 					filename = *memberEntity.Filename
 				} else {
-					filename = memberEntity.Slug + ".md"
+					if memberEntity.IsCommand() {
+						filename = memberEntity.Slug + "-output.txt"
+					} else {
+						filename = memberEntity.Slug + ".md"
+					}
 				}
 
 				filePath := filepath.Join(collectionDir, filename)
@@ -665,12 +704,21 @@ func (c *DeployCommand) RunIntoWriter(ctx context.Context, parsedLayers *layers.
 					continue
 				}
 
-				if err := os.WriteFile(filePath, []byte(*memberEntity.Content), 0644); err != nil {
-					log.Warn().Err(err).Str("path", filePath).Msg("Failed to write file")
-					continue
+				if memberEntity.IsCommand() {
+					// Execute shell command and capture output
+					if err := executeCommandToFile(ctx, *memberEntity.Command, filePath); err != nil {
+						log.Warn().Err(err).Str("command", *memberEntity.Command).Msg("Failed to execute command")
+						continue
+					}
+					fmt.Fprintf(w, "Executed command and deployed %s to %s\n", memberEntity.Title, filePath)
+				} else if memberEntity.Content != nil {
+					// Deploy regular content
+					if err := os.WriteFile(filePath, []byte(*memberEntity.Content), 0644); err != nil {
+						log.Warn().Err(err).Str("path", filePath).Msg("Failed to write file")
+						continue
+					}
+					fmt.Fprintf(w, "Deployed %s to %s\n", memberEntity.Title, filePath)
 				}
-
-				fmt.Fprintf(w, "Deployed %s to %s\n", memberEntity.Title, filePath)
 			}
 		}
 
@@ -712,6 +760,33 @@ func readFile(path string) (string, error) {
 
 func timePtr(t time.Time) *time.Time {
 	return &t
+}
+
+// executeCommandToFile executes a shell command and writes stdout and stderr to a file
+func executeCommandToFile(ctx context.Context, command, filePath string) error {
+	// Create the file
+	outFile, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to create output file: %w", err)
+	}
+	defer outFile.Close()
+
+	// Write command header
+	fmt.Fprintf(outFile, "# Command: %s\n", command)
+	fmt.Fprintf(outFile, "# Executed at: %s\n\n", time.Now().Format(time.RFC3339))
+
+	// Execute the command
+	cmd := exec.CommandContext(ctx, "sh", "-c", command)
+	cmd.Stdout = outFile
+	cmd.Stderr = outFile
+
+	if err := cmd.Run(); err != nil {
+		// Still write the error to the file but also return it
+		fmt.Fprintf(outFile, "\n# Command failed with error: %v\n", err)
+		return fmt.Errorf("command execution failed: %w", err)
+	}
+
+	return nil
 }
 
 // AddToCollectionCommand adds entities to collections
@@ -1027,6 +1102,123 @@ func (c *GetMetadataCommand) RunIntoGlazeProcessor(ctx context.Context, parsedLa
 				return err
 			}
 		}
+	}
+
+	return nil
+}
+
+// RefreshCommand refreshes deployments by re-executing commands
+type RefreshCommand struct {
+	*cmds.CommandDescription
+	storage *Storage
+}
+
+type RefreshSettings struct {
+	Slug            string `glazed.parameter:"slug"`
+	TargetDirectory string `glazed.parameter:"target_directory"`
+}
+
+var _ cmds.WriterCommand = &RefreshCommand{}
+
+func NewRefreshCommand(storage *Storage) (*RefreshCommand, error) {
+	cmdDesc := cmds.NewCommandDescription(
+		"refresh",
+		cmds.WithShort("Refresh a deployment by re-executing shell commands"),
+		cmds.WithArguments(
+			parameters.NewParameterDefinition(
+				"slug",
+				parameters.ParameterTypeString,
+				parameters.WithHelp("Entity slug to refresh"),
+				parameters.WithRequired(true),
+			),
+			parameters.NewParameterDefinition(
+				"target_directory",
+				parameters.ParameterTypeString,
+				parameters.WithHelp("Target directory to refresh"),
+				parameters.WithRequired(true),
+			),
+		),
+	)
+
+	return &RefreshCommand{
+		CommandDescription: cmdDesc,
+		storage:           storage,
+	}, nil
+}
+
+func (c *RefreshCommand) RunIntoWriter(ctx context.Context, parsedLayers *layers.ParsedLayers, w io.Writer) error {
+	s := &RefreshSettings{}
+	if err := parsedLayers.InitializeStruct(layers.DefaultSlug, s); err != nil {
+		return err
+	}
+
+	entity, err := c.storage.GetEntityBySlug(s.Slug)
+	if err != nil {
+		return fmt.Errorf("failed to get entity: %w", err)
+	}
+
+	if entity.Type == TypePlaybook && entity.IsCommand() {
+		// Refresh single command playbook
+		filename := ""
+		if entity.Filename != nil {
+			filename = *entity.Filename
+		} else {
+			filename = entity.Slug + "-output.txt"
+		}
+
+		filePath := filepath.Join(s.TargetDirectory, filename)
+		if err := executeCommandToFile(ctx, *entity.Command, filePath); err != nil {
+			return fmt.Errorf("failed to execute command: %w", err)
+		}
+
+		fmt.Fprintf(w, "Refreshed command output %s to %s\n", entity.Title, filePath)
+	} else if entity.Type == TypeCollection {
+		// Refresh collection - re-execute all command playbooks
+		collectionDir := filepath.Join(s.TargetDirectory, entity.Slug)
+		members, err := c.storage.GetCollectionMembers(entity.ID)
+		if err != nil {
+			return fmt.Errorf("failed to get collection members: %w", err)
+		}
+
+		refreshedCount := 0
+		for _, member := range members {
+			memberEntity, err := c.storage.GetEntityByID(member.MemberID)
+			if err != nil {
+				log.Warn().Err(err).Int64("member_id", member.MemberID).Msg("Failed to load member")
+				continue
+			}
+
+			if memberEntity.Type == TypePlaybook && memberEntity.IsCommand() {
+				filename := ""
+				if member.RelativePath != nil {
+					filename = *member.RelativePath
+				} else if memberEntity.Filename != nil {
+					filename = *memberEntity.Filename
+				} else {
+					filename = memberEntity.Slug + "-output.txt"
+				}
+
+				filePath := filepath.Join(collectionDir, filename)
+				
+				// Create parent directory if needed
+				if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+					log.Warn().Err(err).Str("path", filepath.Dir(filePath)).Msg("Failed to create directory")
+					continue
+				}
+
+				if err := executeCommandToFile(ctx, *memberEntity.Command, filePath); err != nil {
+					log.Warn().Err(err).Str("command", *memberEntity.Command).Msg("Failed to execute command")
+					continue
+				}
+
+				fmt.Fprintf(w, "Refreshed command %s to %s\n", memberEntity.Title, filePath)
+				refreshedCount++
+			}
+		}
+
+		fmt.Fprintf(w, "Refreshed %d command outputs in collection %s\n", refreshedCount, entity.Title)
+	} else {
+		return fmt.Errorf("entity %s is not a command playbook or collection", s.Slug)
 	}
 
 	return nil

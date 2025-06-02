@@ -24,6 +24,7 @@ type Entity struct {
 	Summary      string    `json:"summary" db:"summary"`
 	CanonicalURL *string   `json:"canonical_url,omitempty" db:"canonical_url"`
 	Content      *string   `json:"content,omitempty" db:"content"`
+	Command      *string   `json:"command,omitempty" db:"command"`
 	ContentHash  *string   `json:"content_hash,omitempty" db:"content_hash"`
 	Filename     *string   `json:"filename,omitempty" db:"filename"`
 	Tags         []string  `json:"tags" db:"tags"`
@@ -102,4 +103,20 @@ func (e *Entity) RemoveTag(tag string) {
 			break
 		}
 	}
+}
+
+// IsCommand returns true if this entity represents a shell command
+func (e *Entity) IsCommand() bool {
+	return e.Command != nil && *e.Command != ""
+}
+
+// GetContentOrCommand returns the content for file-based playbooks or command for shell playbooks
+func (e *Entity) GetContentOrCommand() string {
+	if e.IsCommand() {
+		return *e.Command
+	}
+	if e.Content != nil {
+		return *e.Content
+	}
+	return ""
 }

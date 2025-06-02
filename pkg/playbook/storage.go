@@ -56,6 +56,7 @@ func (s *Storage) initDB() error {
 		summary TEXT,
 		canonical_url TEXT,
 		content TEXT,
+		command TEXT,
 		content_hash TEXT,
 		filename TEXT,
 		tags TEXT DEFAULT '[]',
@@ -114,10 +115,18 @@ func (s *Storage) CreateEntity(entity *Entity) error {
 	}
 
 	// Calculate content hash for playbooks
-	if entity.Type == TypePlaybook && entity.Content != nil {
-		hash := sha256.Sum256([]byte(*entity.Content))
-		hashStr := hex.EncodeToString(hash[:])
-		entity.ContentHash = &hashStr
+	if entity.Type == TypePlaybook {
+		var hashContent string
+		if entity.Content != nil {
+			hashContent = *entity.Content
+		} else if entity.Command != nil {
+			hashContent = *entity.Command
+		}
+		if hashContent != "" {
+			hash := sha256.Sum256([]byte(hashContent))
+			hashStr := hex.EncodeToString(hash[:])
+			entity.ContentHash = &hashStr
+		}
 	}
 
 	// Marshal tags
@@ -128,10 +137,10 @@ func (s *Storage) CreateEntity(entity *Entity) error {
 
 	// Insert entity
 	result, err := s.db.Exec(`
-		INSERT INTO entities (slug, type, title, description, summary, canonical_url, content, content_hash, filename, tags, last_fetched)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO entities (slug, type, title, description, summary, canonical_url, content, command, content_hash, filename, tags, last_fetched)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, entity.Slug, entity.Type, entity.Title, entity.Description, entity.Summary,
-		entity.CanonicalURL, entity.Content, entity.ContentHash, entity.Filename, tagsJSON, entity.LastFetched)
+		entity.CanonicalURL, entity.Content, entity.Command, entity.ContentHash, entity.Filename, tagsJSON, entity.LastFetched)
 
 	if err != nil {
 		return fmt.Errorf("failed to insert entity: %w", err)
@@ -161,10 +170,10 @@ func (s *Storage) GetEntityBySlug(slug string) (*Entity, error) {
 	var tagsJSON string
 
 	err := s.db.QueryRow(`
-		SELECT id, slug, type, title, description, summary, canonical_url, content, content_hash, filename, tags, last_fetched, created_at
+		SELECT id, slug, type, title, description, summary, canonical_url, content, command, content_hash, filename, tags, last_fetched, created_at
 		FROM entities WHERE slug = ?
 	`, slug).Scan(&entity.ID, &entity.Slug, &entity.Type, &entity.Title, &entity.Description, &entity.Summary,
-		&entity.CanonicalURL, &entity.Content, &entity.ContentHash, &entity.Filename, &tagsJSON, &entity.LastFetched, &entity.CreatedAt)
+		&entity.CanonicalURL, &entity.Content, &entity.Command, &entity.ContentHash, &entity.Filename, &tagsJSON, &entity.LastFetched, &entity.CreatedAt)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -194,10 +203,10 @@ func (s *Storage) GetEntityByID(id int64) (*Entity, error) {
 	var tagsJSON string
 
 	err := s.db.QueryRow(`
-		SELECT id, slug, type, title, description, summary, canonical_url, content, content_hash, filename, tags, last_fetched, created_at
+		SELECT id, slug, type, title, description, summary, canonical_url, content, command, content_hash, filename, tags, last_fetched, created_at
 		FROM entities WHERE id = ?
 	`, id).Scan(&entity.ID, &entity.Slug, &entity.Type, &entity.Title, &entity.Description, &entity.Summary,
-		&entity.CanonicalURL, &entity.Content, &entity.ContentHash, &entity.Filename, &tagsJSON, &entity.LastFetched, &entity.CreatedAt)
+		&entity.CanonicalURL, &entity.Content, &entity.Command, &entity.ContentHash, &entity.Filename, &tagsJSON, &entity.LastFetched, &entity.CreatedAt)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -224,7 +233,7 @@ func (s *Storage) GetEntityByID(id int64) (*Entity, error) {
 // ListEntities lists entities with optional filters
 func (s *Storage) ListEntities(entityType *EntityType, tags []string) ([]*Entity, error) {
 	query := `
-		SELECT id, slug, type, title, description, summary, canonical_url, content, content_hash, filename, tags, last_fetched, created_at
+		SELECT id, slug, type, title, description, summary, canonical_url, content, command, content_hash, filename, tags, last_fetched, created_at
 		FROM entities WHERE 1=1
 	`
 	args := []interface{}{}
@@ -255,7 +264,7 @@ func (s *Storage) ListEntities(entityType *EntityType, tags []string) ([]*Entity
 		var tagsJSON string
 
 		err := rows.Scan(&entity.ID, &entity.Slug, &entity.Type, &entity.Title, &entity.Description, &entity.Summary,
-			&entity.CanonicalURL, &entity.Content, &entity.ContentHash, &entity.Filename, &tagsJSON, &entity.LastFetched, &entity.CreatedAt)
+			&entity.CanonicalURL, &entity.Content, &entity.Command, &entity.ContentHash, &entity.Filename, &tagsJSON, &entity.LastFetched, &entity.CreatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan entity: %w", err)
 		}
@@ -274,11 +283,12 @@ func (s *Storage) ListEntities(entityType *EntityType, tags []string) ([]*Entity
 // SearchEntities searches entities by query string
 func (s *Storage) SearchEntities(query string, entityType *EntityType) ([]*Entity, error) {
 	searchQuery := `
-		SELECT id, slug, type, title, description, summary, canonical_url, content, content_hash, filename, tags, last_fetched, created_at
+		SELECT id, slug, type, title, description, summary, canonical_url, content, command, content_hash, filename, tags, last_fetched, created_at
 		FROM entities 
-		WHERE (title LIKE ? OR description LIKE ? OR summary LIKE ? OR content LIKE ?)
+		WHERE (title LIKE ? OR description LIKE ? OR summary LIKE ? OR content LIKE ? OR command LIKE ?)
 	`
 	args := []interface{}{
+		"%" + query + "%",
 		"%" + query + "%",
 		"%" + query + "%",
 		"%" + query + "%",
@@ -304,7 +314,7 @@ func (s *Storage) SearchEntities(query string, entityType *EntityType) ([]*Entit
 		var tagsJSON string
 
 		err := rows.Scan(&entity.ID, &entity.Slug, &entity.Type, &entity.Title, &entity.Description, &entity.Summary,
-			&entity.CanonicalURL, &entity.Content, &entity.ContentHash, &entity.Filename, &tagsJSON, &entity.LastFetched, &entity.CreatedAt)
+			&entity.CanonicalURL, &entity.Content, &entity.Command, &entity.ContentHash, &entity.Filename, &tagsJSON, &entity.LastFetched, &entity.CreatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan entity: %w", err)
 		}
