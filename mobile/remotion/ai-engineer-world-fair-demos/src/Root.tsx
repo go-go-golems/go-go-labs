@@ -4,6 +4,7 @@ import {CRMQueryAnimation} from './CRMQueryAnimation';
 import {SQLiteQueryAnimation} from './SQLiteQueryAnimation';
 import {SQLiteViewOptimizationAnimation} from './SQLiteViewOptimizationAnimation';
 import {ComprehensiveComparisonAnimation} from './ComprehensiveComparisonAnimation';
+import {ContextBuildupAnimation} from './ContextBuildupAnimation';
 
 // Individual step components
 import {UserRequestSequence} from './sequences/UserRequestSequence';
@@ -30,6 +31,11 @@ import {TokenEfficiencyComparisonSequence} from './sequences/TokenEfficiencyComp
 import {ViewPersistenceSequence} from './sequences/ViewPersistenceSequence';
 import {ToolDiscoverySequence} from './sequences/ToolDiscoverySequence';
 import {FutureEfficiencySequence} from './sequences/FutureEfficiencySequence';
+
+// Context Buildup Animation sequences
+import {InitialMessageSequence} from './sequences/InitialMessageSequence';
+import {FirstToolCallSequence} from './sequences/FirstToolCallSequence';
+import {ContextSummarizationSequence} from './sequences/ContextSummarizationSequence';
 
 export const RemotionRoot: React.FC = () => {
 	return (
@@ -71,6 +77,14 @@ export const RemotionRoot: React.FC = () => {
 				id="ComprehensiveComparisonAnimation"
 				component={ComprehensiveComparisonAnimation}
 				durationInFrames={1200}
+				fps={30}
+				width={1920}
+				height={1080}
+			/>
+			<Composition
+				id="ContextBuildupAnimation"
+				component={ContextBuildupAnimation}
+				durationInFrames={840}
 				fps={30}
 				width={1920}
 				height={1080}
@@ -240,6 +254,32 @@ export const RemotionRoot: React.FC = () => {
 			<Composition
 				id="Comparison-Step4-FutureEfficiency"
 				component={FutureEfficiencySequence}
+				durationInFrames={300}
+				fps={30}
+				width={1920}
+				height={1080}
+			/>
+
+			{/* Context Buildup Animation - Individual Steps */}
+			<Composition
+				id="Context-Step1-InitialMessages"
+				component={InitialMessageSequence}
+				durationInFrames={240}
+				fps={30}
+				width={1920}
+				height={1080}
+			/>
+			<Composition
+				id="Context-Step2-FirstToolCall"
+				component={FirstToolCallSequence}
+				durationInFrames={240}
+				fps={30}
+				width={1920}
+				height={1080}
+			/>
+			<Composition
+				id="Context-Step3-Summarization"
+				component={ContextSummarizationSequence}
 				durationInFrames={300}
 				fps={30}
 				width={1920}
