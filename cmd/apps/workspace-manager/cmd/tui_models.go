@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"fmt"
@@ -19,6 +19,7 @@ const (
 	stateWorkspaces
 	stateCreateWorkspace
 	stateWorkspaceForm
+	stateDeleteConfirm
 )
 
 // Main TUI model
@@ -50,6 +51,11 @@ type mainModel struct {
 	showHelp       bool
 	message        string
 	
+	// Delete confirmation
+	deleteWorkspace  *Workspace
+	deleteFiles      bool
+	forceWorktrees   bool
+	
 	// Key bindings
 	keys           keyMap
 }
@@ -67,6 +73,7 @@ type keyMap struct {
 	Quit       key.Binding
 	Help       key.Binding
 	Create     key.Binding
+	Delete     key.Binding
 	Refresh    key.Binding
 	Filter     key.Binding
 }
@@ -117,6 +124,10 @@ func defaultKeyMap() keyMap {
 		Create: key.NewBinding(
 			key.WithKeys("c"),
 			key.WithHelp("c", "create workspace"),
+		),
+		Delete: key.NewBinding(
+			key.WithKeys("d"),
+			key.WithHelp("d", "delete workspace"),
 		),
 		Refresh: key.NewBinding(
 			key.WithKeys("r"),

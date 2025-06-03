@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"time"
@@ -59,4 +59,11 @@ type WorkspaceStatus struct {
 	Workspace    Workspace          `json:"workspace"`
 	Repositories []RepositoryStatus `json:"repositories"`
 	Overall      string             `json:"overall"`
+}
+
+// WorktreeInfo tracks information about a created worktree for rollback purposes
+type WorktreeInfo struct {
+	Repository Repository `json:"repository"`
+	TargetPath string     `json:"target_path"`
+	Branch     string     `json:"branch"`
 }

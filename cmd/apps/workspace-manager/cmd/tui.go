@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"context"
@@ -159,6 +159,8 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updateCreateWorkspace(msg)
 		case stateWorkspaceForm:
 			return m.updateWorkspaceForm(msg)
+		case stateDeleteConfirm:
+			return m.updateDeleteConfirm(msg)
 		}
 	}
 
@@ -203,6 +205,8 @@ func (m mainModel) View() string {
 		content = m.viewCreateWorkspace()
 	case stateWorkspaceForm:
 		content = m.viewWorkspaceForm()
+	case stateDeleteConfirm:
+		content = m.viewDeleteConfirm()
 	}
 
 	// Add message if any
@@ -277,6 +281,17 @@ func (m mainModel) updateWorkspaces(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch {
 	case key.Matches(msg, m.keys.Escape):
 		m.state = stateMain
+		return m, nil
+	case key.Matches(msg, m.keys.Delete):
+		// Delete selected workspace
+		if selected := m.workspaceList.SelectedItem(); selected != nil {
+			if item, ok := selected.(workspaceItem); ok {
+				m.deleteWorkspace = &item.workspace
+				m.deleteFiles = false
+				m.forceWorktrees = false
+				m.state = stateDeleteConfirm
+			}
+		}
 		return m, nil
 	case key.Matches(msg, m.keys.Refresh):
 		m.refreshWorkspaces()
@@ -487,6 +502,8 @@ Key Bindings:
   tab         Next form field
   esc         Back/cancel
   c           Create workspace (in repository view)
+  d           Delete workspace (in workspace view)
+  w           Toggle force worktrees (in delete confirmation)
   r           Refresh data
   ?           Toggle this help
   q           Quit
@@ -498,4 +515,86 @@ Navigation:
   Create      → Configure and create new workspace
 `
 	return helpStyle.Render(help)
+}
+
+func (m mainModel) updateDeleteConfirm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch {
+	case key.Matches(msg, m.keys.Escape):
+		m.state = stateWorkspaces
+		m.deleteWorkspace = nil
+		return m, nil
+	case msg.String() == "y" || msg.String() == "Y":
+		// Confirm delete
+		if m.deleteWorkspace != nil {
+			if err := m.workspaceManager.DeleteWorkspace(context.Background(), m.deleteWorkspace.Name, m.deleteFiles, m.forceWorktrees); err != nil {
+				m.message = fmt.Sprintf("Failed to delete workspace: %v", err)
+			} else {
+				if m.deleteFiles {
+					m.message = fmt.Sprintf("Workspace '%s' and files deleted successfully", m.deleteWorkspace.Name)
+				} else {
+					m.message = fmt.Sprintf("Workspace configuration '%s' deleted successfully", m.deleteWorkspace.Name)
+				}
+				m.refreshWorkspaces()
+			}
+		}
+		m.state = stateWorkspaces
+		m.deleteWorkspace = nil
+		return m, nil
+	case msg.String() == "n" || msg.String() == "N":
+		// Cancel delete
+		m.state = stateWorkspaces
+		m.deleteWorkspace = nil
+		return m, nil
+	case msg.String() == "f" || msg.String() == "F":
+		// Toggle file deletion
+		m.deleteFiles = !m.deleteFiles
+		return m, nil
+	case msg.String() == "w" || msg.String() == "W":
+		// Toggle force worktrees
+		m.forceWorktrees = !m.forceWorktrees
+		return m, nil
+	}
+	return m, nil
+}
+
+func (m mainModel) viewDeleteConfirm() string {
+	if m.deleteWorkspace == nil {
+		return "Error: No workspace selected for deletion"
+	}
+
+	content := titleStyle.Render("Delete Workspace Confirmation")
+	content += "\n\n"
+	
+	content += fmt.Sprintf("Workspace: %s\n", selectedStyle.Render(m.deleteWorkspace.Name))
+	content += fmt.Sprintf("Path: %s\n", m.deleteWorkspace.Path)
+	content += fmt.Sprintf("Repositories: %d\n", len(m.deleteWorkspace.Repositories))
+	
+	content += "\n"
+	
+	content += "This will:\n"
+	if m.forceWorktrees {
+		content += "  1. Remove git worktrees (git worktree remove --force)\n"
+	} else {
+		content += "  1. Remove git worktrees (git worktree remove)\n"
+		content += "     ⚠️  Will fail if there are uncommitted changes\n"
+	}
+	
+	if m.deleteFiles {
+		content += "  2. DELETE the workspace directory and ALL its contents!\n"
+	} else {
+		content += "  2. Remove workspace configuration only\n"
+		content += "  3. Workspace files will remain at: " + m.deleteWorkspace.Path + "\n"
+	}
+	
+	content += "\n\n"
+	content += "Options:\n"
+	content += fmt.Sprintf("  [f] Toggle file deletion (currently: %s)\n", 
+		map[bool]string{true: "ON - will delete files", false: "OFF - keep files"}[m.deleteFiles])
+	content += fmt.Sprintf("  [w] Toggle force worktrees (currently: %s)\n", 
+		map[bool]string{true: "ON - will force removal", false: "OFF - safe removal"}[m.forceWorktrees])
+	content += "  [y] Confirm deletion\n"
+	content += "  [n] Cancel\n"
+	content += "  [esc] Cancel\n"
+	
+	return formStyle.Render(content)
 }

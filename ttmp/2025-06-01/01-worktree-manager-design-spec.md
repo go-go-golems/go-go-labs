@@ -97,6 +97,39 @@ workspace-manager status --untracked
 
 **Value delivered**: Instead of manually checking git status in multiple directories, get instant awareness of your entire workspace state.
 
+### Phase 1.4: Workspace Cleanup and Management
+
+**What it does**: Provides safe cleanup and removal of workspaces when development is complete, with options to preserve or remove workspace files. Uses `git worktree remove` safely by default, protecting against uncommitted changes.
+
+**User workflow**:
+1. User completes work in a workspace and wants to clean it up
+2. User initiates workspace deletion with options for file handling
+3. Tool removes git worktrees using `git worktree remove` (fails safely if uncommitted changes exist)
+4. Tool optionally deletes workspace directory and all files
+5. Tool removes workspace configuration
+6. User can choose to keep workspace files for archival or completely remove them
+7. User can force worktree removal with `--force-worktrees` if they want to override safety checks
+
+**CLI Examples**:
+```bash
+# Delete workspace configuration only (keep files)
+workspace-manager delete refactor-conversation
+
+# Delete workspace and all files
+workspace-manager delete refactor-conversation --remove-files
+
+# Force delete without confirmation
+workspace-manager delete old-workspace --force --remove-files
+
+# Force worktree removal even with uncommitted changes
+workspace-manager delete workspace-name --force-worktrees --remove-files
+
+# Interactive deletion with preview
+workspace-manager delete workspace-name --interactive
+```
+
+**Value delivered**: Clean workspace lifecycle management ensures git repository integrity by safely removing worktrees with protection against data loss, while providing flexibility in file preservation. Prevents accumulation of stale worktrees and workspace clutter.
+
 ## Tier 2: Advanced Git Operations
 
 ### Phase 2.1: Cross-Repository Change Management
@@ -213,7 +246,7 @@ workspace-manager branch switch main
 │ └─────────────────────────────────────────────────────────────────────────┘ │
 │                                                                             │
 │ ┌─ Actions ───────────────────────────────────────────────────────────────┐ │
-│ │ [C] Create Workspace  [D] Discover Repos  [R] Refresh  [Q] Quit         │ │
+│ │ [C] Create Workspace  [D] Delete Workspace  [R] Refresh  [Q] Quit       │ │
 │ └─────────────────────────────────────────────────────────────────────────┘ │
 │                                                                             │
 │ Filter: [________________] Tags: [go] [ai] [tui] [archived]                │
@@ -330,6 +363,29 @@ workspace-manager tui --workspace refactor-conversation
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
+**Delete Workspace Confirmation Screen**:
+```
+┌─ Delete Workspace Confirmation ────────────────────────────────────────────┐
+│                                                                             │
+│ Workspace: refactor-conversation                                           │
+│ Path: ~/workspaces/2025-06-01/refactor-conversation                       │
+│ Repositories: 3                                                           │
+│                                                                             │
+│ This will:                                                                 │
+│   1. Remove git worktrees (git worktree remove)                           │
+│      ⚠️  Will fail if there are uncommitted changes                       │
+│   2. DELETE the workspace directory and ALL its contents!                 │
+│                                                                             │
+│ Options:                                                                   │
+│   [f] Toggle file deletion (currently: ON - will delete files)            │
+│   [w] Toggle force worktrees (currently: OFF - safe removal)              │
+│   [y] Confirm deletion                                                     │
+│   [n] Cancel                                                               │
+│   [esc] Cancel                                                             │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
 **Value delivered**: Workspaces become first-class development artifacts that can be managed, shared, and reused across teams and projects.
 
 ## Tier 4: Advanced Workflow Integration
@@ -405,7 +461,7 @@ workspace-manager commit --message "Add new feature" \
 
 ## Success Criteria
 
-**Tier 1 Success**: A developer can replace manual worktree setup with a single command and immediately have a functional multi-repository workspace.
+**Tier 1 Success**: A developer can replace manual worktree setup with a single command and immediately have a functional multi-repository workspace. They can also safely clean up workspaces when development is complete, with full control over file preservation.
 
 **Tier 2 Success**: A developer can manage complex feature development across multiple repositories without leaving their workspace context or manually tracking repository states.
 
