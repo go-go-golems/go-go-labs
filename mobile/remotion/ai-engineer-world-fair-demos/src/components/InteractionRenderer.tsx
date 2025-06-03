@@ -75,7 +75,8 @@ const Message: React.FC<MessageProps> = ({message, config, opacity, fadeOut = fa
 							config.fontSize === '13px' && message.type === 'summary' ? '12px' : '12px', 
 						lineHeight: 1.2,
 						fontWeight: config.fontWeight,
-						fontStyle: config.fontStyle
+						fontStyle: config.fontStyle,
+						whiteSpace: 'pre-wrap'
 					}}>
 						{content}
 					</div>
@@ -238,46 +239,11 @@ export const InteractionRenderer: React.FC<InteractionRendererProps> = ({
 				...containerStyle,
 			}}
 		>
-			{/* Title */}
-			<div
-				style={{
-					position: 'absolute',
-					top: '12%',
-					left: '50%',
-					transform: 'translate(-50%, -50%)',
-					color: 'white',
-					fontSize: '28px',
-					fontWeight: 'bold',
-					textAlign: 'center',
-					opacity: containerOpacity,
-				}}
-			>
-				{title}
-			</div>
-
-			{/* Subtitle */}
-			{subtitle && (
-				<div
-					style={{
-						position: 'absolute',
-						top: '16%',
-						left: '50%',
-						transform: 'translate(-50%, -50%)',
-						color: 'rgba(255, 255, 255, 0.8)',
-						fontSize: '16px',
-						textAlign: 'center',
-						opacity: containerOpacity,
-					}}
-				>
-					{subtitle}
-				</div>
-			)}
 
 			{/* Context Container */}
 			<div
 				style={{
 					position: 'absolute',
-					top: '20%',
 					left: '50%',
 					transform: 'translate(-50%, 0)',
 					width: '950px',

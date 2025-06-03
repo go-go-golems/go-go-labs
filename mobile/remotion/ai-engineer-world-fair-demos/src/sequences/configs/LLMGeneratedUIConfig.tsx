@@ -18,7 +18,7 @@ const DynamicToolUI: React.FC<{
 	const [showAdvanced, setShowAdvanced] = useState(false);
 
 	const handleInputChange = (field: string, value: any) => {
-		setFormData(prev => ({ ...prev, [field]: value }));
+		setFormData((prev: any) => ({ ...prev, [field]: value }));
 	};
 
 	return (

@@ -1,8 +1,12 @@
 import {Composition} from 'remotion';
 import {ToolCallingAnimation} from './ToolCallingAnimation';
+import {ToolCallingAnimationNew} from './ToolCallingAnimationNew';
 import {CRMQueryAnimation} from './CRMQueryAnimation';
+import {CRMQueryAnimationNew} from './CRMQueryAnimationNew';
 import {SQLiteQueryAnimation} from './SQLiteQueryAnimation';
+import {SQLiteQueryAnimationNew} from './SQLiteQueryAnimationNew';
 import {SQLiteViewOptimizationAnimation} from './SQLiteViewOptimizationAnimation';
+import {SQLiteViewOptimizationAnimationNew} from './SQLiteViewOptimizationAnimationNew';
 import {ComprehensiveComparisonAnimation} from './ComprehensiveComparisonAnimation';
 import {ContextBuildupAnimation} from './ContextBuildupAnimation';
 import {PostResponseEditingAnimation} from './PostResponseEditingAnimation';
@@ -13,6 +17,7 @@ import {LLMGeneratedUIAnimation} from './LLMGeneratedUIAnimation';
 
 // Individual step components
 import {UserRequestSequence} from './sequences/UserRequestSequence';
+import {UserRequestSequenceNew} from './sequences/UserRequestSequenceNew';
 import {ToolAnalysisSequence} from './sequences/ToolAnalysisSequence';
 import {ToolExecutionSequence} from './sequences/ToolExecutionSequence';
 import {ResultIntegrationSequence} from './sequences/ResultIntegrationSequence';
@@ -55,9 +60,25 @@ export const RemotionRoot: React.FC = () => {
 				height={1080}
 			/>
 			<Composition
+				id="ToolCallingAnimationNew"
+				component={ToolCallingAnimationNew}
+				durationInFrames={780}
+				fps={30}
+				width={1920}
+				height={1080}
+			/>
+			<Composition
 				id="CRMQueryAnimation"
 				component={CRMQueryAnimation}
 				durationInFrames={1200}
+				fps={30}
+				width={1920}
+				height={1080}
+			/>
+			<Composition
+				id="CRMQueryAnimationNew"
+				component={CRMQueryAnimationNew}
+				durationInFrames={630}
 				fps={30}
 				width={1920}
 				height={1080}
@@ -71,9 +92,25 @@ export const RemotionRoot: React.FC = () => {
 				height={1080}
 			/>
 			<Composition
+				id="SQLiteQueryAnimationNew"
+				component={SQLiteQueryAnimationNew}
+				durationInFrames={1440}
+				fps={30}
+				width={1920}
+				height={1080}
+			/>
+			<Composition
 				id="SQLiteViewOptimizationAnimation"
 				component={SQLiteViewOptimizationAnimation}
 				durationInFrames={1200}
+				fps={30}
+				width={1920}
+				height={1080}
+			/>
+			<Composition
+				id="SQLiteViewOptimizationAnimationNew"
+				component={SQLiteViewOptimizationAnimationNew}
+				durationInFrames={1380}
 				fps={30}
 				width={1920}
 				height={1080}
@@ -139,6 +176,14 @@ export const RemotionRoot: React.FC = () => {
 			<Composition
 				id="Weather-Step1-UserRequest"
 				component={UserRequestSequence}
+				durationInFrames={210}
+				fps={30}
+				width={1920}
+				height={1080}
+			/>
+			<Composition
+				id="Weather-Step1-UserRequestNew"
+				component={UserRequestSequenceNew}
 				durationInFrames={210}
 				fps={30}
 				width={1920}
