@@ -83,9 +83,11 @@ func runDelete(ctx context.Context, workspaceName string, force bool, forceWorkt
 	
 	if removeFiles {
 		fmt.Printf("  2. DELETE the workspace directory and ALL its contents!\n")
+		fmt.Printf("     📁 This includes: go.work, AGENT.md, and all repository worktrees\n")
 	} else {
-		fmt.Printf("  2. Remove workspace configuration only\n")
-		fmt.Printf("  3. Workspace files will remain at: %s\n", workspace.Path)
+		fmt.Printf("  2. Remove workspace configuration\n")
+		fmt.Printf("  3. Clean up workspace-specific files (go.work, AGENT.md)\n")
+		fmt.Printf("  4. Repository worktrees will remain at: %s\n", workspace.Path)
 	}
 
 	// Confirm deletion unless forced
