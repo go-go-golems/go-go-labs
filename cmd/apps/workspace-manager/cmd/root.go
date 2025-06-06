@@ -62,6 +62,7 @@ func init() {
 		NewCommitCommand(),
 		NewSyncCommand(),
 		NewBranchCommand(),
+		NewRebaseCommand(),
 		NewDiffCommand(),
 		NewLogCommand(),
 	)
