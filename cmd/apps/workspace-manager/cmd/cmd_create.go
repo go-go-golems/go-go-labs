@@ -11,26 +11,41 @@ import (
 
 func NewCreateCommand() *cobra.Command {
 	var (
-		repos       []string
-		branch      string
-		agentSource string
-		interactive bool
-		dryRun      bool
+		repos        []string
+		branch       string
+		branchPrefix string
+		agentSource  string
+		interactive  bool
+		dryRun       bool
 	)
 
 	cmd := &cobra.Command{
 		Use:   "create [workspace-name]",
 		Short: "Create a new multi-repository workspace",
 		Long: `Create a new workspace with specified repositories.
-The workspace will contain git worktrees for each repository on the specified branch.`,
+The workspace will contain git worktrees for each repository on the specified branch.
+
+If no branch is specified, a branch will be automatically created using the pattern:
+  <branch-prefix>/<workspace-name>
+
+Examples:
+  # Create workspace with automatic branch (task/my-feature)
+  workspace-manager create my-feature --repos app,lib
+
+  # Create workspace with custom branch
+  workspace-manager create my-feature --repos app,lib --branch feature/new-api
+
+  # Create workspace with custom branch prefix (bug/my-feature)
+  workspace-manager create my-feature --repos app,lib --branch-prefix bug`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runCreate(cmd.Context(), args[0], repos, branch, agentSource, interactive, dryRun)
+			return runCreate(cmd.Context(), args[0], repos, branch, branchPrefix, agentSource, interactive, dryRun)
 		},
 	}
 
 	cmd.Flags().StringSliceVar(&repos, "repos", nil, "Repository names to include (comma-separated)")
-	cmd.Flags().StringVar(&branch, "branch", "", "Branch name for worktrees")
+	cmd.Flags().StringVar(&branch, "branch", "", "Branch name for worktrees (if not specified, uses <branch-prefix>/<workspace-name>)")
+	cmd.Flags().StringVar(&branchPrefix, "branch-prefix", "task", "Prefix for auto-generated branch names")
 	cmd.Flags().StringVar(&agentSource, "agent-source", "", "Path to AGENT.md template file")
 	cmd.Flags().BoolVar(&interactive, "interactive", false, "Interactive repository selection")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show what would be created without actually creating")
@@ -38,7 +53,7 @@ The workspace will contain git worktrees for each repository on the specified br
 	return cmd
 }
 
-func runCreate(ctx context.Context, name string, repos []string, branch, agentSource string, interactive, dryRun bool) error {
+func runCreate(ctx context.Context, name string, repos []string, branch, branchPrefix, agentSource string, interactive, dryRun bool) error {
 	wm, err := NewWorkspaceManager()
 	if err != nil {
 		return errors.Wrap(err, "failed to create workspace manager")
@@ -58,8 +73,15 @@ func runCreate(ctx context.Context, name string, repos []string, branch, agentSo
 		return errors.New("no repositories specified. Use --repos flag or --interactive mode")
 	}
 
+	// Generate branch name if not specified
+	finalBranch := branch
+	if finalBranch == "" {
+		finalBranch = fmt.Sprintf("%s/%s", branchPrefix, name)
+		fmt.Printf("No branch specified, using auto-generated branch: %s\n", finalBranch)
+	}
+
 	// Create workspace
-	workspace, err := wm.CreateWorkspace(ctx, name, repos, branch, agentSource, dryRun)
+	workspace, err := wm.CreateWorkspace(ctx, name, repos, finalBranch, agentSource, dryRun)
 	if err != nil {
 		return errors.Wrap(err, "failed to create workspace")
 	}
