@@ -37,3 +37,5 @@ cmd/apps/textractor/outputs
 .specstory
 
 node_modules
+
+.git-commit-message.yaml

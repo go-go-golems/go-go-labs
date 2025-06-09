@@ -505,13 +505,27 @@ func (wm *WorkspaceManager) DeleteWorkspace(ctx context.Context, name string, re
 		return errors.Wrap(err, "failed to remove worktrees")
 	}
 
-	// Remove workspace directory if requested
+	// Remove workspace directory and files if requested
 	if removeFiles {
 		if _, err := os.Stat(workspace.Path); err == nil {
-			log.Info().Str("path", workspace.Path).Msg("Removing workspace directory")
+			log.Info().Str("path", workspace.Path).Msg("Removing workspace directory and files")
+			
+			// Log what we're removing for transparency
+			if err := wm.logWorkspaceFilesToRemove(workspace.Path); err != nil {
+				log.Warn().Err(err).Msg("Failed to enumerate workspace files for logging")
+			}
+			
 			if err := os.RemoveAll(workspace.Path); err != nil {
 				return errors.Wrapf(err, "failed to remove workspace directory: %s", workspace.Path)
 			}
+			
+			log.Info().Str("path", workspace.Path).Msg("Successfully removed workspace directory and all files")
+		}
+	} else {
+		// If not removing files, still clean up go.work and AGENT.md from workspace directory
+		// as these are workspace-specific files that should be removed with workspace deletion
+		if err := wm.cleanupWorkspaceSpecificFiles(workspace.Path); err != nil {
+			log.Warn().Err(err).Msg("Failed to clean up workspace-specific files")
 		}
 	}
 
@@ -647,6 +661,59 @@ func (wm *WorkspaceManager) removeWorktrees(ctx context.Context, workspace *Work
 	}
 
 	fmt.Printf("=== Worktree cleanup completed ===\n\n")
+	return nil
+}
+
+// logWorkspaceFilesToRemove logs the files that will be removed for transparency
+func (wm *WorkspaceManager) logWorkspaceFilesToRemove(workspacePath string) error {
+	entries, err := os.ReadDir(workspacePath)
+	if err != nil {
+		return err
+	}
+
+	var files []string
+	var dirs []string
+	
+	for _, entry := range entries {
+		if entry.IsDir() {
+			dirs = append(dirs, entry.Name())
+		} else {
+			files = append(files, entry.Name())
+		}
+	}
+
+	log.Info().
+		Str("workspacePath", workspacePath).
+		Strs("files", files).
+		Strs("directories", dirs).
+		Int("totalItems", len(entries)).
+		Msg("Workspace contents to be removed")
+
+	return nil
+}
+
+// cleanupWorkspaceSpecificFiles removes workspace-specific files (go.work, AGENT.md) 
+// even when not doing a full directory removal
+func (wm *WorkspaceManager) cleanupWorkspaceSpecificFiles(workspacePath string) error {
+	workspaceSpecificFiles := []string{"go.work", "go.work.sum", "AGENT.md"}
+	
+	for _, fileName := range workspaceSpecificFiles {
+		filePath := filepath.Join(workspacePath, fileName)
+		
+		if _, err := os.Stat(filePath); err == nil {
+			log.Info().Str("file", filePath).Msg("Removing workspace-specific file")
+			
+			if err := os.Remove(filePath); err != nil {
+				log.Warn().Err(err).Str("file", filePath).Msg("Failed to remove workspace-specific file")
+				return errors.Wrapf(err, "failed to remove %s", filePath)
+			}
+			
+			log.Info().Str("file", filePath).Msg("Successfully removed workspace-specific file")
+		} else if !os.IsNotExist(err) {
+			log.Warn().Err(err).Str("file", filePath).Msg("Error checking workspace-specific file")
+		}
+	}
+	
 	return nil
 }
 
