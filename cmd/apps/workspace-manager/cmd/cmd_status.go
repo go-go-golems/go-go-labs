@@ -14,9 +14,9 @@ import (
 
 func NewStatusCommand() *cobra.Command {
 	var (
-		short      bool
-		untracked  bool
-		workspace  string
+		short     bool
+		untracked bool
+		workspace string
 	)
 
 	cmd := &cobra.Command{
@@ -48,7 +48,7 @@ func runStatus(ctx context.Context, workspaceName string, short, untracked bool)
 		if err != nil {
 			return errors.Wrap(err, "failed to get current directory")
 		}
-		
+
 		detected, err := detectWorkspace(cwd)
 		if err != nil {
 			return errors.Wrap(err, "failed to detect workspace. Use 'workspace-manager status <workspace-name>' or specify --workspace flag")
@@ -73,21 +73,21 @@ func runStatus(ctx context.Context, workspaceName string, short, untracked bool)
 	if short {
 		return printStatusShort(status, untracked)
 	}
-	
+
 	return printStatusDetailed(status, untracked)
 }
 
 func detectWorkspace(cwd string) (string, error) {
 	// Look for workspace configuration file in current directory or parents
 	dir := cwd
-	
+
 	for {
 		// Check if this directory contains repository worktrees
 		entries, err := os.ReadDir(dir)
 		if err != nil {
 			return "", err
 		}
-		
+
 		// Look for .git files (worktree indicators) and workspace structure
 		gitDirs := 0
 		for _, entry := range entries {
@@ -98,20 +98,20 @@ func detectWorkspace(cwd string) (string, error) {
 				}
 			}
 		}
-		
+
 		// If we found multiple git worktrees, this might be a workspace
 		if gitDirs >= 2 {
 			// Try to find workspace name from the path
 			return filepath.Base(dir), nil
 		}
-		
+
 		parent := filepath.Dir(dir)
 		if parent == dir {
 			break // Reached root
 		}
 		dir = parent
 	}
-	
+
 	return "", errors.New("not in a workspace directory")
 }
 
@@ -120,31 +120,31 @@ func loadWorkspace(name string) (*Workspace, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	for _, workspace := range workspaces {
 		if workspace.Name == name {
 			return &workspace, nil
 		}
 	}
-	
+
 	return nil, errors.Errorf("workspace not found: %s", name)
 }
 
 func printStatusShort(status *WorkspaceStatus, includeUntracked bool) error {
 	fmt.Printf("Workspace: %s (%s)\n", status.Workspace.Name, status.Overall)
-	
+
 	for _, repoStatus := range status.Repositories {
 		symbol := getRepositoryStatusSymbol(repoStatus)
 		fmt.Printf("%s %s", symbol, repoStatus.Repository.Name)
-		
+
 		if repoStatus.CurrentBranch != "" {
 			fmt.Printf(" [%s]", repoStatus.CurrentBranch)
 		}
-		
+
 		if repoStatus.Ahead > 0 || repoStatus.Behind > 0 {
 			fmt.Printf(" ↑%d ↓%d", repoStatus.Ahead, repoStatus.Behind)
 		}
-		
+
 		changes := []string{}
 		if len(repoStatus.StagedFiles) > 0 {
 			changes = append(changes, fmt.Sprintf("S:%d", len(repoStatus.StagedFiles)))
@@ -155,14 +155,14 @@ func printStatusShort(status *WorkspaceStatus, includeUntracked bool) error {
 		if includeUntracked && len(repoStatus.UntrackedFiles) > 0 {
 			changes = append(changes, fmt.Sprintf("U:%d", len(repoStatus.UntrackedFiles)))
 		}
-		
+
 		if len(changes) > 0 {
 			fmt.Printf(" [%s]", strings.Join(changes, " "))
 		}
-		
+
 		fmt.Println()
 	}
-	
+
 	return nil
 }
 
@@ -170,49 +170,50 @@ func printStatusDetailed(status *WorkspaceStatus, includeUntracked bool) error {
 	fmt.Printf("Workspace: %s\n", status.Workspace.Name)
 	fmt.Printf("Path: %s\n", status.Workspace.Path)
 	fmt.Printf("Overall Status: %s\n\n", status.Overall)
-	
+
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	defer w.Flush()
-	
-	fmt.Fprintln(w, "REPOSITORY\tBRANCH\tSTATUS\tCHANGES\tSYNC")
-	fmt.Fprintln(w, "----------\t------\t------\t-------\t----")
-	
+
+	fmt.Fprintln(w, "REPOSITORY\tBRANCH\tSTATUS\tCHANGES\tSYNC\tMERGED")
+	fmt.Fprintln(w, "----------\t------\t------\t-------\t----\t------")
+
 	for _, repoStatus := range status.Repositories {
 		repoName := repoStatus.Repository.Name
 		branch := repoStatus.CurrentBranch
 		if branch == "" {
 			branch = "-"
 		}
-		
+
 		statusStr := getStatusString(repoStatus)
 		changesStr := getChangesString(repoStatus, includeUntracked)
 		syncStr := getSyncString(repoStatus)
-		
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
-			repoName, branch, statusStr, changesStr, syncStr)
+		mergedStr := getMergedString(repoStatus)
+
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+			repoName, branch, statusStr, changesStr, syncStr, mergedStr)
 	}
-	
+
 	fmt.Fprintln(w)
-	
+
 	// Show detailed changes if any
 	for _, repoStatus := range status.Repositories {
 		if repoStatus.HasChanges || (includeUntracked && len(repoStatus.UntrackedFiles) > 0) {
 			fmt.Printf("\n%s:\n", repoStatus.Repository.Name)
-			
+
 			if len(repoStatus.StagedFiles) > 0 {
 				fmt.Printf("  Staged files:\n")
 				for _, file := range repoStatus.StagedFiles {
 					fmt.Printf("    + %s\n", file)
 				}
 			}
-			
+
 			if len(repoStatus.ModifiedFiles) > 0 {
 				fmt.Printf("  Modified files:\n")
 				for _, file := range repoStatus.ModifiedFiles {
 					fmt.Printf("    M %s\n", file)
 				}
 			}
-			
+
 			if includeUntracked && len(repoStatus.UntrackedFiles) > 0 {
 				fmt.Printf("  Untracked files:\n")
 				for _, file := range repoStatus.UntrackedFiles {
@@ -221,7 +222,7 @@ func printStatusDetailed(status *WorkspaceStatus, includeUntracked bool) error {
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -250,7 +251,7 @@ func getStatusString(status RepositoryStatus) string {
 
 func getChangesString(status RepositoryStatus, includeUntracked bool) string {
 	parts := []string{}
-	
+
 	if len(status.StagedFiles) > 0 {
 		parts = append(parts, fmt.Sprintf("S:%d", len(status.StagedFiles)))
 	}
@@ -260,11 +261,11 @@ func getChangesString(status RepositoryStatus, includeUntracked bool) string {
 	if includeUntracked && len(status.UntrackedFiles) > 0 {
 		parts = append(parts, fmt.Sprintf("U:%d", len(status.UntrackedFiles)))
 	}
-	
+
 	if len(parts) == 0 {
 		return "-"
 	}
-	
+
 	return strings.Join(parts, " ")
 }
 
@@ -273,4 +274,11 @@ func getSyncString(status RepositoryStatus) string {
 		return "✓"
 	}
 	return fmt.Sprintf("↑%d ↓%d", status.Ahead, status.Behind)
+}
+
+func getMergedString(status RepositoryStatus) string {
+	if status.IsMerged {
+		return "✓"
+	}
+	return "-"
 }

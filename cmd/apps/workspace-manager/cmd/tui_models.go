@@ -24,58 +24,58 @@ const (
 
 // Main TUI model
 type mainModel struct {
-	state           appState
-	discoverer     *RepositoryDiscoverer
+	state            appState
+	discoverer       *RepositoryDiscoverer
 	workspaceManager *WorkspaceManager
-	repositories   []Repository
-	workspaces     []Workspace
-	
+	repositories     []Repository
+	workspaces       []Workspace
+
 	// UI components
-	repoList       list.Model
-	workspaceList  list.Model
-	selectedRepos  map[string]bool
-	
+	repoList      list.Model
+	workspaceList list.Model
+	selectedRepos map[string]bool
+
 	// Workspace creation form
-	workspaceName  textinput.Model
-	branchName     textinput.Model
-	agentPath      textinput.Model
-	formStep       int
-	
+	workspaceName textinput.Model
+	branchName    textinput.Model
+	agentPath     textinput.Model
+	formStep      int
+
 	// Filtering
-	tagFilter      string
-	searchQuery    string
-	
+	tagFilter   string
+	searchQuery string
+
 	// UI state
-	width          int
-	height         int
-	showHelp       bool
-	message        string
-	
+	width    int
+	height   int
+	showHelp bool
+	message  string
+
 	// Delete confirmation
-	deleteWorkspace  *Workspace
-	deleteFiles      bool
-	forceWorktrees   bool
-	
+	deleteWorkspace *Workspace
+	deleteFiles     bool
+	forceWorktrees  bool
+
 	// Key bindings
-	keys           keyMap
+	keys keyMap
 }
 
 // Key map for the TUI
 type keyMap struct {
-	Up         key.Binding
-	Down       key.Binding
-	Left       key.Binding
-	Right      key.Binding
-	Enter      key.Binding
-	Space      key.Binding
-	Tab        key.Binding
-	Escape     key.Binding
-	Quit       key.Binding
-	Help       key.Binding
-	Create     key.Binding
-	Delete     key.Binding
-	Refresh    key.Binding
-	Filter     key.Binding
+	Up      key.Binding
+	Down    key.Binding
+	Left    key.Binding
+	Right   key.Binding
+	Enter   key.Binding
+	Space   key.Binding
+	Tab     key.Binding
+	Escape  key.Binding
+	Quit    key.Binding
+	Help    key.Binding
+	Create  key.Binding
+	Delete  key.Binding
+	Refresh key.Binding
+	Filter  key.Binding
 }
 
 // Default key bindings
@@ -146,23 +146,25 @@ type repoItem struct {
 	selected bool
 }
 
-func (r repoItem) Title() string       { return r.repo.Name }
-func (r repoItem) Description() string { 
+func (r repoItem) Title() string { return r.repo.Name }
+func (r repoItem) Description() string {
 	desc := fmt.Sprintf("%s [%s]", r.repo.Path, strings.Join(r.repo.Categories, ", "))
 	if r.selected {
 		desc = "✓ " + desc
 	}
 	return desc
 }
-func (r repoItem) FilterValue() string { return r.repo.Name + " " + strings.Join(r.repo.Categories, " ") }
+func (r repoItem) FilterValue() string {
+	return r.repo.Name + " " + strings.Join(r.repo.Categories, " ")
+}
 
 // Workspace list item
 type workspaceItem struct {
 	workspace Workspace
 }
 
-func (w workspaceItem) Title() string       { return w.workspace.Name }
-func (w workspaceItem) Description() string { 
+func (w workspaceItem) Title() string { return w.workspace.Name }
+func (w workspaceItem) Description() string {
 	repoNames := make([]string, len(w.workspace.Repositories))
 	for i, repo := range w.workspace.Repositories {
 		repoNames[i] = repo.Name
@@ -174,36 +176,36 @@ func (w workspaceItem) FilterValue() string { return w.workspace.Name }
 // Styles
 var (
 	titleStyle = lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("#FAFAFA")).
-		Background(lipgloss.Color("#7D56F4")).
-		Padding(0, 1).
-		Margin(1, 0)
+			Bold(true).
+			Foreground(lipgloss.Color("#FAFAFA")).
+			Background(lipgloss.Color("#7D56F4")).
+			Padding(0, 1).
+			Margin(1, 0)
 
 	headerStyle = lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("#7D56F4")).
-		Margin(1, 0, 0, 0)
+			Bold(true).
+			Foreground(lipgloss.Color("#7D56F4")).
+			Margin(1, 0, 0, 0)
 
 	selectedStyle = lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("#7D56F4"))
+			Bold(true).
+			Foreground(lipgloss.Color("#7D56F4"))
 
 	helpStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#626262")).
-		Margin(1, 0)
+			Foreground(lipgloss.Color("#626262")).
+			Margin(1, 0)
 
 	messageStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#04B575")).
-		Margin(1, 0)
+			Foreground(lipgloss.Color("#04B575")).
+			Margin(1, 0)
 
 	errorStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#FF5F56")).
-		Margin(1, 0)
+			Foreground(lipgloss.Color("#FF5F56")).
+			Margin(1, 0)
 
 	formStyle = lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("#7D56F4")).
-		Padding(1).
-		Margin(1, 0)
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#7D56F4")).
+			Padding(1).
+			Margin(1, 0)
 )

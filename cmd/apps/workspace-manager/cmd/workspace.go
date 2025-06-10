@@ -92,7 +92,7 @@ func (wm *WorkspaceManager) CreateWorkspace(ctx context.Context, name string, re
 func (wm *WorkspaceManager) findRepositories(repoNames []string) ([]Repository, error) {
 	allRepos := wm.discoverer.GetRepositories()
 	repoMap := make(map[string]Repository)
-	
+
 	for _, repo := range allRepos {
 		repoMap[repo.Name] = repo
 	}
@@ -138,7 +138,7 @@ func (wm *WorkspaceManager) createWorkspaceStructure(ctx context.Context, worksp
 
 	// Track successfully created worktrees for rollback
 	var createdWorktrees []WorktreeInfo
-	
+
 	// Create worktrees for each repository
 	for _, repo := range workspace.Repositories {
 		worktreeInfo := WorktreeInfo{
@@ -146,7 +146,7 @@ func (wm *WorkspaceManager) createWorkspaceStructure(ctx context.Context, worksp
 			TargetPath: filepath.Join(workspace.Path, repo.Name),
 			Branch:     workspace.Branch,
 		}
-		
+
 		if err := wm.createWorktree(ctx, workspace, repo); err != nil {
 			// Rollback any worktrees created so far
 			log.Error().
@@ -154,12 +154,12 @@ func (wm *WorkspaceManager) createWorkspaceStructure(ctx context.Context, worksp
 				Str("repo", repo.Name).
 				Int("createdWorktrees", len(createdWorktrees)).
 				Msg("Failed to create worktree, rolling back")
-			
+
 			wm.rollbackWorktrees(ctx, createdWorktrees)
 			wm.cleanupWorkspaceDirectory(workspace.Path)
 			return errors.Wrapf(err, "failed to create worktree for %s", repo.Name)
 		}
-		
+
 		// Track successful creation
 		createdWorktrees = append(createdWorktrees, worktreeInfo)
 		log.Info().
@@ -199,7 +199,7 @@ func (wm *WorkspaceManager) createWorkspaceStructure(ctx context.Context, worksp
 // createWorktree creates a git worktree for a repository
 func (wm *WorkspaceManager) createWorktree(ctx context.Context, workspace *Workspace, repo Repository) error {
 	targetPath := filepath.Join(workspace.Path, repo.Name)
-	
+
 	log.Info().
 		Str("repo", repo.Name).
 		Str("branch", workspace.Branch).
@@ -238,7 +238,7 @@ func (wm *WorkspaceManager) createWorktree(ctx context.Context, workspace *Works
 
 		var choice string
 		fmt.Scanln(&choice)
-		
+
 		switch strings.ToLower(choice) {
 		case "o", "overwrite":
 			fmt.Printf("Overwriting branch '%s'...\n", workspace.Branch)
@@ -287,10 +287,10 @@ func (wm *WorkspaceManager) checkRemoteBranchExists(ctx context.Context, repoPat
 func (wm *WorkspaceManager) executeWorktreeCommand(ctx context.Context, repoPath string, args ...string) error {
 	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
 	cmd.Dir = repoPath
-	
+
 	cmdStr := strings.Join(args, " ")
 	fmt.Printf("Executing: %s (in %s)\n", cmdStr, repoPath)
-	
+
 	log.Info().
 		Str("command", cmdStr).
 		Str("repoPath", repoPath).
@@ -301,13 +301,13 @@ func (wm *WorkspaceManager) executeWorktreeCommand(ctx context.Context, repoPath
 		fmt.Printf("❌ Command failed: %s\n", cmdStr)
 		fmt.Printf("   Error: %v\n", err)
 		fmt.Printf("   Output: %s\n", string(output))
-		
+
 		log.Error().
 			Err(err).
 			Str("output", string(output)).
 			Str("command", cmdStr).
 			Msg("Git worktree command failed")
-		
+
 		return errors.Wrapf(err, "git command failed: %s", string(output))
 	}
 
@@ -327,11 +327,11 @@ func (wm *WorkspaceManager) executeWorktreeCommand(ctx context.Context, repoPath
 // createGoWorkspace creates a go.work file
 func (wm *WorkspaceManager) createGoWorkspace(workspace *Workspace) error {
 	goWorkPath := filepath.Join(workspace.Path, "go.work")
-	
+
 	log.Info().Str("path", goWorkPath).Msg("Creating go.work file")
 
 	content := "go 1.23\n\nuse (\n"
-	
+
 	for _, repo := range workspace.Repositories {
 		// Check if repo has go.mod
 		goModPath := filepath.Join(workspace.Path, repo.Name, "go.mod")
@@ -339,7 +339,7 @@ func (wm *WorkspaceManager) createGoWorkspace(workspace *Workspace) error {
 			content += fmt.Sprintf("\t./%s\n", repo.Name)
 		}
 	}
-	
+
 	content += ")\n"
 
 	if err := os.WriteFile(goWorkPath, []byte(content), 0644); err != nil {
@@ -362,7 +362,7 @@ func (wm *WorkspaceManager) copyAgentMD(workspace *Workspace) error {
 	}
 
 	target := filepath.Join(workspace.Path, "AGENT.md")
-	
+
 	log.Info().Str("source", source).Str("target", target).Msg("Copying AGENT.md")
 
 	data, err := os.ReadFile(source)
@@ -385,7 +385,7 @@ func (wm *WorkspaceManager) saveWorkspace(workspace *Workspace) error {
 	}
 
 	configPath := filepath.Join(workspacesDir, workspace.Name+".json")
-	
+
 	data, err := json.MarshalIndent(workspace, "", "  ")
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal workspace configuration")
@@ -427,7 +427,7 @@ func loadWorkspaces() ([]Workspace, error) {
 	}
 
 	workspacesDir := filepath.Join(configDir, "workspace-manager", "workspaces")
-	
+
 	if _, err := os.Stat(workspacesDir); os.IsNotExist(err) {
 		return []Workspace{}, nil
 	}
@@ -468,7 +468,7 @@ func (wm *WorkspaceManager) LoadWorkspace(name string) (*Workspace, error) {
 	}
 
 	workspacePath := filepath.Join(configDir, "workspace-manager", "workspaces", name+".json")
-	
+
 	if _, err := os.Stat(workspacePath); os.IsNotExist(err) {
 		return nil, errors.Errorf("workspace '%s' not found", name)
 	}
@@ -509,16 +509,16 @@ func (wm *WorkspaceManager) DeleteWorkspace(ctx context.Context, name string, re
 	if removeFiles {
 		if _, err := os.Stat(workspace.Path); err == nil {
 			log.Info().Str("path", workspace.Path).Msg("Removing workspace directory and files")
-			
+
 			// Log what we're removing for transparency
 			if err := wm.logWorkspaceFilesToRemove(workspace.Path); err != nil {
 				log.Warn().Err(err).Msg("Failed to enumerate workspace files for logging")
 			}
-			
+
 			if err := os.RemoveAll(workspace.Path); err != nil {
 				return errors.Wrapf(err, "failed to remove workspace directory: %s", workspace.Path)
 			}
-			
+
 			log.Info().Str("path", workspace.Path).Msg("Successfully removed workspace directory and all files")
 		}
 	} else {
@@ -552,7 +552,7 @@ func (wm *WorkspaceManager) removeWorktrees(ctx context.Context, workspace *Work
 	fmt.Printf("\n=== Workspace Cleanup Debug Info ===\n")
 	for _, repo := range workspace.Repositories {
 		fmt.Printf("\nRepository: %s (at %s)\n", repo.Name, repo.Path)
-		
+
 		// List existing worktrees
 		listCmd := exec.CommandContext(ctx, "git", "worktree", "list")
 		listCmd.Dir = repo.Path
@@ -566,7 +566,7 @@ func (wm *WorkspaceManager) removeWorktrees(ctx context.Context, workspace *Work
 
 	for _, repo := range workspace.Repositories {
 		worktreePath := filepath.Join(workspace.Path, repo.Name)
-		
+
 		log.Info().
 			Str("repo", repo.Name).
 			Str("worktree", worktreePath).
@@ -598,16 +598,16 @@ func (wm *WorkspaceManager) removeWorktrees(ctx context.Context, workspace *Work
 			cmdStr = fmt.Sprintf("git worktree remove %s", worktreePath)
 		}
 		cmd.Dir = repo.Path
-		
+
 		log.Info().
 			Str("repo", repo.Name).
 			Str("repoPath", repo.Path).
 			Str("worktreePath", worktreePath).
 			Str("command", cmdStr).
 			Msg("Executing git worktree remove command")
-		
+
 		fmt.Printf("Executing: %s (in %s)\n", cmdStr, repo.Path)
-		
+
 		if output, err := cmd.CombinedOutput(); err != nil {
 			log.Error().
 				Err(err).
@@ -617,11 +617,11 @@ func (wm *WorkspaceManager) removeWorktrees(ctx context.Context, workspace *Work
 				Str("worktree", worktreePath).
 				Str("command", cmdStr).
 				Msg("Failed to remove worktree with git command")
-			
+
 			fmt.Printf("❌ Command failed: %s\n", cmdStr)
 			fmt.Printf("   Error: %v\n", err)
 			fmt.Printf("   Output: %s\n", string(output))
-			
+
 			errs = append(errs, errors.Wrapf(err, "failed to remove worktree for %s: %s", repo.Name, string(output)))
 		} else {
 			log.Info().
@@ -629,7 +629,7 @@ func (wm *WorkspaceManager) removeWorktrees(ctx context.Context, workspace *Work
 				Str("repo", repo.Name).
 				Str("command", cmdStr).
 				Msg("Successfully removed worktree")
-			
+
 			fmt.Printf("✓ Successfully executed: %s\n", cmdStr)
 			if len(output) > 0 {
 				fmt.Printf("  Output: %s\n", string(output))
@@ -641,7 +641,7 @@ func (wm *WorkspaceManager) removeWorktrees(ctx context.Context, workspace *Work
 	fmt.Printf("\n=== Verification: Final Worktree State ===\n")
 	for _, repo := range workspace.Repositories {
 		fmt.Printf("\nRepository: %s\n", repo.Name)
-		
+
 		// List remaining worktrees
 		listCmd := exec.CommandContext(ctx, "git", "worktree", "list")
 		listCmd.Dir = repo.Path
@@ -673,7 +673,7 @@ func (wm *WorkspaceManager) logWorkspaceFilesToRemove(workspacePath string) erro
 
 	var files []string
 	var dirs []string
-	
+
 	for _, entry := range entries {
 		if entry.IsDir() {
 			dirs = append(dirs, entry.Name())
@@ -692,28 +692,28 @@ func (wm *WorkspaceManager) logWorkspaceFilesToRemove(workspacePath string) erro
 	return nil
 }
 
-// cleanupWorkspaceSpecificFiles removes workspace-specific files (go.work, AGENT.md) 
+// cleanupWorkspaceSpecificFiles removes workspace-specific files (go.work, AGENT.md)
 // even when not doing a full directory removal
 func (wm *WorkspaceManager) cleanupWorkspaceSpecificFiles(workspacePath string) error {
 	workspaceSpecificFiles := []string{"go.work", "go.work.sum", "AGENT.md"}
-	
+
 	for _, fileName := range workspaceSpecificFiles {
 		filePath := filepath.Join(workspacePath, fileName)
-		
+
 		if _, err := os.Stat(filePath); err == nil {
 			log.Info().Str("file", filePath).Msg("Removing workspace-specific file")
-			
+
 			if err := os.Remove(filePath); err != nil {
 				log.Warn().Err(err).Str("file", filePath).Msg("Failed to remove workspace-specific file")
 				return errors.Wrapf(err, "failed to remove %s", filePath)
 			}
-			
+
 			log.Info().Str("file", filePath).Msg("Successfully removed workspace-specific file")
 		} else if !os.IsNotExist(err) {
 			log.Warn().Err(err).Str("file", filePath).Msg("Error checking workspace-specific file")
 		}
 	}
-	
+
 	return nil
 }
 
@@ -728,9 +728,9 @@ func (wm *WorkspaceManager) rollbackWorktrees(ctx context.Context, worktrees []W
 
 	for i := len(worktrees) - 1; i >= 0; i-- {
 		worktree := worktrees[i]
-		
+
 		fmt.Printf("Rolling back worktree: %s (at %s)\n", worktree.Repository.Name, worktree.TargetPath)
-		
+
 		log.Info().
 			Str("repo", worktree.Repository.Name).
 			Str("targetPath", worktree.TargetPath).
@@ -740,14 +740,14 @@ func (wm *WorkspaceManager) rollbackWorktrees(ctx context.Context, worktrees []W
 		// Use git worktree remove --force for rollback to ensure it works even with uncommitted changes
 		cmd := exec.CommandContext(ctx, "git", "worktree", "remove", "--force", worktree.TargetPath)
 		cmd.Dir = worktree.Repository.Path
-		
+
 		cmdStr := fmt.Sprintf("git worktree remove --force %s", worktree.TargetPath)
 		fmt.Printf("  Executing: %s (in %s)\n", cmdStr, worktree.Repository.Path)
 
 		if output, err := cmd.CombinedOutput(); err != nil {
 			fmt.Printf("  ⚠️  Failed to remove worktree: %v\n", err)
 			fmt.Printf("      Output: %s\n", string(output))
-			
+
 			log.Warn().
 				Err(err).
 				Str("output", string(output)).
@@ -756,7 +756,7 @@ func (wm *WorkspaceManager) rollbackWorktrees(ctx context.Context, worktrees []W
 				Msg("Failed to remove worktree during rollback")
 		} else {
 			fmt.Printf("  ✓ Successfully removed worktree\n")
-			
+
 			log.Info().
 				Str("repo", worktree.Repository.Name).
 				Str("targetPath", worktree.TargetPath).
@@ -795,8 +795,8 @@ func (wm *WorkspaceManager) cleanupWorkspaceDirectory(workspacePath string) {
 	isEmpty := len(entries) == 0
 	onlyExpectedFiles := true
 	expectedFiles := map[string]bool{
-		"go.work":  true,
-		"AGENT.md": true,
+		"go.work":    true,
+		"AGENT.md":   true,
 		".gitignore": true,
 	}
 
@@ -821,7 +821,7 @@ func (wm *WorkspaceManager) cleanupWorkspaceDirectory(workspacePath string) {
 	} else {
 		fmt.Printf("  Directory contains unexpected files, leaving it intact\n")
 		log.Info().Str("path", workspacePath).Int("entries", len(entries)).Msg("Workspace directory contains unexpected files, not removing")
-		
+
 		// List the unexpected files for debugging
 		for _, entry := range entries {
 			if !expectedFiles[entry.Name()] {

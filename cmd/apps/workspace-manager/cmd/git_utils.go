@@ -14,7 +14,7 @@ import (
 // analyzeRepository extracts metadata from a git repository
 func analyzeRepository(ctx context.Context, path string) (*Repository, error) {
 	name := filepath.Base(path)
-	
+
 	repo := &Repository{
 		Name:        name,
 		Path:        path,
@@ -56,17 +56,17 @@ func categorizeRepository(path string) []string {
 
 	// Check for common language/framework files
 	files := map[string]string{
-		"go.mod":           "go",
-		"package.json":     "node",
-		"Cargo.toml":       "rust",
-		"setup.py":         "python",
-		"requirements.txt": "python",
-		"Gemfile":          "ruby",
-		"pom.xml":          "java",
-		"build.gradle":     "gradle",
-		"Makefile":         "make",
+		"go.mod":             "go",
+		"package.json":       "node",
+		"Cargo.toml":         "rust",
+		"setup.py":           "python",
+		"requirements.txt":   "python",
+		"Gemfile":            "ruby",
+		"pom.xml":            "java",
+		"build.gradle":       "gradle",
+		"Makefile":           "make",
 		"docker-compose.yml": "docker",
-		"Dockerfile":       "docker",
+		"Dockerfile":         "docker",
 	}
 
 	for file, category := range files {
@@ -127,7 +127,7 @@ func getGitBranches(ctx context.Context, path string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var branches []string
 	lines := strings.Split(string(output), "\n")
 	for _, line := range lines {
@@ -142,7 +142,7 @@ func getGitBranches(ctx context.Context, path string) ([]string, error) {
 			branches = append(branches, line)
 		}
 	}
-	
+
 	return branches, nil
 }
 
@@ -153,7 +153,7 @@ func getGitTags(ctx context.Context, path string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var tags []string
 	lines := strings.Split(string(output), "\n")
 	for _, line := range lines {
@@ -162,7 +162,7 @@ func getGitTags(ctx context.Context, path string) ([]string, error) {
 			tags = append(tags, line)
 		}
 	}
-	
+
 	return tags, nil
 }
 
@@ -176,25 +176,53 @@ func getGitLastCommit(ctx context.Context, path string) (string, error) {
 	return strings.TrimSpace(string(output)), nil
 }
 
+// checkBranchMerged checks if the current branch has been merged to origin/main
+func checkBranchMerged(ctx context.Context, path string) (bool, error) {
+	// First, fetch to ensure we have latest remote refs
+	fetchCmd := exec.CommandContext(ctx, "git", "fetch", "origin", "main")
+	fetchCmd.Dir = path
+	fetchCmd.Run() // Don't fail if fetch fails - might be offline
+
+	// Check if current branch is merged into origin/main
+	cmd := exec.CommandContext(ctx, "git", "merge-base", "--is-ancestor", "HEAD", "origin/main")
+	cmd.Dir = path
+	err := cmd.Run()
+
+	// If exit code is 0, the branch is merged
+	// If exit code is 1, the branch is not merged
+	// If exit code is other, there was an error
+	if err == nil {
+		return true, nil
+	}
+
+	// Check if it's just "not merged" vs actual error
+	if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
+		return false, nil
+	}
+
+	// Some other error occurred
+	return false, err
+}
+
 // mergeRepositories merges existing repositories with newly discovered ones
 func mergeRepositories(existing, discovered []Repository) []Repository {
 	repoMap := make(map[string]Repository)
-	
+
 	// Add existing repositories
 	for _, repo := range existing {
 		repoMap[repo.Path] = repo
 	}
-	
+
 	// Update with discovered repositories
 	for _, repo := range discovered {
 		repoMap[repo.Path] = repo
 	}
-	
+
 	// Convert back to slice
 	var result []Repository
 	for _, repo := range repoMap {
 		result = append(result, repo)
 	}
-	
+
 	return result
 }

@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"text/tabwriter"
 
@@ -52,7 +53,7 @@ func NewListWorkspacesCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "workspaces",
 		Short: "List created workspaces",
-		Long:  "List all created workspaces.",
+		Long:  "List all created workspaces, sorted by creation date (newest first).",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runListWorkspaces(format)
 		},
@@ -108,6 +109,11 @@ func runListWorkspaces(format string) error {
 		return nil
 	}
 
+	// Sort workspaces by creation date descending (newest first)
+	sort.Slice(workspaces, func(i, j int) bool {
+		return workspaces[i].Created.After(workspaces[j].Created)
+	})
+
 	switch format {
 	case "table":
 		return printWorkspacesTable(workspaces)
@@ -130,7 +136,7 @@ func printReposTable(repos []Repository) error {
 		if len(tags) > 30 {
 			tags = tags[:27] + "..."
 		}
-		
+
 		remote := repo.RemoteURL
 		if len(remote) > 50 {
 			remote = "..." + remote[len(remote)-47:]
@@ -174,7 +180,7 @@ func printWorkspacesTable(workspaces []Workspace) error {
 			workspace.Path,
 			repos,
 			workspace.Branch,
-			workspace.Created.Format("2006-01-02"),
+			workspace.Created.Format("2006-01-02 15:04"),
 		)
 	}
 

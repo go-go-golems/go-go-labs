@@ -12,10 +12,10 @@ import (
 // NewDeleteCommand creates the delete command
 func NewDeleteCommand() *cobra.Command {
 	var (
-		force         bool
+		force          bool
 		forceWorktrees bool
-		removeFiles   bool
-		outputFormat  string
+		removeFiles    bool
+		outputFormat   string
 	)
 
 	cmd := &cobra.Command{
@@ -64,6 +64,20 @@ func runDelete(ctx context.Context, workspaceName string, force bool, forceWorkt
 		return errors.Wrapf(err, "workspace '%s' not found", workspaceName)
 	}
 
+	// Show workspace status first
+	fmt.Printf("Current workspace status:\n")
+	fmt.Printf("========================\n")
+	checker := NewStatusChecker()
+	status, err := checker.GetWorkspaceStatus(ctx, workspace)
+	if err == nil {
+		if err := printStatusDetailed(status, false); err != nil {
+			fmt.Printf("Error showing status: %v\n", err)
+		}
+	} else {
+		fmt.Printf("Error getting status: %v\n", err)
+	}
+	fmt.Printf("\n")
+
 	// Show what will be deleted
 	if outputFormat == "json" {
 		return printJSON(workspace)
@@ -72,7 +86,7 @@ func runDelete(ctx context.Context, workspaceName string, force bool, forceWorkt
 	fmt.Printf("Workspace: %s\n", workspace.Name)
 	fmt.Printf("Path: %s\n", workspace.Path)
 	fmt.Printf("Repositories: %d\n", len(workspace.Repositories))
-	
+
 	fmt.Printf("\nThis will:\n")
 	if forceWorktrees {
 		fmt.Printf("  1. Remove git worktrees (git worktree remove --force)\n")
@@ -80,7 +94,7 @@ func runDelete(ctx context.Context, workspaceName string, force bool, forceWorkt
 		fmt.Printf("  1. Remove git worktrees (git worktree remove)\n")
 		fmt.Printf("     ⚠️  Will fail if there are uncommitted changes\n")
 	}
-	
+
 	if removeFiles {
 		fmt.Printf("  2. DELETE the workspace directory and ALL its contents!\n")
 		fmt.Printf("     📁 This includes: go.work, AGENT.md, and all repository worktrees\n")
@@ -95,7 +109,7 @@ func runDelete(ctx context.Context, workspaceName string, force bool, forceWorkt
 		fmt.Printf("\nAre you sure you want to delete workspace '%s'? [y/N]: ", workspaceName)
 		var response string
 		fmt.Scanln(&response)
-		
+
 		if strings.ToLower(response) != "y" && strings.ToLower(response) != "yes" {
 			fmt.Println("Operation cancelled.")
 			return nil

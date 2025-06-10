@@ -141,11 +141,11 @@ func selectChangesInteractively(allChanges map[string][]FileChange, initialMessa
 	fmt.Println("Changes found:")
 	repoIndex := 0
 	repoNames := make([]string, 0, len(allChanges))
-	
+
 	for repoName, changes := range allChanges {
 		repoNames = append(repoNames, repoName)
 		fmt.Printf("\n%d. Repository: %s (%d files)\n", repoIndex+1, repoName, len(changes))
-		
+
 		for i, change := range changes {
 			status := getStatusSymbol(change.Status)
 			staged := ""
@@ -179,13 +179,13 @@ func selectChangesInteractively(allChanges map[string][]FileChange, initialMessa
 // getCommitMessageFromTemplate gets commit message from template
 func getCommitMessageFromTemplate(template string) string {
 	templates := map[string]string{
-		"feature": "feat: add new feature",
-		"fix":     "fix: resolve issue",
-		"docs":    "docs: update documentation",
-		"style":   "style: formatting changes",
+		"feature":  "feat: add new feature",
+		"fix":      "fix: resolve issue",
+		"docs":     "docs: update documentation",
+		"style":    "style: formatting changes",
 		"refactor": "refactor: code restructuring",
-		"test":    "test: add or update tests",
-		"chore":   "chore: maintenance tasks",
+		"test":     "test: add or update tests",
+		"chore":    "chore: maintenance tasks",
 	}
 
 	if msg, exists := templates[template]; exists {
@@ -194,5 +194,3 @@ func getCommitMessageFromTemplate(template string) string {
 
 	return template // Use template as-is if not found in predefined templates
 }
-
-

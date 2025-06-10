@@ -39,10 +39,10 @@ type SyncResult struct {
 
 // SyncOptions configures sync operations
 type SyncOptions struct {
-	Pull    bool `json:"pull"`
-	Push    bool `json:"push"`
-	Rebase  bool `json:"rebase"`
-	DryRun  bool `json:"dry_run"`
+	Pull   bool `json:"pull"`
+	Push   bool `json:"push"`
+	Rebase bool `json:"rebase"`
+	DryRun bool `json:"dry_run"`
 }
 
 // SyncWorkspace synchronizes all repositories in the workspace

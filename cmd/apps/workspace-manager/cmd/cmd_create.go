@@ -112,7 +112,7 @@ func runCreate(ctx context.Context, name string, repos []string, branch, branchP
 
 func selectRepositoriesInteractively(wm *WorkspaceManager) ([]string, error) {
 	repos := wm.discoverer.GetRepositories()
-	
+
 	if len(repos) == 0 {
 		return nil, errors.New("no repositories found. Run 'workspace-manager discover' first")
 	}
@@ -134,7 +134,7 @@ func selectRepositoriesInteractively(wm *WorkspaceManager) ([]string, error) {
 
 	for _, part := range parts {
 		part = strings.TrimSpace(part)
-		
+
 		// Try as number first
 		var found bool
 		for i, repo := range repos {
@@ -144,7 +144,7 @@ func selectRepositoriesInteractively(wm *WorkspaceManager) ([]string, error) {
 				break
 			}
 		}
-		
+
 		// If not found as number, try as name
 		if !found {
 			for _, repo := range repos {
@@ -155,7 +155,7 @@ func selectRepositoriesInteractively(wm *WorkspaceManager) ([]string, error) {
 				}
 			}
 		}
-		
+
 		if !found {
 			return nil, errors.Errorf("repository not found: %s", part)
 		}
@@ -166,10 +166,10 @@ func selectRepositoriesInteractively(wm *WorkspaceManager) ([]string, error) {
 
 func showWorkspacePreview(workspace *Workspace) error {
 	fmt.Printf("📋 Workspace Preview: %s\n\n", workspace.Name)
-	
+
 	fmt.Printf("Actions to be performed:\n")
 	fmt.Printf("1. Create directory structure at: %s\n", workspace.Path)
-	
+
 	fmt.Printf("2. Create worktrees:\n")
 	for _, repo := range workspace.Repositories {
 		if workspace.Branch != "" {
@@ -178,15 +178,15 @@ func showWorkspacePreview(workspace *Workspace) error {
 			fmt.Printf("   git worktree add %s/%s\n", workspace.Path, repo.Name)
 		}
 	}
-	
+
 	if workspace.GoWorkspace {
 		fmt.Printf("3. Initialize go.work and add modules\n")
 	}
-	
+
 	if workspace.AgentMD != "" {
 		fmt.Printf("4. Copy AGENT.md from %s\n", workspace.AgentMD)
 	}
-	
+
 	fmt.Printf("\nRepositories to include:\n")
 	for _, repo := range workspace.Repositories {
 		fmt.Printf("  - %s (%s) [%s]\n", repo.Name, repo.Path, strings.Join(repo.Categories, ", "))

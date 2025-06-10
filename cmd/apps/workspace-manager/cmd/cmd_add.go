@@ -85,11 +85,11 @@ func (wm *WorkspaceManager) AddRepositoryToWorkspace(ctx context.Context, worksp
 	if err != nil {
 		return errors.Wrapf(err, "failed to find repository '%s'", repoName)
 	}
-	
+
 	if len(repos) == 0 {
 		return errors.Errorf("repository '%s' not found in registry", repoName)
 	}
-	
+
 	repo := repos[0]
 
 	// Use the workspace's branch if no specific branch provided
@@ -135,7 +135,7 @@ func (wm *WorkspaceManager) AddRepositoryToWorkspace(ctx context.Context, worksp
 // createWorktreeForAdd creates a worktree for adding a repository to an existing workspace
 func (wm *WorkspaceManager) createWorktreeForAdd(ctx context.Context, workspace *Workspace, repo Repository, branch string, forceOverwrite bool) error {
 	targetPath := filepath.Join(workspace.Path, repo.Name)
-	
+
 	log.Info().
 		Str("repo", repo.Name).
 		Str("branch", branch).
@@ -188,7 +188,7 @@ func (wm *WorkspaceManager) createWorktreeForAdd(ctx context.Context, workspace 
 
 			var choice string
 			fmt.Scanln(&choice)
-			
+
 			switch strings.ToLower(choice) {
 			case "o", "overwrite":
 				fmt.Printf("Overwriting branch '%s'...\n", branch)
