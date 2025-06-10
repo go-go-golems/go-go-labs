@@ -38,4 +38,4 @@ cmd/apps/textractor/outputs
 
 node_modules
 
-mobile/remotion/ai-engineer-world-fair-demos/build
+.git-commit-message.yaml
