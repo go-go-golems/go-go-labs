@@ -1,0 +1,190 @@
+// DSL for declarative interaction scripting
+import React from 'react';
+
+export const SMALL_FONT_SIZES = {
+	small: '16px',
+	medium: '18px',
+	large: '20px',
+	xlarge: '22px',
+	icon: '24px',
+	label: '16px',
+	content: '20px',
+	title: '28px',
+	tokenCounter: '24px',
+};
+
+// Font size configuration
+export const MEDIUM_FONT_SIZES = {
+	small: '22px',
+	medium: '24px',
+	large: '26px',
+	xlarge: '28px',
+};
+
+export const FONT_SIZES = SMALL_FONT_SIZES;
+
+export interface MessageTypeConfig {
+	bg: string;
+	icon: string | ((state: InteractionState) => string);
+	label: string | ((state: InteractionState) => string);
+	fontSize?: string;
+	padding?: string;
+	boxShadow?: string;
+	border?: string;
+	fontWeight?: string;
+	fontStyle?: string;
+}
+
+export interface MessageTypeRegistry {
+	[key: string]: MessageTypeConfig;
+}
+
+export interface StateTransition {
+	name: string;
+	startFrame: number;
+	endFrame: number;
+	easing?: 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out';
+}
+
+// State context for dynamic content
+export interface InteractionState {
+	currentFrame: number;
+	activeStates: string[];
+	fadeOutStates: string[];
+	tokenCount?: number;
+	isOptimized?: boolean;
+	customData?: { [key: string]: any };
+}
+
+export interface MessageDefinition {
+	id: string;
+	type: string;
+	content: string | ((state: InteractionState) => string) | React.ReactNode | ((state: InteractionState) => React.ReactNode);
+	column?: 'left' | 'right' | 'auto'; // auto fills left to right
+	visibleStates: string[]; // which states this message is visible in
+	fadeOutStates?: string[]; // states where this message should fade out
+	customOpacity?: number; // override opacity
+	isReactContent?: boolean; // indicates if content is React component
+}
+
+export interface OverlayElement {
+	id: string;
+	content: string | ((state: InteractionState) => string);
+	position: {
+		bottom?: string;
+		top?: string;
+		left?: string;
+		right?: string;
+	};
+	style?: React.CSSProperties;
+	visibleStates: string[];
+}
+
+export interface InteractionSequence {
+	title: string | ((state: InteractionState) => string);
+	subtitle?: string | ((state: InteractionState) => string);
+	messageTypes: MessageTypeRegistry;
+	states: StateTransition[];
+	messages: MessageDefinition[];
+	overlays?: OverlayElement[];
+	layout: {
+		columns: number;
+		autoFill?: boolean; // automatically distribute messages across columns
+		maxMessagesPerColumn?: number;
+	};
+	tokenCounter?: {
+		enabled: boolean;
+		initialTokens: number;
+		maxTokens: number;
+		stateTokenCounts: { [stateName: string]: number };
+		optimizedStates?: string[]; // states that show optimization
+	};
+}
+
+// Helper function to resolve dynamic content
+export const resolveContent = (
+	content: string | ((state: InteractionState) => string) | React.ReactNode | ((state: InteractionState) => React.ReactNode),
+	state: InteractionState
+): string | React.ReactNode => {
+	return typeof content === 'function' ? content(state) : content;
+};
+
+// Helper functions for creating common configurations
+export const createMessageType = (
+	bg: string,
+	icon: string | ((state: InteractionState) => string),
+	label: string | ((state: InteractionState) => string),
+	options: Partial<MessageTypeConfig> = {}
+): MessageTypeConfig => ({
+	bg,
+	icon,
+	label,
+	fontSize: FONT_SIZES.medium,
+	padding: '12px 15px',
+	boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+	border: 'none',
+	fontWeight: 'normal',
+	fontStyle: 'normal',
+	...options,
+});
+
+export const createState = (
+	name: string,
+	startFrame: number,
+	duration: number = 10,
+	easing: StateTransition['easing'] = 'linear'
+): StateTransition => ({
+	name,
+	startFrame,
+	endFrame: startFrame + duration,
+	easing,
+});
+
+export const createMessage = (
+	id: string,
+	type: string,
+	content: string | ((state: InteractionState) => string) | React.ReactNode | ((state: InteractionState) => React.ReactNode),
+	visibleStates: string[],
+	options: Partial<MessageDefinition> = {}
+): MessageDefinition => ({
+	id,
+	type,
+	content,
+	visibleStates,
+	column: 'auto',
+	...options,
+});
+
+// Predefined message type sets
+export const DEFAULT_MESSAGE_TYPES: MessageTypeRegistry = {
+	user: createMessageType('#3498db', '👤', 'User'),
+	assistant: createMessageType('#9b59b6', '🧠', 'Assistant'),
+	assistant_cot: createMessageType('#e74c3c', '🤔', 'Chain of Thought', {
+		fontSize: FONT_SIZES.small,
+		padding: '8px 12px',
+		boxShadow: '0 3px 10px rgba(0,0,0,0.2)',
+		border: '1px solid rgba(255, 255, 255, 0.2)',
+		fontStyle: 'italic',
+	}),
+	assistant_diary: createMessageType('#8e44ad', '📔', 'Diary', {
+		fontSize: FONT_SIZES.small,
+		padding: '8px 12px',
+		boxShadow: '0 3px 10px rgba(0,0,0,0.2)',
+		border: '1px solid rgba(255, 255, 255, 0.2)',
+		fontWeight: 'bold',
+		fontStyle: 'italic',
+	}),
+	tool_use: createMessageType('#e67e22', '⚡', 'Tool Use'),
+	tool_result: createMessageType('#27ae60', '📊', 'Tool Result'),
+	summary: createMessageType('#6c3483', '📝', 'Summary', {
+		fontSize: FONT_SIZES.medium,
+		padding: '14px 18px',
+		boxShadow: '0 4px 15px rgba(108, 52, 131, 0.4)',
+		border: '1px solid rgba(255, 255, 255, 0.2)',
+		fontWeight: '500',
+	}),
+	// New message types for editing scenarios
+	edit_indicator: createMessageType('#f39c12', '✏️', 'Edit Mode'),
+	document_insert: createMessageType('#16a085', '📄', 'Document'),
+	version_control: createMessageType('#34495e', '��', 'Version'),
+}; 
