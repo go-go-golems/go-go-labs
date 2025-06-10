@@ -60,6 +60,7 @@ func init() {
 		NewInfoCommand(),
 		NewStatusCommand(),
 		NewPRCommand(),
+		NewPushCommand(),
 		NewTUICommand(),
 		NewCommitCommand(),
 		NewSyncCommand(),
