@@ -90,7 +90,7 @@ func runDiscover(ctx context.Context, paths []string, recursive bool, maxDepth i
 	// Show results
 	repos := discoverer.GetRepositories()
 	fmt.Printf("Discovery complete! Found %d repositories.\n", len(repos))
-	
+
 	if len(repos) > 0 {
 		fmt.Println("\nUse 'workspace-manager list repos' to see all discovered repositories.")
 	}

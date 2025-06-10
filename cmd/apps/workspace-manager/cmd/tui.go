@@ -403,7 +403,7 @@ func (m mainModel) submitWorkspaceForm() (tea.Model, tea.Cmd) {
 // View functions
 func (m mainModel) viewMain() string {
 	title := titleStyle.Render("🔧 Workspace Manager")
-	
+
 	content := fmt.Sprintf(`%s
 
 Welcome to Workspace Manager! Choose an option:
@@ -429,20 +429,20 @@ func (m mainModel) viewRepositories() string {
 
 	header := headerStyle.Render(fmt.Sprintf("📁 Repositories (%d selected)", selectedCount))
 	help := helpStyle.Render("Space: toggle selection • c: create workspace • r: refresh • esc: back")
-	
+
 	return fmt.Sprintf("%s\n\n%s\n\n%s", header, m.repoList.View(), help)
 }
 
 func (m mainModel) viewWorkspaces() string {
 	header := headerStyle.Render("🏗️  Workspaces")
 	help := helpStyle.Render("r: refresh • esc: back")
-	
+
 	return fmt.Sprintf("%s\n\n%s\n\n%s", header, m.workspaceList.View(), help)
 }
 
 func (m mainModel) viewCreateWorkspace() string {
 	header := headerStyle.Render("➕ Create New Workspace")
-	
+
 	content := `
 First, go to the Repositories view and select the repositories you want to include.
 Then return here to configure the workspace.
@@ -450,13 +450,13 @@ Then return here to configure the workspace.
 Press enter to continue to workspace form
 Press esc to go back
 `
-	
+
 	return fmt.Sprintf("%s\n%s", header, content)
 }
 
 func (m mainModel) viewWorkspaceForm() string {
 	header := headerStyle.Render("📝 Workspace Configuration")
-	
+
 	selectedRepos := []string{}
 	for name, selected := range m.selectedRepos {
 		if selected {
@@ -564,13 +564,13 @@ func (m mainModel) viewDeleteConfirm() string {
 
 	content := titleStyle.Render("Delete Workspace Confirmation")
 	content += "\n\n"
-	
+
 	content += fmt.Sprintf("Workspace: %s\n", selectedStyle.Render(m.deleteWorkspace.Name))
 	content += fmt.Sprintf("Path: %s\n", m.deleteWorkspace.Path)
 	content += fmt.Sprintf("Repositories: %d\n", len(m.deleteWorkspace.Repositories))
-	
+
 	content += "\n"
-	
+
 	content += "This will:\n"
 	if m.forceWorktrees {
 		content += "  1. Remove git worktrees (git worktree remove --force)\n"
@@ -578,23 +578,23 @@ func (m mainModel) viewDeleteConfirm() string {
 		content += "  1. Remove git worktrees (git worktree remove)\n"
 		content += "     ⚠️  Will fail if there are uncommitted changes\n"
 	}
-	
+
 	if m.deleteFiles {
 		content += "  2. DELETE the workspace directory and ALL its contents!\n"
 	} else {
 		content += "  2. Remove workspace configuration only\n"
 		content += "  3. Workspace files will remain at: " + m.deleteWorkspace.Path + "\n"
 	}
-	
+
 	content += "\n\n"
 	content += "Options:\n"
-	content += fmt.Sprintf("  [f] Toggle file deletion (currently: %s)\n", 
+	content += fmt.Sprintf("  [f] Toggle file deletion (currently: %s)\n",
 		map[bool]string{true: "ON - will delete files", false: "OFF - keep files"}[m.deleteFiles])
-	content += fmt.Sprintf("  [w] Toggle force worktrees (currently: %s)\n", 
+	content += fmt.Sprintf("  [w] Toggle force worktrees (currently: %s)\n",
 		map[bool]string{true: "ON - will force removal", false: "OFF - safe removal"}[m.forceWorktrees])
 	content += "  [y] Confirm deletion\n"
 	content += "  [n] Cancel\n"
 	content += "  [esc] Cancel\n"
-	
+
 	return formStyle.Render(content)
 }

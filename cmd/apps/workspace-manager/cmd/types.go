@@ -6,15 +6,15 @@ import (
 
 // Repository represents a discovered git repository
 type Repository struct {
-	Name        string    `json:"name"`
-	Path        string    `json:"path"`
-	RemoteURL   string    `json:"remote_url"`
-	CurrentBranch string  `json:"current_branch"`
-	Branches    []string  `json:"branches"`
-	Tags        []string  `json:"tags"`
-	LastCommit  string    `json:"last_commit"`
-	LastUpdated time.Time `json:"last_updated"`
-	Categories  []string  `json:"categories"`
+	Name          string    `json:"name"`
+	Path          string    `json:"path"`
+	RemoteURL     string    `json:"remote_url"`
+	CurrentBranch string    `json:"current_branch"`
+	Branches      []string  `json:"branches"`
+	Tags          []string  `json:"tags"`
+	LastCommit    string    `json:"last_commit"`
+	LastUpdated   time.Time `json:"last_updated"`
+	Categories    []string  `json:"categories"`
 }
 
 // RepositoryRegistry stores discovered repositories
@@ -36,9 +36,9 @@ type Workspace struct {
 
 // WorkspaceConfig holds workspace management configuration
 type WorkspaceConfig struct {
-	WorkspaceDir    string `json:"workspace_dir"`
-	TemplateDir     string `json:"template_dir"`
-	RegistryPath    string `json:"registry_path"`
+	WorkspaceDir string `json:"workspace_dir"`
+	TemplateDir  string `json:"template_dir"`
+	RegistryPath string `json:"registry_path"`
 }
 
 // RepositoryStatus represents the git status of a repository
@@ -52,6 +52,7 @@ type RepositoryStatus struct {
 	Behind         int        `json:"behind"`
 	CurrentBranch  string     `json:"current_branch"`
 	HasConflicts   bool       `json:"has_conflicts"`
+	IsMerged       bool       `json:"is_merged"` // True if branch is merged to origin/main
 }
 
 // WorkspaceStatus represents the overall status of a workspace

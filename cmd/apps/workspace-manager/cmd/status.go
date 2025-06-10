@@ -21,7 +21,7 @@ func NewStatusChecker() *StatusChecker {
 // GetWorkspaceStatus gets the status of a workspace
 func (sc *StatusChecker) GetWorkspaceStatus(ctx context.Context, workspace *Workspace) (*WorkspaceStatus, error) {
 	var repoStatuses []RepositoryStatus
-	
+
 	for _, repo := range workspace.Repositories {
 		repoPath := filepath.Join(workspace.Path, repo.Name)
 		status, err := sc.getRepositoryStatus(ctx, repo, repoPath)
@@ -30,9 +30,9 @@ func (sc *StatusChecker) GetWorkspaceStatus(ctx context.Context, workspace *Work
 		}
 		repoStatuses = append(repoStatuses, *status)
 	}
-	
+
 	overall := sc.calculateOverallStatus(repoStatuses)
-	
+
 	return &WorkspaceStatus{
 		Workspace:    *workspace,
 		Repositories: repoStatuses,
@@ -45,18 +45,18 @@ func (sc *StatusChecker) getRepositoryStatus(ctx context.Context, repo Repositor
 	status := &RepositoryStatus{
 		Repository: repo,
 	}
-	
+
 	// Get current branch
 	if branch, err := sc.getCurrentBranch(ctx, repoPath); err == nil {
 		status.CurrentBranch = branch
 	}
-	
+
 	// Get modified files
 	if modifiedFiles, err := sc.getModifiedFiles(ctx, repoPath); err == nil {
 		status.ModifiedFiles = modifiedFiles
 		status.HasChanges = len(modifiedFiles) > 0
 	}
-	
+
 	// Get staged files
 	if stagedFiles, err := sc.getStagedFiles(ctx, repoPath); err == nil {
 		status.StagedFiles = stagedFiles
@@ -64,23 +64,28 @@ func (sc *StatusChecker) getRepositoryStatus(ctx context.Context, repo Repositor
 			status.HasChanges = len(stagedFiles) > 0
 		}
 	}
-	
+
 	// Get untracked files
 	if untrackedFiles, err := sc.getUntrackedFiles(ctx, repoPath); err == nil {
 		status.UntrackedFiles = untrackedFiles
 	}
-	
+
 	// Get ahead/behind status
 	if ahead, behind, err := sc.getAheadBehind(ctx, repoPath); err == nil {
 		status.Ahead = ahead
 		status.Behind = behind
 	}
-	
+
 	// Check for conflicts
 	if hasConflicts, err := sc.hasConflicts(ctx, repoPath); err == nil {
 		status.HasConflicts = hasConflicts
 	}
-	
+
+	// Check if branch is merged to origin/main
+	if isMerged, err := checkBranchMerged(ctx, repoPath); err == nil {
+		status.IsMerged = isMerged
+	}
+
 	return status, nil
 }
 
@@ -103,11 +108,11 @@ func (sc *StatusChecker) getModifiedFiles(ctx context.Context, repoPath string) 
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if len(output) == 0 {
 		return []string{}, nil
 	}
-	
+
 	files := strings.Split(strings.TrimSpace(string(output)), "\n")
 	return files, nil
 }
@@ -120,11 +125,11 @@ func (sc *StatusChecker) getStagedFiles(ctx context.Context, repoPath string) ([
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if len(output) == 0 {
 		return []string{}, nil
 	}
-	
+
 	files := strings.Split(strings.TrimSpace(string(output)), "\n")
 	return files, nil
 }
@@ -137,11 +142,11 @@ func (sc *StatusChecker) getUntrackedFiles(ctx context.Context, repoPath string)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if len(output) == 0 {
 		return []string{}, nil
 	}
-	
+
 	files := strings.Split(strings.TrimSpace(string(output)), "\n")
 	return files, nil
 }
@@ -155,7 +160,7 @@ func (sc *StatusChecker) getAheadBehind(ctx context.Context, repoPath string) (i
 		// No upstream configured
 		return 0, 0, nil
 	}
-	
+
 	// Get ahead/behind counts
 	cmd = exec.CommandContext(ctx, "git", "rev-list", "--left-right", "--count", "HEAD...@{upstream}")
 	cmd.Dir = repoPath
@@ -163,22 +168,22 @@ func (sc *StatusChecker) getAheadBehind(ctx context.Context, repoPath string) (i
 	if err != nil {
 		return 0, 0, err
 	}
-	
+
 	parts := strings.Fields(strings.TrimSpace(string(output)))
 	if len(parts) != 2 {
 		return 0, 0, errors.New("unexpected git rev-list output")
 	}
-	
+
 	ahead, err := strconv.Atoi(parts[0])
 	if err != nil {
 		return 0, 0, err
 	}
-	
+
 	behind, err := strconv.Atoi(parts[1])
 	if err != nil {
 		return 0, 0, err
 	}
-	
+
 	return ahead, behind, nil
 }
 
@@ -190,16 +195,16 @@ func (sc *StatusChecker) hasConflicts(ctx context.Context, repoPath string) (boo
 	if err != nil {
 		return false, err
 	}
-	
+
 	lines := strings.Split(string(output), "\n")
 	for _, line := range lines {
-		if len(line) >= 2 && (line[0] == 'U' || line[1] == 'U' || 
+		if len(line) >= 2 && (line[0] == 'U' || line[1] == 'U' ||
 			(line[0] == 'A' && line[1] == 'A') ||
 			(line[0] == 'D' && line[1] == 'D')) {
 			return true, nil
 		}
 	}
-	
+
 	return false, nil
 }
 
@@ -208,7 +213,7 @@ func (sc *StatusChecker) calculateOverallStatus(repoStatuses []RepositoryStatus)
 	hasChanges := false
 	hasConflicts := false
 	needsSync := false
-	
+
 	for _, status := range repoStatuses {
 		if status.HasChanges {
 			hasChanges = true
@@ -220,7 +225,7 @@ func (sc *StatusChecker) calculateOverallStatus(repoStatuses []RepositoryStatus)
 			needsSync = true
 		}
 	}
-	
+
 	if hasConflicts {
 		return "conflicts"
 	}
@@ -230,6 +235,6 @@ func (sc *StatusChecker) calculateOverallStatus(repoStatuses []RepositoryStatus)
 	if needsSync {
 		return "needs-sync"
 	}
-	
+
 	return "clean"
 }

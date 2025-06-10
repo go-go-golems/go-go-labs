@@ -73,9 +73,9 @@ func (rd *RepositoryDiscoverer) SaveRegistry() error {
 // DiscoverRepositories discovers git repositories in the given paths
 func (rd *RepositoryDiscoverer) DiscoverRepositories(ctx context.Context, paths []string, recursive bool, maxDepth int) error {
 	log.Info().Msg("Starting repository discovery")
-	
+
 	var allRepos []Repository
-	
+
 	for _, path := range paths {
 		repos, err := rd.scanDirectory(ctx, path, recursive, maxDepth, 0)
 		if err != nil {
@@ -89,7 +89,7 @@ func (rd *RepositoryDiscoverer) DiscoverRepositories(ctx context.Context, paths 
 	rd.registry.LastScan = time.Now()
 
 	log.Info().Int("count", len(allRepos)).Msg("Discovery completed")
-	
+
 	return rd.SaveRegistry()
 }
 
@@ -159,7 +159,7 @@ func (rd *RepositoryDiscoverer) isGitRepository(path string) bool {
 // analyzeRepository extracts metadata from a git repository
 func (rd *RepositoryDiscoverer) analyzeRepository(ctx context.Context, path string) (*Repository, error) {
 	name := filepath.Base(path)
-	
+
 	repo := &Repository{
 		Name:        name,
 		Path:        path,
@@ -201,17 +201,17 @@ func (rd *RepositoryDiscoverer) categorizeRepository(path string) []string {
 
 	// Check for common language/framework files
 	files := map[string]string{
-		"go.mod":        "go",
-		"package.json":  "node",
-		"Cargo.toml":    "rust",
-		"setup.py":      "python",
-		"requirements.txt": "python",
-		"Gemfile":       "ruby",
-		"pom.xml":       "java",
-		"build.gradle":  "gradle",
-		"Makefile":      "make",
+		"go.mod":             "go",
+		"package.json":       "node",
+		"Cargo.toml":         "rust",
+		"setup.py":           "python",
+		"requirements.txt":   "python",
+		"Gemfile":            "ruby",
+		"pom.xml":            "java",
+		"build.gradle":       "gradle",
+		"Makefile":           "make",
 		"docker-compose.yml": "docker",
-		"Dockerfile":    "docker",
+		"Dockerfile":         "docker",
 	}
 
 	for file, category := range files {
@@ -222,13 +222,13 @@ func (rd *RepositoryDiscoverer) categorizeRepository(path string) []string {
 
 	// Check for common project types
 	dirs := map[string]string{
-		"cmd":     "cli",
-		"web":     "web",
-		"mobile":  "mobile",
-		"tui":     "tui",
-		"api":     "api",
-		"server":  "server",
-		"client":  "client",
+		"cmd":    "cli",
+		"web":    "web",
+		"mobile": "mobile",
+		"tui":    "tui",
+		"api":    "api",
+		"server": "server",
+		"client": "client",
 	}
 
 	for dir, category := range dirs {
@@ -272,7 +272,7 @@ func (rd *RepositoryDiscoverer) getGitBranches(ctx context.Context, path string)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var branches []string
 	lines := strings.Split(string(output), "\n")
 	for _, line := range lines {
@@ -287,7 +287,7 @@ func (rd *RepositoryDiscoverer) getGitBranches(ctx context.Context, path string)
 			branches = append(branches, line)
 		}
 	}
-	
+
 	return branches, nil
 }
 
@@ -298,7 +298,7 @@ func (rd *RepositoryDiscoverer) getGitTags(ctx context.Context, path string) ([]
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var tags []string
 	lines := strings.Split(string(output), "\n")
 	for _, line := range lines {
@@ -307,7 +307,7 @@ func (rd *RepositoryDiscoverer) getGitTags(ctx context.Context, path string) ([]
 			tags = append(tags, line)
 		}
 	}
-	
+
 	return tags, nil
 }
 
@@ -324,23 +324,23 @@ func (rd *RepositoryDiscoverer) getGitLastCommit(ctx context.Context, path strin
 // mergeRepositories merges existing repositories with newly discovered ones
 func (rd *RepositoryDiscoverer) mergeRepositories(existing, discovered []Repository) []Repository {
 	repoMap := make(map[string]Repository)
-	
+
 	// Add existing repositories
 	for _, repo := range existing {
 		repoMap[repo.Path] = repo
 	}
-	
+
 	// Update with discovered repositories
 	for _, repo := range discovered {
 		repoMap[repo.Path] = repo
 	}
-	
+
 	// Convert back to slice
 	var result []Repository
 	for _, repo := range repoMap {
 		result = append(result, repo)
 	}
-	
+
 	return result
 }
 
@@ -354,14 +354,14 @@ func (rd *RepositoryDiscoverer) GetRepositoriesByTags(tags []string) []Repositor
 	if len(tags) == 0 {
 		return rd.registry.Repositories
 	}
-	
+
 	var result []Repository
 	for _, repo := range rd.registry.Repositories {
 		if rd.hasAnyTag(repo.Categories, tags) {
 			result = append(result, repo)
 		}
 	}
-	
+
 	return result
 }
 
