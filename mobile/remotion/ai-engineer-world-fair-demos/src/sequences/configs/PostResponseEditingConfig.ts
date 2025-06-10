@@ -4,6 +4,7 @@ import {
 	createMessage,
 	DEFAULT_MESSAGE_TYPES,
 	InteractionState,
+	FONT_SIZES,
 } from '../../types/InteractionDSL';
 
 export const postResponseEditingSequence: InteractionSequence = {
@@ -63,7 +64,7 @@ export const postResponseEditingSequence: InteractionSequence = {
 			'user-code-request',
 			'user',
 			'Write a function to calculate the factorial of a number',
-			['userRequest', 'aiResponse', 'firstToolCall', 'testFailure', 'editingResponse', 'secondToolCall', 'testSuccess', 'nextUserMessage'],
+			['container', 'userRequest', 'aiResponse', 'firstToolCall', 'testFailure', 'editingResponse', 'secondToolCall', 'testSuccess', 'nextUserMessage'],
 			{ column: 'left' }
 		),
 

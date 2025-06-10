@@ -1,6 +1,28 @@
 // DSL for declarative interaction scripting
 import React from 'react';
 
+export const SMALL_FONT_SIZES = {
+	small: '16px',
+	medium: '18px',
+	large: '20px',
+	xlarge: '22px',
+	icon: '24px',
+	label: '16px',
+	content: '20px',
+	title: '28px',
+	tokenCounter: '24px',
+};
+
+// Font size configuration
+export const MEDIUM_FONT_SIZES = {
+	small: '22px',
+	medium: '24px',
+	large: '26px',
+	xlarge: '28px',
+};
+
+export const FONT_SIZES = SMALL_FONT_SIZES;
+
 export interface MessageTypeConfig {
 	bg: string;
 	icon: string | ((state: InteractionState) => string);
@@ -97,7 +119,7 @@ export const createMessageType = (
 	bg,
 	icon,
 	label,
-	fontSize: '13px',
+	fontSize: FONT_SIZES.medium,
 	padding: '12px 15px',
 	boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
 	border: 'none',
@@ -138,14 +160,14 @@ export const DEFAULT_MESSAGE_TYPES: MessageTypeRegistry = {
 	user: createMessageType('#3498db', '👤', 'User'),
 	assistant: createMessageType('#9b59b6', '🧠', 'Assistant'),
 	assistant_cot: createMessageType('#e74c3c', '🤔', 'Chain of Thought', {
-		fontSize: '11px',
+		fontSize: FONT_SIZES.small,
 		padding: '8px 12px',
 		boxShadow: '0 3px 10px rgba(0,0,0,0.2)',
 		border: '1px solid rgba(255, 255, 255, 0.2)',
 		fontStyle: 'italic',
 	}),
 	assistant_diary: createMessageType('#8e44ad', '📔', 'Diary', {
-		fontSize: '11px',
+		fontSize: FONT_SIZES.small,
 		padding: '8px 12px',
 		boxShadow: '0 3px 10px rgba(0,0,0,0.2)',
 		border: '1px solid rgba(255, 255, 255, 0.2)',
@@ -155,7 +177,7 @@ export const DEFAULT_MESSAGE_TYPES: MessageTypeRegistry = {
 	tool_use: createMessageType('#e67e22', '⚡', 'Tool Use'),
 	tool_result: createMessageType('#27ae60', '📊', 'Tool Result'),
 	summary: createMessageType('#6c3483', '📝', 'Summary', {
-		fontSize: '13px',
+		fontSize: FONT_SIZES.medium,
 		padding: '14px 18px',
 		boxShadow: '0 4px 15px rgba(108, 52, 131, 0.4)',
 		border: '1px solid rgba(255, 255, 255, 0.2)',

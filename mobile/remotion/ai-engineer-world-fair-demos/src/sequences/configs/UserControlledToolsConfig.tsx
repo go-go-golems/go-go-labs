@@ -5,6 +5,7 @@ import {
 	createMessage,
 	DEFAULT_MESSAGE_TYPES,
 	InteractionState,
+	FONT_SIZES,
 } from '../../types/InteractionDSL';
 
 // Interactive UI Components
@@ -281,7 +282,7 @@ export const userControlledToolsSequence: InteractionSequence = {
 			'user-question',
 			'user',
 			'Find all customers with overdue invoices over $5000',
-			['userRequest', 'llmPlanning', 'toolCall', 'toolApproval', 'editing', 'toolExecution', 'toolResult', 'resultValidation', 'filtering', 'llmResponse'],
+			['container', 'userRequest', 'llmPlanning', 'toolCall', 'toolApproval', 'editing', 'toolExecution', 'toolResult', 'resultValidation', 'filtering', 'llmResponse'],
 			{ column: 'left' }
 		),
 

@@ -10,6 +10,8 @@ import {
 import {InitialMessageSequence} from './sequences/InitialMessageSequence';
 import {FirstToolCallSequence} from './sequences/FirstToolCallSequence';
 import {ContextSummarizationSequence} from './sequences/ContextSummarizationSequence';
+import { InteractionRenderer } from './components/InteractionRenderer';
+import { contextSummarizationSequence } from './sequences/configs/ContextSummarizationConfig';
 
 export const ContextBuildupAnimation: React.FC = () => {
 	const frame = useCurrentFrame();
@@ -53,35 +55,16 @@ export const ContextBuildupAnimation: React.FC = () => {
 				LLM Context Buildup
 			</div>
 
-			{/* Subtitle */}
-			<div
-				style={{
-					position: 'absolute',
-					top: '14%',
-					left: '50%',
-					transform: 'translate(-50%, -50%)',
-					color: 'rgba(255, 255, 255, 0.8)',
-					fontSize: '24px',
-					textAlign: 'center',
-					opacity: titleOpacity,
+
+			<Sequence from={0} durationInFrames={300}>
+			<InteractionRenderer
+				sequence={contextSummarizationSequence}
+				background="transparent"
+				containerStyle={{
+					top: '15%',
+					height: '60%',
 				}}
-			>
-				LLM internal processing with chain of thought
-			</div>
-
-			{/* Sequence 1: Initial Messages (frames 60-300) */}
-			<Sequence from={60} durationInFrames={240}>
-				<InitialMessageSequence />
-			</Sequence>
-
-			{/* Sequence 2: First Tool Call (frames 300-540) */}
-			<Sequence from={300} durationInFrames={240}>
-				<FirstToolCallSequence />
-			</Sequence>
-
-			{/* Sequence 3: Context Summarization (frames 540-840) */}
-			<Sequence from={540} durationInFrames={300}>
-				<ContextSummarizationSequence />
+			/>
 			</Sequence>
 		</AbsoluteFill>
 	);

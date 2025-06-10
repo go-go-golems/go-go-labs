@@ -5,6 +5,7 @@ import {
 	createMessage,
 	DEFAULT_MESSAGE_TYPES,
 	InteractionState,
+	FONT_SIZES,
 } from '../../types/InteractionDSL';
 
 // Dynamic UI Components based on LLM-generated DSL
@@ -472,7 +473,7 @@ export const llmGeneratedUISequence: InteractionSequence = {
 			'user-request',
 			'user',
 			'I need to analyze customer data with flexible filtering options',
-			['userRequest', 'llmAnalysis', 'uiGeneration', 'uiRendering', 'userInteraction', 'toolExecution', 'resultDisplay', 'resultManipulation', 'finalOutput'],
+			['container', 'userRequest', 'llmAnalysis', 'uiGeneration', 'uiRendering', 'userInteraction', 'toolExecution', 'resultDisplay', 'resultManipulation', 'finalOutput'],
 			{ column: 'left' }
 		),
 

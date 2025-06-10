@@ -4,6 +4,7 @@ import {
 	createMessage,
 	DEFAULT_MESSAGE_TYPES,
 	InteractionState,
+	FONT_SIZES,
 } from '../../types/InteractionDSL';
 
 export const adaptiveSystemPromptSequence: InteractionSequence = {
@@ -27,7 +28,7 @@ export const adaptiveSystemPromptSequence: InteractionSequence = {
 			bg: '#8e44ad',
 			icon: '🧠',
 			label: 'Mode Selection',
-			fontSize: '13px',
+			fontSize: FONT_SIZES.small,
 			padding: '14px 18px',
 			boxShadow: '0 4px 15px rgba(142, 68, 173, 0.4)',
 			border: '2px solid rgba(255, 255, 255, 0.3)',
@@ -38,7 +39,7 @@ export const adaptiveSystemPromptSequence: InteractionSequence = {
 			bg: '#2c3e50',
 			icon: '⚙️',
 			label: 'System Prompt',
-			fontSize: '11px',
+			fontSize: FONT_SIZES.small,
 			padding: '12px 15px',
 			boxShadow: '0 3px 10px rgba(44, 62, 80, 0.3)',
 			border: '1px solid rgba(255, 255, 255, 0.2)',
@@ -49,7 +50,7 @@ export const adaptiveSystemPromptSequence: InteractionSequence = {
 			bg: '#3498db',
 			icon: '🔍',
 			label: 'Researcher Assistant',
-			fontSize: '13px',
+			fontSize: FONT_SIZES.small,
 			padding: '12px 15px',
 			boxShadow: '0 2px 8px rgba(52, 152, 219, 0.3)',
 		},
@@ -57,7 +58,7 @@ export const adaptiveSystemPromptSequence: InteractionSequence = {
 			bg: '#e67e22',
 			icon: '💻',
 			label: 'Coding Assistant',
-			fontSize: '13px',
+			fontSize: FONT_SIZES.small,
 			padding: '12px 15px',
 			boxShadow: '0 2px 8px rgba(230, 126, 34, 0.3)',
 		},
@@ -65,7 +66,7 @@ export const adaptiveSystemPromptSequence: InteractionSequence = {
 			bg: '#27ae60',
 			icon: '🎓',
 			label: 'Learning Coach',
-			fontSize: '13px',
+			fontSize: FONT_SIZES.small,
 			padding: '12px 15px',
 			boxShadow: '0 2px 8px rgba(39, 174, 96, 0.3)',
 		},
@@ -95,32 +96,24 @@ export const adaptiveSystemPromptSequence: InteractionSequence = {
 			(state: InteractionState) => {
 				if (state.activeStates.includes('researcherMode') || 
 					state.activeStates.includes('systemPrompt1')) {
-					return `SYSTEM PROMPT:
-
-You are a research assistant specializing in cutting-edge technology analysis. Your role is to:
+					return `SYSTEM PROMPT: You are a research assistant specializing in cutting-edge technology analysis. Your role is to:
 - Gather and synthesize current information from multiple sources
 - Provide comprehensive overviews of complex technical topics
 - Analyze implications and future trends`;
 				} else if (state.activeStates.includes('coderMode') || 
 						   state.activeStates.includes('systemPrompt2')) {
-					return `SYSTEM PROMPT:
-
-You are a senior software engineer specializing in cryptography and security. Your role is to:
+					return `SYSTEM PROMPT: You are a senior software engineer specializing in cryptography and security. Your role is to:
 - Write clean, efficient, and secure code
 - Provide detailed implementation explanations
 - Follow best practices and coding standards`;
 				} else if (state.activeStates.includes('coachMode') || 
 						   state.activeStates.includes('systemPrompt3')) {
-					return `SYSTEM PROMPT:
-
-You are an expert educator and learning coach specializing in complex technical concepts. Your role is to:
+					return `SYSTEM PROMPT: You are an expert educator and learning coach specializing in complex technical concepts. Your role is to:
 - Break down complex topics into digestible steps
 - Use analogies and real-world examples
 - Encourage questions and active learning`;
 				}
-				return `SYSTEM PROMPT:
-
-You are a helpful AI assistant. Analyze the user's request and select the most appropriate mode to respond effectively.`;
+				return `SYSTEM PROMPT: You are a helpful AI assistant. Analyze the user's request and select the most appropriate mode to respond effectively.`;
 			},
 			['container', 'userQuestion1', 'modeSelection1', 'systemPrompt1', 'researcherMode', 'userQuestion2', 'modeSelection2', 'systemPrompt2', 'coderMode', 'userQuestion3', 'modeSelection3', 'systemPrompt3', 'coachMode'],
 			{ column: 'left' }
@@ -139,13 +132,7 @@ You are a helpful AI assistant. Analyze the user's request and select the most a
 			'mode-selection-1',
 			'mode_selection',
 			(state: InteractionState) => {
-				return `ASSISTANT_MODE: RESEARCHER
-
-Chain of Thought:
-- User asking about "latest developments" → research needed
-- Complex technical domain → comprehensive analysis required
-- Best served by research-focused approach
-
+				return `CoT: "Latest developments" → research • Complex tech domain → analysis
 Selected Mode: RESEARCHER`;
 			},
 			['modeSelection1', 'systemPrompt1', 'researcherMode'],
@@ -155,7 +142,7 @@ Selected Mode: RESEARCHER`;
 		createMessage(
 			'researcher-response',
 			'researcher_response',
-			'Based on recent research, quantum computing has made significant strides in 2024 with IBM\'s 1000+ qubit processors and Google\'s error correction breakthroughs. This progress makes RSA encryption increasingly vulnerable, with post-quantum cryptography standards emerging to address the threat within 10-15 years.',
+			'IBM and Google\'s quantum breakthroughs are accelerating post-quantum cryptography adoption.',
 			['researcherMode'],
 			{ column: 'left' }
 		),
@@ -173,14 +160,7 @@ Selected Mode: RESEARCHER`;
 			'mode-selection-2',
 			'mode_selection',
 			(state: InteractionState) => {
-				return `ASSISTANT_MODE: CODER
-
-Chain of Thought:
-- User wants implementation → coding expertise needed
-- Specific request for Python code
-- Technical implementation required
-- Best served by development-focused approach
-
+				return `CoT: "Implement" + "Python" → coding • Technical implementation needed
 Selected Mode: CODER`;
 			},
 			['modeSelection2', 'systemPrompt2', 'coderMode'],
@@ -190,7 +170,7 @@ Selected Mode: CODER`;
 		createMessage(
 			'coder-response',
 			'coder_response',
-			'Here\'s a basic Kyber implementation:\n\n```python\nclass KyberKEM:\n    def __init__(self, n=256, q=3329):\n        self.n, self.q = n, q\n    \n    def keygen(self):\n        s = np.random.randint(0, self.q, self.n)\n        a = np.random.randint(0, self.q, (self.n, self.n))\n        e = np.random.normal(0, 1, self.n).astype(int)\n        return (s, (a, (a @ s + e) % self.q))\n```',
+			'Here\'s a basic Kyber implementation:\n\n```python\nclass KyberKEM:\n    def keygen(self):\n        # Generate secret key and public key\n        return private_key, public_key\n```',
 			['coderMode'],
 			{ column: 'left' }
 		),
@@ -210,11 +190,7 @@ Selected Mode: CODER`;
 			(state: InteractionState) => {
 				return `ASSISTANT_MODE: COACH
 
-Chain of Thought:
-- User expresses learning difficulty → educational support needed
-- Requests "step by step" → pedagogical approach required
-- Focus on understanding over implementation
-
+CoT: "Struggling" + "step by step" → teaching • Focus on understanding
 Selected Mode: COACH`;
 			},
 			['modeSelection3', 'systemPrompt3', 'coachMode'],
@@ -224,67 +200,10 @@ Selected Mode: COACH`;
 		createMessage(
 			'coach-response',
 			'coach_response',
-			'Let\'s break this down! 🎓 Current encryption is like a jigsaw puzzle - classical computers try pieces randomly, but quantum computers can "see" the solution. Post-quantum algorithms like Kyber use different math problems that even quantum computers find hard by adding "mathematical noise" that only the intended recipient can filter out. What part would you like me to explain further?',
+			'Let\'s break this down! 🎓 Current encryption is like a puzzle - classical computers guess randomly, quantum computers can "see" solutions. Kyber uses math problems that stay hard for quantum computers by adding "noise" only you can remove. What would you like me to explain next?',
 			['coachMode'],
 			{ column: 'left' }
 		),
-	],
-
-	overlays: [
-		{
-			id: 'mode-indicator',
-			content: (state: InteractionState) => {
-				if (state.activeStates.includes('researcherMode')) {
-					return `
-						<div style="
-							background-color: #3498db;
-							color: white;
-							padding: 8px 20px;
-							border-radius: 20px;
-							font-size: 12px;
-							font-weight: bold;
-							box-shadow: 0 2px 10px rgba(52, 152, 219, 0.4);
-						">
-							🔍 RESEARCHER MODE ACTIVE
-						</div>
-					`;
-				} else if (state.activeStates.includes('coderMode')) {
-					return `
-						<div style="
-							background-color: #e67e22;
-							color: white;
-							padding: 8px 20px;
-							border-radius: 20px;
-							font-size: 12px;
-							font-weight: bold;
-							box-shadow: 0 2px 10px rgba(230, 126, 34, 0.4);
-						">
-							💻 CODER MODE ACTIVE
-						</div>
-					`;
-				} else if (state.activeStates.includes('coachMode')) {
-					return `
-						<div style="
-							background-color: #27ae60;
-							color: white;
-							padding: 8px 20px;
-							border-radius: 20px;
-							font-size: 12px;
-							font-weight: bold;
-							box-shadow: 0 2px 10px rgba(39, 174, 96, 0.4);
-						">
-							🎓 COACH MODE ACTIVE
-						</div>
-					`;
-				}
-				return '';
-			},
-			position: {
-				top: '15%',
-				right: '5%',
-			},
-			visibleStates: ['researcherMode', 'coderMode', 'coachMode'],
-		},
 	],
 
 	layout: {

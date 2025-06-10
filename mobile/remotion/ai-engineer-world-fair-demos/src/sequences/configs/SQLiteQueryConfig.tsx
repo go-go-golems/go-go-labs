@@ -6,6 +6,7 @@ import {
 	createMessageType,
 	DEFAULT_MESSAGE_TYPES,
 	InteractionState,
+	FONT_SIZES,
 } from '../../types/InteractionDSL';
 
 // Custom message types for SQLite animation
@@ -13,21 +14,21 @@ const sqliteMessageTypes = {
 	...DEFAULT_MESSAGE_TYPES,
 	
 	schema_discovery: createMessageType('#3498db', '🔍', 'Schema Discovery', {
-		fontSize: '12px',
+		fontSize: FONT_SIZES.small,
 		padding: '10px 14px',
 		border: '2px solid rgba(52, 152, 219, 0.4)',
 		boxShadow: '0 3px 10px rgba(52, 152, 219, 0.3)',
 	}),
 	
 	table_exploration: createMessageType('#9b59b6', '🗂️', 'Table Structure', {
-		fontSize: '12px',
+		fontSize: FONT_SIZES.small,
 		padding: '10px 14px',
 		border: '2px solid rgba(155, 89, 182, 0.4)',
 		boxShadow: '0 3px 10px rgba(155, 89, 182, 0.3)',
 	}),
 	
 	targeted_query: createMessageType('#27ae60', '🎯', 'Targeted Query', {
-		fontSize: '12px',
+		fontSize: FONT_SIZES.small,
 		padding: '10px 14px',
 		border: '2px solid rgba(39, 174, 96, 0.4)',
 		boxShadow: '0 3px 10px rgba(39, 174, 96, 0.3)',
@@ -35,21 +36,20 @@ const sqliteMessageTypes = {
 	}),
 	
 	database_response: createMessageType('#16a085', '🗃️', 'Database', {
-		fontSize: '11px',
+		fontSize: FONT_SIZES.small,
 		padding: '8px 12px',
 		border: '1px solid rgba(22, 160, 133, 0.3)',
-		fontFamily: 'monospace',
 	}),
 	
 	insight: createMessageType('#f39c12', '💡', 'Insight', {
-		fontSize: '12px',
+		fontSize: FONT_SIZES.small,
 		padding: '10px 14px',
 		border: '2px solid rgba(243, 156, 18, 0.4)',
 		boxShadow: '0 3px 10px rgba(243, 156, 18, 0.3)',
 	}),
 	
 	final_result: createMessageType('#27ae60', '✅', 'Result', {
-		fontSize: '13px',
+		fontSize: FONT_SIZES.small,
 		padding: '12px 16px',
 		border: '3px solid rgba(39, 174, 96, 0.5)',
 		boxShadow: '0 4px 15px rgba(39, 174, 96, 0.4)',
@@ -134,52 +134,42 @@ const TableStructure: React.FC<{
 
 // SQL Query component
 const SQLQuery: React.FC<{
-	title: string;
 	query: string;
 	callNumber: number;
 	isVisible: boolean;
 	isTargeted?: boolean;
-}> = ({ title, query, callNumber, isVisible, isTargeted }) => {
+}> = ({ query, callNumber, isVisible, isTargeted }) => {
 	if (!isVisible) return null;
 	
 	return (
 		<div style={{
 			backgroundColor: '#2c3e50',
-			borderRadius: '12px',
-			padding: '15px',
-			boxShadow: '0 6px 20px rgba(0,0,0,0.3)',
-			fontSize: '12px',
+			borderRadius: '8px',
+			padding: '12px',
+			boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
+			fontSize: '11px',
 			color: '#ecf0f1',
 			fontFamily: 'monospace',
-			maxWidth: isTargeted ? '500px' : '300px',
+			maxWidth: isTargeted ? '400px' : '280px',
 			border: `2px solid ${isTargeted ? '#27ae60' : '#3498db'}`,
 		}}>
 			<div style={{
-				color: isTargeted ? '#27ae60' : '#3498db',
-				fontWeight: 'bold',
-				marginBottom: '10px',
-				fontSize: '13px',
-			}}>
-				🔍 Tool Call #{callNumber}: {title}
-			</div>
-			<div style={{ color: '#e74c3c' }}>sqlite_query(</div>
-			<div style={{
-				paddingLeft: '15px',
+				paddingLeft: '12px',
 				color: '#f39c12',
-				lineHeight: 1.4,
+				lineHeight: 1.3,
 				whiteSpace: 'pre-wrap',
+				fontSize: '10px',
 			}}>
 				"{query}"
 			</div>
-			<div style={{ color: '#e74c3c' }}>)</div>
 			
 			{isTargeted && (
 				<div style={{
-					marginTop: '12px',
-					padding: '8px',
+					marginTop: '8px',
+					padding: '6px',
 					backgroundColor: 'rgba(39, 174, 96, 0.2)',
-					borderRadius: '6px',
-					fontSize: '11px',
+					borderRadius: '4px',
+					fontSize: '9px',
 				}}>
 					<div style={{ color: '#27ae60', fontWeight: 'bold' }}>✨ Smart query features:</div>
 					<div style={{ color: '#ecf0f1' }}>• Joins only needed tables</div>
@@ -188,52 +178,6 @@ const SQLQuery: React.FC<{
 					<div style={{ color: '#ecf0f1' }}>• Returns only the count</div>
 				</div>
 			)}
-		</div>
-	);
-};
-
-// Process summary component
-const ProcessSummary: React.FC<{
-	isVisible: boolean;
-}> = ({ isVisible }) => {
-	if (!isVisible) return null;
-	
-	return (
-		<div style={{
-			backgroundColor: 'rgba(44, 62, 80, 0.95)',
-			borderRadius: '15px',
-			padding: '20px',
-			color: 'white',
-			fontSize: '14px',
-			textAlign: 'center',
-			boxShadow: '0 6px 20px rgba(0,0,0,0.3)',
-			border: '2px solid #3498db',
-			maxWidth: '500px',
-		}}>
-			<div style={{ fontSize: '18px', marginBottom: '12px' }}>📊 Process Summary</div>
-			<div style={{
-				display: 'grid',
-				gridTemplateColumns: '1fr 1fr 1fr 1fr',
-				gap: '15px',
-				fontSize: '12px',
-			}}>
-				<div>
-					<div style={{ fontSize: '16px', fontWeight: 'bold', color: '#3498db' }}>4</div>
-					<div>Tool Calls</div>
-				</div>
-				<div>
-					<div style={{ fontSize: '16px', fontWeight: 'bold', color: '#27ae60' }}>Smart</div>
-					<div>Exploration</div>
-				</div>
-				<div>
-					<div style={{ fontSize: '16px', fontWeight: 'bold', color: '#f39c12' }}>Precise</div>
-					<div>Result</div>
-				</div>
-				<div>
-					<div style={{ fontSize: '16px', fontWeight: 'bold', color: '#e74c3c' }}>Minimal</div>
-					<div>Tokens</div>
-				</div>
-			</div>
 		</div>
 	);
 };
@@ -267,23 +211,23 @@ export const sqliteQuerySequence: InteractionSequence = {
 		// Schema discovery phase (frames 210-360 → 180-330)
 		createState('schemaDiscovery', 180, 150),
 		createState('llmThinks', 210, 60),
-		createState('schemaQuery', 270, 60),
-		createState('schemaResult', 330, 60),
+		createState('schemaQuery', 270, 300), // Keep SQL visible longer
+		createState('schemaResult', 330, 300),
 		
 		// Table exploration phase (frames 360-540 → 390-570)
 		createState('tableExploration', 390, 180),
 		createState('tableThinking', 420, 60),
-		createState('customersQuery', 480, 60),
-		createState('customersResult', 540, 60),
-		createState('ordersQuery', 600, 60),
-		createState('ordersResult', 660, 60),
+		createState('customersQuery', 480, 300), // Keep SQL visible longer
+		createState('customersResult', 540, 300),
+		createState('ordersQuery', 600, 300), // Keep SQL visible longer
+		createState('ordersResult', 660, 300),
 		createState('schemaInsight', 720, 60),
 		
 		// Targeted query phase (frames 540-780 → 780-1020)
 		createState('targetedQuery', 780, 240),
 		createState('targetedThinking', 810, 60),
-		createState('targetedExecution', 870, 90),
-		createState('targetedResult', 960, 60),
+		createState('targetedExecution', 870, 300), // Keep SQL visible longer
+		createState('targetedResult', 960, 300),
 		
 		// Final response phase (frames 780-1200 → 1020-1440)
 		createState('finalResponse', 1020, 420),
@@ -300,16 +244,14 @@ export const sqliteQuerySequence: InteractionSequence = {
 			'user-question',
 			'user',
 			'"How many orders did customer John Smith place last month?"',
-			['userSpeaks', 'schemaDiscovery', 'tableExploration', 'targetedQuery', 'finalResponse'],
-			{ column: 'left' }
+			['container', 'userSpeaks', 'schemaDiscovery', 'tableExploration', 'targetedQuery', 'finalResponse']
 		),
 
 		createMessage(
 			'user-context',
 			'system',
 			'Requires database knowledge - only tool available: sqlite_query(sql)',
-			['userSpeaks', 'schemaDiscovery', 'tableExploration', 'targetedQuery', 'finalResponse'],
-			{ column: 'left' }
+			['userSpeaks', 'schemaDiscovery', 'tableExploration', 'targetedQuery', 'finalResponse']
 		),
 
 		// LLM initial thinking
@@ -317,8 +259,7 @@ export const sqliteQuerySequence: InteractionSequence = {
 			'llm-initial-thought',
 			'assistant',
 			'"I need to find customer orders, but I don\'t know the database structure. Let me explore the schema first."',
-			['llmThinks', 'schemaDiscovery', 'tableExploration', 'targetedQuery', 'finalResponse'],
-			{ column: 'left' }
+			['llmThinks', 'schemaDiscovery', 'tableExploration', 'targetedQuery', 'finalResponse']
 		),
 
 		// Schema discovery
@@ -327,27 +268,13 @@ export const sqliteQuerySequence: InteractionSequence = {
 			'schema_discovery',
 			(state: InteractionState) => (
 				<SQLQuery
-					title="Schema Discovery"
 					query="SELECT name FROM sqlite_master WHERE type='table';"
 					callNumber={1}
-					isVisible={state.activeStates.includes('schemaQuery')}
+					isVisible={true}
 				/>
 			),
 			['schemaQuery', 'schemaResult', 'tableExploration', 'targetedQuery', 'finalResponse'],
-			{ column: 'left', isReactContent: true }
-		),
-
-		createMessage(
-			'schema-result',
-			'database_response',
-			(state: InteractionState) => (
-				<SchemaVisualization
-					tables={['customers', 'orders', 'products']}
-					isVisible={state.activeStates.includes('schemaResult')}
-				/>
-			),
-			['schemaResult', 'tableExploration', 'targetedQuery', 'finalResponse'],
-			{ column: 'right', isReactContent: true }
+			{ isReactContent: true }
 		),
 
 		// Table exploration thinking
@@ -355,8 +282,7 @@ export const sqliteQuerySequence: InteractionSequence = {
 			'table-exploration-thought',
 			'assistant',
 			'"I found customers & orders tables. Let me check their structure to understand how to join them."',
-			['tableThinking', 'tableExploration', 'targetedQuery', 'finalResponse'],
-			{ column: 'left' }
+			['tableThinking', 'tableExploration', 'targetedQuery', 'finalResponse']
 		),
 
 		// Customers table exploration
@@ -365,14 +291,13 @@ export const sqliteQuerySequence: InteractionSequence = {
 			'table_exploration',
 			(state: InteractionState) => (
 				<SQLQuery
-					title="Customers Structure"
 					query="PRAGMA table_info(customers);"
 					callNumber={2}
-					isVisible={state.activeStates.includes('customersQuery')}
+					isVisible={true}
 				/>
 			),
 			['customersQuery', 'customersResult', 'targetedQuery', 'finalResponse'],
-			{ column: 'left', isReactContent: true }
+			{ isReactContent: true }
 		),
 
 		createMessage(
@@ -387,11 +312,11 @@ export const sqliteQuerySequence: InteractionSequence = {
 						{ name: 'email', type: 'TEXT' },
 						{ name: 'created_at', type: 'TEXT' },
 					]}
-					isVisible={state.activeStates.includes('customersResult')}
+					isVisible={true}
 				/>
 			),
 			['customersResult', 'targetedQuery', 'finalResponse'],
-			{ column: 'right', isReactContent: true }
+			{ isReactContent: true }
 		),
 
 		// Orders table exploration
@@ -400,14 +325,13 @@ export const sqliteQuerySequence: InteractionSequence = {
 			'table_exploration',
 			(state: InteractionState) => (
 				<SQLQuery
-					title="Orders Structure"
 					query="PRAGMA table_info(orders);"
 					callNumber={3}
-					isVisible={state.activeStates.includes('ordersQuery')}
+					isVisible={true}
 				/>
 			),
 			['ordersQuery', 'ordersResult', 'targetedQuery', 'finalResponse'],
-			{ column: 'left', isReactContent: true }
+			{ isReactContent: true }
 		),
 
 		createMessage(
@@ -422,20 +346,11 @@ export const sqliteQuerySequence: InteractionSequence = {
 						{ name: 'amount', type: 'REAL' },
 						{ name: 'order_date', type: 'TEXT' },
 					]}
-					isVisible={state.activeStates.includes('ordersResult')}
+					isVisible={true}
 				/>
 			),
 			['ordersResult', 'targetedQuery', 'finalResponse'],
-			{ column: 'right', isReactContent: true }
-		),
-
-		// Schema insight
-		createMessage(
-			'schema-insight',
-			'insight',
-			'💡 Schema Analysis Complete! Now I understand:\n• customers.id links to orders.customer_id\n• I can filter by customer name and date',
-			['schemaInsight', 'targetedQuery', 'finalResponse'],
-			{ column: 'right' }
+			{ isReactContent: true }
 		),
 
 		// Targeted query thinking
@@ -443,8 +358,7 @@ export const sqliteQuerySequence: InteractionSequence = {
 			'targeted-thinking',
 			'assistant',
 			'"Perfect! Now I know the schema. I can write a precise query that joins customers and orders, filters by name and date range."',
-			['targetedThinking', 'targetedQuery', 'finalResponse'],
-			{ column: 'left' }
+			['targetedThinking', 'targetedQuery', 'finalResponse']
 		),
 
 		// Targeted query execution
@@ -453,19 +367,18 @@ export const sqliteQuerySequence: InteractionSequence = {
 			'targeted_query',
 			(state: InteractionState) => (
 				<SQLQuery
-					title="Targeted Query"
 					query={`SELECT COUNT(*) as order_count
 FROM orders o
 JOIN customers c ON o.customer_id = c.id
 WHERE c.name = 'John Smith'
 AND o.order_date LIKE '2024-11%';`}
 					callNumber={4}
-					isVisible={state.activeStates.includes('targetedExecution')}
+					isVisible={true}
 					isTargeted={true}
 				/>
 			),
 			['targetedExecution', 'targetedResult', 'finalResponse'],
-			{ column: 'left', isReactContent: true }
+			{ isReactContent: true }
 		),
 
 		// Targeted result
@@ -473,48 +386,7 @@ AND o.order_date LIKE '2024-11%';`}
 			'targeted-result',
 			'final_result',
 			'🎯 Precise Result: order_count: 7\n\nExactly what was asked - no unnecessary data!',
-			['targetedResult', 'finalResponse'],
-			{ column: 'right' }
-		),
-
-		// Final thinking
-		createMessage(
-			'final-thinking',
-			'assistant',
-			'"Perfect! I got exactly the data I needed. Now I can give a precise answer to the user."',
-			['finalThinking', 'finalResponse'],
-			{ column: 'left' }
-		),
-
-		// LLM response to user
-		createMessage(
-			'llm-final-response',
-			'assistant',
-			'Based on the database query, John Smith placed **7 orders** last month (November 2024). I analyzed the customer and order tables to get this precise count.',
-			['llmResponse', 'finalResponse'],
-			{ column: 'left' }
-		),
-
-		// Process summary
-		createMessage(
-			'process-summary',
-			'system',
-			(state: InteractionState) => (
-				<ProcessSummary
-					isVisible={state.activeStates.includes('processSummary')}
-				/>
-			),
-			['processSummary', 'finalMessage'],
-			{ column: 'right', isReactContent: true }
-		),
-
-		// Final message
-		createMessage(
-			'final-message',
-			'final_result',
-			'✅ Intelligent multi-step approach: Maximum precision, minimal waste!\n\nTotal Tokens: ~300 (vs 3,600+ in bulk approach)',
-			['finalMessage'],
-			{ column: 'right' }
+			['targetedResult', 'finalResponse']
 		),
 	],
 
@@ -554,6 +426,8 @@ AND o.order_date LIKE '2024-11%';`}
 						font-weight: bold;
 						box-shadow: 0 4px 15px rgba(0,0,0,0.3);
 						border: 2px solid ${color};
+						text-align: center;
+						margin: 0 auto;
 					">
 						${step}
 					</div>
@@ -561,8 +435,7 @@ AND o.order_date LIKE '2024-11%';`}
 			},
 			position: {
 				top: '8%',
-				left: '50%',
-				transform: 'translateX(-50%)',
+				left: '25%',
 			},
 			visibleStates: ['userRequest', 'schemaDiscovery', 'tableExploration', 'targetedQuery', 'finalResponse'],
 		},
@@ -580,6 +453,7 @@ AND o.order_date LIKE '2024-11%';`}
 					gap: 20px;
 					align-items: center;
 					box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+					justify-content: center;
 				">
 					<div>
 						<div style="font-weight: bold;">Schema Discovery:</div>
@@ -597,8 +471,7 @@ AND o.order_date LIKE '2024-11%';`}
 			`,
 			position: {
 				bottom: '8%',
-				left: '50%',
-				transform: 'translateX(-50%)',
+				left: '10%',
 			},
 			visibleStates: ['processSummary', 'finalMessage'],
 		},
@@ -606,26 +479,8 @@ AND o.order_date LIKE '2024-11%';`}
 
 	layout: {
 		columns: 2,
-		autoFill: false,
-		maxMessagesPerColumn: 10,
+		autoFill: true,
+		maxMessagesPerColumn: 7,
 	},
 	
-	tokenCounter: {
-		enabled: true,
-		initialTokens: 150,
-		maxTokens: 128000,
-		stateTokenCounts: {
-			'userSpeaks': 180,
-			'schemaQuery': 220,
-			'schemaResult': 240,
-			'customersQuery': 270,
-			'customersResult': 285,
-			'ordersQuery': 315,
-			'ordersResult': 330,
-			'targetedExecution': 380,
-			'targetedResult': 395,
-			'llmResponse': 420,
-		},
-		optimizedStates: ['targetedResult', 'llmResponse'],
-	},
 }; 

@@ -4,19 +4,20 @@ import {
 	createMessage,
 	createMessageType,
 	DEFAULT_MESSAGE_TYPES,
+	FONT_SIZES,
 } from '../../types/InteractionDSL';
 
 // Custom message types for user request step
 const userRequestMessageTypes = {
 	...DEFAULT_MESSAGE_TYPES,
 	step_indicator: createMessageType('#95a5a6', '📍', 'Step', {
-		fontSize: '16px',
+		fontSize: FONT_SIZES.large,
 		padding: '10px 18px',
 		fontWeight: 'bold',
 		boxShadow: '0 3px 12px rgba(149, 165, 166, 0.4)',
 	}),
 	user_thinking: createMessageType('#3498db', '💭', 'User Thinking', {
-		fontSize: '12px',
+		fontSize: FONT_SIZES.small,
 		padding: '8px 14px',
 		fontStyle: 'italic',
 		border: '1px solid rgba(52, 152, 219, 0.3)',
@@ -41,7 +42,7 @@ export const userRequestStepSequence: InteractionSequence = {
 			'step-indicator',
 			'step_indicator',
 			'Step 1: User Request',
-			['userAppears', 'userThinking', 'userSpeaks', 'messageTravel'],
+			['container', 'userAppears', 'userThinking', 'userSpeaks', 'messageTravel'],
 			{ column: 'left' }
 		),
 

@@ -22,6 +22,7 @@ export const contextSummarizationSequence: InteractionSequence = {
 		createState('response', 180, 10),
 		createState('fadeOut', 220, 30),
 		createState('summary', 270, 30),
+		createState('cleanUp', 300, 30),
 	],
 
 	messages: [
@@ -29,8 +30,8 @@ export const contextSummarizationSequence: InteractionSequence = {
 			'debug-request',
 			'user',
 			'Help me debug this Python sorting function: def sort_list(arr): arr.sort() return arr[0]',
-			['userRequest', 'cot1', 'diary1', 'toolUse', 'toolResult', 'cot2', 'diary2', 'response', 'summary'],
-			{ fadeOutStates: [] }
+			['container', 'userRequest', 'cot1', 'diary1', 'toolUse', 'toolResult', 'cot2', 'diary2', 'response', 'summary'],
+			{ fadeOutStates: ['cleanUp'] }
 		),
 
 		createMessage(
@@ -38,7 +39,7 @@ export const contextSummarizationSequence: InteractionSequence = {
 			'assistant_cot',
 			"User has a Python function issue. They're calling sort() but returning arr[0]. This returns just the minimum element, not the sorted list.",
 			['cot1', 'diary1', 'toolUse', 'toolResult', 'cot2', 'diary2', 'response'],
-			{ fadeOutStates: ['fadeOut'] }
+			{ fadeOutStates: ['fadeOut', 'cleanUp'] }
 		),
 
 		createMessage(
@@ -46,7 +47,7 @@ export const contextSummarizationSequence: InteractionSequence = {
 			'assistant_diary',
 			'Task: Debug Python sort function. Issue identified: returns single element instead of full sorted array.',
 			['diary1', 'toolUse', 'toolResult', 'cot2', 'diary2', 'response'],
-			{ fadeOutStates: ['fadeOut'] }
+			{ fadeOutStates: ['fadeOut', 'cleanUp'] }
 		),
 
 		createMessage(
@@ -54,7 +55,7 @@ export const contextSummarizationSequence: InteractionSequence = {
 			'tool_use',
 			"run_python_code('def sort_list(arr): arr.sort(); return arr[0]; print(sort_list([3,1,4]))')",
 			['toolUse', 'toolResult', 'cot2', 'diary2', 'response'],
-			{ fadeOutStates: ['fadeOut'] }
+			{ fadeOutStates: ['fadeOut', 'cleanUp'] }
 		),
 
 		createMessage(
@@ -62,7 +63,7 @@ export const contextSummarizationSequence: InteractionSequence = {
 			'tool_result',
 			'Output: 1\nFunction returns minimum value, not sorted list [1, 3, 4]',
 			['toolResult', 'cot2', 'diary2', 'response'],
-			{ fadeOutStates: ['fadeOut'] }
+			{ fadeOutStates: ['fadeOut', 'cleanUp'] }
 		),
 
 		createMessage(
@@ -70,7 +71,7 @@ export const contextSummarizationSequence: InteractionSequence = {
 			'assistant_cot',
 			"Confirmed the bug. Need to explain that they should return 'arr' not 'arr[0]'. Also suggest sorted() as alternative to avoid mutation.",
 			['cot2', 'diary2', 'response'],
-			{ fadeOutStates: ['fadeOut'] }
+			{ fadeOutStates: ['fadeOut', 'cleanUp'] }
 		),
 
 		createMessage(
@@ -78,7 +79,7 @@ export const contextSummarizationSequence: InteractionSequence = {
 			'assistant_diary',
 			'Solution: Change return arr[0] to return arr. Also mention sorted() function as non-mutating alternative.',
 			['diary2', 'response'],
-			{ fadeOutStates: ['fadeOut'] }
+			{ fadeOutStates: ['fadeOut', 'cleanUp'] }
 		),
 
 		createMessage(
@@ -86,14 +87,14 @@ export const contextSummarizationSequence: InteractionSequence = {
 			'assistant',
 			"I found the issue! Your function returns arr[0] (just the minimum) instead of the sorted list. Fix: return arr",
 			['response'],
-			{ fadeOutStates: ['fadeOut'] }
+			{ fadeOutStates: ['fadeOut', 'cleanUp'] }
 		),
 
 		createMessage(
 			'summary-block',
 			'summary',
 			'Debugging Session: Fixed Python sort function - changed \'return arr[0]\' to \'return arr\' to return full sorted list instead of minimum element.',
-			['summary']
+			['summary', 'cleanUp']
 		),
 	],
 
@@ -126,7 +127,7 @@ export const contextSummarizationSequence: InteractionSequence = {
 			style: {
 				transform: 'translateX(-50%)',
 			},
-			visibleStates: ['summary'],
+			visibleStates: ['summary', 'cleanUp'],
 		},
 	],
 

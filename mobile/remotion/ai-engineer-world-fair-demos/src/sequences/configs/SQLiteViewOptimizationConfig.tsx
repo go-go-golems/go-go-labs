@@ -6,6 +6,7 @@ import {
 	createMessageType,
 	DEFAULT_MESSAGE_TYPES,
 	InteractionState,
+	FONT_SIZES,
 } from '../../types/InteractionDSL';
 
 // Custom message types for SQLite View Optimization animation
@@ -13,7 +14,7 @@ const sqliteViewMessageTypes = {
 	...DEFAULT_MESSAGE_TYPES,
 	
 	view_creation: createMessageType('#9b59b6', '🏗️', 'View Creation', {
-		fontSize: '12px',
+		fontSize: FONT_SIZES.small,
 		padding: '10px 14px',
 		border: '2px solid rgba(155, 89, 182, 0.4)',
 		boxShadow: '0 3px 10px rgba(155, 89, 182, 0.3)',
@@ -21,14 +22,14 @@ const sqliteViewMessageTypes = {
 	}),
 	
 	efficient_query: createMessageType('#3498db', '⚡', 'Efficient Query', {
-		fontSize: '11px',
+		fontSize: FONT_SIZES.small,
 		padding: '8px 12px',
 		border: '2px solid rgba(52, 152, 219, 0.4)',
 		boxShadow: '0 3px 10px rgba(52, 152, 219, 0.3)',
 	}),
 	
 	query_result: createMessageType('#27ae60', '📊', 'Result', {
-		fontSize: '12px',
+		fontSize: FONT_SIZES.small,
 		padding: '10px 14px',
 		border: '2px solid rgba(39, 174, 96, 0.4)',
 		boxShadow: '0 3px 10px rgba(39, 174, 96, 0.3)',
@@ -36,14 +37,14 @@ const sqliteViewMessageTypes = {
 	}),
 	
 	performance_comparison: createMessageType('#e74c3c', '📈', 'Performance', {
-		fontSize: '12px',
+		fontSize: FONT_SIZES.small,
 		padding: '10px 14px',
 		border: '2px solid rgba(231, 76, 60, 0.4)',
 		boxShadow: '0 3px 10px rgba(231, 76, 60, 0.3)',
 	}),
 	
 	infrastructure: createMessageType('#8e44ad', '🏛️', 'Infrastructure', {
-		fontSize: '12px',
+		fontSize: FONT_SIZES.small,
 		padding: '10px 14px',
 		border: '2px solid rgba(142, 68, 173, 0.4)',
 		boxShadow: '0 3px 10px rgba(142, 68, 173, 0.3)',
@@ -51,7 +52,7 @@ const sqliteViewMessageTypes = {
 	}),
 	
 	optimization: createMessageType('#f39c12', '🚀', 'Optimization', {
-		fontSize: '13px',
+		fontSize: FONT_SIZES.small,
 		padding: '12px 16px',
 		border: '3px solid rgba(243, 156, 18, 0.5)',
 		boxShadow: '0 4px 15px rgba(243, 156, 18, 0.4)',
@@ -188,8 +189,9 @@ const EfficientQuery: React.FC<{
 // Multiple Queries Widget
 const MultipleQueriesWidget: React.FC<{
 	activeQueries: number;
+	showResults: boolean[];
 	isVisible: boolean;
-}> = ({ activeQueries, isVisible }) => {
+}> = ({ activeQueries, showResults, isVisible }) => {
 	if (!isVisible) return null;
 	
 	const queries = [
@@ -233,7 +235,7 @@ const MultipleQueriesWidget: React.FC<{
 					queryNumber={idx + 1}
 					title={query.title}
 					sql={query.sql}
-					result={query.result}
+					result={showResults[idx] ? query.result : '...'}
 					color={query.color}
 					isVisible={true}
 				/>
@@ -415,7 +417,9 @@ export const sqliteViewOptimizationSequence: InteractionSequence = {
 	title: 'Optimizing with SQL Views',
 	
 	subtitle: (state: InteractionState) => {
-		if (state.activeStates.includes('viewCreation')) {
+		if (state.activeStates.includes('userRequest')) {
+			return 'User needs multiple related database queries';
+		} else if (state.activeStates.includes('viewCreation')) {
 			return 'Creating reusable infrastructure';
 		} else if (state.activeStates.includes('multipleQueries')) {
 			return 'Running multiple efficient queries';
@@ -428,42 +432,61 @@ export const sqliteViewOptimizationSequence: InteractionSequence = {
 	messageTypes: sqliteViewMessageTypes,
 	
 	states: [
-		// View creation phase (frames 90-360 → 60-330)
-		createState('container', 0, 600),
-		createState('viewCreation', 60, 270),
-		createState('llmThinking', 90, 60),
-		createState('viewQuery', 150, 90),
-		createState('viewSuccess', 240, 90),
-		createState('viewBenefits', 300, 60),
+		// User request phase (frames 0-120)
+		createState('container', 0, 1320),
+		createState('userRequest', 30, 90),
+		createState('userSpeaks', 60, 60),
 		
-		// Multiple queries phase (frames 360-780 → 330-750)
-		createState('multipleQueries', 330, 420),
-		createState('query1', 360, 60),
-		createState('result1', 420, 60),
-		createState('query2', 480, 60),
-		createState('result2', 540, 60),
-		createState('query3', 600, 60),
-		createState('result3', 660, 60),
-		createState('query4', 720, 60),
-		createState('result4', 780, 60),
-		createState('querySummary', 840, 60),
+		// View creation phase - COLLAPSED (frames 120-300)
+		createState('viewCreation', 120, 180), // Reduced from 270 to 180
+		createState('llmThinking', 150, 40), // Adjusted for user request phase
+		createState('viewQuery', 190, 60), // Adjusted for user request phase
+		createState('viewSuccess', 250, 50), // Adjusted for user request phase
+		createState('viewBenefits', 280, 20), // Adjusted for user request phase
 		
-		// Performance comparison phase (frames 780-1200 → 900-1320)
-		createState('performanceComparison', 900, 420),
-		createState('beforeComparison', 930, 90),
-		createState('afterComparison', 1020, 90),
-		createState('metricsComparison', 1110, 90),
-		createState('benefitsList', 1200, 90),
-		createState('finalMessage', 1290, 90),
+		// Multiple queries phase - NO GAPS (frames 300-780)
+		createState('multipleQueries', 300, 480), // Start immediately after view creation
+		createState('query1', 300, 60), // Start immediately
+		createState('result1', 360, 420), // Extended to end of queries
+		createState('query2', 420, 60), // No gap
+		createState('result2', 480, 300), // Extended to end of queries
+		createState('query3', 540, 60), // No gap
+		createState('result3', 600, 180), // Extended to end of queries
+		createState('query4', 660, 60), // No gap
+		createState('result4', 720, 60), // Extended to end of queries
+		createState('querySummary', 780, 60),
+		
+		// Performance comparison phase (frames 840-1320)
+		createState('performanceComparison', 840, 480), // Start after queries
+		createState('beforeComparison', 870, 90),
+		createState('afterComparison', 960, 90),
+		createState('metricsComparison', 1050, 90),
+		createState('benefitsList', 1140, 90),
+		createState('finalMessage', 1230, 90), // End at frame 1320
 	],
 
 	messages: [
+		// User request
+		createMessage(
+			'user-question',
+			'user',
+			'"I need to run several queries about customer John Smith - his order count, total amount, average order, and latest order date."',
+			['container', 'userSpeaks', 'viewCreation', 'multipleQueries', 'performanceComparison']
+		),
+
+		createMessage(
+			'user-context',
+			'system',
+			'Multiple related queries needed - opportunity for optimization with database views',
+			['userSpeaks', 'viewCreation', 'multipleQueries', 'performanceComparison']
+		),
+
 		// LLM thinking about optimization
 		createMessage(
 			'llm-optimization-thought',
 			'assistant',
 			'"I\'ll be making multiple customer queries. Let me create a view to pre-join the tables and optimize future queries."',
-			['llmThinking', 'viewCreation', 'multipleQueries', 'performanceComparison'],
+			['container', 'llmThinking', 'viewCreation', 'multipleQueries', 'performanceComparison'],
 			{ column: 'left' }
 		),
 
@@ -480,53 +503,34 @@ export const sqliteViewOptimizationSequence: InteractionSequence = {
 			{ column: 'left', isReactContent: true }
 		),
 
-		// View creation success
-		createMessage(
-			'view-success',
-			'infrastructure',
-			'✅ View "customer_orders_view" created successfully!\n\n🚀 One-time setup complete - ready for efficient queries',
-			['viewSuccess', 'viewBenefits', 'multipleQueries', 'performanceComparison'],
-			{ column: 'right' }
-		),
-
-		// Benefits explanation
-		createMessage(
-			'view-benefits',
-			'optimization',
-			'💎 Smart Infrastructure Benefits:\n• Pre-joins customers & orders\n• No repeated JOIN logic needed\n• Clean, simple query syntax\n• Reusable for multiple queries',
-			['viewBenefits', 'multipleQueries', 'performanceComparison'],
-			{ column: 'right' }
-		),
-
 		// Multiple queries execution
 		createMessage(
 			'multiple-queries-execution',
 			'efficient_query',
 			(state: InteractionState) => {
 				let activeQueries = 0;
-				if (state.activeStates.includes('result1')) activeQueries = 1;
-				if (state.activeStates.includes('result2')) activeQueries = 2;
-				if (state.activeStates.includes('result3')) activeQueries = 3;
-				if (state.activeStates.includes('result4')) activeQueries = 4;
+				if (state.activeStates.includes('query1') || state.activeStates.includes('result1')) activeQueries = 1;
+				if (state.activeStates.includes('query2') || state.activeStates.includes('result2')) activeQueries = 2;
+				if (state.activeStates.includes('query3') || state.activeStates.includes('result3')) activeQueries = 3;
+				if (state.activeStates.includes('query4') || state.activeStates.includes('result4')) activeQueries = 4;
+				
+				const showResults = [
+					state.activeStates.includes('result1'),
+					state.activeStates.includes('result2'),
+					state.activeStates.includes('result3'),
+					state.activeStates.includes('result4'),
+				];
 				
 				return (
 					<MultipleQueriesWidget
 						activeQueries={activeQueries}
+						showResults={showResults}
 						isVisible={state.activeStates.includes('multipleQueries')}
 					/>
 				);
 			},
-			['query1', 'result1', 'query2', 'result2', 'query3', 'result3', 'query4', 'result4', 'querySummary', 'performanceComparison'],
+			['query1', 'result1', 'query2', 'result2', 'query3', 'result3', 'query4', 'result4', 'querySummary', 'performanceComparison', 'beforeComparison', 'afterComparison', 'metricsComparison', 'benefitsList', 'finalMessage'],
 			{ column: 'left', isReactContent: true }
-		),
-
-		// Query summary
-		createMessage(
-			'query-summary',
-			'optimization',
-			'⚡ 4 Queries, 0 JOINs Needed!\n\n🚀 Fast: Pre-joined data\n🎯 Simple: Clean syntax\n🔄 Reusable: One view, many uses',
-			['querySummary', 'performanceComparison'],
-			{ column: 'right' }
 		),
 
 		// Performance comparison
@@ -535,182 +539,28 @@ export const sqliteViewOptimizationSequence: InteractionSequence = {
 			'performance_comparison',
 			(state: InteractionState) => (
 				<PerformanceComparison
-					isVisible={state.activeStates.includes('beforeComparison') || state.activeStates.includes('afterComparison')}
+					isVisible={state.activeStates.includes('beforeComparison') || state.activeStates.includes('afterComparison') || state.activeStates.includes('metricsComparison') || state.activeStates.includes('benefitsList') || state.activeStates.includes('finalMessage')}
 				/>
 			),
 			['beforeComparison', 'afterComparison', 'metricsComparison', 'benefitsList', 'finalMessage'],
 			{ column: 'left', isReactContent: true }
 		),
 
-		// Performance metrics
-		createMessage(
-			'performance-metrics',
-			'performance_comparison',
-			(state: InteractionState) => (
-				<PerformanceMetrics
-					isVisible={state.activeStates.includes('metricsComparison')}
-				/>
-			),
-			['metricsComparison', 'benefitsList', 'finalMessage'],
-			{ column: 'right', isReactContent: true }
-		),
 
-		// Benefits summary
-		createMessage(
-			'benefits-summary',
-			'infrastructure',
-			'🏗️ Infrastructure: Reusable views\n⚡ Performance: Faster execution\n🧹 Cleaner Code: Simpler queries\n💰 Token Savings: Reduced costs',
-			['benefitsList', 'finalMessage'],
-			{ column: 'right' }
-		),
-
-		// Final message
-		createMessage(
-			'final-optimization-message',
-			'optimization',
-			'🚀 Smart infrastructure = Multiple efficient queries!\n\nViews provide the foundation for scalable, maintainable database operations.',
-			['finalMessage'],
-			{ column: 'right' }
-		),
-	],
-
-	overlays: [
-		{
-			id: 'step-indicator',
-			content: (state: InteractionState) => {
-				let step = '';
-				let color = '#9b59b6';
-				
-				if (state.activeStates.includes('viewCreation')) {
-					step = 'Step 1: Creating a reusable SQL view';
-					color = '#9b59b6';
-				} else if (state.activeStates.includes('multipleQueries')) {
-					step = 'Step 2: Running multiple efficient queries';
-					color = '#3498db';
-				} else if (state.activeStates.includes('performanceComparison')) {
-					step = 'Step 3: Performance comparison';
-					color = '#e74c3c';
-				}
-				
-				if (!step) return '';
-				
-				return `
-					<div style="
-						background-color: rgba(142, 68, 173, 0.9);
-						color: white;
-						padding: 12px 24px;
-						border-radius: 20px;
-						font-size: 16px;
-						font-weight: bold;
-						box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-						border: 2px solid ${color};
-					">
-						${step}
-					</div>
-				`;
-			},
-			position: {
-				top: '8%',
-				left: '50%',
-				transform: 'translateX(-50%)',
-			},
-			visibleStates: ['viewCreation', 'multipleQueries', 'performanceComparison'],
-		},
-		{
-			id: 'progress-indicator',
-			content: (state: InteractionState) => {
-				const queries = ['Count', 'Sum', 'Average', 'Latest'];
-				let completedQueries = 0;
-				if (state.activeStates.includes('result1')) completedQueries = 1;
-				if (state.activeStates.includes('result2')) completedQueries = 2;
-				if (state.activeStates.includes('result3')) completedQueries = 3;
-				if (state.activeStates.includes('result4')) completedQueries = 4;
-				
-				if (!state.activeStates.includes('multipleQueries')) return '';
-				
-				return `
-					<div style="
-						background-color: rgba(255,255,255,0.1);
-						border-radius: 10px;
-						padding: 12px;
-						color: white;
-						font-size: 12px;
-						text-align: center;
-						min-width: 80px;
-					">
-						<div style="font-weight: bold; margin-bottom: 8px;">Progress</div>
-						${queries.map((query, idx) => `
-							<div style="opacity: ${idx < completedQueries ? 1 : 0.3}; margin-bottom: 3px;">
-								✅ ${query}
-							</div>
-						`).join('')}
-					</div>
-				`;
-			},
-			position: {
-				top: '20%',
-				right: '5%',
-			},
-			visibleStates: ['multipleQueries'],
-		},
-		{
-			id: 'efficiency-stats',
-			content: () => `
-				<div style="
-					background-color: rgba(155, 89, 182, 0.1);
-					border-radius: 12px;
-					padding: 15px;
-					color: white;
-					font-size: 12px;
-					text-align: center;
-					display: flex;
-					gap: 25px;
-					align-items: center;
-					box-shadow: 0 3px 10px rgba(0,0,0,0.3);
-					border: 2px solid rgba(155, 89, 182, 0.5);
-				">
-					<div>
-						<div style="font-size: 16px; margin-bottom: 3px;">🏗️</div>
-						<div style="font-weight: bold;">Infrastructure</div>
-						<div style="font-size: 10px;">Reusable views</div>
-					</div>
-					<div>
-						<div style="font-size: 16px; margin-bottom: 3px;">⚡</div>
-						<div style="font-weight: bold;">Performance</div>
-						<div style="font-size: 10px;">Faster execution</div>
-					</div>
-					<div>
-						<div style="font-size: 16px; margin-bottom: 3px;">🧹</div>
-						<div style="font-weight: bold;">Cleaner Code</div>
-						<div style="font-size: 10px;">Simpler queries</div>
-					</div>
-					<div>
-						<div style="font-size: 16px; margin-bottom: 3px;">💰</div>
-						<div style="font-weight: bold;">Token Savings</div>
-						<div style="font-size: 10px;">Reduced costs</div>
-					</div>
-				</div>
-			`,
-			position: {
-				bottom: '8%',
-				left: '50%',
-				transform: 'translateX(-50%)',
-			},
-			visibleStates: ['benefitsList', 'finalMessage'],
-		},
 	],
 
 	layout: {
-		columns: 2,
+		columns: 1,
 		autoFill: false,
 		maxMessagesPerColumn: 8,
 	},
 	
 	tokenCounter: {
 		enabled: true,
-		initialTokens: 200,
+		initialTokens: 150,
 		maxTokens: 128000,
 		stateTokenCounts: {
+			'userSpeaks': 200,
 			'llmThinking': 230,
 			'viewQuery': 350,
 			'viewSuccess': 370,

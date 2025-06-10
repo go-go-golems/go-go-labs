@@ -41,7 +41,7 @@ export const simpleConversationSequence: InteractionSequence = {
 			'user-query',
 			'user',
 			'What is the current temperature in New York?',
-			['userQuestion', 'thinking', 'toolCall', 'toolResponse', 'finalAnswer', 'systemNote']
+			['container', 'userQuestion', 'thinking', 'toolCall', 'toolResponse', 'finalAnswer', 'systemNote']
 		),
 
 		createMessage(

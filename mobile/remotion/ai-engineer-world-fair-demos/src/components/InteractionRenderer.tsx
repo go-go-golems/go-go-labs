@@ -12,6 +12,7 @@ import {
 	OverlayElement,
 	InteractionState,
 	resolveContent,
+	FONT_SIZES,
 } from '../types/InteractionDSL';
 
 interface MessageProps {
@@ -36,29 +37,29 @@ const Message: React.FC<MessageProps> = ({message, config, opacity, fadeOut = fa
 	return (
 		<div
 			style={{
-				opacity: fadeOut ? finalOpacity * 0.3 : finalOpacity,
+				opacity: finalOpacity,
 				backgroundColor: config.bg,
 				borderRadius: '10px',
 				padding: config.padding,
 				color: 'white',
 				fontSize: config.fontSize,
-				margin: '3px 0',
+				margin: '12px 0',
 				display: 'flex',
 				alignItems: isReactContent ? 'flex-start' : 'center',
 				gap: '10px',
 				boxShadow: config.boxShadow,
 				border: config.border,
+				minHeight: 'fit-content',
+				height: 'auto',
 			}}
 		>
 			<span style={{
-				fontSize: config.fontSize === '11px' ? '14px' : 
-					config.fontSize === '13px' && message.type === 'summary' ? '18px' : '16px',
+				fontSize: FONT_SIZES.icon,
 				marginTop: isReactContent ? '2px' : '0'
 			}}>{icon}</span>
 			<div style={{ flex: 1 }}>
 				<div style={{
-					fontSize: config.fontSize === '11px' ? '8px' : 
-						config.fontSize === '13px' && message.type === 'summary' ? '10px' : '9px', 
+					fontSize: FONT_SIZES.label,
 					opacity: 0.8, 
 					marginBottom: '3px',
 					fontWeight: config.fontWeight === 'bold' || config.fontWeight === '500' ? 'bold' : 'normal'
@@ -71,8 +72,7 @@ const Message: React.FC<MessageProps> = ({message, config, opacity, fadeOut = fa
 					</div>
 				) : (
 					<div style={{
-						fontSize: config.fontSize === '11px' ? '10px' : 
-							config.fontSize === '13px' && message.type === 'summary' ? '12px' : '12px', 
+						fontSize: config.fontSize,
 						lineHeight: 1.2,
 						fontWeight: config.fontWeight,
 						fontStyle: config.fontStyle,
@@ -165,16 +165,8 @@ export const InteractionRenderer: React.FC<InteractionRendererProps> = ({
 			return state && frame >= state.startFrame;
 		});
 		
-		if (!hasStarted) return { opacity: 0, fadeOut: false };
-
-		// Find the earliest state that has started for opacity calculation
-		const startedStates = message.visibleStates
-			.map(stateName => sequence.states.find(s => s.name === stateName))
-			.filter(state => state && frame >= state.startFrame)
-			.sort((a, b) => a!.startFrame - b!.startFrame);
-
-		const relevantState = startedStates[0];
-		const opacity = relevantState ? getStateOpacity(relevantState) : 1;
+		// Binary opacity: either fully visible (1) or completely hidden (0)
+		const opacity = hasStarted ? 1 : 0;
 		
 		return { opacity, fadeOut: shouldFadeOut };
 	};
@@ -246,8 +238,7 @@ export const InteractionRenderer: React.FC<InteractionRendererProps> = ({
 					position: 'absolute',
 					left: '50%',
 					transform: 'translate(-50%, 0)',
-					width: '950px',
-					height: '800px',
+					width: '1280px',
 					border: '2px solid rgba(255, 255, 255, 0.3)',
 					borderRadius: '16px',
 					backgroundColor: 'rgba(255, 255, 255, 0.05)',
@@ -255,21 +246,10 @@ export const InteractionRenderer: React.FC<InteractionRendererProps> = ({
 					opacity: containerOpacity,
 				}}
 			>
-				<div
-					style={{
-						color: 'white',
-						fontSize: '16px',
-						fontWeight: 'bold',
-						marginBottom: '15px',
-						textAlign: 'center',
-					}}
-				>
-					Context Window
-				</div>
 
 				{/* Messages Layout */}
 				{sequence.layout.columns === 1 ? (
-					<div style={{height: '700px', overflowY: 'auto', paddingRight: '10px'}}>
+					<div style={{overflowY: 'auto', paddingRight: '10px', minHeight: 'fit-content'}}>
 						{leftMessages.map((message) => {
 							const { opacity, fadeOut } = getMessageOpacity(message);
 							const config = sequence.messageTypes[message.type];
@@ -288,7 +268,7 @@ export const InteractionRenderer: React.FC<InteractionRendererProps> = ({
 						})}
 					</div>
 				) : (
-					<div style={{display: 'flex', gap: '20px', height: '700px', overflow: 'hidden'}}>
+					<div style={{display: 'flex', gap: '20px',  overflowY: 'auto', minHeight: 'fit-content', overflowX: 'hidden'}}>
 						{/* Left Column */}
 						<div style={{flex: 1}}>
 							{leftMessages.map((message) => {
@@ -332,54 +312,7 @@ export const InteractionRenderer: React.FC<InteractionRendererProps> = ({
 				)}
 			</div>
 
-			{/* Token Counter */}
-			{sequence.tokenCounter?.enabled && (
-				<div
-					style={{
-						position: 'absolute',
-						bottom: '10%',
-						left: '50%',
-						transform: 'translateX(-50%)',
-						color: currentTokens < 5000 ? '#27ae60' : 'white',
-						fontSize: '18px',
-						fontWeight: 'bold',
-						opacity: containerOpacity,
-					}}
-				>
-					Tokens: {currentTokens.toLocaleString()} / {sequence.tokenCounter.maxTokens.toLocaleString()}
-					{isOptimized && (
-						<span style={{ color: '#27ae60', marginLeft: '10px' }}>
-							↓ Optimized!
-						</span>
-					)}
-				</div>
-			)}
-
 			{/* Overlays */}
-			{sequence.overlays?.map((overlay) => {
-				const opacity = getOverlayOpacity(overlay);
-				if (opacity === 0) return null;
-
-				const overlayContent = resolveContent(overlay.content, interactionState);
-
-				return (
-					<div
-						key={overlay.id}
-						style={{
-							position: 'absolute',
-							...overlay.position,
-							opacity,
-							...overlay.style,
-						}}
-					>
-						{typeof overlayContent === 'string' ? (
-							<div dangerouslySetInnerHTML={{ __html: overlayContent }} />
-						) : (
-							overlayContent
-						)}
-					</div>
-				);
-			})}
 		</AbsoluteFill>
 	);
 }; 

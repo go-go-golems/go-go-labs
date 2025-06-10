@@ -97,36 +97,6 @@ export const AdaptiveSystemPromptAnimation: React.FC = () => {
 				/>
 			</div>
 
-			{/* Mode indicators */}
-			<div
-				style={{
-					position: 'absolute',
-					bottom: '5%',
-					left: '50%',
-					transform: 'translateX(-50%)',
-					opacity: interpolate(frame, [500, 530], [0, 1], {
-						extrapolateRight: 'clamp',
-					}),
-					color: 'rgba(255, 255, 255, 0.8)',
-					fontSize: '14px',
-					textAlign: 'center',
-					display: 'flex',
-					gap: '40px',
-				}}
-			>
-				<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-					<span style={{ fontSize: '18px' }}>🔍</span>
-					<span>Research Mode</span>
-				</div>
-				<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-					<span style={{ fontSize: '18px' }}>💻</span>
-					<span>Coding Mode</span>
-				</div>
-				<div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-					<span style={{ fontSize: '18px' }}>🎓</span>
-					<span>Teaching Mode</span>
-				</div>
-			</div>
 		</AbsoluteFill>
 	);
 }; 

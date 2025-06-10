@@ -75,7 +75,7 @@ export const ToolCallingAnimationNew: React.FC = () => {
 				sequence={toolCallingSequence}
 				background="transparent" // Use transparent since we have the gradient background
 				containerStyle={{
-					top: '20%', // Start below the title
+					top: '5%', // Start below the title
 					height: '75%', // Adjust height to fit below title
 				}}
 			/>

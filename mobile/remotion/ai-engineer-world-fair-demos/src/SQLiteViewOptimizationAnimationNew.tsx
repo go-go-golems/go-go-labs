@@ -37,46 +37,13 @@ export const SQLiteViewOptimizationAnimationNew: React.FC = () => {
 				fontFamily: 'Arial, sans-serif',
 			}}
 		>
-			{/* Title */}
-			<div
-				style={{
-					position: 'absolute',
-					top: '8%',
-					left: '50%',
-					transform: `translate(-50%, -50%) scale(${titleScale})`,
-					color: 'white',
-					fontSize: '48px',
-					fontWeight: 'bold',
-					textAlign: 'center',
-					opacity: titleOpacity,
-					textShadow: '2px 2px 4px rgba(0,0,0,0.3)',
-				}}
-			>
-				Optimizing with SQL Views
-			</div>
-
-			{/* Subtitle */}
-			<div
-				style={{
-					position: 'absolute',
-					top: '15%',
-					left: '50%',
-					transform: 'translateX(-50%)',
-					color: 'rgba(255,255,255,0.9)',
-					fontSize: '24px',
-					textAlign: 'center',
-					opacity: subtitleOpacity,
-				}}
-			>
-				Creating reusable infrastructure for multiple queries
-			</div>
 
 			{/* InteractionRenderer handles the conversation flow */}
 			<InteractionRenderer
 				sequence={sqliteViewOptimizationSequence}
 				background="transparent"
 				containerStyle={{
-					top: '25%',
+					top: '10%',
 					height: '70%',
 				}}
 			/>

@@ -6,6 +6,7 @@ import {
 	createMessageType,
 	DEFAULT_MESSAGE_TYPES,
 	InteractionState,
+	FONT_SIZES,
 } from '../../types/InteractionDSL';
 
 // Scrolling Data Widget Component
@@ -36,11 +37,11 @@ const ScrollingDataWidget: React.FC<{
 		}));
 	};
 
-	const allCompanies = generateCompanyData();
+	const allCompanies = React.useMemo(() => generateCompanyData(), []);
 	const scrollOffset = scrollProgress * (allCompanies.length - 6) * 80;
 	
 	// Calculate collapsed height - show only the target OpenAI record when collapsed
-	const collapsedHeight = shouldCollapse ? '120px' : '300px';
+	const collapsedHeight = shouldCollapse ? '160px' : '300px';
 	const isCollapsed = shouldCollapse;
 
 	if (!isVisible) return null;
@@ -174,7 +175,6 @@ const crmQueryMessageTypes = {
 	token_counter: createMessageType('#8e44ad', '🔢', 'Token Usage', {
 		fontSize: '10px',
 		padding: '6px 10px',
-		fontFamily: 'monospace',
 		border: '1px solid rgba(142, 68, 173, 0.3)',
 	}),
 };
@@ -220,7 +220,7 @@ export const crmQuerySequence: InteractionSequence = {
 			'user-simple-request',
 			'user',
 			'"Give me the contact information for OpenAI"',
-			['userRequest', 'llmAnalysis', 'toolExecution', 'dataFlood', 'scrollingData', 'tokenOverload', 'inefficientResult', 'problemSummary']
+			['container', 'userRequest', 'llmAnalysis', 'toolExecution', 'dataFlood', 'scrollingData', 'tokenOverload', 'inefficientResult', 'problemSummary']
 		),
 
 		createMessage(
@@ -259,29 +259,14 @@ export const crmQuerySequence: InteractionSequence = {
 						state.activeStates.includes('inefficientResult') ||
 						state.activeStates.includes('problemSummary')}
 					shouldCollapse={state.activeStates.includes('inefficientResult') || 
-						state.activeStates.includes('problemSummary')}
+						state.activeStates.includes('problemSummary')
+					}
 				/>
 			),
 			['dataFlood', 'scrollingData', 'tokenOverload', 'inefficientResult', 'problemSummary'],
 			{ isReactContent: true }
 		),
 
-		// Token Overload
-		createMessage(
-			'token-explosion',
-			'token_counter',
-			(state: InteractionState) => {
-				const baseTokens = 1200;
-				const dataTokens = state.activeStates.includes('dataFlood') ? 25000 : 0;
-				const scrollTokens = state.activeStates.includes('scrollingData') ? 15000 : 0;
-				const totalTokens = baseTokens + dataTokens + scrollTokens;
-				
-				return `Token Usage: ${totalTokens.toLocaleString()} tokens
-Processing 36 companies × 700 tokens each = 25,200 tokens
-Just to find 1 company's contact info!`;
-			},
-			['tokenOverload', 'inefficientResult', 'problemSummary']
-		),
 
 		// Inefficient Result
 		createMessage(
@@ -291,103 +276,6 @@ Just to find 1 company's contact info!`;
 			['inefficientResult', 'problemSummary']
 		),
 
-		// Problem Summary
-		createMessage(
-			'inefficiency-warning',
-			'inefficient_warning',
-			'🚨 PROBLEM: Used 25,000+ tokens to answer a simple question that should have used <100 tokens with proper filtering!',
-			['problemSummary']
-		),
-
-		createMessage(
-			'solution-preview',
-			'summary',
-			'💡 SOLUTION: Smart tools with filtering, targeted queries, and context-aware data retrieval.',
-			['problemSummary']
-		),
-	],
-
-	overlays: [
-		{
-			id: 'inefficiency-indicator',
-			content: (state: InteractionState) => {
-				let statusText = '';
-				let color = 'rgba(231, 76, 60, 0.9)';
-				
-				if (state.activeStates.includes('userRequest')) {
-					statusText = '👤 Simple Request';
-					color = 'rgba(52, 152, 219, 0.9)';
-				} else if (state.activeStates.includes('llmAnalysis')) {
-					statusText = '🧠 Analyzing';
-					color = 'rgba(155, 89, 182, 0.9)';
-				} else if (state.activeStates.includes('toolExecution')) {
-					statusText = '⚡ Executing Tool';
-					color = 'rgba(39, 174, 96, 0.9)';
-				} else if (state.activeStates.includes('dataFlood')) {
-					statusText = '🌊 Data Flood';
-					color = 'rgba(243, 156, 18, 0.9)';
-				} else if (state.activeStates.includes('scrollingData')) {
-					statusText = '📜 Scrolling Data';
-					color = 'rgba(230, 126, 34, 0.9)';
-				} else if (state.activeStates.includes('tokenOverload')) {
-					statusText = '💥 Token Overload';
-					color = 'rgba(231, 76, 60, 0.9)';
-				} else if (state.activeStates.includes('inefficientResult')) {
-					statusText = '🎯 Found Target';
-					color = 'rgba(39, 174, 96, 0.9)';
-				} else if (state.activeStates.includes('problemSummary')) {
-					statusText = '⚠️ Problem Identified';
-					color = 'rgba(231, 76, 60, 0.9)';
-				}
-
-				if (!statusText) return '';
-
-				return `
-					<div style="
-						background-color: ${color};
-						color: white;
-						padding: 10px 18px;
-						border-radius: 20px;
-						font-size: 13px;
-						font-weight: bold;
-						box-shadow: 0 3px 12px rgba(0,0,0,0.3);
-						border: 1px solid rgba(255,255,255,0.2);
-					">
-						${statusText}
-					</div>
-				`;
-			},
-			position: {
-				top: '8%',
-				right: '5%',
-			},
-			visibleStates: ['userRequest', 'llmAnalysis', 'toolExecution', 'dataFlood', 'scrollingData', 'tokenOverload', 'inefficientResult', 'problemSummary'],
-		},
-		{
-			id: 'efficiency-problem',
-			content: () => `
-				<div style="
-					background-color: rgba(231, 76, 60, 0.9);
-					color: white;
-					padding: 12px;
-					border-radius: 8px;
-					font-size: 11px;
-					max-width: 220px;
-					border: 1px solid rgba(255, 255, 255, 0.2);
-				">
-					<div style="font-weight: bold; margin-bottom: 8px;">⚠️ Inefficiency Problem</div>
-					<div>• No query filtering</div>
-					<div>• Returns ALL records</div>
-					<div>• Massive token waste</div>
-					<div>• Poor user experience</div>
-				</div>
-			`,
-			position: {
-				bottom: '8%',
-				left: '5%',
-			},
-			visibleStates: ['dataFlood', 'scrollingData', 'tokenOverload', 'inefficientResult', 'problemSummary'],
-		},
 	],
 
 	layout: {
@@ -396,19 +284,4 @@ Just to find 1 company's contact info!`;
 		maxMessagesPerColumn: 12,
 	},
 
-	tokenCounter: {
-		enabled: true,
-		initialTokens: 200,
-		maxTokens: 128000,
-		stateTokenCounts: {
-			'userRequest': 220,
-			'llmAnalysis': 280,
-			'toolExecution': 350,
-			'dataFlood': 15000,
-			'scrollingData': 25000,
-			'tokenOverload': 26500,
-			'inefficientResult': 26800,
-			'problemSummary': 27000,
-		},
-	},
 }; 

@@ -5,31 +5,32 @@ import {
 	createMessageType,
 	DEFAULT_MESSAGE_TYPES,
 	InteractionState,
+	FONT_SIZES,
 } from '../../types/InteractionDSL';
 
 // Custom message types for tool calling sequence
 const toolCallingMessageTypes = {
 	...DEFAULT_MESSAGE_TYPES,
 	weather_api: createMessageType('#3498db', '🌤️', 'Weather API', {
-		fontSize: '12px',
+		fontSize: FONT_SIZES.medium,
 		padding: '10px 14px',
 		boxShadow: '0 3px 10px rgba(52, 152, 219, 0.3)',
 		border: '1px solid rgba(52, 152, 219, 0.3)',
 	}),
 	step_indicator: createMessageType('#95a5a6', '📍', 'Step', {
-		fontSize: '14px',
+		fontSize: FONT_SIZES.large,
 		padding: '8px 16px',
 		fontWeight: 'bold',
 		boxShadow: '0 2px 8px rgba(149, 165, 166, 0.3)',
 	}),
 	thinking: createMessageType('#f39c12', '🤔', 'Analyzing', {
-		fontSize: '11px',
+		fontSize: FONT_SIZES.small,
 		padding: '8px 12px',
 		fontStyle: 'italic',
 		border: '1px solid rgba(243, 156, 18, 0.3)',
 	}),
 	tool_selection: createMessageType('#e74c3c', '🎯', 'Tool Selection', {
-		fontSize: '12px',
+		fontSize: FONT_SIZES.medium,
 		padding: '10px 14px',
 		border: '1px solid rgba(231, 76, 60, 0.3)',
 	}),
@@ -83,7 +84,7 @@ export const toolCallingSequence: InteractionSequence = {
 			'user-weather-request',
 			'user',
 			'"What\'s the weather like in San Francisco today?"',
-			['userRequest', 'llmReceives', 'toolAnalysis', 'toolSelection', 'toolExecution', 'apiProcessing', 'resultIntegration', 'finalResponse', 'workflowComplete']
+			['container', 'userRequest', 'llmReceives', 'toolAnalysis', 'toolSelection', 'toolExecution', 'apiProcessing', 'resultIntegration', 'finalResponse', 'workflowComplete']
 		),
 
 		createMessage(
@@ -91,32 +92,6 @@ export const toolCallingSequence: InteractionSequence = {
 			'assistant',
 			'I need to get current weather information for San Francisco. Let me check what tools are available.',
 			['llmReceives', 'toolAnalysis', 'toolSelection', 'toolExecution', 'apiProcessing', 'resultIntegration', 'finalResponse', 'workflowComplete']
-		),
-
-		// Tool Analysis
-		createMessage(
-			'llm-thinking',
-			'thinking',
-			'Analyzing request: User wants weather data → Need location-based weather service → Check available tools...',
-			['toolAnalysis', 'toolSelection', 'toolExecution', 'apiProcessing', 'resultIntegration', 'finalResponse', 'workflowComplete']
-		),
-
-		createMessage(
-			'available-tools',
-			'tool_selection',
-			`Available Tools:
-• get_weather(location) - ✅ Perfect match!
-• calculate(expression) - Not needed
-• search_web(query) - Could work but weather API is better
-• send_email(to, subject, body) - Not relevant`,
-			['toolAnalysis', 'toolSelection', 'toolExecution', 'apiProcessing', 'resultIntegration', 'finalResponse', 'workflowComplete']
-		),
-
-		createMessage(
-			'tool-selected',
-			'assistant_cot',
-			'Selected: get_weather() - This tool provides real-time weather data for any location.',
-			['toolSelection', 'toolExecution', 'apiProcessing', 'resultIntegration', 'finalResponse', 'workflowComplete']
 		),
 
 		// Tool Execution
@@ -148,13 +123,6 @@ export const toolCallingSequence: InteractionSequence = {
 			['apiProcessing', 'resultIntegration', 'finalResponse', 'workflowComplete']
 		),
 
-		// Result Integration
-		createMessage(
-			'llm-processing-result',
-			'assistant_cot',
-			'Processing weather data: 68°F, partly cloudy, 72% humidity, 12mph wind. Converting to natural language response...',
-			['resultIntegration', 'finalResponse', 'workflowComplete']
-		),
 
 		createMessage(
 			'final-response',
@@ -163,12 +131,6 @@ export const toolCallingSequence: InteractionSequence = {
 			['finalResponse', 'workflowComplete']
 		),
 
-		createMessage(
-			'workflow-summary',
-			'summary',
-			'✅ Complete workflow: User request → Tool analysis → API call → Result integration → Natural response',
-			['workflowComplete']
-		),
 	],
 
 	overlays: [
@@ -177,7 +139,7 @@ export const toolCallingSequence: InteractionSequence = {
 	layout: {
 		columns: 1,
 		autoFill: true,
-		maxMessagesPerColumn: 15,
+		maxMessagesPerColumn: 9,
 	},
 
 }; 
