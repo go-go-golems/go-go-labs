@@ -7,9 +7,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
 
@@ -201,39 +203,95 @@ func checkIfNeedsPR(ctx context.Context, repoStatus RepositoryStatus, workspaceP
 		RemoteURL:  repoStatus.Repository.RemoteURL,
 	}
 
+	log.Debug().
+		Str("repository", candidate.Repository).
+		Str("branch", candidate.Branch).
+		Str("repoPath", candidate.RepoPath).
+		Msg("Checking if repository needs a PR")
+
 	// Skip if no current branch
 	if repoStatus.CurrentBranch == "" {
+		log.Debug().Str("repository", candidate.Repository).Msg("Skipping: no current branch")
 		return candidate, false
 	}
 
 	// Skip main/master branches
 	if repoStatus.CurrentBranch == "main" || repoStatus.CurrentBranch == "master" {
+		log.Debug().Str("repository", candidate.Repository).Str("branch", candidate.Branch).Msg("Skipping: is main/master branch")
 		return candidate, false
 	}
 
 	// Skip if already merged to origin/main
 	if repoStatus.IsMerged {
+		log.Debug().Str("repository", candidate.Repository).Str("branch", candidate.Branch).Msg("Skipping: already merged to origin/main")
 		return candidate, false
 	}
 
-	// Skip if no commits ahead
-	if repoStatus.Ahead == 0 {
+	// Get ahead/behind counts against origin/main specifically for PR purposes
+	aheadCount, behindCount, err := getAheadBehindOriginMain(ctx, candidate.RepoPath)
+	if err != nil {
+		log.Debug().Err(err).Str("repository", candidate.Repository).Str("branch", candidate.Branch).Msg("Failed to get ahead/behind counts against origin/main")
+		// Fall back to the status ahead count
+		aheadCount = repoStatus.Ahead
+	}
+	
+	candidate.CommitsAhead = aheadCount
+	log.Debug().Str("repository", candidate.Repository).Str("branch", candidate.Branch).Int("ahead", aheadCount).Int("behind", behindCount).Msg("Repository commits against origin/main")
+	
+	// Skip if no commits ahead of origin/main
+	if aheadCount == 0 {
+		log.Debug().Str("repository", candidate.Repository).Str("branch", candidate.Branch).Msg("Skipping: no commits ahead of origin/main")
 		return candidate, false
 	}
-
-	candidate.CommitsAhead = repoStatus.Ahead
 
 	// Check if branch exists on remote
-	if !branchExistsOnRemote(ctx, candidate.RepoPath, repoStatus.CurrentBranch) {
+	branchExists := branchExistsOnRemote(ctx, candidate.RepoPath, repoStatus.CurrentBranch)
+	log.Debug().Str("repository", candidate.Repository).Str("branch", candidate.Branch).Bool("exists", branchExists).Msg("Checked if branch exists on remote")
+	if !branchExists {
+		log.Debug().Str("repository", candidate.Repository).Str("branch", candidate.Branch).Msg("Skipping: branch does not exist on remote")
 		return candidate, false
 	}
 
 	// Check if PR already exists
 	if existingPR := checkExistingPR(ctx, candidate.RepoPath, repoStatus.CurrentBranch); existingPR != "" {
+		log.Debug().Str("repository", candidate.Repository).Str("branch", candidate.Branch).Str("existingPR", existingPR).Msg("Found existing PR")
 		candidate.ExistingPR = existingPR
+	} else {
+		log.Debug().Str("repository", candidate.Repository).Str("branch", candidate.Branch).Msg("No existing PR found")
 	}
 
+	log.Debug().Str("repository", candidate.Repository).Str("branch", candidate.Branch).Msg("Repository NEEDS a PR")
 	return candidate, true
+}
+
+func getAheadBehindOriginMain(ctx context.Context, repoPath string) (int, int, error) {
+	// Get ahead/behind counts against origin/main
+	cmd := exec.CommandContext(ctx, "git", "rev-list", "--left-right", "--count", "HEAD...origin/main")
+	cmd.Dir = repoPath
+	output, err := cmd.Output()
+	if err != nil {
+		log.Debug().Err(err).Str("repoPath", repoPath).Msg("Failed to get ahead/behind counts against origin/main")
+		return 0, 0, err
+	}
+
+	parts := strings.Fields(strings.TrimSpace(string(output)))
+	if len(parts) != 2 {
+		return 0, 0, errors.New("unexpected git rev-list output")
+	}
+
+	ahead := 0
+	behind := 0
+	
+	if aheadVal, err := strconv.Atoi(parts[0]); err == nil {
+		ahead = aheadVal
+	}
+	
+	if behindVal, err := strconv.Atoi(parts[1]); err == nil {
+		behind = behindVal
+	}
+
+	log.Debug().Str("repoPath", repoPath).Int("ahead", ahead).Int("behind", behind).Msg("Got ahead/behind counts against origin/main")
+	return ahead, behind, nil
 }
 
 func branchExistsOnRemote(ctx context.Context, repoPath, branch string) bool {

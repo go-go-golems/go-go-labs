@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 // Shared git utility functions used across multiple components
@@ -178,29 +180,46 @@ func getGitLastCommit(ctx context.Context, path string) (string, error) {
 
 // checkBranchMerged checks if the current branch has been merged to origin/main
 func checkBranchMerged(ctx context.Context, path string) (bool, error) {
+	// Get current branch for logging
+	currentBranch, branchErr := getGitCurrentBranch(ctx, path)
+	if branchErr != nil {
+		log.Debug().Err(branchErr).Str("path", path).Msg("Failed to get current branch for merge check")
+		currentBranch = "unknown"
+	}
+	
+	log.Debug().Str("path", path).Str("branch", currentBranch).Msg("Checking if branch is merged to origin/main")
+	
 	// First, fetch to ensure we have latest remote refs
 	fetchCmd := exec.CommandContext(ctx, "git", "fetch", "origin", "main")
 	fetchCmd.Dir = path
-	fetchCmd.Run() // Don't fail if fetch fails - might be offline
+	fetchErr := fetchCmd.Run()
+	if fetchErr != nil {
+		log.Debug().Err(fetchErr).Str("path", path).Msg("Failed to fetch origin/main - might be offline")
+	} else {
+		log.Debug().Str("path", path).Msg("Successfully fetched origin/main")
+	}
 
 	// Check if current branch is merged into origin/main
 	cmd := exec.CommandContext(ctx, "git", "merge-base", "--is-ancestor", "HEAD", "origin/main")
 	cmd.Dir = path
 	err := cmd.Run()
-
+	
 	// If exit code is 0, the branch is merged
-	// If exit code is 1, the branch is not merged
+	// If exit code is 1, the branch is not merged  
 	// If exit code is other, there was an error
 	if err == nil {
+		log.Debug().Str("path", path).Str("branch", currentBranch).Msg("Branch is merged to origin/main")
 		return true, nil
 	}
-
+	
 	// Check if it's just "not merged" vs actual error
 	if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
+		log.Debug().Str("path", path).Str("branch", currentBranch).Msg("Branch is NOT merged to origin/main")
 		return false, nil
 	}
-
+	
 	// Some other error occurred
+	log.Debug().Err(err).Str("path", path).Str("branch", currentBranch).Msg("Error checking merge status")
 	return false, err
 }
 
