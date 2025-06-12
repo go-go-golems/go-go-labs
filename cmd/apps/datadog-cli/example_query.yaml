@@ -1,0 +1,19 @@
+name: test_query
+short: Test query for demonstration
+flags:
+  - name: from
+    type: string
+    default: "-30m"
+    help: Start time
+  - name: to
+    type: string
+    default: "now"
+    help: End time
+  - name: service
+    type: string
+    help: Service name to filter by
+query: |
+  {{ if .service }}service:{{ .service | ddLike }} AND {{ end }}status:(error OR warn)
+  {{ if .from }}@timestamp:[{{ .from | ddDateTime }} TO {{ .to | ddDateTime }}]{{ end }}
+subqueries:
+  sort: "desc"

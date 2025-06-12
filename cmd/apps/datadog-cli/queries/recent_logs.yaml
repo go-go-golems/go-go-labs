@@ -1,0 +1,35 @@
+name: recent_logs
+short: Get recent logs with optional filtering
+flags:
+  - name: from
+    type: string
+    default: "-15m"
+    help: Start time (relative like -15m or absolute)
+  - name: to
+    type: string
+    default: "now"
+    help: End time (relative like now or absolute)
+  - name: service
+    type: stringList
+    help: Filter by service names
+  - name: host
+    type: stringList
+    help: Filter by hostnames
+  - name: status
+    type: stringList
+    help: Filter by log levels (info, warn, error, debug)
+  - name: limit
+    type: int
+    default: 50
+    help: Number of results to return
+  - name: search
+    type: string
+    help: Additional search terms
+query: |
+  {{ if .service }}service:({{ .service | ddStringIn }}){{ end }}
+  {{ if .host }}{{ if .service }}AND {{ end }}host:({{ .host | ddStringIn }}){{ end }}
+  {{ if .status }}{{ if or .service .host }}AND {{ end }}status:({{ .status | ddStringIn }}){{ end }}
+  {{ if .search }}{{ if or .service .host .status }}AND {{ end }}{{ .search }}{{ end }}
+  {{ if .from }}@timestamp:[{{ .from | ddDateTime }} TO {{ .to | ddDateTime }}]{{ end }}
+subqueries:
+  sort: "desc"

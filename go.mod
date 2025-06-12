@@ -106,6 +106,7 @@ require (
 	cloud.google.com/go/auth/oauth2adapt v0.2.6 // indirect
 	cloud.google.com/go/compute/metadata v0.6.0 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
+	github.com/DataDog/datadog-api-client-go/v2 v2.38.0 // indirect
 	github.com/Masterminds/semver/v3 v3.3.0 // indirect
 	github.com/antchfx/xpath v1.3.3 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect

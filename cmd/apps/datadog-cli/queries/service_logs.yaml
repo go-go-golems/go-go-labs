@@ -1,0 +1,32 @@
+name: service_logs
+short: Get logs for a specific service
+flags:
+  - name: service
+    type: string
+    required: true
+    help: Service name to filter by
+  - name: level
+    type: stringList
+    help: Log levels to include (info, warn, error, debug)
+  - name: from
+    type: string
+    default: "-1h"
+    help: Start time (relative like -1h or absolute)
+  - name: to
+    type: string
+    default: "now"
+    help: End time (relative like now or absolute)
+  - name: limit
+    type: int
+    default: 100
+    help: Number of results to return
+  - name: search
+    type: string
+    help: Additional search terms
+query: |
+  service:{{ .service | ddLike }}
+  {{ if .level }}AND status:({{ .level | ddStringIn }}){{ end }}
+  {{ if .search }}AND {{ .search }}{{ end }}
+  {{ if .from }}@timestamp:[{{ .from | ddDateTime }} TO {{ .to | ddDateTime }}]{{ end }}
+subqueries:
+  sort: "desc"

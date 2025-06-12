@@ -1,0 +1,23 @@
+name: top_errors
+short: Top 10 error messages in the last hour
+flags:
+  - name: from
+    type: string
+    default: "-1h"
+    help: Start time (relative like -1h or absolute)
+  - name: to
+    type: string  
+    default: "now"
+    help: End time (relative like now or absolute)
+  - name: service
+    type: string
+    help: Filter by service name
+  - name: limit
+    type: int
+    default: 10
+    help: Number of results to return
+query: |
+  {{ if .service }}service:{{ .service | ddLike }} AND {{ end }}status:error
+  {{ if .from }}@timestamp:[{{ .from | ddDateTime }} TO {{ .to | ddDateTime }}]{{ end }}
+subqueries:
+  sort: "desc"
