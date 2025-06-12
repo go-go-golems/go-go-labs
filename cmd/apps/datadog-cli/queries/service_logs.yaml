@@ -1,5 +1,6 @@
 name: service_logs
 short: Get logs for a specific service
+type: datadog
 flags:
   - name: service
     type: string

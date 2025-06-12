@@ -1,5 +1,6 @@
 name: top_errors
 short: Top 10 error messages in the last hour
+type: datadog
 flags:
   - name: from
     type: string

@@ -1,5 +1,6 @@
 name: recent_logs
 short: Get recent logs with optional filtering
+type: datadog
 flags:
   - name: from
     type: string
