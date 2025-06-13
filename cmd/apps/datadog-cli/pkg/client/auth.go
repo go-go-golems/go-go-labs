@@ -58,7 +58,7 @@ func NewDatadogClient(config DatadogConfig) (*datadog.APIClient, error) {
 		Str("app_key_prefix", maskKey(config.AppKey)).
 		Str("site", config.Site).
 		Msg("Creating Datadog client")
-	
+
 	// Validate required fields
 	if config.APIKey == "" {
 		log.Error().Msg("API key is empty - cannot create Datadog client")
@@ -82,7 +82,7 @@ func NewDatadogClient(config DatadogConfig) (*datadog.APIClient, error) {
 	// Create configuration
 	configuration := datadog.NewConfiguration()
 	configuration.SetUnstableOperationEnabled("v2.SearchLogs", true)
-	
+
 	// Sanitize the site value in case it already contains a scheme or an api. prefix
 	sanitizeSite := func(site string) string {
 		site = strings.TrimSpace(site)
@@ -125,7 +125,7 @@ func NewDatadogClient(config DatadogConfig) (*datadog.APIClient, error) {
 			},
 		},
 	)
-	
+
 	log.Debug().Msg("Authentication context configured")
 
 	// Test authentication by making a simple API call
@@ -141,7 +141,7 @@ func NewDatadogClient(config DatadogConfig) (*datadog.APIClient, error) {
 		logResponseBodyOnError(httpResp, err, "datadog_auth_test")
 		return nil, errors.Wrap(err, "failed to authenticate with Datadog API")
 	}
-	
+
 	log.Info().
 		Int("status_code", getHTTPStatusCode(httpResp)).
 		Msg("Datadog API authentication successful")
@@ -177,19 +177,19 @@ func GetDatadogConfigFromEnv() DatadogConfig {
 		apiKey = os.Getenv("DATADOG_API_KEY")
 		log.Debug().Msg("Using DATADOG_API_KEY fallback")
 	}
-	
+
 	appKey := os.Getenv("DATADOG_CLI_APP_KEY")
 	if appKey == "" {
 		appKey = os.Getenv("DATADOG_APP_KEY")
 		log.Debug().Msg("Using DATADOG_APP_KEY fallback")
 	}
-	
+
 	site := os.Getenv("DATADOG_CLI_SITE")
 	if site == "" {
 		site = os.Getenv("DATADOG_SITE")
 		log.Debug().Msg("Using DATADOG_SITE fallback")
 	}
-	
+
 	log.Debug().
 		Bool("api_key_set", apiKey != "").
 		Str("api_key_prefix", maskKey(apiKey)).
@@ -197,7 +197,7 @@ func GetDatadogConfigFromEnv() DatadogConfig {
 		Str("app_key_prefix", maskKey(appKey)).
 		Str("site", site).
 		Msg("Loading Datadog configuration from environment variables")
-	
+
 	// Log which environment variables were found
 	if os.Getenv("DATADOG_CLI_API_KEY") != "" {
 		log.Debug().Msg("Found DATADOG_CLI_API_KEY")
@@ -217,7 +217,7 @@ func GetDatadogConfigFromEnv() DatadogConfig {
 	if os.Getenv("DATADOG_SITE") != "" {
 		log.Debug().Msg("Found DATADOG_SITE")
 	}
-	
+
 	return DatadogConfig{
 		APIKey: apiKey,
 		AppKey: appKey,

@@ -63,7 +63,7 @@ func (d *DatadogQueryCommand) RunIntoGlazeProcessor(
 	log.Info().
 		Str("command", "datadog_query").
 		Msg("Starting Datadog query command execution")
-	
+
 	// Extract Datadog settings
 	log.Debug().Msg("Extracting Datadog settings from parsed layers")
 	ddSettings := &datadog_layers.DatadogSettings{}
@@ -110,7 +110,7 @@ func (d *DatadogQueryCommand) RunIntoGlazeProcessor(
 	// Get all parameters for template rendering
 	log.Debug().Msg("Extracting parameters for template rendering")
 	params := parsedLayers.GetDataMap()
-	
+
 	// Log parameter keys for debugging (without values to avoid exposing sensitive data)
 	paramKeys := make([]string, 0, len(params))
 	for key := range params {
@@ -152,7 +152,7 @@ func (d *DatadogQueryCommand) RunIntoGlazeProcessor(
 			Msg("Failed to render query template")
 		return errors.Wrap(err, "failed to render query")
 	}
-	
+
 	log.Debug().
 		Str("rendered_query", renderedQuery.Query).
 		Msg("Query template rendered successfully")
@@ -199,7 +199,7 @@ func (d *DatadogQueryCommand) RunIntoGlazeProcessor(
 		Int("limit", renderedQuery.Limit).
 		Str("sort", renderedQuery.Sort).
 		Msg("Executing final Datadog logs search")
-	
+
 	err = client.ExecuteLogsSearch(ctx, ddClient, renderedQuery, func(ctx context.Context, row types.Row) error {
 		return gp.AddRow(ctx, row)
 	})
@@ -214,5 +214,3 @@ func (d *DatadogQueryCommand) RunIntoGlazeProcessor(
 	log.Info().Msg("Datadog query command execution completed successfully")
 	return nil
 }
-
-

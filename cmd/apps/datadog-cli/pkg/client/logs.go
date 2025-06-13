@@ -12,7 +12,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-
 // ExecuteLogsSearch executes a Datadog logs search and streams results to a processor
 func ExecuteLogsSearch(
 	ctx context.Context,
@@ -27,7 +26,7 @@ func ExecuteLogsSearch(
 		Int("limit", query.Limit).
 		Str("sort", query.Sort).
 		Msg("Starting Datadog logs search execution")
-	
+
 	logsApi := datadogV2.NewLogsApi(client)
 	log.Debug().Msg("Datadog Logs API client initialized")
 
@@ -45,7 +44,7 @@ func ExecuteLogsSearch(
 			Time("from", query.From).
 			Time("to", query.To).
 			Msg("Setting time range for search")
-		
+
 		if searchRequest.Filter == nil {
 			searchRequest.Filter = &datadogV2.LogsQueryFilter{}
 		}
@@ -120,7 +119,7 @@ func ExecuteLogsSearch(
 			Int("page", pageNumber).
 			Int("total_processed", totalProcessed).
 			Msg("Making API request to Datadog")
-		
+
 		opts := datadogV2.NewListLogsOptionalParameters().WithBody(searchRequest)
 		resp, httpResp, err := logsApi.ListLogs(auth, *opts)
 		if err != nil {
@@ -148,7 +147,7 @@ func ExecuteLogsSearch(
 				Int("page", pageNumber).
 				Int("logs_in_page", pageLogsCount).
 				Msg("Processing logs from current page")
-			
+
 			for _, logEntry := range resp.Data {
 				row := convertLogToRow(logEntry)
 				err := processor(ctx, row)
@@ -200,7 +199,7 @@ func ExecuteLogsSearch(
 				Msg("Reached query limit, stopping pagination")
 			break
 		}
-		
+
 		pageNumber++
 	}
 

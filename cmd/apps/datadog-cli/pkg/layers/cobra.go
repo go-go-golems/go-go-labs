@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/middlewares"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
-	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
@@ -67,7 +67,7 @@ func GetDatadogMiddlewares(
 	parsedCommandLayers *layers.ParsedLayers,
 ) ([]middlewares.Middleware, error) {
 	log.Debug().Msg("Creating Datadog middleware chain")
-	
+
 	commandSettings := &cli.CommandSettings{}
 	err := parsedCommandLayers.InitializeStruct(cli.CommandSettingsSlug, commandSettings)
 	if err != nil {
@@ -77,7 +77,7 @@ func GetDatadogMiddlewares(
 	log.Debug().
 		Str("load_parameters_from_file", commandSettings.LoadParametersFromFile).
 		Msg("Command settings initialized")
-	
+
 	middlewares_ := []middlewares.Middleware{}
 
 	if commandSettings.LoadParametersFromFile != "" {
@@ -117,7 +117,7 @@ func GetDatadogMiddlewares(
 		Str("final_profile_file", profileSettings.ProfileFile).
 		Str("final_profile", profileSettings.Profile).
 		Msg("Adding profiles middleware")
-	
+
 	middlewares_ = append(middlewares_,
 		middlewares.GatherFlagsFromProfiles(
 			defaultProfileFile,
@@ -134,7 +134,7 @@ func GetDatadogMiddlewares(
 	log.Debug().
 		Strs("whitelisted_layers", []string{DatadogSlug}).
 		Msg("Adding viper middleware with whitelisted layers")
-	
+
 	middlewares_ = append(middlewares_,
 		middlewares.WrapWithWhitelistedLayers(
 			[]string{

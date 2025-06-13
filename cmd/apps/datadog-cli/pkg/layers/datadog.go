@@ -14,10 +14,10 @@ const DatadogSlug = "datadog"
 // NewDatadogParameterLayer creates a parameter layer for Datadog authentication
 func NewDatadogParameterLayer() (layers.ParameterLayer, error) {
 	log.Debug().Msg("Creating Datadog parameter layer")
-	
+
 	return layers.NewParameterLayer(
 		"datadog",
-		"Datadog Configuration", 
+		"Datadog Configuration",
 		layers.WithParameterDefinitions(
 			parameters.NewParameterDefinition(
 				"api-key",
@@ -57,9 +57,9 @@ func maskKey(key string) string {
 
 // DatadogSettings represents Datadog configuration parameters
 type DatadogSettings struct {
-	APIKey string `glazed.parameter:"api-key"`
-	AppKey string `glazed.parameter:"app-key"`
-	Site   string `glazed.parameter:"site"`
+	APIKey  string `glazed.parameter:"api-key"`
+	AppKey  string `glazed.parameter:"app-key"`
+	Site    string `glazed.parameter:"site"`
 	RawHTTP bool   `glazed.parameter:"raw-http-debug"`
 }
 
@@ -72,7 +72,7 @@ func (d *DatadogSettings) Validate() error {
 		Str("app_key_prefix", maskKey(d.AppKey)).
 		Str("site", d.Site).
 		Msg("Validating Datadog settings")
-	
+
 	if d.APIKey == "" {
 		log.Error().
 			Msg("API key is missing - check DATADOG_CLI_API_KEY or DATADOG_API_KEY environment variables")
@@ -83,12 +83,12 @@ func (d *DatadogSettings) Validate() error {
 			Msg("App key is missing - check DATADOG_CLI_APP_KEY or DATADOG_APP_KEY environment variables")
 		return errors.New("app-key is required (set DATADOG_CLI_APP_KEY or DATADOG_APP_KEY environment variable)")
 	}
-	
+
 	if d.Site == "" {
 		log.Warn().Msg("Site is empty, using default datadoghq.com")
 		d.Site = "datadoghq.com"
 	}
-	
+
 	log.Debug().Msg("Datadog settings validation successful")
 	return nil
 }

@@ -62,7 +62,7 @@ func (r *RunCommand) RunIntoGlazeProcessor(
 	log.Info().
 		Str("command", "run_yaml").
 		Msg("Starting YAML query file execution")
-	
+
 	// Get the query file path
 	log.Debug().Msg("Extracting query file path from parameters")
 	params := parsedLayers.GetDataMap()
@@ -118,7 +118,7 @@ func (r *RunCommand) RunIntoGlazeProcessor(
 			Msg("Failed to parse YAML file into map")
 		return errors.Wrapf(err, "failed to parse YAML file: %s", queryFilePath)
 	}
-	
+
 	// Log available keys in YAML for debugging
 	yamlKeys := make([]string, 0, len(yamlData))
 	for key := range yamlData {
@@ -200,7 +200,7 @@ func (r *RunCommand) RunIntoGlazeProcessor(
 		Str("file_path", queryFilePath).
 		Str("query", query).
 		Msg("Executing Datadog query command from YAML file")
-	
+
 	err = datadogCmd.RunIntoGlazeProcessor(ctx, parsedLayers, gp)
 	if err != nil {
 		log.Error().
@@ -209,7 +209,7 @@ func (r *RunCommand) RunIntoGlazeProcessor(
 			Msg("Failed to execute Datadog query command")
 		return err
 	}
-	
+
 	log.Info().
 		Str("file_path", queryFilePath).
 		Msg("YAML query file execution completed successfully")

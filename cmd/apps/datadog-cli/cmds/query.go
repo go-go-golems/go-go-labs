@@ -105,7 +105,7 @@ func (q *QueryCommand) RunIntoGlazeProcessor(
 	log.Info().
 		Str("command", "raw_query").
 		Msg("Starting raw Datadog query execution")
-	
+
 	// Extract settings
 	log.Debug().Msg("Extracting query settings from parsed layers")
 	settings := &QuerySettings{}
@@ -194,7 +194,7 @@ func (q *QueryCommand) RunIntoGlazeProcessor(
 		Limit: settings.Limit,
 		Sort:  settings.Sort,
 	}
-	
+
 	log.Debug().
 		Str("query", query.Query).
 		Time("from", query.From).
@@ -219,7 +219,7 @@ func (q *QueryCommand) RunIntoGlazeProcessor(
 		Int("limit", query.Limit).
 		Str("sort", query.Sort).
 		Msg("Executing raw Datadog query")
-	
+
 	err = client.ExecuteLogsSearch(ctx, ddClient, query, func(ctx context.Context, row types.Row) error {
 		return gp.AddRow(ctx, row)
 	})
@@ -234,5 +234,3 @@ func (q *QueryCommand) RunIntoGlazeProcessor(
 	log.Info().Msg("Raw Datadog query execution completed successfully")
 	return nil
 }
-
-

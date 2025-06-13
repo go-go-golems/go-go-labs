@@ -49,7 +49,7 @@ func RenderDatadogQuery(ctx context.Context, tmpl string, params map[string]inte
 	log.Debug().
 		Str("template", tmpl).
 		Msg("Starting query template rendering")
-	
+
 	// Log parameters (without values to avoid exposing sensitive data)
 	paramKeys := make([]string, 0, len(params))
 	for key := range params {
@@ -58,7 +58,7 @@ func RenderDatadogQuery(ctx context.Context, tmpl string, params map[string]inte
 	log.Debug().
 		Strs("param_keys", paramKeys).
 		Msg("Template parameters available")
-	
+
 	// Create template with Datadog helpers
 	log.Debug().Msg("Creating template with Datadog helper functions")
 	t, err := template.New("query").
@@ -86,7 +86,7 @@ func RenderDatadogQuery(ctx context.Context, tmpl string, params map[string]inte
 			Msg("Failed to execute query template")
 		return types.DatadogQuery{}, errors.Wrap(err, "failed to execute query template")
 	}
-	
+
 	rawRendered := buf.String()
 	log.Debug().
 		Str("raw_rendered", rawRendered).
@@ -156,7 +156,7 @@ func RenderDatadogQuery(ctx context.Context, tmpl string, params map[string]inte
 		Limit: limit,
 		Sort:  sort,
 	}
-	
+
 	log.Debug().
 		Str("final_query", query.Query).
 		Time("from", query.From).
@@ -164,7 +164,7 @@ func RenderDatadogQuery(ctx context.Context, tmpl string, params map[string]inte
 		Int("limit", query.Limit).
 		Str("sort", query.Sort).
 		Msg("Query rendering completed successfully")
-	
+
 	return query, nil
 }
 
@@ -189,7 +189,7 @@ func ValidateQuery(query string) error {
 	log.Debug().
 		Str("query", query).
 		Msg("Validating rendered query")
-	
+
 	// Check for balanced quotes
 	quoteCount := strings.Count(query, `"`) - strings.Count(query, `\"`)
 	if quoteCount%2 != 0 {

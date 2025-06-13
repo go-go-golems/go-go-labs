@@ -41,7 +41,7 @@ var _ cmds.GlazeCommand = (*AuthTestCommand)(nil)
 
 func NewAuthTestCommand() (*AuthTestCommand, error) {
 	log.Debug().Msg("Creating auth test command")
-	
+
 	description := cmds.NewCommandDescription("auth-test",
 		cmds.WithShort("Test Datadog API authentication"),
 		cmds.WithLong("Test the authentication credentials with Datadog API by making a simple request"),
@@ -132,7 +132,7 @@ func (c *AuthTestCommand) RunIntoGlazeProcessor(
 
 	// Test authentication with a simple API call
 	log.Info().Msg("Testing authentication with Datadog API")
-	
+
 	auth := context.WithValue(
 		ctx,
 		datadog.ContextAPIKeys,
@@ -204,7 +204,7 @@ var _ cmds.GlazeCommand = (*LogsV1TestCommand)(nil)
 
 func NewLogsV1TestCommand() (*LogsV1TestCommand, error) {
 	log.Debug().Msg("Creating logs v1 test command")
-	
+
 	description := cmds.NewCommandDescription("logs-v1-test",
 		cmds.WithShort("Test Datadog Logs API v1"),
 		cmds.WithLong("Test the Datadog Logs API v1 with a simple query"),
@@ -307,11 +307,11 @@ func (c *LogsV1TestCommand) RunIntoGlazeProcessor(
 	)
 
 	logsV1Api := datadogV1.NewLogsApi(ddClient)
-	
+
 	// Create time range for last hour
 	to := time.Now()
 	from := to.Add(-1 * time.Hour)
-	
+
 	log.Debug().
 		Time("from", from).
 		Time("to", to).
@@ -374,7 +374,7 @@ func (c *LogsV1TestCommand) RunIntoGlazeProcessor(
 				types.MRP("type", "log_entry"),
 				types.MRP("index", i),
 			)
-			
+
 			if logEntry.Id != nil {
 				logRow.Set("id", *logEntry.Id)
 			}
@@ -417,7 +417,7 @@ var _ cmds.GlazeCommand = (*LogsV2TestCommand)(nil)
 
 func NewLogsV2TestCommand() (*LogsV2TestCommand, error) {
 	log.Debug().Msg("Creating logs v2 test command")
-	
+
 	description := cmds.NewCommandDescription("logs-v2-test",
 		cmds.WithShort("Test Datadog Logs API v2"),
 		cmds.WithLong("Test the Datadog Logs API v2 with a simple query"),
@@ -528,7 +528,7 @@ func (c *LogsV2TestCommand) RunIntoGlazeProcessor(
 			"appKeyAuth": {Key: ddSettings.AppKey},
 		},
 	)
-	
+
 	logsApi := datadogV2.NewLogsApi(ddClient)
 	simpleRequest := datadogV2.LogsListRequest{
 		Filter: &datadogV2.LogsQueryFilter{
@@ -538,7 +538,7 @@ func (c *LogsV2TestCommand) RunIntoGlazeProcessor(
 			Limit: datadog.PtrInt32(1),
 		},
 	}
-	
+
 	opts := datadogV2.NewListLogsOptionalParameters().WithBody(simpleRequest)
 	simpleResp, simpleHttpResp, simpleErr := logsApi.ListLogs(auth, *opts)
 	if simpleErr != nil {
@@ -562,14 +562,14 @@ func (c *LogsV2TestCommand) RunIntoGlazeProcessor(
 	logsCount := 0
 	err = client.ExecuteLogsSearch(ctx, ddClient, renderedQuery, func(ctx context.Context, row types.Row) error {
 		logsCount++
-		
+
 		if testSettings.Verbose && logsCount <= 3 { // Show first 3 logs if verbose
 			logRow := types.NewRow(
 				types.MRP("api_version", "v2"),
 				types.MRP("type", "log_entry"),
 				types.MRP("index", logsCount-1),
 			)
-			
+
 			// Copy relevant fields from the row
 			fieldNames := []string{"id", "message", "timestamp", "service", "host"}
 			for _, key := range fieldNames {
@@ -577,16 +577,16 @@ func (c *LogsV2TestCommand) RunIntoGlazeProcessor(
 					logRow.Set(key, value)
 				}
 			}
-			
+
 			err := gp.AddRow(ctx, logRow)
 			if err != nil {
 				return err
 			}
 		}
-		
+
 		return nil
 	})
-	
+
 	if err != nil {
 		log.Error().Err(err).Str("operation", "logs_v2_test").Msg("Logs API v2 request failed")
 		return gp.AddRow(ctx, types.NewRow(
@@ -606,8 +606,8 @@ func (c *LogsV2TestCommand) RunIntoGlazeProcessor(
 		types.MRP("status", "success"),
 		types.MRP("logs_returned", logsCount),
 		types.MRP("query", testSettings.Query),
-		types.MRP("time_range", fmt.Sprintf("%s to %s", 
-			renderedQuery.From.Format(time.RFC3339), 
+		types.MRP("time_range", fmt.Sprintf("%s to %s",
+			renderedQuery.From.Format(time.RFC3339),
 			renderedQuery.To.Format(time.RFC3339))),
 	))
 }
@@ -659,7 +659,7 @@ var TestCmd = &cobra.Command{
 
 func init() {
 	log.Debug().Msg("Initializing test commands")
-	
+
 	// Create auth test command
 	authTestCmd, err := NewAuthTestCommand()
 	if err != nil {
