@@ -518,6 +518,39 @@ func (c *LogsV2TestCommand) RunIntoGlazeProcessor(
 		Sort:  "desc",
 	}
 
+	// Also test with the same simple request as auth-test for comparison
+	log.Info().Msg("Testing with simple request (same as auth-test)")
+	auth := context.WithValue(
+		ctx,
+		datadog.ContextAPIKeys,
+		map[string]datadog.APIKey{
+			"apiKeyAuth": {Key: ddSettings.APIKey},
+			"appKeyAuth": {Key: ddSettings.AppKey},
+		},
+	)
+	
+	logsApi := datadogV2.NewLogsApi(ddClient)
+	simpleRequest := datadogV2.LogsListRequest{
+		Filter: &datadogV2.LogsQueryFilter{
+			Query: datadog.PtrString("*"),
+		},
+		Page: &datadogV2.LogsListRequestPage{
+			Limit: datadog.PtrInt32(1),
+		},
+	}
+	
+	opts := datadogV2.NewListLogsOptionalParameters().WithBody(simpleRequest)
+	simpleResp, simpleHttpResp, simpleErr := logsApi.ListLogs(auth, *opts)
+	if simpleErr != nil {
+		logResponseBodyOnError(simpleHttpResp, simpleErr, "simple_logs_test")
+		log.Error().Msg("Simple logs test (same as auth-test) failed")
+	} else {
+		log.Info().
+			Int("status_code", simpleHttpResp.StatusCode).
+			Int("logs_returned", len(simpleResp.Data)).
+			Msg("Simple logs test (same as auth-test) succeeded")
+	}
+
 	log.Debug().
 		Str("query", renderedQuery.Query).
 		Time("from", renderedQuery.From).
