@@ -186,9 +186,9 @@ func checkBranchMerged(ctx context.Context, path string) (bool, error) {
 		log.Debug().Err(branchErr).Str("path", path).Msg("Failed to get current branch for merge check")
 		currentBranch = "unknown"
 	}
-	
+
 	log.Debug().Str("path", path).Str("branch", currentBranch).Msg("Checking if branch is merged to origin/main")
-	
+
 	// First, fetch to ensure we have latest remote refs
 	fetchCmd := exec.CommandContext(ctx, "git", "fetch", "origin", "main")
 	fetchCmd.Dir = path
@@ -203,21 +203,21 @@ func checkBranchMerged(ctx context.Context, path string) (bool, error) {
 	cmd := exec.CommandContext(ctx, "git", "merge-base", "--is-ancestor", "HEAD", "origin/main")
 	cmd.Dir = path
 	err := cmd.Run()
-	
+
 	// If exit code is 0, the branch is merged
-	// If exit code is 1, the branch is not merged  
+	// If exit code is 1, the branch is not merged
 	// If exit code is other, there was an error
 	if err == nil {
 		log.Debug().Str("path", path).Str("branch", currentBranch).Msg("Branch is merged to origin/main")
 		return true, nil
 	}
-	
+
 	// Check if it's just "not merged" vs actual error
 	if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
 		log.Debug().Str("path", path).Str("branch", currentBranch).Msg("Branch is NOT merged to origin/main")
 		return false, nil
 	}
-	
+
 	// Some other error occurred
 	log.Debug().Err(err).Str("path", path).Str("branch", currentBranch).Msg("Error checking merge status")
 	return false, err
@@ -231,15 +231,15 @@ func checkBranchNeedsRebase(ctx context.Context, path string) (bool, error) {
 		log.Debug().Err(branchErr).Str("path", path).Msg("Failed to get current branch for rebase check")
 		currentBranch = "unknown"
 	}
-	
+
 	// Skip rebase check if we're on main branch
 	if currentBranch == "main" || currentBranch == "master" {
 		log.Debug().Str("path", path).Str("branch", currentBranch).Msg("Skipping rebase check - already on main branch")
 		return false, nil
 	}
-	
+
 	log.Debug().Str("path", path).Str("branch", currentBranch).Msg("Checking if branch needs rebase on origin/main")
-	
+
 	// First, fetch to ensure we have latest remote refs
 	fetchCmd := exec.CommandContext(ctx, "git", "fetch", "origin", "main")
 	fetchCmd.Dir = path
@@ -249,7 +249,7 @@ func checkBranchNeedsRebase(ctx context.Context, path string) (bool, error) {
 	} else {
 		log.Debug().Str("path", path).Msg("Successfully fetched origin/main")
 	}
-	
+
 	// Find the merge-base between current branch and origin/main
 	mergeBaseCmd := exec.CommandContext(ctx, "git", "merge-base", "HEAD", "origin/main")
 	mergeBaseCmd.Dir = path
@@ -259,7 +259,7 @@ func checkBranchNeedsRebase(ctx context.Context, path string) (bool, error) {
 		return false, err
 	}
 	mergeBase := strings.TrimSpace(string(mergeBaseOutput))
-	
+
 	// Check if origin/main has commits that are not in the current branch
 	// This is done by checking if origin/main is ahead of the merge-base
 	revListCmd := exec.CommandContext(ctx, "git", "rev-list", "--count", mergeBase+"..origin/main")
@@ -269,10 +269,10 @@ func checkBranchNeedsRebase(ctx context.Context, path string) (bool, error) {
 		log.Debug().Err(err).Str("path", path).Msg("Failed to count commits ahead in origin/main")
 		return false, err
 	}
-	
+
 	commitsAhead := strings.TrimSpace(string(revListOutput))
 	needsRebase := commitsAhead != "0"
-	
+
 	log.Debug().
 		Str("path", path).
 		Str("branch", currentBranch).
@@ -280,7 +280,7 @@ func checkBranchNeedsRebase(ctx context.Context, path string) (bool, error) {
 		Str("commitsAhead", commitsAhead).
 		Bool("needsRebase", needsRebase).
 		Msg("Branch rebase check completed")
-	
+
 	return needsRebase, nil
 }
 
