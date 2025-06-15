@@ -86,6 +86,11 @@ func (sc *StatusChecker) getRepositoryStatus(ctx context.Context, repo Repositor
 		status.IsMerged = isMerged
 	}
 
+	// Check if branch needs to be rebased on origin/main
+	if needsRebase, err := checkBranchNeedsRebase(ctx, repoPath); err == nil {
+		status.NeedsRebase = needsRebase
+	}
+
 	return status, nil
 }
 

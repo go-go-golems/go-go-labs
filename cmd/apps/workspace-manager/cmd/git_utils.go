@@ -223,6 +223,67 @@ func checkBranchMerged(ctx context.Context, path string) (bool, error) {
 	return false, err
 }
 
+// checkBranchNeedsRebase checks if the current branch needs to be rebased on origin/main
+func checkBranchNeedsRebase(ctx context.Context, path string) (bool, error) {
+	// Get current branch for logging
+	currentBranch, branchErr := getGitCurrentBranch(ctx, path)
+	if branchErr != nil {
+		log.Debug().Err(branchErr).Str("path", path).Msg("Failed to get current branch for rebase check")
+		currentBranch = "unknown"
+	}
+	
+	// Skip rebase check if we're on main branch
+	if currentBranch == "main" || currentBranch == "master" {
+		log.Debug().Str("path", path).Str("branch", currentBranch).Msg("Skipping rebase check - already on main branch")
+		return false, nil
+	}
+	
+	log.Debug().Str("path", path).Str("branch", currentBranch).Msg("Checking if branch needs rebase on origin/main")
+	
+	// First, fetch to ensure we have latest remote refs
+	fetchCmd := exec.CommandContext(ctx, "git", "fetch", "origin", "main")
+	fetchCmd.Dir = path
+	fetchErr := fetchCmd.Run()
+	if fetchErr != nil {
+		log.Debug().Err(fetchErr).Str("path", path).Msg("Failed to fetch origin/main - might be offline")
+	} else {
+		log.Debug().Str("path", path).Msg("Successfully fetched origin/main")
+	}
+	
+	// Find the merge-base between current branch and origin/main
+	mergeBaseCmd := exec.CommandContext(ctx, "git", "merge-base", "HEAD", "origin/main")
+	mergeBaseCmd.Dir = path
+	mergeBaseOutput, err := mergeBaseCmd.Output()
+	if err != nil {
+		log.Debug().Err(err).Str("path", path).Msg("Failed to find merge-base with origin/main")
+		return false, err
+	}
+	mergeBase := strings.TrimSpace(string(mergeBaseOutput))
+	
+	// Check if origin/main has commits that are not in the current branch
+	// This is done by checking if origin/main is ahead of the merge-base
+	revListCmd := exec.CommandContext(ctx, "git", "rev-list", "--count", mergeBase+"..origin/main")
+	revListCmd.Dir = path
+	revListOutput, err := revListCmd.Output()
+	if err != nil {
+		log.Debug().Err(err).Str("path", path).Msg("Failed to count commits ahead in origin/main")
+		return false, err
+	}
+	
+	commitsAhead := strings.TrimSpace(string(revListOutput))
+	needsRebase := commitsAhead != "0"
+	
+	log.Debug().
+		Str("path", path).
+		Str("branch", currentBranch).
+		Str("mergeBase", mergeBase).
+		Str("commitsAhead", commitsAhead).
+		Bool("needsRebase", needsRebase).
+		Msg("Branch rebase check completed")
+	
+	return needsRebase, nil
+}
+
 // mergeRepositories merges existing repositories with newly discovered ones
 func mergeRepositories(existing, discovered []Repository) []Repository {
 	repoMap := make(map[string]Repository)

@@ -253,8 +253,8 @@ func printStatusDetailed(status *WorkspaceStatus, includeUntracked bool) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	defer w.Flush()
 
-	fmt.Fprintln(w, "REPOSITORY\tBRANCH\tSTATUS\tCHANGES\tSYNC\tMERGED")
-	fmt.Fprintln(w, "----------\t------\t------\t-------\t----\t------")
+	fmt.Fprintln(w, "REPOSITORY\tBRANCH\tSTATUS\tCHANGES\tSYNC\tMERGED\tREBASE")
+	fmt.Fprintln(w, "----------\t------\t------\t-------\t----\t------\t------")
 
 	for _, repoStatus := range status.Repositories {
 		repoName := repoStatus.Repository.Name
@@ -267,9 +267,10 @@ func printStatusDetailed(status *WorkspaceStatus, includeUntracked bool) error {
 		changesStr := getChangesString(repoStatus, includeUntracked)
 		syncStr := getSyncString(repoStatus)
 		mergedStr := getMergedString(repoStatus)
+		rebaseStr := getRebaseString(repoStatus)
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
-			repoName, branch, statusStr, changesStr, syncStr, mergedStr)
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+			repoName, branch, statusStr, changesStr, syncStr, mergedStr, rebaseStr)
 	}
 
 	fmt.Fprintln(w)
@@ -360,4 +361,11 @@ func getMergedString(status RepositoryStatus) string {
 		return "✓"
 	}
 	return "-"
+}
+
+func getRebaseString(status RepositoryStatus) string {
+	if status.NeedsRebase {
+		return "⚠️"
+	}
+	return "✓"
 }
