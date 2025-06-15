@@ -38,8 +38,8 @@ This command will:
 A branch is considered to need a PR if:
 - It's not the main/master branch
 - It's not merged to origin/main yet
-- It has commits ahead of the remote tracking branch
-- It exists on the remote (has been pushed)
+- It has commits ahead of origin/main
+- If the branch doesn't exist on remote, it will be pushed first
 
 Requirements:
 - GitHub CLI (gh) must be installed and authenticated
@@ -129,6 +129,9 @@ func runPR(ctx context.Context, workspaceName string, dryRun, force, draft bool,
 	for i, candidate := range candidateBranches {
 		fmt.Printf("%d. %s/%s\n", i+1, candidate.Repository, candidate.Branch)
 		fmt.Printf("   Commits ahead: %d\n", candidate.CommitsAhead)
+		if candidate.NeedsPush {
+			fmt.Printf("   🚀 Needs push: Branch must be pushed to remote first\n")
+		}
 		if candidate.ExistingPR != "" {
 			fmt.Printf("   ⚠️  Existing PR: %s\n", candidate.ExistingPR)
 		}
@@ -158,6 +161,16 @@ func runPR(ctx context.Context, workspaceName string, dryRun, force, draft bool,
 		}
 
 		if shouldCreate {
+			// Push branch first if needed
+			if candidate.NeedsPush {
+				fmt.Printf("🚀 Pushing branch %s/%s to remote...\n", candidate.Repository, candidate.Branch)
+				if err := pushBranchForPR(ctx, candidate); err != nil {
+					fmt.Printf("❌ Failed to push branch %s/%s: %v\n", candidate.Repository, candidate.Branch, err)
+					continue
+				}
+				fmt.Printf("✅ Pushed branch %s/%s\n", candidate.Repository, candidate.Branch)
+			}
+
 			if err := createPR(ctx, candidate, draft, customTitle, customBody); err != nil {
 				fmt.Printf("❌ Failed to create PR for %s/%s: %v\n", candidate.Repository, candidate.Branch, err)
 			} else {
@@ -178,6 +191,7 @@ type PRCandidate struct {
 	CommitsAhead int
 	RemoteURL    string
 	ExistingPR   string // URL if PR already exists
+	NeedsPush    bool   // true if branch needs to be pushed to remote first
 }
 
 func checkGHCLI(ctx context.Context) error {
@@ -234,10 +248,10 @@ func checkIfNeedsPR(ctx context.Context, repoStatus RepositoryStatus, workspaceP
 		// Fall back to the status ahead count
 		aheadCount = repoStatus.Ahead
 	}
-	
+
 	candidate.CommitsAhead = aheadCount
 	log.Debug().Str("repository", candidate.Repository).Str("branch", candidate.Branch).Int("ahead", aheadCount).Int("behind", behindCount).Msg("Repository commits against origin/main")
-	
+
 	// Skip if no commits ahead of origin/main
 	if aheadCount == 0 {
 		log.Debug().Str("repository", candidate.Repository).Str("branch", candidate.Branch).Msg("Skipping: no commits ahead of origin/main")
@@ -247,9 +261,11 @@ func checkIfNeedsPR(ctx context.Context, repoStatus RepositoryStatus, workspaceP
 	// Check if branch exists on remote
 	branchExists := branchExistsOnRemote(ctx, candidate.RepoPath, repoStatus.CurrentBranch)
 	log.Debug().Str("repository", candidate.Repository).Str("branch", candidate.Branch).Bool("exists", branchExists).Msg("Checked if branch exists on remote")
+
+	// If branch doesn't exist on remote but has commits ahead, we need to push first
 	if !branchExists {
-		log.Debug().Str("repository", candidate.Repository).Str("branch", candidate.Branch).Msg("Skipping: branch does not exist on remote")
-		return candidate, false
+		log.Debug().Str("repository", candidate.Repository).Str("branch", candidate.Branch).Msg("Branch needs to be pushed before creating PR")
+		candidate.NeedsPush = true
 	}
 
 	// Check if PR already exists
@@ -281,11 +297,11 @@ func getAheadBehindOriginMain(ctx context.Context, repoPath string) (int, int, e
 
 	ahead := 0
 	behind := 0
-	
+
 	if aheadVal, err := strconv.Atoi(parts[0]); err == nil {
 		ahead = aheadVal
 	}
-	
+
 	if behindVal, err := strconv.Atoi(parts[1]); err == nil {
 		behind = behindVal
 	}
@@ -309,6 +325,18 @@ func checkExistingPR(ctx context.Context, repoPath, branch string) string {
 		return ""
 	}
 	return strings.TrimSpace(string(output))
+}
+
+func pushBranchForPR(ctx context.Context, candidate PRCandidate) error {
+	cmd := exec.CommandContext(ctx, "git", "push", "-u", "origin", candidate.Branch)
+	cmd.Dir = candidate.RepoPath
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return errors.Wrapf(err, "git push failed: %s", string(output))
+	}
+
+	return nil
 }
 
 func createPR(ctx context.Context, candidate PRCandidate, draft bool, customTitle, customBody string) error {

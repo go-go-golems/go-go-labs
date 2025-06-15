@@ -87,7 +87,7 @@ func runPush(ctx context.Context, remoteName, workspaceName string, dryRun, forc
 		if err != nil {
 			return errors.Wrap(err, "failed to get current directory")
 		}
-		
+
 		detected, err := detectWorkspace(cwd)
 		if err != nil {
 			return errors.Wrap(err, "failed to detect workspace. Use 'workspace-manager push <remote> <workspace-name>' or specify --workspace flag")
@@ -123,7 +123,7 @@ func runPush(ctx context.Context, remoteName, workspaceName string, dryRun, forc
 
 	// Show what we found
 	fmt.Printf("Found %d branch(es) that could be pushed to remote '%s':\n\n", len(candidateBranches), remoteName)
-	
+
 	for i, candidate := range candidateBranches {
 		fmt.Printf("%d. %s/%s\n", i+1, candidate.Repository, candidate.Branch)
 		fmt.Printf("   Local commits: %d\n", candidate.LocalCommits)
@@ -145,7 +145,7 @@ func runPush(ctx context.Context, remoteName, workspaceName string, dryRun, forc
 	reader := bufio.NewReader(os.Stdin)
 	for _, candidate := range candidateBranches {
 		if !candidate.RemoteExists {
-			fmt.Printf("Skipping %s/%s - remote repository '%s' not found or not accessible\n", 
+			fmt.Printf("Skipping %s/%s - remote repository '%s' not found or not accessible\n",
 				candidate.Repository, candidate.Branch, candidate.RemoteRepo)
 			continue
 		}
@@ -177,15 +177,15 @@ type PushCandidate struct {
 	Branch             string
 	RepoPath           string
 	LocalCommits       int
-	RemoteRepo         string  // The remote repository name (owner/repo)
-	RemoteExists       bool    // Whether the remote repository exists
-	RemoteBranchExists bool    // Whether the branch exists on the remote
+	RemoteRepo         string // The remote repository name (owner/repo)
+	RemoteExists       bool   // Whether the remote repository exists
+	RemoteBranchExists bool   // Whether the branch exists on the remote
 }
 
 type RepoInfo struct {
-	NameWithOwner     string `json:"nameWithOwner"`
-	URL               string `json:"url"`
-	DefaultBranchRef  struct {
+	NameWithOwner    string `json:"nameWithOwner"`
+	URL              string `json:"url"`
+	DefaultBranchRef struct {
 		Name string `json:"name"`
 	} `json:"defaultBranchRef"`
 }
@@ -245,7 +245,7 @@ func checkIfNeedsPush(ctx context.Context, repoStatus RepositoryStatus, workspac
 
 	// Need to push if we have local commits
 	needsPush := localCommits > 0
-	
+
 	if needsPush {
 		log.Debug().Str("repository", candidate.Repository).Str("branch", candidate.Branch).Msg("Branch NEEDS pushing")
 	} else {
@@ -258,7 +258,7 @@ func checkIfNeedsPush(ctx context.Context, repoStatus RepositoryStatus, workspac
 func getRepoInfo(ctx context.Context, repoPath string) (*RepoInfo, error) {
 	cmd := exec.CommandContext(ctx, "gh", "repo", "view", "--json", "nameWithOwner,url,defaultBranchRef")
 	cmd.Dir = repoPath
-	
+
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get repository info from GitHub")
@@ -280,14 +280,14 @@ func checkRemoteRepoExists(ctx context.Context, remoteName, repoFullName string)
 		log.Debug().Str("repoFullName", repoFullName).Msg("Invalid repository name format")
 		return false
 	}
-	
-	// Construct remote repo as remoteName/repoName  
+
+	// Construct remote repo as remoteName/repoName
 	remoteRepo := fmt.Sprintf("%s/%s", remoteName, parts[1])
-	
+
 	// Try to access the remote repository
 	cmd := exec.CommandContext(ctx, "gh", "repo", "view", remoteRepo)
 	err := cmd.Run()
-	
+
 	log.Debug().Str("remoteName", remoteName).Str("repoFullName", repoFullName).Str("remoteRepo", remoteRepo).Bool("exists", err == nil).Msg("Checked remote repository existence")
 	return err == nil
 }
@@ -295,17 +295,17 @@ func checkRemoteRepoExists(ctx context.Context, remoteName, repoFullName string)
 func getLocalCommits(ctx context.Context, repoPath, remoteName, branch string) (int, error) {
 	// Check if remote branch exists first
 	remoteRef := fmt.Sprintf("%s/%s", remoteName, branch)
-	
+
 	// Try to get commits ahead of remote branch (local commits that aren't on remote)
 	cmd := exec.CommandContext(ctx, "git", "rev-list", "--count", fmt.Sprintf("%s..HEAD", remoteRef))
 	cmd.Dir = repoPath
 	output, err := cmd.Output()
-	
+
 	if err != nil {
 		// Remote branch might not exist, check if we have any commits to push
 		// by comparing against origin/main or just counting local commits
 		log.Debug().Err(err).Str("repoPath", repoPath).Str("remoteRef", remoteRef).Msg("Remote branch not found, checking against origin/main")
-		
+
 		// Try to compare against origin/main
 		cmd = exec.CommandContext(ctx, "git", "rev-list", "--count", "origin/main..HEAD")
 		cmd.Dir = repoPath
@@ -339,16 +339,16 @@ func checkRemoteBranchExists(ctx context.Context, repoPath, remoteName, branch s
 
 func pushBranch(ctx context.Context, candidate PushCandidate, remoteName string, setUpstream bool) error {
 	args := []string{"push"}
-	
+
 	if setUpstream {
 		args = append(args, "-u")
 	}
-	
+
 	args = append(args, remoteName, candidate.Branch)
 
 	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Dir = candidate.RepoPath
-	
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return errors.Wrapf(err, "git push failed: %s", string(output))

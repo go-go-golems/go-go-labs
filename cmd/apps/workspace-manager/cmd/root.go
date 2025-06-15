@@ -56,6 +56,7 @@ func init() {
 		NewListCommand(),
 		NewCreateCommand(),
 		NewAddCommand(),
+		NewRemoveCommand(),
 		NewDeleteCommand(),
 		NewInfoCommand(),
 		NewStatusCommand(),
