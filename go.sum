@@ -16,6 +16,8 @@ github.com/BurntSushi/toml v1.3.2 h1:o7IhLm0Msx3BaB+n3Ag7L8EVlByGnpq14C4YWiu/gL8
 github.com/BurntSushi/toml v1.3.2/go.mod h1:CxXYINrC8qIiEnFrOxCa7Jy5BFHlXnUU2pbicEuybxQ=
 github.com/DataDog/datadog-api-client-go/v2 v2.38.0 h1:0f2SuTVOFyDDtYvkOs+xawZLO08h10CBeiEfXsx5kVc=
 github.com/DataDog/datadog-api-client-go/v2 v2.38.0/go.mod h1:d3tOEgUd2kfsr9uuHQdY+nXrWp4uikgTgVCPdKNK30U=
+github.com/GianlucaP106/gotmux v0.5.0 h1:kpZsrBPtJFjAvVRfeLwm8cE+7yr4NiMPEaYsTKYGwP8=
+github.com/GianlucaP106/gotmux v0.5.0/go.mod h1:qOsZ+exnCbgv3KJ84VaBo4Q7mXs/W23CW4fyoXAgKe4=
 github.com/JohannesKaufmann/html-to-markdown v1.6.0 h1:04VXMiE50YYfCfLboJCLcgqF5x+rHJnb1ssNmqpLH/k=
 github.com/JohannesKaufmann/html-to-markdown v1.6.0/go.mod h1:NUI78lGg/a7vpEJTz/0uOcYMaibytE4BUOQS8k78yPQ=
 github.com/MakeNowJust/heredoc v1.0.0 h1:cXCdzVdstXyiTqTvfqk9SDHpKNjxuom+DOlyEeQ4pzQ=
@@ -194,6 +196,8 @@ github.com/charmbracelet/bubbles v0.21.0 h1:9TdC97SdRVg/1aaXNVWfFH3nnLAwOXr8Fn6u
 github.com/charmbracelet/bubbles v0.21.0/go.mod h1:HF+v6QUR4HkEpz62dx7ym2xc71/KBHg+zKwJtMw+qtg=
 github.com/charmbracelet/bubbletea v1.3.4 h1:kCg7B+jSCFPLYRA52SDZjr51kG/fMUEoPoZrkaDHyoI=
 github.com/charmbracelet/bubbletea v1.3.4/go.mod h1:dtcUCyCGEX3g9tosuYiut3MXgY/Jsv9nKVdibKKRRXo=
+github.com/charmbracelet/bubbletea v1.3.5 h1:JAMNLTbqMOhSwoELIr0qyP4VidFq72/6E9j7HHmRKQc=
+github.com/charmbracelet/bubbletea v1.3.5/go.mod h1:TkCnmH+aBd4LrXhXcqrKiYwRs7qyQx5rBgH5fVY3v54=
 github.com/charmbracelet/colorprofile v0.3.0 h1:KtLh9uuu1RCt+Hml4s6Hz+kB1PfV3wi++1h5ia65yKQ=
 github.com/charmbracelet/colorprofile v0.3.0/go.mod h1:oHJ340RS2nmG1zRGPmhJKJ/jf4FPNNk0P39/wBPA1G0=
 github.com/charmbracelet/glamour v0.9.1 h1:11dEfiGP8q1BEqvGoIjivuc2rBk+5qEXdPtaQ2WoiCM=

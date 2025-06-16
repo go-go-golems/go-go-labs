@@ -24,7 +24,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.37.1
 	github.com/blevesearch/bleve v1.0.14
 	github.com/charmbracelet/bubbles v0.21.0
-	github.com/charmbracelet/bubbletea v1.3.4
+	github.com/charmbracelet/bubbletea v1.3.5
 	github.com/charmbracelet/gum v0.11.0
 	github.com/charmbracelet/huh v0.6.0
 	github.com/charmbracelet/lipgloss v1.1.0
@@ -107,6 +107,7 @@ require (
 	cloud.google.com/go/compute/metadata v0.6.0 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/DataDog/datadog-api-client-go/v2 v2.38.0 // indirect
+	github.com/GianlucaP106/gotmux v0.5.0 // indirect
 	github.com/Masterminds/semver/v3 v3.3.0 // indirect
 	github.com/antchfx/xpath v1.3.3 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
