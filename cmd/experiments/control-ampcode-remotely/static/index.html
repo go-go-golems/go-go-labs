@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Control AMP</title>
+    <style>
+        body{font-family: sans-serif;margin:0;padding:1rem;}
+        #log{white-space:pre; background:#111;color:#0f0;padding:1rem;height:60vh;overflow:auto;}
+        #state{font-weight:bold;margin-bottom:1rem;}
+    </style>
+</head>
+<body>
+<h2>AMP Remote Control</h2>
+<div id="state">State: <span id="stateVal">unknown</span></div>
+<pre id="term"></pre>
+<form id="f"><input id="cmd" style="width:80%;" autocomplete="off" placeholder="type command"> <button>Send</button></form>
+<script>
+const ws=new WebSocket(`ws://${location.host}/ws`);
+ws.addEventListener('message', e=>{
+  const ev=JSON.parse(e.data);
+  console.log('WS message',ev);
+  document.getElementById('stateVal').textContent=ev.state;
+  if(ev.line){
+    appendLine(ev.from === 'client' ? '> '+ev.line : ev.line);
+  }
+});
+
+function appendLine(text){
+  const term=document.getElementById('term');
+  term.textContent+=text+"\n";
+  term.scrollTop=term.scrollHeight;
+}
+
+const form=document.getElementById('f');
+form.addEventListener('submit', e=>{
+    e.preventDefault();
+    const cmd=document.getElementById('cmd');
+    const data=cmd.value.trim();
+    if(data){
+      const payload={type:'input',data};
+      console.log('WS send',payload);
+      ws.send(JSON.stringify(payload));
+      cmd.value='';
+    }
+});
+</script>
+</body>
+</html> 

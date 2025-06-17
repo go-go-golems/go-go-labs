@@ -4,6 +4,8 @@ go 1.24.3
 
 require (
 	github.com/BobuSumisu/aho-corasick v1.0.3
+	github.com/DataDog/datadog-api-client-go/v2 v2.38.0
+	github.com/GianlucaP106/gotmux v0.5.0
 	github.com/JohannesKaufmann/html-to-markdown v1.6.0
 	github.com/Masterminds/sprig v2.22.0+incompatible
 	github.com/Masterminds/sprig/v3 v3.2.3
@@ -30,6 +32,7 @@ require (
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/chromedp/chromedp v0.9.2
 	github.com/cilium/ebpf v0.18.0
+	github.com/creack/pty v1.1.21
 	github.com/dop251/goja v0.0.0-20250309171923-bcd7cc6bf64c
 	github.com/getkin/kin-openapi v0.120.0
 	github.com/gin-gonic/gin v1.9.1
@@ -44,7 +47,6 @@ require (
 	github.com/go-go-golems/pinocchio v0.0.1
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/google/uuid v1.6.0
-	github.com/googollee/go-socket.io v1.7.0
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/gosimple/slug v1.15.0
@@ -63,10 +65,10 @@ require (
 	github.com/mmcdole/gofeed v1.2.1
 	github.com/muesli/reflow v0.3.0
 	github.com/neo4j/neo4j-go-driver/v5 v5.28.0
-	github.com/olekukonko/tablewriter v0.0.5
 	github.com/philippgille/chromem-go v0.5.0
 	github.com/pion/webrtc/v3 v3.3.5
 	github.com/pkg/errors v0.9.1
+	github.com/pkg/profile v1.7.0
 	github.com/rs/cors v1.11.0
 	github.com/rs/zerolog v1.34.0
 	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3
@@ -92,7 +94,6 @@ require (
 	golang.org/x/net v0.39.0
 	golang.org/x/sync v0.14.0
 	golang.org/x/term v0.31.0
-	golang.org/x/time v0.8.0
 	gonum.org/v1/gonum v0.12.0
 	google.golang.org/api v0.215.0
 	googlemaps.github.io/maps v1.7.0
@@ -106,9 +107,9 @@ require (
 	cloud.google.com/go/auth/oauth2adapt v0.2.6 // indirect
 	cloud.google.com/go/compute/metadata v0.6.0 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
-	github.com/DataDog/datadog-api-client-go/v2 v2.38.0 // indirect
-	github.com/GianlucaP106/gotmux v0.5.0 // indirect
+	github.com/DataDog/zstd v1.5.2 // indirect
 	github.com/Masterminds/semver/v3 v3.3.0 // indirect
+	github.com/RoaringBitmap/roaring/v2 v2.4.5 // indirect
 	github.com/antchfx/xpath v1.3.3 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.7 // indirect
@@ -127,10 +128,25 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.33.14 // indirect
 	github.com/aws/smithy-go v1.22.2 // indirect
 	github.com/bits-and-blooms/bitset v1.22.0 // indirect
+	github.com/blevesearch/bleve/v2 v2.5.0 // indirect
+	github.com/blevesearch/bleve_index_api v1.2.7 // indirect
+	github.com/blevesearch/geo v0.1.20 // indirect
+	github.com/blevesearch/go-faiss v1.0.25 // indirect
+	github.com/blevesearch/gtreap v0.1.1 // indirect
+	github.com/blevesearch/scorch_segment_api/v2 v2.3.9 // indirect
+	github.com/blevesearch/upsidedown_store_api v1.0.2 // indirect
+	github.com/blevesearch/vellum v1.1.0 // indirect
+	github.com/blevesearch/zapx/v11 v11.4.1 // indirect
+	github.com/blevesearch/zapx/v12 v12.4.1 // indirect
+	github.com/blevesearch/zapx/v13 v13.4.1 // indirect
+	github.com/blevesearch/zapx/v14 v14.4.1 // indirect
+	github.com/blevesearch/zapx/v15 v15.4.1 // indirect
+	github.com/blevesearch/zapx/v16 v16.2.2 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/charmbracelet/colorprofile v0.3.0 // indirect
 	github.com/charmbracelet/x/cellbuf v0.0.13 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
+	github.com/felixge/fgprof v0.9.3 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-go-golems/bobatea v0.0.11 // indirect
 	github.com/go-go-golems/sqleton v0.2.4 // indirect
@@ -140,6 +156,7 @@ require (
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
 	github.com/go-sql-driver/mysql v1.9.1 // indirect
 	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
+	github.com/golang/geo v0.0.0-20210211234256-740aa86cb551 // indirect
 	github.com/google/pprof v0.0.0-20240727154555-813a5fbdbec8 // indirect
 	github.com/google/s2a-go v0.1.8 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.4 // indirect
@@ -194,6 +211,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.29.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
+	golang.org/x/time v0.8.0 // indirect
 	gopkg.in/cenkalti/backoff.v1 v1.1.0 // indirect
 )
 
@@ -267,11 +285,9 @@ require (
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/gobwas/ws v1.2.1 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
-	github.com/gofrs/uuid v4.4.0+incompatible // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
-	github.com/gomodule/redigo v1.8.4 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/hashicorp/go-version v1.7.0 // indirect
