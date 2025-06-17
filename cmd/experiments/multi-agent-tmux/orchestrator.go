@@ -137,7 +137,7 @@ func (o *Orchestrator) setupPanesAndSockets(mainWindow *gotmux.Window) error {
 		log.Warn().Err(err).Msg("Failed to setup status pane TUI")
 	} else {
 		// Send Enter to execute the command
-		err = statusPane.SendKeys("")
+		err = statusPane.SendKeys("\n")
 		if err != nil {
 			log.Warn().Err(err).Msg("Failed to send Enter to status pane")
 		}
@@ -149,8 +149,31 @@ func (o *Orchestrator) setupPanesAndSockets(mainWindow *gotmux.Window) error {
 		agentIDs = append(agentIDs, agentID)
 	}
 
-	// Split panes for agents
-	currentPane := statusPane
+	// -----------------------------------------------------------------------------
+	// Layout strategy:
+	// 1. Split the initial status pane horizontally, creating a *right* column that
+	//    will host all agent panes stacked vertically.
+	// 2. The status pane (index 0) therefore spans the full height on the *left*.
+	// 3. All agent panes live in the *right* column, one below the other.
+	// -----------------------------------------------------------------------------
+
+	// 1. Create the right column for agents by horizontally splitting the status
+	//    pane.
+	if err := statusPane.SplitWindow(&gotmux.SplitWindowOptions{
+		SplitDirection: gotmux.PaneSplitDirectionHorizontal, // "-h" – vertical bar
+	}); err != nil {
+		return fmt.Errorf("failed to create right column for agents: %w", err)
+	}
+
+	// The newly-created pane (index 1) is the top pane in the right column.
+	rightPane, err := mainWindow.GetPaneByIndex(1)
+	if err != nil {
+		return fmt.Errorf("failed to get right pane after horizontal split: %w", err)
+	}
+
+	currentPane := rightPane
+	currentPaneIndex := 1 // keep track of the tmux pane index we are filling
+
 	for i, agentID := range agentIDs {
 		agent := o.agents[agentID]
 
@@ -162,8 +185,7 @@ func (o *Orchestrator) setupPanesAndSockets(mainWindow *gotmux.Window) error {
 		o.agentSockets[agentID] = socketPath
 
 		// Initialize agent display
-		err = o.socketServer.InitializeAgent(agentID, agent.Name(), agent.Role())
-		if err != nil {
+		if err := o.socketServer.InitializeAgent(agentID, agent.Name(), agent.Role()); err != nil {
 			log.Warn().Err(err).Str("agent", agentID).Msg("Failed to initialize agent display")
 		}
 
@@ -171,33 +193,17 @@ func (o *Orchestrator) setupPanesAndSockets(mainWindow *gotmux.Window) error {
 		readyMsg := NewAgentUpdateMessage(agentID, agent.Name(), agent.Role(), "Ready for tasks", "status")
 		o.socketServer.SendToAgent(agentID, readyMsg)
 
-		// Split the current pane to create a new pane
-		if i < len(agentIDs)-1 { // Don't split on the last iteration
-			err = currentPane.Split()
-			if err != nil {
-				return fmt.Errorf("failed to split pane for agent %s: %w", agentID, err)
-			}
-
-			// Get the new pane (should be the next index)
-			newPane, err := mainWindow.GetPaneByIndex(i + 1)
-			if err != nil {
-				return fmt.Errorf("failed to get new pane for agent %s: %w", agentID, err)
-			}
-			currentPane = newPane
-		}
-
-		// Store the pane reference
+		// Store the pane reference **before** potentially splitting it for the next
+		// agent.
 		o.agentPanes[agentID] = currentPane
 
 		// Setup the pane to run TUI for this agent
 		tuiCmd := fmt.Sprintf("cd %s && go run . tui --socket %s", ".", socketPath)
-		err = currentPane.SendKeys(tuiCmd)
-		if err != nil {
+		if err := currentPane.SendKeys(tuiCmd); err != nil {
 			log.Warn().Err(err).Str("agent", agentID).Msg("Failed to setup agent pane TUI")
 		} else {
 			// Send Enter to execute the command
-			err = currentPane.SendKeys("")
-			if err != nil {
+			if err := currentPane.SendKeys("\n"); err != nil {
 				log.Warn().Err(err).Str("agent", agentID).Msg("Failed to send Enter to agent pane")
 			}
 		}
@@ -207,6 +213,23 @@ func (o *Orchestrator) setupPanesAndSockets(mainWindow *gotmux.Window) error {
 			Str("agent_name", agent.Name()).
 			Str("socket_path", socketPath).
 			Msg("Setup agent pane and socket")
+
+		// If there is another agent to place, split the current agent pane *vertically*
+		// to create a new pane *below* it.
+		if i < len(agentIDs)-1 {
+			if err := currentPane.SplitWindow(&gotmux.SplitWindowOptions{
+				SplitDirection: gotmux.PaneSplitDirectionVertical, // "-v" – horizontal bar
+			}); err != nil {
+				return fmt.Errorf("failed to split pane for next agent after %s: %w", agentID, err)
+			}
+
+			currentPaneIndex++
+			newPane, err := mainWindow.GetPaneByIndex(currentPaneIndex)
+			if err != nil {
+				return fmt.Errorf("failed to get new pane for agent after %s: %w", agentID, err)
+			}
+			currentPane = newPane
+		}
 	}
 
 	return nil
