@@ -1,7 +1,6 @@
 package main
 
 import (
-    "bufio"
     "context"
     "embed"
     "encoding/json"
@@ -16,7 +15,9 @@ import (
     "strconv"
     "strings"
     "sync"
+    "syscall"
     "time"
+    "unsafe"
 
     "github.com/creack/pty"
     "github.com/gorilla/websocket"
@@ -97,6 +98,39 @@ func (h *Hub) broadcast(ev Event) {
             delete(h.conns, c)
         }
     }
+}
+
+// setTermiosNonBlocking sets VMIN=0 VTIME=0 on the PTY to enable non-blocking reads
+func setTermiosNonBlocking(fd int) error {
+    var termios syscall.Termios
+    
+    // Get current termios settings
+    _, _, errno := syscall.Syscall(
+        syscall.SYS_IOCTL,
+        uintptr(fd),
+        syscall.TCGETS,
+        uintptr(unsafe.Pointer(&termios)),
+    )
+    if errno != 0 {
+        return errno
+    }
+    
+    // Set VMIN=0 VTIME=0 for non-blocking reads
+    termios.Cc[syscall.VMIN] = 0
+    termios.Cc[syscall.VTIME] = 0
+    
+    // Apply the settings
+    _, _, errno = syscall.Syscall(
+        syscall.SYS_IOCTL,
+        uintptr(fd),
+        syscall.TCSETS,
+        uintptr(unsafe.Pointer(&termios)),
+    )
+    if errno != 0 {
+        return errno
+    }
+    
+    return nil
 }
 
 func main() {
@@ -207,6 +241,11 @@ func run(ctx context.Context) error {
             }
             ptyFile = file
             _ = pty.Setsize(ptyFile, &pty.Winsize{Cols: 120, Rows: 40})
+            if err := setTermiosNonBlocking(int(ptyFile.Fd())); err != nil {
+                log.Printf("Warning: failed to set termios non-blocking: %v\n", err)
+            } else {
+                log.Println("Set termios VMIN=0 VTIME=0 for non-blocking reads")
+            }
             log.Println("AMP started within PTY; resizing to 120x40")
         } else {
             ampCmd := exec.CommandContext(ctx, ampPath)
@@ -216,6 +255,11 @@ func run(ctx context.Context) error {
             }
             ptyFile = file
             _ = pty.Setsize(ptyFile, &pty.Winsize{Cols: 120, Rows: 40})
+            if err := setTermiosNonBlocking(int(ptyFile.Fd())); err != nil {
+                log.Printf("Warning: failed to set termios non-blocking: %v\n", err)
+            } else {
+                log.Println("Set termios VMIN=0 VTIME=0 for non-blocking reads")
+            }
             log.Println("AMP started within PTY; resizing to 120x40")
         }
 
@@ -238,34 +282,118 @@ func run(ctx context.Context) error {
 
     // Reader goroutine: parse amp output and broadcast state
     eg.Go(func() error {
-        scanner := bufio.NewScanner(reader)
-        scanner.Split(crlfSplitFunc)
+        buf := make([]byte, 1024)
+        var lineBuffer strings.Builder
         var lastState AmpState
-        for scanner.Scan() {
-            rawLine := strings.Trim(scanner.Text(), "\r")
+        
+        for {
             if verbose {
-                log.Printf("amp> %s %s\n", time.Now().Format("15:04:05.000"), strconv.Quote(rawLine))
+                log.Printf("raw> about to read...")
             }
-            line := stripAnsi.ReplaceAllString(rawLine, "")
-            state := detectState(line)
-            // If still in thinking mode and we encounter a non-empty line that isn't classified,
-            // treat it as the beginning of output. This allows us to recognise when the agent
-            // has finished "◉ Thinking…" and started replying (e.g. the "Hello!" line).
-            if state == "" && strings.TrimSpace(line) != "" && lastState == StateThinking {
-                state = StateOutput
+            n, err := reader.Read(buf)
+            if verbose {
+                log.Printf("raw> read returned: n=%d, err=%v", n, err)
+                if n > 0 {
+                    log.Printf("raw> data: %s", strconv.Quote(string(buf[:n])))
+                }
             }
-            if state != "" && state != lastState {
-                lastState = state
-                hub.broadcast(Event{State: state, Line: line, TS: time.Now().UnixMilli(), From: "amp"})
-                log.Printf("State change: %s -- %s\n", state, line)
+            if err != nil {
+                if err == io.EOF {
+                    break
+                }
+                return errors.Wrap(err, "reading from amp")
             }
-            // Always broadcast raw output for interested clients
-            if state == StateOutput {
-                hub.broadcast(Event{State: StateOutput, Line: line, TS: time.Now().UnixMilli(), From: "amp"})
+            
+            if n == 0 {
+                if verbose {
+                    log.Printf("raw> zero bytes read, continuing...")
+                }
+                continue
             }
-        }
-        if scanner.Err() != nil {
-            return errors.Wrap(scanner.Err(), "scanner error")
+            
+            // Process each byte to find line boundaries
+            for i := 0; i < n; i++ {
+                b := buf[i]
+                lineBuffer.WriteByte(b)
+                
+                bufferContent := lineBuffer.String()
+                
+                // Check if we have a thinking pattern in the buffer
+                if reThinking.MatchString(bufferContent) || reRunning.MatchString(bufferContent) {
+                    // Found a thinking/running pattern, emit it immediately
+                    rawLine := bufferContent
+                    lineBuffer.Reset()
+                    
+                    if verbose {
+                        log.Printf("amp> %s %s (thinking pattern)\n", time.Now().Format("15:04:05.000"), strconv.Quote(rawLine))
+                    }
+                    
+                    line := stripAnsi.ReplaceAllString(rawLine, "")
+                    state := detectState(line)
+                    if state != "" && state != lastState {
+                        lastState = state
+                        hub.broadcast(Event{State: state, Line: line, TS: time.Now().UnixMilli(), From: "amp"})
+                        log.Printf("State change: %s -- %s\n", state, line)
+                    }
+                    continue
+                }
+                
+                // Check if buffer ends with cursor/line control escape sequences (potential delimiters)
+                escapeDelimiters := []string{
+                    "\x1b[2A",   // cursor up
+                    "\x1b[1G",   // move to column 1
+                    "\x1b[0K",   // clear line
+                    "\x1b[2B",   // cursor down
+                    "\x1b[3G",   // move to column 3
+                    "\x1b[?25h", // show cursor
+                    "\x1b[?25l", // hide cursor
+                    "\x1b[0J",   // clear from cursor to end
+                }
+                
+                shouldEmit := false
+                for _, delimiter := range escapeDelimiters {
+                    if strings.HasSuffix(bufferContent, delimiter) {
+                        shouldEmit = true
+                        break
+                    }
+                }
+                
+                // Check for normal line boundaries
+                if b == '\n' || b == '\r' {
+                    shouldEmit = true
+                }
+                
+                if shouldEmit && len(strings.TrimSpace(stripAnsi.ReplaceAllString(bufferContent, ""))) > 0 {
+                    // Found delimiter, process the accumulated content
+                    rawLine := bufferContent
+                    lineBuffer.Reset()
+                    
+                    if verbose {
+                        log.Printf("amp> %s %s (escape delimiter)\n", time.Now().Format("15:04:05.000"), strconv.Quote(rawLine))
+                    }
+                    
+                    line := stripAnsi.ReplaceAllString(rawLine, "")
+                    state := detectState(line)
+                    // If still in thinking mode and we encounter a non-empty line that isn't classified,
+                    // treat it as the beginning of output. This allows us to recognise when the agent
+                    // has finished "◉ Thinking…" and started replying (e.g. the "Hello!" line).
+                    if state == "" && strings.TrimSpace(line) != "" && lastState == StateThinking {
+                        state = StateOutput
+                    }
+                    if state != "" && state != lastState {
+                        lastState = state
+                        hub.broadcast(Event{State: state, Line: line, TS: time.Now().UnixMilli(), From: "amp"})
+                        log.Printf("State change: %s -- %s\n", state, line)
+                    }
+                    // Always broadcast raw output for interested clients
+                    if state == StateOutput {
+                        hub.broadcast(Event{State: StateOutput, Line: line, TS: time.Now().UnixMilli(), From: "amp"})
+                    }
+                } else if shouldEmit {
+                    // Empty content after stripping ANSI, just reset buffer
+                    lineBuffer.Reset()
+                }
+            }
         }
         return nil
     })
@@ -358,18 +486,4 @@ func detectState(line string) AmpState {
     }
 }
 
-// crlfSplitFunc splits on either \n or \r to capture lines that use carriage returns for animations
-func crlfSplitFunc(data []byte, atEOF bool) (advance int, token []byte, err error) {
-    if atEOF && len(data) == 0 {
-        return 0, nil, nil
-    }
-    for i, b := range data {
-        if b == '\n' || b == '\r' {
-            return i + 1, data[:i], nil
-        }
-    }
-    if atEOF {
-        return len(data), data, nil
-    }
-    return 0, nil, nil
-} 
+ 
