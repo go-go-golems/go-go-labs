@@ -218,6 +218,15 @@ SELECT
 FROM documents
 ORDER BY similarity DESC
 LIMIT 5;
+
+-- With embedding generation function, you can also do:
+SELECT 
+    id,
+    content,
+    cosine_similarity(embedding, get_embedding('your search query')) as similarity
+FROM documents
+ORDER BY similarity DESC
+LIMIT 5;
 ```
 
 ## Ollama Integration
@@ -301,6 +310,57 @@ defer cancel()
 
 // Wrap errors with context
 return nil, errors.Wrap(err, "failed to get embedding from Ollama")
+```
+
+## Advanced: Embedding Generation in SQLite
+
+### The get_embedding Function
+
+Beyond similarity calculations, you can register functions that generate embeddings directly in SQL:
+
+```go
+// Register embedding generation function
+err := conn.RegisterFunc("get_embedding", func(text string) string {
+    if text == "" {
+        return "[]" // Return empty array for empty text
+    }
+
+    // Create context with timeout for HTTP request
+    ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+    defer cancel()
+
+    embedding, err := ollama.GetEmbedding(ctx, text)
+    if err != nil {
+        logger.Error().Err(err).Msg("failed to get embedding")
+        return "[]" // Return empty array on error
+    }
+
+    // Convert to JSON string
+    embeddingJSON, _ := json.Marshal(embedding)
+    return string(embeddingJSON)
+}, false) // false = not pure, as it makes HTTP calls
+```
+
+### Key Considerations for HTTP-calling Functions
+
+1. **Not Pure**: Mark as `false` since it makes external HTTP calls
+2. **Timeout Handling**: Always use context with timeout
+3. **Error Handling**: Return safe default values on errors
+4. **Performance**: Consider caching for frequently used texts
+
+### SQL Usage Examples
+
+```sql
+-- Insert with computed embedding
+INSERT INTO documents (content, embedding) 
+VALUES ('text', get_embedding('text'));
+
+-- Real-time similarity search
+SELECT content, cosine_similarity(embedding, get_embedding('query')) as sim
+FROM documents ORDER BY sim DESC;
+
+-- Compare any two texts
+SELECT cosine_similarity(get_embedding('text1'), get_embedding('text2'));
 ```
 
 ## Complete Working Example

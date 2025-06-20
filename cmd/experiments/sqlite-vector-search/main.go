@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
@@ -102,7 +103,7 @@ func cosineSimilarity(a, b []float64) float64 {
 	return dotProduct / (math.Sqrt(normA) * math.Sqrt(normB))
 }
 
-func registerSQLiteFunctions(db *sql.DB) error {
+func registerSQLiteFunctions(db *sql.DB, ollama *OllamaClient) error {
 	sqliteConn, err := db.Conn(context.Background())
 	if err != nil {
 		return errors.Wrap(err, "failed to get connection")
@@ -113,7 +114,7 @@ func registerSQLiteFunctions(db *sql.DB) error {
 		conn := driverConn.(*sqlite3.SQLiteConn)
 
 		// Register cosine similarity function
-		return conn.RegisterFunc("cosine_similarity", func(a, b string) float64 {
+		if err := conn.RegisterFunc("cosine_similarity", func(a, b string) float64 {
 			var vecA, vecB []float64
 			
 			if err := json.Unmarshal([]byte(a), &vecA); err != nil {
@@ -124,7 +125,39 @@ func registerSQLiteFunctions(db *sql.DB) error {
 			}
 
 			return cosineSimilarity(vecA, vecB)
-		}, true)
+		}, true); err != nil {
+			return err
+		}
+
+		// Register embedding generation function
+		if err := conn.RegisterFunc("get_embedding", func(text string) string {
+			if text == "" {
+				return "[]" // Return empty array for empty text
+			}
+
+			// Create context with timeout for HTTP request
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+
+			embedding, err := ollama.GetEmbedding(ctx, text)
+			if err != nil {
+				ollama.logger.Error().Err(err).Str("text", text).Msg("failed to get embedding in SQL function")
+				return "[]" // Return empty array on error
+			}
+
+			// Convert to JSON string
+			embeddingJSON, err := json.Marshal(embedding)
+			if err != nil {
+				ollama.logger.Error().Err(err).Msg("failed to marshal embedding")
+				return "[]"
+			}
+
+			return string(embeddingJSON)
+		}, false); err != nil { // false = not pure, as it makes HTTP calls
+			return err
+		}
+
+		return nil
 	})
 }
 
@@ -227,7 +260,7 @@ func main() {
 			defer db.Close()
 
 			// Register custom functions
-			if err := registerSQLiteFunctions(db); err != nil {
+			if err := registerSQLiteFunctions(db, ollama); err != nil {
 				logger.Fatal().Err(err).Msg("failed to register functions")
 			}
 
@@ -322,7 +355,7 @@ func main() {
 			defer db.Close()
 
 			// Register custom functions
-			if err := registerSQLiteFunctions(db); err != nil {
+			if err := registerSQLiteFunctions(db, ollama); err != nil {
 				logger.Fatal().Err(err).Msg("failed to register functions")
 			}
 
@@ -378,7 +411,7 @@ func main() {
 			defer db.Close()
 
 			// Register custom functions
-			if err := registerSQLiteFunctions(db); err != nil {
+			if err := registerSQLiteFunctions(db, ollama); err != nil {
 				logger.Fatal().Err(err).Msg("failed to register functions")
 			}
 
@@ -400,8 +433,18 @@ func main() {
 		},
 	}
 
+	// Add demo command for embedding function
+	demoCmd := &cobra.Command{
+		Use:   "demo",
+		Short: "Run embedding function demo (requires Ollama)",
+		Run: func(cmd *cobra.Command, args []string) {
+			runEmbeddingDemo()
+		},
+	}
+
 	rootCmd.AddCommand(searchCmd)
 	rootCmd.AddCommand(addCmd)
+	rootCmd.AddCommand(demoCmd)
 	addTestCommand(rootCmd)
 
 	if err := rootCmd.Execute(); err != nil {

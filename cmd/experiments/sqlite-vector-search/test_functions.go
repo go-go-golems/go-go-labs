@@ -9,6 +9,7 @@ import (
 	"os"
 
 	"github.com/mattn/go-sqlite3"
+	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -62,6 +63,15 @@ func createTestCommand() *cobra.Command {
 		Short: "Test error handling in functions",
 		Run: func(cmd *cobra.Command, args []string) {
 			testErrorHandling()
+		},
+	})
+
+	// Test embedding function
+	testCmd.AddCommand(&cobra.Command{
+		Use:   "embedding",
+		Short: "Test get_embedding function (requires Ollama)",
+		Run: func(cmd *cobra.Command, args []string) {
+			testEmbeddingFunction()
 		},
 	})
 
@@ -150,8 +160,12 @@ func testCosineSimilarity() {
 	}
 	defer db.Close()
 
+	// Create a mock Ollama client for testing
+	logger := zerolog.Nop() // Silent logger for tests
+	mockOllama := NewOllamaClient("http://127.0.0.1:11434", "all-minilm:latest", logger)
+
 	// Register the cosine similarity function
-	if err := registerSQLiteFunctions(db); err != nil {
+	if err := registerSQLiteFunctions(db, mockOllama); err != nil {
 		log.Fatal(err)
 	}
 
@@ -377,10 +391,14 @@ func testErrorHandling() {
 	}
 	defer db.Close()
 
-	// Register the cosine similarity function (which handles errors)
-	if err := registerSQLiteFunctions(db); err != nil {
-		log.Fatal(err)
-	}
+	// Create a mock Ollama client for testing
+	logger := zerolog.Nop() // Silent logger for tests
+	mockOllama := NewOllamaClient("http://127.0.0.1:11434", "all-minilm:latest", logger)
+
+		// Register the cosine similarity function (which handles errors)
+		if err := registerSQLiteFunctions(db, mockOllama); err != nil {
+			log.Fatal(err)
+		}
 
 	// Test error conditions
 	tests := []struct {
@@ -416,6 +434,140 @@ func testErrorHandling() {
 			fmt.Printf("❌ %s: %.3f (expected %.3f) - %s\n", 
 				test.name, result, test.expected, test.description)
 		}
+	}
+}
+
+func testEmbeddingFunction() {
+	fmt.Println("Testing get_embedding function...")
+	
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	// Create Ollama client for real testing
+	logger := zerolog.New(os.Stderr).With().Timestamp().Logger().Level(zerolog.InfoLevel)
+	ollama := NewOllamaClient("http://127.0.0.1:11434", "all-minilm:latest", logger)
+
+	// Register functions including get_embedding
+	conn, err := db.Conn(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer conn.Close()
+
+	if err := registerSQLiteFunctions(db, ollama); err != nil {
+		log.Fatal(err)
+	}
+
+	// Test embedding generation
+	tests := []struct {
+		name        string
+		text        string
+		expectEmpty bool
+		description string
+	}{
+		{"Simple text", "hello world", false, "Should return valid embedding"},
+		{"Empty text", "", true, "Should return empty array for empty text"},
+		{"Complex text", "The quick brown fox jumps over the lazy dog", false, "Should handle longer text"},
+		{"Technical text", "machine learning and artificial intelligence", false, "Should handle technical terms"},
+	}
+
+	for _, test := range tests {
+		var result string
+		err := conn.QueryRowContext(context.Background(), "SELECT get_embedding(?)", test.text).Scan(&result)
+		if err != nil {
+			fmt.Printf("❌ %s: Query failed - %v\n", test.name, err)
+			continue
+		}
+
+		if test.expectEmpty {
+			if result == "[]" {
+				fmt.Printf("✅ %s: Empty array returned - %s\n", test.name, test.description)
+			} else {
+				fmt.Printf("❌ %s: Expected empty array, got %s - %s\n", test.name, result, test.description)
+			}
+		} else {
+			// Parse the JSON to validate it's a proper embedding
+			var embedding []float64
+			if err := json.Unmarshal([]byte(result), &embedding); err != nil {
+				fmt.Printf("❌ %s: Invalid JSON returned - %v\n", test.name, err)
+				continue
+			}
+
+			if len(embedding) > 0 {
+				fmt.Printf("✅ %s: Valid embedding with %d dimensions - %s\n", 
+					test.name, len(embedding), test.description)
+			} else {
+				fmt.Printf("❌ %s: Empty embedding returned - %s\n", test.name, test.description)
+			}
+		}
+	}
+
+	// Test SQL query integration
+	fmt.Println("\nTesting SQL integration...")
+	
+	// Create a test table
+	_, err = conn.ExecContext(context.Background(), `
+		CREATE TABLE test_docs (
+			id INTEGER PRIMARY KEY,
+			content TEXT,
+			embedding TEXT
+		)
+	`)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Insert document with computed embedding
+	testText := "This is a test document"
+	_, err = conn.ExecContext(context.Background(), 
+		"INSERT INTO test_docs (content, embedding) VALUES (?, get_embedding(?))", 
+		testText, testText)
+	if err != nil {
+		fmt.Printf("❌ SQL INSERT with get_embedding failed: %v\n", err)
+		return
+	}
+
+	// Verify the insertion worked
+	var content, embeddingStr string
+	err = conn.QueryRowContext(context.Background(), 
+		"SELECT content, embedding FROM test_docs WHERE id = 1").Scan(&content, &embeddingStr)
+	if err != nil {
+		fmt.Printf("❌ Failed to read inserted data: %v\n", err)
+		return
+	}
+
+	var embedding []float64
+	if err := json.Unmarshal([]byte(embeddingStr), &embedding); err != nil {
+		fmt.Printf("❌ Failed to parse stored embedding: %v\n", err)
+		return
+	}
+
+	fmt.Printf("✅ SQL INSERT with get_embedding successful: %d dimensions stored\n", len(embedding))
+
+	// Test similarity search with computed embedding
+	queryText := "test document"
+	rows, err := conn.QueryContext(context.Background(), `
+		SELECT content, cosine_similarity(embedding, get_embedding(?)) as similarity
+		FROM test_docs
+		ORDER BY similarity DESC
+	`, queryText)
+	if err != nil {
+		fmt.Printf("❌ Similarity search with get_embedding failed: %v\n", err)
+		return
+	}
+	defer rows.Close()
+
+	if rows.Next() {
+		var docContent string
+		var similarity float64
+		if err := rows.Scan(&docContent, &similarity); err != nil {
+			fmt.Printf("❌ Failed to scan similarity result: %v\n", err)
+			return
+		}
+		fmt.Printf("✅ Similarity search successful: '%s' similarity %.3f\n", docContent, similarity)
 	}
 }
 

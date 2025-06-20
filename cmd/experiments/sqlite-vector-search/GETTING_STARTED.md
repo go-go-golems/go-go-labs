@@ -148,9 +148,22 @@ Search Query → Ollama API → Query Vector → SQL Function → Results
 
 ### 3. SQL Usage
 
-Once registered, you can use the custom function in SQL:
+Once registered, you can use the custom functions in SQL:
 
 ```sql
+-- Generate embeddings directly in SQL
+INSERT INTO documents (content, embedding) 
+VALUES ('Your text here', get_embedding('Your text here'));
+
+-- Search using computed embeddings
+SELECT 
+    content,
+    cosine_similarity(embedding, get_embedding('your search query')) as similarity
+FROM documents
+ORDER BY similarity DESC
+LIMIT 5;
+
+-- Or use pre-computed embeddings
 SELECT 
     content,
     cosine_similarity(embedding, '[0.1, 0.2, 0.3, ...]') as similarity
@@ -262,6 +275,54 @@ db.SetMaxOpenConns(1) // For function registration consistency
 // Use streaming for large result sets
 // Close connections and statements properly
 ```
+
+## New: Direct Embedding Generation in SQL
+
+The `get_embedding()` function allows you to generate embeddings directly in SQL queries:
+
+### Real-time Similarity Search
+
+```sql
+-- Search without pre-computing embeddings
+SELECT 
+    content,
+    cosine_similarity(embedding, get_embedding('machine learning')) as similarity
+FROM documents
+WHERE similarity > 0.3
+ORDER BY similarity DESC;
+```
+
+### Batch Insert with Embeddings
+
+```sql
+-- Insert multiple documents with computed embeddings
+INSERT INTO documents (content, embedding)
+SELECT 
+    text_content,
+    get_embedding(text_content)
+FROM import_table;
+```
+
+### Dynamic Similarity Comparison
+
+```sql
+-- Compare similarity between any two texts
+SELECT cosine_similarity(
+    get_embedding('I love programming'),
+    get_embedding('Coding is fun')
+) as similarity;
+```
+
+### Update Existing Data
+
+```sql
+-- Add embeddings to existing documents
+UPDATE documents 
+SET embedding = get_embedding(content)
+WHERE embedding IS NULL;
+```
+
+See [sql_examples.sql](sql_examples.sql) for 17 comprehensive SQL examples.
 
 ## Advanced Topics
 
