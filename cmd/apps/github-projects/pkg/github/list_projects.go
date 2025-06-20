@@ -19,9 +19,9 @@ type ProjectSummary struct {
 
 // ListProjectsResponse represents the response from listing projects
 type ListProjectsResponse struct {
-	Projects []ProjectSummary `json:"projects"`
-	HasNextPage bool `json:"hasNextPage"`
-	EndCursor   *string `json:"endCursor"`
+	Projects    []ProjectSummary `json:"projects"`
+	HasNextPage bool             `json:"hasNextPage"`
+	EndCursor   *string          `json:"endCursor"`
 }
 
 // ListUserProjects lists projects for the authenticated user
@@ -58,7 +58,7 @@ func (c *Client) ListUserProjects(ctx context.Context, first int, after *string)
 	var resp struct {
 		Viewer struct {
 			ProjectsV2 struct {
-				Nodes []ProjectSummary `json:"nodes"`
+				Nodes    []ProjectSummary `json:"nodes"`
 				PageInfo struct {
 					HasNextPage bool    `json:"hasNextPage"`
 					EndCursor   *string `json:"endCursor"`
@@ -113,7 +113,7 @@ func (c *Client) ListOrganizationProjects(ctx context.Context, owner string, fir
 	var resp struct {
 		Organization struct {
 			ProjectsV2 struct {
-				Nodes []ProjectSummary `json:"nodes"`
+				Nodes    []ProjectSummary `json:"nodes"`
 				PageInfo struct {
 					HasNextPage bool    `json:"hasNextPage"`
 					EndCursor   *string `json:"endCursor"`

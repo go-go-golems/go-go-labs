@@ -25,12 +25,15 @@ managing project items, and updating custom fields.`,
 
 	// Create and add commands
 	commands := []func() error{
+		func() error { return addViewerCommand(rootCmd) },
 		func() error { return addProjectCommand(rootCmd) },
 		func() error { return addFieldsCommand(rootCmd) },
 		func() error { return addItemsCommand(rootCmd) },
 		func() error { return addIssueCommand(rootCmd) },
+		func() error { return addUpdateIssueCommand(rootCmd) },
 		func() error { return addListProjectsCommand(rootCmd) },
 		func() error { return addUpdateFieldCommand(rootCmd) },
+		func() error { return addMCPCommand(rootCmd) },
 	}
 
 	for _, addCmd := range commands {
@@ -108,6 +111,36 @@ func addIssueCommand(rootCmd *cobra.Command) error {
 
 func addListProjectsCommand(rootCmd *cobra.Command) error {
 	cmd, err := NewListProjectsCommand()
+	if err != nil {
+		return err
+	}
+
+	cobraCmd, err := cli.BuildCobraCommandFromCommand(cmd)
+	if err != nil {
+		return err
+	}
+
+	rootCmd.AddCommand(cobraCmd)
+	return nil
+}
+
+func addViewerCommand(rootCmd *cobra.Command) error {
+	cmd, err := NewViewerCommand()
+	if err != nil {
+		return err
+	}
+
+	cobraCmd, err := cli.BuildCobraCommandFromCommand(cmd)
+	if err != nil {
+		return err
+	}
+
+	rootCmd.AddCommand(cobraCmd)
+	return nil
+}
+
+func addUpdateIssueCommand(rootCmd *cobra.Command) error {
+	cmd, err := NewUpdateIssueCommand()
 	if err != nil {
 		return err
 	}

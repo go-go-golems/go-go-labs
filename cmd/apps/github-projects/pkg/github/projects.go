@@ -174,7 +174,7 @@ func (c *Client) GetProjectFields(ctx context.Context, projectID string) ([]Proj
 	}
 
 	log.Info().Interface("variables", variables).Msg("About to execute query with variables")
-	
+
 	if err := c.ExecuteQuery(ctx, query, variables, &resp); err != nil {
 		log.Error().Err(err).Msg("ExecuteQuery failed")
 		return nil, errors.Wrap(err, "failed to get project fields")

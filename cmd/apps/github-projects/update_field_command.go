@@ -23,16 +23,16 @@ type UpdateFieldCommand struct {
 
 // UpdateFieldSettings holds the command settings
 type UpdateFieldSettings struct {
-	Owner               string `glazed.parameter:"owner"`
-	Number              int    `glazed.parameter:"number"`
-	ItemID              string `glazed.parameter:"item-id"`
-	FieldID             string `glazed.parameter:"field-id"`
-	TextValue           string `glazed.parameter:"text-value"`
-	NumberValue         float64 `glazed.parameter:"number-value"`
-	DateValue           string `glazed.parameter:"date-value"`
-	SingleSelectOption  string `glazed.parameter:"single-select-option"`
-	IterationID         string `glazed.parameter:"iteration-id"`
-	LogLevel            string `glazed.parameter:"log-level"`
+	Owner              string  `glazed.parameter:"owner"`
+	Number             int     `glazed.parameter:"number"`
+	ItemID             string  `glazed.parameter:"item-id"`
+	FieldID            string  `glazed.parameter:"field-id"`
+	TextValue          string  `glazed.parameter:"text-value"`
+	NumberValue        float64 `glazed.parameter:"number-value"`
+	DateValue          string  `glazed.parameter:"date-value"`
+	SingleSelectOption string  `glazed.parameter:"single-select-option"`
+	IterationID        string  `glazed.parameter:"iteration-id"`
+	LogLevel           string  `glazed.parameter:"log-level"`
 }
 
 // Ensure interface implementation

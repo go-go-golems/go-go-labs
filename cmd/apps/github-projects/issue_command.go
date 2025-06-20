@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"os"
+	"strings"
 
 	"github.com/go-go-golems/glazed/pkg/cmds"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
@@ -27,6 +28,7 @@ type IssueSettings struct {
 	RepoName      string `glazed.parameter:"repo-name"`
 	Title         string `glazed.parameter:"title"`
 	Body          string `glazed.parameter:"body"`
+	Labels        string `glazed.parameter:"labels"`
 	ProjectOwner  string `glazed.parameter:"project-owner"`
 	ProjectNumber int    `glazed.parameter:"project-number"`
 	LogLevel      string `glazed.parameter:"log-level"`
@@ -66,10 +68,29 @@ func (c *IssueCommand) RunIntoGlazeProcessor(
 		return errors.Wrap(err, "failed to get repository")
 	}
 
-	// Create issue
-	issue, err := client.CreateIssue(ctx, repo.ID, s.Title, s.Body)
-	if err != nil {
-		return errors.Wrap(err, "failed to create issue")
+	// Create issue with or without labels
+	var issue *github.Issue
+	if s.Labels != "" {
+		labelNames := strings.Split(s.Labels, ",")
+		for i, label := range labelNames {
+			labelNames[i] = strings.TrimSpace(label)
+		}
+
+		// Get label IDs from names
+		labelIDs, err := client.GetLabelIDsByNames(ctx, s.RepoOwner, s.RepoName, labelNames)
+		if err != nil {
+			return errors.Wrap(err, "failed to get label IDs")
+		}
+
+		issue, err = client.CreateIssueWithLabels(ctx, repo.ID, s.Title, s.Body, labelIDs)
+		if err != nil {
+			return errors.Wrap(err, "failed to create issue with labels")
+		}
+	} else {
+		issue, err = client.CreateIssue(ctx, repo.ID, s.Title, s.Body)
+		if err != nil {
+			return errors.Wrap(err, "failed to create issue")
+		}
 	}
 
 	logger.Info().
@@ -78,12 +99,19 @@ func (c *IssueCommand) RunIntoGlazeProcessor(
 		Str("issue_url", issue.URL).
 		Msg("Issue created successfully")
 
+	// Extract label names for display
+	var labelNames []string
+	for _, label := range issue.Labels {
+		labelNames = append(labelNames, label.Name)
+	}
+
 	row := types.NewRow(
 		types.MRP("issue_id", issue.ID),
 		types.MRP("issue_number", issue.Number),
 		types.MRP("issue_url", issue.URL),
 		types.MRP("title", issue.Title),
 		types.MRP("body", issue.Body),
+		types.MRP("labels", labelNames),
 	)
 
 	// If project details are provided, add issue to project
@@ -160,6 +188,12 @@ Examples:
 				"body",
 				parameters.ParameterTypeString,
 				parameters.WithHelp("Issue body"),
+				parameters.WithDefault(""),
+			),
+			parameters.NewParameterDefinition(
+				"labels",
+				parameters.ParameterTypeString,
+				parameters.WithHelp("Comma-separated list of label names to apply to the issue"),
 				parameters.WithDefault(""),
 			),
 			parameters.NewParameterDefinition(
