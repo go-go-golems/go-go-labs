@@ -30,6 +30,7 @@ managing project items, and updating custom fields.`,
 		func() error { return addItemsCommand(rootCmd) },
 		func() error { return addIssueCommand(rootCmd) },
 		func() error { return addListProjectsCommand(rootCmd) },
+		func() error { return addUpdateFieldCommand(rootCmd) },
 	}
 
 	for _, addCmd := range commands {
@@ -107,6 +108,21 @@ func addIssueCommand(rootCmd *cobra.Command) error {
 
 func addListProjectsCommand(rootCmd *cobra.Command) error {
 	cmd, err := NewListProjectsCommand()
+	if err != nil {
+		return err
+	}
+
+	cobraCmd, err := cli.BuildCobraCommandFromCommand(cmd)
+	if err != nil {
+		return err
+	}
+
+	rootCmd.AddCommand(cobraCmd)
+	return nil
+}
+
+func addUpdateFieldCommand(rootCmd *cobra.Command) error {
+	cmd, err := NewUpdateFieldCommand()
 	if err != nil {
 		return err
 	}

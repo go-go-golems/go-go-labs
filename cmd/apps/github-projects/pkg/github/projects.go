@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 )
 
 // Project represents a GitHub Project v2
@@ -126,16 +127,21 @@ func (c *Client) GetProjectFields(ctx context.Context, projectID string) ([]Proj
 				... on ProjectV2 {
 					fields(first: 20) {
 						nodes {
-							__typename
-							id
-							name
+							... on ProjectV2Field {
+								id
+								name
+							}
 							... on ProjectV2SingleSelectField {
+								id
+								name
 								options {
 									id
 									name
 								}
 							}
 							... on ProjectV2IterationField {
+								id
+								name
 								configuration {
 									iterations {
 										id
@@ -151,6 +157,10 @@ func (c *Client) GetProjectFields(ctx context.Context, projectID string) ([]Proj
 		}
 	`
 
+	log.Info().Str("projectID", projectID).Msg("GetProjectFields called")
+	log.Info().Str("query", query).Msg("GraphQL query being executed")
+	log.Info().Msg("About to call ExecuteQuery")
+
 	variables := map[string]interface{}{
 		"projectId": projectID,
 	}
@@ -163,9 +173,15 @@ func (c *Client) GetProjectFields(ctx context.Context, projectID string) ([]Proj
 		} `json:"node"`
 	}
 
+	log.Info().Interface("variables", variables).Msg("About to execute query with variables")
+	
 	if err := c.ExecuteQuery(ctx, query, variables, &resp); err != nil {
+		log.Error().Err(err).Msg("ExecuteQuery failed")
 		return nil, errors.Wrap(err, "failed to get project fields")
 	}
+
+	log.Info().Interface("response", resp).Msg("Query executed successfully")
+	log.Info().Int("fieldCount", len(resp.Node.Fields.Nodes)).Msg("Number of fields returned")
 
 	return resp.Node.Fields.Nodes, nil
 }
