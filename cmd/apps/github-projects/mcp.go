@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,6 +20,7 @@ type Task struct {
 	Content  string    `json:"content"`
 	Status   string    `json:"status"`   // "todo", "in-progress", "completed"
 	Priority string    `json:"priority"` // "low", "medium", "high"
+	Labels   []string  `json:"labels"`   // Optional labels for categorization
 	Created  time.Time `json:"created"`
 	Updated  time.Time `json:"updated"`
 }
@@ -97,24 +99,13 @@ func addMCPCommand(rootCmd *cobra.Command) error {
 	return embeddable.AddMCPCommand(rootCmd,
 		embeddable.WithName("GitHub GraphQL CLI with Task Management"),
 		embeddable.WithVersion("1.0.0"),
-		embeddable.WithServerDescription("GitHub GraphQL CLI enhanced with task management capabilities for project coordination"),
+		embeddable.WithServerDescription(fmt.Sprintf("GitHub GraphQL CLI enhanced with task management capabilities for project coordination. Connected to %s project #%d", githubConfig.Owner, githubConfig.ProjectNumber)),
 		
 		// Read tasks tool
 		embeddable.WithEnhancedTool("read_tasks", readTasksHandler,
 			embeddable.WithEnhancedDescription("Get all current tasks for the agent session"),
 			embeddable.WithReadOnlyHint(true),
 			embeddable.WithIdempotentHint(true),
-		),
-		
-		// Write tasks tool (replace all)
-		embeddable.WithEnhancedTool("write_tasks", writeTasksHandler,
-			embeddable.WithEnhancedDescription("Replace all tasks for the agent session with provided tasks"),
-			embeddable.WithDestructiveHint(true),
-			embeddable.WithStringProperty("tasks_json",
-				embeddable.PropertyDescription("JSON array of tasks to set"),
-				embeddable.PropertyRequired(),
-				embeddable.MinLength(1),
-			),
 		),
 		
 		// Add task tool
@@ -129,6 +120,9 @@ func addMCPCommand(rootCmd *cobra.Command) error {
 				embeddable.PropertyDescription("Priority level"),
 				embeddable.StringEnum("low", "medium", "high"),
 				embeddable.DefaultString("medium"),
+			),
+			embeddable.WithStringProperty("labels",
+				embeddable.PropertyDescription("Comma-separated labels for categorization"),
 			),
 		),
 		
@@ -149,6 +143,9 @@ func addMCPCommand(rootCmd *cobra.Command) error {
 			embeddable.WithStringProperty("priority",
 				embeddable.PropertyDescription("New task priority"),
 				embeddable.StringEnum("low", "medium", "high"),
+			),
+			embeddable.WithStringProperty("labels",
+				embeddable.PropertyDescription("Comma-separated labels for categorization"),
 			),
 		),
 		
@@ -187,56 +184,15 @@ func readTasksHandler(ctx context.Context, args embeddable.Arguments) (*protocol
 		return nil, fmt.Errorf("failed to marshal tasks: %w", err)
 	}
 
+	result := fmt.Sprintf("Current tasks (%d total) for GitHub project %s/%d:\n%s", 
+		len(tasks), githubConfig.Owner, githubConfig.ProjectNumber, string(tasksJSON))
+
 	return protocol.NewToolResult(
-		protocol.WithText(fmt.Sprintf("Current tasks (%d total):\n%s", len(tasks), string(tasksJSON))),
+		protocol.WithText(result),
 	), nil
 }
 
-func writeTasksHandler(ctx context.Context, args embeddable.Arguments) (*protocol.ToolResult, error) {
-	sessionID, err := getSessionID(ctx)
-	if err != nil {
-		return protocol.NewErrorToolResult(protocol.NewTextContent("Session error: " + err.Error())), nil
-	}
 
-	tasksJSON, err := args.RequireString("tasks_json")
-	if err != nil {
-		return protocol.NewErrorToolResult(protocol.NewTextContent("tasks_json is required")), nil
-	}
-
-	var tasks []Task
-	if err := json.Unmarshal([]byte(tasksJSON), &tasks); err != nil {
-		return protocol.NewErrorToolResult(protocol.NewTextContent("Invalid JSON format: " + err.Error())), nil
-	}
-
-	// Validate tasks
-	for i, task := range tasks {
-		if task.ID == "" {
-			return protocol.NewErrorToolResult(protocol.NewTextContent(fmt.Sprintf("Task %d missing ID", i))), nil
-		}
-		if task.Content == "" {
-			return protocol.NewErrorToolResult(protocol.NewTextContent(fmt.Sprintf("Task %s missing content", task.ID))), nil
-		}
-		if !isValidStatus(task.Status) {
-			return protocol.NewErrorToolResult(protocol.NewTextContent(fmt.Sprintf("Task %s has invalid status: %s", task.ID, task.Status))), nil
-		}
-		if !isValidPriority(task.Priority) {
-			return protocol.NewErrorToolResult(protocol.NewTextContent(fmt.Sprintf("Task %s has invalid priority: %s", task.ID, task.Priority))), nil
-		}
-		// Set timestamps if not provided
-		if tasks[i].Created.IsZero() {
-			tasks[i].Created = time.Now()
-		}
-		if tasks[i].Updated.IsZero() {
-			tasks[i].Updated = time.Now()
-		}
-	}
-
-	taskStore.SetTasks(sessionID, tasks)
-
-	return protocol.NewToolResult(
-		protocol.WithText(fmt.Sprintf("Successfully replaced all tasks. New task count: %d", len(tasks))),
-	), nil
-}
 
 func addTaskHandler(ctx context.Context, args embeddable.Arguments) (*protocol.ToolResult, error) {
 	sessionID, err := getSessionID(ctx)
@@ -254,6 +210,13 @@ func addTaskHandler(ctx context.Context, args embeddable.Arguments) (*protocol.T
 		return protocol.NewErrorToolResult(protocol.NewTextContent("Invalid priority: " + priority)), nil
 	}
 
+	// Parse labels from comma-separated string
+	var labels []string
+	labelsStr := args.GetString("labels", "")
+	if labelsStr != "" {
+		labels = parseLabels(labelsStr)
+	}
+
 	// Generate a simple ID based on timestamp
 	taskID := fmt.Sprintf("task_%d", time.Now().UnixNano())
 	
@@ -262,6 +225,7 @@ func addTaskHandler(ctx context.Context, args embeddable.Arguments) (*protocol.T
 		Content:  content,
 		Status:   "todo",
 		Priority: priority,
+		Labels:   labels,
 		Created:  time.Now(),
 		Updated:  time.Now(),
 	}
@@ -288,6 +252,7 @@ func updateTaskHandler(ctx context.Context, args embeddable.Arguments) (*protoco
 	content := args.GetString("content", "")
 	status := args.GetString("status", "")
 	priority := args.GetString("priority", "")
+	labelsStr := args.GetString("labels", "")
 
 	// Validate provided values
 	if status != "" && !isValidStatus(status) {
@@ -306,6 +271,9 @@ func updateTaskHandler(ctx context.Context, args embeddable.Arguments) (*protoco
 		}
 		if priority != "" {
 			task.Priority = priority
+		}
+		if labelsStr != "" {
+			task.Labels = parseLabels(labelsStr)
 		}
 	})
 
@@ -346,4 +314,20 @@ func isValidStatus(status string) bool {
 
 func isValidPriority(priority string) bool {
 	return priority == "low" || priority == "medium" || priority == "high"
+}
+
+// parseLabels converts a comma-separated string into a slice of trimmed labels
+func parseLabels(labelsStr string) []string {
+	if labelsStr == "" {
+		return []string{}
+	}
+	
+	var labels []string
+	for _, label := range strings.Split(labelsStr, ",") {
+		trimmed := strings.TrimSpace(label)
+		if trimmed != "" {
+			labels = append(labels, trimmed)
+		}
+	}
+	return labels
 }

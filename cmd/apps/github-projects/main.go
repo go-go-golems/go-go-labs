@@ -3,20 +3,77 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/help"
 	"github.com/spf13/cobra"
 )
 
+// GitHubConfig holds configuration for GitHub integration
+type GitHubConfig struct {
+	Token         string
+	Owner         string
+	ProjectNumber int
+}
+
+// LoadGitHubConfig loads configuration from environment variables
+func LoadGitHubConfig() (*GitHubConfig, error) {
+	token := os.Getenv("GITHUB_TOKEN")
+	if token == "" {
+		return nil, fmt.Errorf("GITHUB_TOKEN environment variable is required")
+	}
+
+	owner := os.Getenv("GITHUB_OWNER")
+	if owner == "" {
+		return nil, fmt.Errorf("GITHUB_OWNER environment variable is required")
+	}
+
+	projectNumberStr := os.Getenv("GITHUB_PROJECT_NUMBER")
+	if projectNumberStr == "" {
+		return nil, fmt.Errorf("GITHUB_PROJECT_NUMBER environment variable is required")
+	}
+
+	projectNumber, err := strconv.Atoi(projectNumberStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid GITHUB_PROJECT_NUMBER: %v", err)
+	}
+
+	return &GitHubConfig{
+		Token:         token,
+		Owner:         owner,
+		ProjectNumber: projectNumber,
+	}, nil
+}
+
+// Global configuration instance
+var githubConfig *GitHubConfig
+
 func main() {
+	// Load GitHub configuration from environment variables
+	var err error
+	githubConfig, err = LoadGitHubConfig()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Configuration error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Required environment variables:\n")
+		fmt.Fprintf(os.Stderr, "  GITHUB_TOKEN - GitHub personal access token\n")
+		fmt.Fprintf(os.Stderr, "  GITHUB_OWNER - GitHub organization or user\n")
+		fmt.Fprintf(os.Stderr, "  GITHUB_PROJECT_NUMBER - Project number (integer)\n")
+		os.Exit(1)
+	}
+
 	// Create root command
 	rootCmd := &cobra.Command{
 		Use:   "github-graphql-cli",
 		Short: "GitHub GraphQL CLI for Projects v2",
-		Long: `A command-line tool for interacting with GitHub's GraphQL API,
+		Long: fmt.Sprintf(`A command-line tool for interacting with GitHub's GraphQL API,
 specifically designed for Projects v2 (Beta). Supports querying projects,
-managing project items, and updating custom fields.`,
+managing project items, and updating custom fields.
+
+Current configuration:
+  GitHub Owner: %s
+  Project Number: %d
+  Token: %s...`, githubConfig.Owner, githubConfig.ProjectNumber, githubConfig.Token[:8]),
 	}
 
 	// Initialize help system

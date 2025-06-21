@@ -162,13 +162,13 @@ Examples:
 				"owner",
 				parameters.ParameterTypeString,
 				parameters.WithHelp("Organization or user name that owns the project"),
-				parameters.WithRequired(true),
+				parameters.WithDefault(githubConfig.Owner),
 			),
 			parameters.NewParameterDefinition(
 				"number",
 				parameters.ParameterTypeInteger,
 				parameters.WithHelp("Project number"),
-				parameters.WithRequired(true),
+				parameters.WithDefault(githubConfig.ProjectNumber),
 			),
 			parameters.NewParameterDefinition(
 				"limit",

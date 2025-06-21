@@ -200,13 +200,13 @@ Examples:
 				"project-owner",
 				parameters.ParameterTypeString,
 				parameters.WithHelp("Project owner (optional, to add issue to project)"),
-				parameters.WithDefault(""),
+				parameters.WithDefault(githubConfig.Owner),
 			),
 			parameters.NewParameterDefinition(
 				"project-number",
 				parameters.ParameterTypeInteger,
 				parameters.WithHelp("Project number (optional, to add issue to project)"),
-				parameters.WithDefault(0),
+				parameters.WithDefault(githubConfig.ProjectNumber),
 			),
 			parameters.NewParameterDefinition(
 				"log-level",

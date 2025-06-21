@@ -121,6 +121,7 @@ Examples:
 				"owner",
 				parameters.ParameterTypeString,
 				parameters.WithHelp("Organization name to list projects for (if not specified, lists user projects)"),
+				parameters.WithDefault(githubConfig.Owner),
 			),
 			parameters.NewParameterDefinition(
 				"first",
