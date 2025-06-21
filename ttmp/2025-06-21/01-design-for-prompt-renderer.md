@@ -68,9 +68,9 @@ templates:                    # Array of template definitions
 
 ### 3.1 Application State Machine
 ```
-Start → Template List → Template Config → [Copy Success] → Template Config
-  ↓           ↓              ↓                              ↑
-Quit ←      Quit ←         Back ←─────────────────────────┘
+Start → Template List → Template Config
+  ↓           ↓           ↓
+Quit ←      Quit ←      Back
 ```
 
 ### 3.2 Template List State
@@ -84,7 +84,7 @@ Quit ←      Quit ←         Back ←─────────────�
 **User Actions**:
 - Navigate up/down through template list
 - Select template (Enter) → transition to Template Config
-- Quit application (q/Esc)
+- Quit application (q or Ctrl+C)
 
 ### 3.3 Template Config State
 **Purpose**: Configure selected template and generate prompt
@@ -127,7 +127,7 @@ Quit ←      Quit ←         Back ←─────────────�
 │                                                                              │
 │                                                                              │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│ ↑↓/j/k: Navigate    Enter: Select    q: Quit                                │
+│ ↑↓/j/k: Navigate    Enter: Select    q/Ctrl+C: Quit                         │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -143,7 +143,7 @@ Quit ←      Quit ←         Back ←─────────────�
 - Up/down arrow keys or j/k for vim-style navigation
 - Enter key selects current template
 - Number keys 1-9 for direct selection (if ≤9 templates)
-- q or Esc quits application
+- q or Ctrl+C quits application; Esc goes back/cancels
 
 ### 4.2 Template Configuration Screen Layout
 
@@ -234,7 +234,7 @@ Quit ←      Quit ←         Back ←─────────────�
 
 ### 6.2 Keyboard Shortcuts
 **Global**:
-- `q` / `Esc`: Quit or go back
+- `q` or `Ctrl+C`: Quit&nbsp;&nbsp;·&nbsp;&nbsp;`Esc`: Back/Cancel
 - `?`: Show help overlay
 
 **Template List**:
@@ -293,7 +293,7 @@ sections:
 ```
 
 ### 7.3 Auto-save Behavior
-- Save to `last.yml` on every significant change
+- Debounced (~500 ms) save of current state to `last.yml` after significant changes
 - Create timestamped history file on manual save (s key)
 - Restore from `last.yml` on application restart
 - Prompt for unsaved changes on quit
@@ -367,4 +367,32 @@ sections:
 - Use `github.com/atotto/clipboard` package for cross-platform support
 - Handles Linux (xclip, wl-copy, xsel), macOS (pbcopy), Windows automatically
 - Single API call: `clipboard.WriteAll(content)`
+
+---
+
+## 11. Charmbracelet Implementation Notes
+
+### 11.1 Component Mapping
+- **Template List**: reuse `bubbles/list.Model`
+- **Variable Inputs**: `bubbles/textinput` for single-line, `bubbles/textarea` for multi-line
+- **Section Variants & Bullet Groups**: plain `list.Model` with custom item styles to mimic radio/checkbox behaviour
+- **Preview Pane**: `bubbles/viewport` for scrollable prompt preview
+- **Help Bar**: `bubbles/help.Model` auto-generates key-hint footer
+
+### 11.2 Focus & Modal Strategy
+- One root model that delegates `Update` to the currently focused child model
+- Avoid boolean "editing" flags; instead push a dedicated full-screen editor model onto a stack for long text fields
+
+### 11.3 Transient Toasts
+- Clipboard copy feedback: emit a `copyDoneMsg` and show a lipgloss-styled "✓ Copied!" message in the status bar for ~750 ms via `tea.Tick`
+
+### 11.4 Debounced Persistence
+- Use a `time.AfterFunc` or periodic `tea.Tick` (~500 ms) to flush state to disk instead of synchronous writes on every key stroke
+
+### 11.5 Key Binding Conventions
+- Honour `Ctrl+C` to quit in all screens
+- Reserve `Esc` strictly for "back/cancel"; quitting from list screen is handled by `q`/`Ctrl+C`
+- Provide `?` overlay wired to `help.Model`
+
+These notes capture the idiomatic Bubble Tea patterns referenced in the review and supersede earlier conflicting details in this specification.
 

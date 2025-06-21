@@ -1,0 +1,103 @@
+version: 1
+globals:
+  model_fallback: "claude-3-sonnet"
+  bullet_prefix: "- "
+
+templates:
+  - id: code-review
+    label: "Code Review Assistant"
+    model: "claude-3-sonnet"
+    variables:
+      code_snippet:
+        hint: "Paste the code you want reviewed"
+        type: "text"
+      language:
+        hint: "Programming language (e.g., python, javascript, go)"
+        type: "text"
+    sections:
+      - id: introduction
+        variants:
+          - id: basic
+            type: "text"
+            content: "Please review the following {{ .language }} code and provide feedback:"
+          - id: detailed
+            type: "text"
+            content: "I need a comprehensive code review for this {{ .language }} code. Please analyze it thoroughly:"
+      - id: code_block
+        variants:
+          - id: simple
+            type: "text"
+            content: |
+              ```{{ .language }}
+              {{ .code_snippet }}
+              ```
+      - id: review_aspects
+        variants:
+          - id: standard
+            type: "bullets"
+            groups:
+              - id: quality
+                bullets:
+                  - "Code quality and readability"
+                  - "Best practices adherence"
+                  - "Performance considerations"
+              - id: security
+                bullets:
+                  - "Security vulnerabilities"
+                  - "Input validation"
+              - id: structure
+                bullets:
+                  - "Code organization and structure"
+                  - "Error handling"
+                  - "Documentation quality"
+          - id: focused
+            type: "bullets"
+            groups:
+              - id: bugs
+                bullets:
+                  - "Potential bugs or issues"
+                  - "Logic errors"
+              - id: optimization
+                bullets:
+                  - "Performance optimizations"
+                  - "Memory usage"
+
+  - id: summarize-text
+    label: "Text Summarization"
+    variables:
+      text_content:
+        hint: "Text to summarize"
+        type: "text"
+      summary_length:
+        hint: "Desired length (short, medium, long)"
+        type: "text"
+    sections:
+      - id: instruction
+        variants:
+          - id: simple
+            type: "text"
+            content: "Please summarize the following text in {{ .summary_length }} form:"
+          - id: detailed
+            type: "text"
+            content: "Provide a {{ .summary_length }} summary of the text below, highlighting the key points:"
+      - id: content
+        variants:
+          - id: basic
+            type: "text"
+            content: |
+              
+              {{ .text_content }}
+      - id: requirements
+        variants:
+          - id: basic
+            type: "bullets"
+            groups:
+              - id: format
+                bullets:
+                  - "Use clear, concise language"
+                  - "Maintain the original tone"
+              - id: content_focus
+                bullets:
+                  - "Focus on main arguments"
+                  - "Include key statistics or data"
+                  - "Preserve important conclusions"
