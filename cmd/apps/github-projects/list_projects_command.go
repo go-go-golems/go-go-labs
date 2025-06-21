@@ -37,7 +37,7 @@ func (c *ListProjectsCommand) RunIntoGlazeProcessor(
 	parsedLayers *layers.ParsedLayers,
 	gp middlewares.Processor,
 ) error {
-	startTime := time.Now()
+	start := time.Now()
 
 	// Parse settings
 	s := &ListProjectsSettings{}
@@ -45,9 +45,9 @@ func (c *ListProjectsCommand) RunIntoGlazeProcessor(
 		return errors.Wrap(err, "failed to initialize settings")
 	}
 
-	log.Debug().
+	// Create contextual logger
+	logger := log.With().
 		Str("function", "RunIntoGlazeProcessor").
-		Str("event", "entry").
 		Str("owner", func() string {
 			if s.Owner != nil {
 				return *s.Owner
@@ -55,113 +55,78 @@ func (c *ListProjectsCommand) RunIntoGlazeProcessor(
 			return "nil"
 		}()).
 		Int("first", s.First).
-		Str("after", func() string {
-			if s.After != nil {
-				return *s.After
-			}
-			return "nil"
-		}()).
-		Msg("Starting list projects command")
+		Logger()
+
+	logger.Debug().Msg("starting list projects command")
 
 	// Create GitHub client
 	clientStart := time.Now()
-	log.Debug().
-		Str("event", "client_creation_start").
-		Msg("Creating GitHub client")
-
 	client, err := github.NewClient()
 	if err != nil {
-		log.Error().
+		logger.Error().
 			Err(err).
 			Dur("duration", time.Since(clientStart)).
-			Str("event", "client_creation_failed").
-			Msg("Failed to create GitHub client")
+			Msg("failed to create GitHub client")
 		return errors.Wrap(err, "failed to create GitHub client")
 	}
 
-	log.Debug().
+	logger.Trace().
 		Dur("duration", time.Since(clientStart)).
-		Str("event", "client_creation_success").
-		Msg("GitHub client created successfully")
+		Msg("GitHub client created")
 
 	// Get projects
 	var response *github.ListProjectsResponse
 	apiStart := time.Now()
 
 	if s.Owner != nil {
-		log.Debug().
-			Str("event", "api_call_start").
+		logger.Debug().
 			Str("api_type", "organization_projects").
-			Str("owner", *s.Owner).
-			Int("first", s.First).
-			Str("after", func() string {
-				if s.After != nil {
-					return *s.After
-				}
-				return "nil"
-			}()).
-			Msg("Starting GitHub API call for organization projects")
+			Msg("fetching organization projects from GitHub API")
 
 		// List organization projects
 		response, err = client.ListOrganizationProjects(ctx, *s.Owner, s.First, s.After)
 	} else {
-		log.Debug().
-			Str("event", "api_call_start").
+		logger.Debug().
 			Str("api_type", "user_projects").
-			Int("first", s.First).
-			Str("after", func() string {
-				if s.After != nil {
-					return *s.After
-				}
-				return "nil"
-			}()).
-			Msg("Starting GitHub API call for user projects")
+			Msg("fetching user projects from GitHub API")
 
 		// List user projects
 		response, err = client.ListUserProjects(ctx, s.First, s.After)
 	}
 
 	if err != nil {
-		log.Error().
+		logger.Error().
 			Err(err).
-			Dur("api_duration", time.Since(apiStart)).
-			Str("event", "api_call_failed").
+			Dur("duration", time.Since(apiStart)).
 			Msg("GitHub API call failed")
 		return errors.Wrap(err, "failed to list projects")
 	}
 
-	log.Debug().
-		Dur("api_duration", time.Since(apiStart)).
+	logger.Debug().
+		Dur("duration", time.Since(apiStart)).
 		Int("projects_count", len(response.Projects)).
 		Bool("has_next_page", response.HasNextPage).
-		Str("end_cursor", func() string {
-			if response.EndCursor != nil {
-				return *response.EndCursor
-			}
-			return "nil"
-		}()).
-		Str("event", "api_call_success").
-		Msg("GitHub API call completed successfully")
+		Msg("GitHub API call completed")
 
 	// Process projects into rows
-	rowProcessingStart := time.Now()
-	log.Debug().
-		Str("event", "row_processing_start").
+	processStart := time.Now()
+	logger.Debug().
 		Int("projects_to_process", len(response.Projects)).
-		Msg("Starting to process projects into rows")
+		Msg("processing projects")
 
 	processedRows := 0
 	for i, project := range response.Projects {
-		log.Debug().
-			Str("event", "project_processing").
+		projectLogger := logger.With().
 			Int("project_index", i).
 			Str("project_id", project.ID).
 			Int("project_number", project.Number).
+			Logger()
+
+		projectLogger.Trace().
 			Str("project_title", project.Title).
 			Bool("project_public", project.Public).
 			Bool("project_closed", project.Closed).
-			Str("project_url", project.URL).
-			Msg("Processing project")
+			Msg("processing project")
 
 		row := types.NewRow(
 			types.MRP("id", project.ID),
@@ -174,78 +139,51 @@ func (c *ListProjectsCommand) RunIntoGlazeProcessor(
 		)
 
 		if err := gp.AddRow(ctx, row); err != nil {
-			log.Error().
+			projectLogger.Error().
 				Err(err).
-				Int("project_index", i).
-				Str("project_id", project.ID).
-				Str("event", "row_add_failed").
-				Msg("Failed to add row to processor")
+				Msg("failed to add row to processor")
 			return errors.Wrap(err, "failed to add row")
 		}
 
 		processedRows++
-		log.Debug().
-			Str("event", "project_processed").
-			Int("project_index", i).
-			Str("project_id", project.ID).
-			Int("processed_rows", processedRows).
-			Msg("Project processed successfully")
+		projectLogger.Trace().Msg("project processed")
 	}
 
-	log.Debug().
-		Dur("row_processing_duration", time.Since(rowProcessingStart)).
+	logger.Debug().
+		Dur("processing_duration", time.Since(processStart)).
 		Int("total_rows_processed", processedRows).
-		Str("event", "row_processing_complete").
-		Msg("All projects processed into rows")
-
-	log.Debug().
-		Str("function", "RunIntoGlazeProcessor").
-		Str("event", "exit").
-		Dur("total_duration", time.Since(startTime)).
-		Int("total_projects", len(response.Projects)).
-		Int("total_rows", processedRows).
+		Dur("total_duration", time.Since(start)).
 		Bool("has_next_page", response.HasNextPage).
-		Msg("List projects command completed successfully")
+		Msg("list projects command completed")
 
 	return nil
 }
 
 // NewListProjectsCommand creates a new list projects command
 func NewListProjectsCommand() (*ListProjectsCommand, error) {
-	startTime := time.Now()
-
-	log.Debug().
+	start := time.Now()
+	logger := log.With().
 		Str("function", "NewListProjectsCommand").
-		Str("event", "entry").
-		Msg("Creating new list projects command")
+		Logger()
+
+	logger.Trace().Msg("creating list projects command")
 
 	// Create Glazed layer for output formatting
-	glazedLayerStart := time.Now()
-	log.Debug().
-		Str("event", "glazed_layer_creation_start").
-		Msg("Creating glazed parameter layers")
-
+	glazedStart := time.Now()
 	glazedLayer, err := settings.NewGlazedParameterLayers()
 	if err != nil {
-		log.Error().
+		logger.Error().
 			Err(err).
-			Dur("duration", time.Since(glazedLayerStart)).
-			Str("event", "glazed_layer_creation_failed").
-			Msg("Failed to create glazed parameter layers")
+			Dur("duration", time.Since(glazedStart)).
+			Msg("failed to create glazed parameter layers")
 		return nil, err
 	}
 
-	log.Debug().
-		Dur("duration", time.Since(glazedLayerStart)).
-		Str("event", "glazed_layer_creation_success").
-		Msg("Glazed parameter layers created successfully")
+	logger.Trace().
+		Dur("duration", time.Since(glazedStart)).
+		Msg("glazed parameter layers created")
 
 	// Create command description
-	cmdDescStart := time.Now()
-	log.Debug().
-		Str("event", "command_description_creation_start").
-		Msg("Creating command description")
-
 	cmdDesc := cmds.NewCommandDescription(
 		"list-projects",
 		cmds.WithShort("List GitHub projects"),
@@ -267,7 +205,7 @@ Examples:
 				"owner",
 				parameters.ParameterTypeString,
 				parameters.WithHelp("Organization name to list projects for (if not specified, lists user projects)"),
-				parameters.WithDefault(githubConfig.Owner),
+				parameters.WithDefault(GetDefaultOwner()),
 			),
 			parameters.NewParameterDefinition(
 				"first",
@@ -287,20 +225,13 @@ Examples:
 		),
 	)
 
-	log.Debug().
-		Dur("duration", time.Since(cmdDescStart)).
-		Str("event", "command_description_creation_success").
-		Msg("Command description created successfully")
-
 	command := &ListProjectsCommand{
 		CommandDescription: cmdDesc,
 	}
 
-	log.Debug().
-		Str("function", "NewListProjectsCommand").
-		Str("event", "exit").
-		Dur("total_duration", time.Since(startTime)).
-		Msg("List projects command created successfully")
+	logger.Trace().
+		Dur("total_duration", time.Since(start)).
+		Msg("list projects command created")
 
 	return command, nil
 }

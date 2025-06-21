@@ -44,94 +44,82 @@ func (c *FieldsCommand) RunIntoGlazeProcessor(
 		return errors.Wrap(err, "failed to initialize settings")
 	}
 
-	log.Debug().
+	// Create contextual logger
+	logger := log.With().
 		Str("function", "RunIntoGlazeProcessor").
 		Str("owner", s.Owner).
 		Int("number", s.Number).
-		Dur("initialization_duration", time.Since(start)).
-		Msg("function entry - fields command starting")
+		Logger()
 
-	defer func() {
-		log.Debug().
-			Str("function", "RunIntoGlazeProcessor").
-			Dur("total_duration", time.Since(start)).
-			Msg("function exit - fields command completed")
-	}()
+	logger.Debug().Msg("starting fields command")
 
 	// Create GitHub client
 	clientStart := time.Now()
-	log.Debug().Msg("creating GitHub client")
 	client, err := github.NewClient()
 	if err != nil {
-		log.Error().
+		logger.Error().
 			Err(err).
-			Dur("client_creation_duration", time.Since(clientStart)).
+			Dur("duration", time.Since(clientStart)).
 			Msg("failed to create GitHub client")
 		return errors.Wrap(err, "failed to create GitHub client")
 	}
-	log.Debug().
-		Dur("client_creation_duration", time.Since(clientStart)).
-		Msg("GitHub client created successfully")
+	logger.Trace().
+		Dur("duration", time.Since(clientStart)).
+		Msg("GitHub client created")
 
 	// Get project
 	projectStart := time.Now()
-	log.Debug().
-		Str("owner", s.Owner).
-		Int("number", s.Number).
-		Msg("fetching project from GitHub API")
+	logger.Debug().Msg("fetching project from GitHub API")
 	project, err := client.GetProject(ctx, s.Owner, s.Number)
 	if err != nil {
-		log.Error().
+		logger.Error().
 			Err(err).
-			Str("owner", s.Owner).
-			Int("number", s.Number).
-			Dur("project_fetch_duration", time.Since(projectStart)).
-			Msg("failed to get project from GitHub API")
+			Dur("duration", time.Since(projectStart)).
+			Msg("failed to get project")
 		return errors.Wrap(err, "failed to get project")
 	}
-	log.Debug().
+
+	projectLogger := logger.With().
 		Str("project_id", project.ID).
 		Str("project_title", project.Title).
-		Bool("project_public", project.Public).
-		Bool("project_closed", project.Closed).
-		Int("project_items_count", project.Items.TotalCount).
-		Dur("project_fetch_duration", time.Since(projectStart)).
-		Msg("project fetched successfully from GitHub API")
+		Logger()
+
+	projectLogger.Debug().
+		Dur("duration", time.Since(projectStart)).
+		Msg("project fetched")
 
 	// Get project fields
 	fieldsStart := time.Now()
-	log.Debug().
-		Str("project_id", project.ID).
-		Msg("fetching project fields from GitHub API")
+	projectLogger.Debug().Msg("fetching project fields from GitHub API")
 	fields, err := client.GetProjectFields(ctx, project.ID)
 	if err != nil {
-		log.Error().
+		projectLogger.Error().
 			Err(err).
-			Str("project_id", project.ID).
-			Dur("fields_fetch_duration", time.Since(fieldsStart)).
-			Msg("failed to get project fields from GitHub API")
+			Dur("duration", time.Since(fieldsStart)).
+			Msg("failed to get project fields")
 		return errors.Wrap(err, "failed to get project fields")
 	}
-	log.Debug().
+	projectLogger.Debug().
 		Int("field_count", len(fields)).
-		Str("project_id", project.ID).
-		Dur("fields_fetch_duration", time.Since(fieldsStart)).
-		Msg("project fields fetched successfully from GitHub API")
+		Dur("duration", time.Since(fieldsStart)).
+		Msg("project fields fetched")
 
 	// Create rows for each field
 	processingStart := time.Now()
-	log.Debug().
+	projectLogger.Debug().
 		Int("field_count", len(fields)).
-		Msg("starting field processing loop")
+		Msg("processing fields")
 
 	for i, field := range fields {
 		fieldStart := time.Now()
-		log.Debug().
+		fieldLogger := projectLogger.With().
 			Int("field_index", i).
 			Str("field_id", field.ID).
 			Str("field_name", field.Name).
 			Str("field_type", field.Typename).
-			Msg("processing field")
+			Logger()
+
+		fieldLogger.Trace().Msg("processing field")
 
 		row := types.NewRow(
 			types.MRP("id", field.ID),
@@ -141,53 +129,34 @@ func (c *FieldsCommand) RunIntoGlazeProcessor(
 
 		// Add options if it's a single-select field
 		if field.Typename == "ProjectV2SingleSelectField" && len(field.Options) > 0 {
-			log.Debug().
-				Str("field_id", field.ID).
-				Str("field_name", field.Name).
+			fieldLogger.Trace().
 				Int("option_count", len(field.Options)).
 				Msg("processing single-select field options")
 
 			var optionNames []string
 			var optionIDs []string
-			for j, option := range field.Options {
-				log.Debug().
-					Int("option_index", j).
-					Str("option_id", option.ID).
-					Str("option_name", option.Name).
-					Msg("processing field option")
+			for _, option := range field.Options {
 				optionNames = append(optionNames, option.Name)
 				optionIDs = append(optionIDs, option.ID)
 			}
 			row.Set("option_names", optionNames)
 			row.Set("option_ids", optionIDs)
 
-			log.Debug().
-				Str("field_id", field.ID).
-				Str("field_name", field.Name).
+			fieldLogger.Trace().
 				Int("option_count", len(field.Options)).
-				Interface("option_names", optionNames).
-				Interface("option_ids", optionIDs).
 				Msg("single-select field options processed")
 		}
 
 		// Add iterations if it's an iteration field
 		if field.Typename == "ProjectV2IterationField" && field.Configuration != nil && len(field.Configuration.Iterations) > 0 {
-			log.Debug().
-				Str("field_id", field.ID).
-				Str("field_name", field.Name).
+			fieldLogger.Trace().
 				Int("iteration_count", len(field.Configuration.Iterations)).
 				Msg("processing iteration field iterations")
 
 			var iterationTitles []string
 			var iterationIDs []string
 			var iterationDates []string
-			for j, iteration := range field.Configuration.Iterations {
-				log.Debug().
-					Int("iteration_index", j).
-					Str("iteration_id", iteration.ID).
-					Str("iteration_title", iteration.Title).
-					Str("iteration_start_date", iteration.StartDate).
-					Msg("processing iteration")
+			for _, iteration := range field.Configuration.Iterations {
 				iterationTitles = append(iterationTitles, iteration.Title)
 				iterationIDs = append(iterationIDs, iteration.ID)
 				iterationDates = append(iterationDates, iteration.StartDate)
@@ -196,42 +165,30 @@ func (c *FieldsCommand) RunIntoGlazeProcessor(
 			row.Set("iteration_ids", iterationIDs)
 			row.Set("iteration_dates", iterationDates)
 
-			log.Debug().
-				Str("field_id", field.ID).
-				Str("field_name", field.Name).
+			fieldLogger.Trace().
 				Int("iteration_count", len(field.Configuration.Iterations)).
-				Interface("iteration_titles", iterationTitles).
-				Interface("iteration_ids", iterationIDs).
-				Interface("iteration_dates", iterationDates).
 				Msg("iteration field iterations processed")
 		}
 
 		// Add row to processor
 		if err := gp.AddRow(ctx, row); err != nil {
-			log.Error().
+			fieldLogger.Error().
 				Err(err).
-				Int("field_index", i).
-				Str("field_id", field.ID).
-				Str("field_name", field.Name).
-				Str("field_type", field.Typename).
-				Dur("field_processing_duration", time.Since(fieldStart)).
+				Dur("duration", time.Since(fieldStart)).
 				Msg("failed to add row to processor")
 			return err
 		}
 
-		log.Debug().
-			Int("field_index", i).
-			Str("field_id", field.ID).
-			Str("field_name", field.Name).
-			Str("field_type", field.Typename).
-			Dur("field_processing_duration", time.Since(fieldStart)).
-			Msg("field processed and row added successfully")
+		fieldLogger.Trace().
+			Dur("duration", time.Since(fieldStart)).
+			Msg("field processed")
 	}
 
-	log.Debug().
+	projectLogger.Debug().
 		Int("field_count", len(fields)).
 		Dur("processing_duration", time.Since(processingStart)).
-		Msg("field processing loop completed")
+		Dur("total_duration", time.Since(start)).
+		Msg("fields command completed")
 
 	return nil
 }
@@ -239,36 +196,27 @@ func (c *FieldsCommand) RunIntoGlazeProcessor(
 // NewFieldsCommand creates a new fields command
 func NewFieldsCommand() (*FieldsCommand, error) {
 	start := time.Now()
-
-	log.Debug().
+	logger := log.With().
 		Str("function", "NewFieldsCommand").
-		Msg("function entry - creating new fields command")
+		Logger()
 
-	defer func() {
-		log.Debug().
-			Str("function", "NewFieldsCommand").
-			Dur("total_duration", time.Since(start)).
-			Msg("function exit - fields command creation completed")
-	}()
+	logger.Trace().Msg("creating fields command")
 
 	// Create Glazed layer for output formatting
 	glazedStart := time.Now()
-	log.Debug().Msg("creating glazed parameter layers")
 	glazedLayer, err := settings.NewGlazedParameterLayers()
 	if err != nil {
-		log.Error().
+		logger.Error().
 			Err(err).
-			Dur("glazed_creation_duration", time.Since(glazedStart)).
+			Dur("duration", time.Since(glazedStart)).
 			Msg("failed to create glazed parameter layers")
 		return nil, err
 	}
-	log.Debug().
-		Dur("glazed_creation_duration", time.Since(glazedStart)).
-		Msg("glazed parameter layers created successfully")
+	logger.Trace().
+		Dur("duration", time.Since(glazedStart)).
+		Msg("glazed parameter layers created")
 
 	// Create command description
-	cmdStart := time.Now()
-	log.Debug().Msg("creating command description")
 	cmdDesc := cmds.NewCommandDescription(
 		"fields",
 		cmds.WithShort("List project fields"),
@@ -286,13 +234,13 @@ Examples:
 				"owner",
 				parameters.ParameterTypeString,
 				parameters.WithHelp("Organization or user name that owns the project"),
-				parameters.WithDefault(githubConfig.Owner),
+				parameters.WithDefault(GetDefaultOwner()),
 			),
 			parameters.NewParameterDefinition(
 				"number",
 				parameters.ParameterTypeInteger,
 				parameters.WithHelp("Project number"),
-				parameters.WithDefault(githubConfig.ProjectNumber),
+				parameters.WithDefault(GetDefaultProjectNumber()),
 			),
 		),
 		// Add parameter layers
@@ -300,14 +248,10 @@ Examples:
 			glazedLayer,
 		),
 	)
-	log.Debug().
-		Dur("command_description_duration", time.Since(cmdStart)).
-		Msg("command description created successfully")
 
-	log.Debug().
-		Str("command_name", "fields").
-		Str("command_short", "List project fields").
-		Msg("fields command initialized with parameters")
+	logger.Trace().
+		Dur("total_duration", time.Since(start)).
+		Msg("fields command created")
 
 	return &FieldsCommand{
 		CommandDescription: cmdDesc,

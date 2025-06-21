@@ -43,7 +43,7 @@ func (c *UpdateFieldCommand) RunIntoGlazeProcessor(
 	parsedLayers *layers.ParsedLayers,
 	gp middlewares.Processor,
 ) error {
-	startTime := time.Now()
+	start := time.Now()
 
 	// Parse settings
 	s := &UpdateFieldSettings{}
@@ -51,145 +51,118 @@ func (c *UpdateFieldCommand) RunIntoGlazeProcessor(
 		return errors.Wrap(err, "failed to initialize settings")
 	}
 
-	log.Debug().
+	// Create contextual logger
+	logger := log.With().
 		Str("function", "RunIntoGlazeProcessor").
 		Str("owner", s.Owner).
 		Int("number", s.Number).
 		Str("item_id", s.ItemID).
 		Str("field_id", s.FieldID).
-		Str("text_value", s.TextValue).
-		Float64("number_value", s.NumberValue).
-		Str("date_value", s.DateValue).
-		Str("single_select_option", s.SingleSelectOption).
-		Str("iteration_id", s.IterationID).
-		Msg("Function entry - parameters parsed")
+		Logger()
+
+	logger.Debug().Msg("starting update field command")
 
 	// Create GitHub client
-	log.Debug().Msg("Creating GitHub client")
-	clientStartTime := time.Now()
+	clientStart := time.Now()
 	client, err := github.NewClient()
 	if err != nil {
-		log.Error().
+		logger.Error().
 			Err(err).
-			Dur("duration", time.Since(clientStartTime)).
-			Msg("Failed to create GitHub client")
+			Dur("duration", time.Since(clientStart)).
+			Msg("failed to create GitHub client")
 		return errors.Wrap(err, "failed to create GitHub client")
 	}
-	log.Debug().
-		Dur("duration", time.Since(clientStartTime)).
-		Msg("GitHub client created successfully")
+	logger.Trace().
+		Dur("duration", time.Since(clientStart)).
+		Msg("GitHub client created")
 
 	// Get project to get project ID
-	log.Debug().
-		Str("owner", s.Owner).
-		Int("number", s.Number).
-		Msg("Fetching project details")
-	projectStartTime := time.Now()
+	projectStart := time.Now()
+	logger.Debug().Msg("fetching project details")
 	project, err := client.GetProject(ctx, s.Owner, s.Number)
 	if err != nil {
-		log.Error().
+		logger.Error().
 			Err(err).
-			Str("owner", s.Owner).
-			Int("number", s.Number).
-			Dur("duration", time.Since(projectStartTime)).
-			Msg("Failed to get project")
+			Dur("duration", time.Since(projectStart)).
+			Msg("failed to get project")
 		return errors.Wrap(err, "failed to get project")
 	}
-	log.Debug().
+
+	projectLogger := logger.With().
 		Str("project_id", project.ID).
 		Str("project_title", project.Title).
-		Dur("duration", time.Since(projectStartTime)).
-		Msg("Project details fetched successfully")
+		Logger()
+
+	projectLogger.Debug().
+		Dur("duration", time.Since(projectStart)).
+		Msg("project details fetched")
 
 	// Determine the field value to set based on which parameter was provided
-	log.Debug().Msg("Determining field value type")
 	var fieldValue interface{}
 	var valueType string
 
 	if s.TextValue != "" {
 		fieldValue = map[string]interface{}{"text": s.TextValue}
 		valueType = "text"
-		log.Debug().
+		projectLogger.Trace().
 			Str("value_type", valueType).
 			Str("text_value", s.TextValue).
-			Msg("Selected text field value")
+			Msg("selected text field value")
 	} else if s.NumberValue != 0 {
 		fieldValue = map[string]interface{}{"number": s.NumberValue}
 		valueType = "number"
-		log.Debug().
+		projectLogger.Trace().
 			Str("value_type", valueType).
 			Float64("number_value", s.NumberValue).
-			Msg("Selected number field value")
+			Msg("selected number field value")
 	} else if s.DateValue != "" {
 		fieldValue = map[string]interface{}{"date": s.DateValue}
 		valueType = "date"
-		log.Debug().
+		projectLogger.Trace().
 			Str("value_type", valueType).
 			Str("date_value", s.DateValue).
-			Msg("Selected date field value")
+			Msg("selected date field value")
 	} else if s.SingleSelectOption != "" {
 		fieldValue = map[string]interface{}{"singleSelectOptionId": s.SingleSelectOption}
 		valueType = "single-select"
-		log.Debug().
+		projectLogger.Trace().
 			Str("value_type", valueType).
 			Str("single_select_option_id", s.SingleSelectOption).
-			Msg("Selected single-select field value")
+			Msg("selected single-select field value")
 	} else if s.IterationID != "" {
 		fieldValue = map[string]interface{}{"iterationId": s.IterationID}
 		valueType = "iteration"
-		log.Debug().
+		projectLogger.Trace().
 			Str("value_type", valueType).
 			Str("iteration_id", s.IterationID).
-			Msg("Selected iteration field value")
+			Msg("selected iteration field value")
 	} else {
-		log.Error().
-			Bool("text_value_empty", s.TextValue == "").
-			Bool("number_value_zero", s.NumberValue == 0).
-			Bool("date_value_empty", s.DateValue == "").
-			Bool("single_select_option_empty", s.SingleSelectOption == "").
-			Bool("iteration_id_empty", s.IterationID == "").
-			Msg("No field value provided")
+		logger.Error().Msg("no field value provided")
 		return errors.New("must provide one of: --text-value, --number-value, --date-value, --single-select-option, or --iteration-id")
 	}
 
-	log.Debug().
-		Interface("field_value_structured", fieldValue).
-		Msg("Field value structure prepared")
-
-	log.Info().
-		Str("projectID", project.ID).
-		Str("itemID", s.ItemID).
-		Str("fieldID", s.FieldID).
+	projectLogger.Info().
 		Str("valueType", valueType).
 		Interface("value", fieldValue).
-		Msg("Updating field value")
+		Msg("updating field value")
 
 	// Update the field value
-	log.Debug().
-		Str("project_id", project.ID).
-		Str("item_id", s.ItemID).
-		Str("field_id", s.FieldID).
-		Msg("Initiating GitHub API call to update field value")
-	updateStartTime := time.Now()
+	updateStart := time.Now()
+	projectLogger.Debug().Msg("updating field value via GitHub API")
 	err = client.UpdateFieldValue(ctx, project.ID, s.ItemID, s.FieldID, fieldValue)
-	updateDuration := time.Since(updateStartTime)
 	if err != nil {
-		log.Error().
+		projectLogger.Error().
 			Err(err).
-			Str("project_id", project.ID).
-			Str("item_id", s.ItemID).
-			Str("field_id", s.FieldID).
 			Interface("field_value", fieldValue).
-			Dur("duration", updateDuration).
-			Msg("Failed to update field value via GitHub API")
+			Dur("duration", time.Since(updateStart)).
+			Msg("failed to update field value")
 		return errors.Wrap(err, "failed to update field value")
 	}
-	log.Debug().
-		Dur("api_call_duration", updateDuration).
-		Msg("Field value updated successfully via GitHub API")
+	projectLogger.Debug().
+		Dur("duration", time.Since(updateStart)).
+		Msg("field value updated successfully")
 
 	// Return success
-	log.Debug().Msg("Preparing success response row")
 	row := types.NewRow(
 		types.MRP("project_id", project.ID),
 		types.MRP("item_id", s.ItemID),
@@ -198,46 +171,37 @@ func (c *UpdateFieldCommand) RunIntoGlazeProcessor(
 		types.MRP("status", "updated"),
 	)
 
-	log.Debug().
-		Interface("response_row", row).
-		Msg("Success response row created")
-
-	totalDuration := time.Since(startTime)
-	log.Debug().
-		Str("function", "RunIntoGlazeProcessor").
-		Dur("total_duration", totalDuration).
-		Str("status", "success").
-		Msg("Function exit - operation completed successfully")
+	logger.Debug().
+		Dur("total_duration", time.Since(start)).
+		Msg("update field command completed")
 
 	return gp.AddRow(ctx, row)
 }
 
 // NewUpdateFieldCommand creates a new update-field command
 func NewUpdateFieldCommand() (*UpdateFieldCommand, error) {
-	startTime := time.Now()
-
-	log.Debug().
+	start := time.Now()
+	logger := log.With().
 		Str("function", "NewUpdateFieldCommand").
-		Msg("Function entry - initializing update-field command")
+		Logger()
+
+	logger.Trace().Msg("creating update-field command")
 
 	// Create Glazed layer for output formatting
-	log.Debug().Msg("Creating Glazed parameter layers")
-	layerStartTime := time.Now()
+	glazedStart := time.Now()
 	glazedLayer, err := settings.NewGlazedParameterLayers()
 	if err != nil {
-		log.Error().
+		logger.Error().
 			Err(err).
-			Dur("duration", time.Since(layerStartTime)).
-			Msg("Failed to create Glazed parameter layers")
+			Dur("duration", time.Since(glazedStart)).
+			Msg("failed to create glazed parameter layers")
 		return nil, err
 	}
-	log.Debug().
-		Dur("duration", time.Since(layerStartTime)).
-		Msg("Glazed parameter layers created successfully")
+	logger.Trace().
+		Dur("duration", time.Since(glazedStart)).
+		Msg("glazed parameter layers created")
 
 	// Create command description
-	log.Debug().Msg("Creating command description with parameters")
-	cmdDescStartTime := time.Now()
 	cmdDesc := cmds.NewCommandDescription(
 		"update-field",
 		cmds.WithShort("Update a field value for a project item"),
@@ -266,13 +230,13 @@ Examples:
 				"owner",
 				parameters.ParameterTypeString,
 				parameters.WithHelp("Organization or user name that owns the project"),
-				parameters.WithDefault(githubConfig.Owner),
+				parameters.WithDefault(GetDefaultOwner()),
 			),
 			parameters.NewParameterDefinition(
 				"number",
 				parameters.ParameterTypeInteger,
 				parameters.WithHelp("Project number"),
-				parameters.WithDefault(githubConfig.ProjectNumber),
+				parameters.WithDefault(GetDefaultProjectNumber()),
 			),
 			parameters.NewParameterDefinition(
 				"item-id",
@@ -318,23 +282,14 @@ Examples:
 		),
 	)
 
-	log.Debug().
-		Dur("duration", time.Since(cmdDescStartTime)).
-		Int("parameter_count", 9).
-		Msg("Command description created with all parameters")
-
 	// Create command instance
-	log.Debug().Msg("Creating UpdateFieldCommand instance")
 	cmd := &UpdateFieldCommand{
 		CommandDescription: cmdDesc,
 	}
 
-	totalDuration := time.Since(startTime)
-	log.Debug().
-		Str("function", "NewUpdateFieldCommand").
-		Dur("total_duration", totalDuration).
-		Str("status", "success").
-		Msg("Function exit - update-field command initialized successfully")
+	logger.Trace().
+		Dur("total_duration", time.Since(start)).
+		Msg("update-field command created")
 
 	return cmd, nil
 }

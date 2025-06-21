@@ -36,7 +36,7 @@ func (c *ProjectCommand) RunIntoGlazeProcessor(
 	parsedLayers *layers.ParsedLayers,
 	gp middlewares.Processor,
 ) error {
-	startTime := time.Now()
+	start := time.Now()
 
 	// Parse settings
 	s := &ProjectSettings{}
@@ -44,81 +44,59 @@ func (c *ProjectCommand) RunIntoGlazeProcessor(
 		return errors.Wrap(err, "failed to initialize settings")
 	}
 
-	log.Debug().
+	// Create contextual logger
+	logger := log.With().
 		Str("function", "RunIntoGlazeProcessor").
 		Str("owner", s.Owner).
 		Int("number", s.Number).
-		Msg("function entry - processing project command")
+		Logger()
 
-	defer func() {
-		duration := time.Since(startTime)
-		log.Debug().
-			Str("function", "RunIntoGlazeProcessor").
-			Dur("duration", duration).
-			Msg("function exit - completed project command processing")
-	}()
+	logger.Debug().Msg("starting project command")
 
-	// Log parameter validation
+	// Validate parameters
 	if s.Owner == "" {
-		log.Debug().Msg("owner parameter is empty")
 		return errors.New("owner parameter is required")
 	}
 	if s.Number <= 0 {
-		log.Debug().Int("number", s.Number).Msg("invalid project number")
 		return errors.New("project number must be positive")
 	}
 
 	// Create GitHub client
-	clientStartTime := time.Now()
-	log.Debug().Msg("creating GitHub client")
-
+	clientStart := time.Now()
 	client, err := github.NewClient()
 	if err != nil {
-		log.Debug().
+		logger.Error().
 			Err(err).
-			Dur("client_creation_duration", time.Since(clientStartTime)).
+			Dur("duration", time.Since(clientStart)).
 			Msg("failed to create GitHub client")
 		return errors.Wrap(err, "failed to create GitHub client")
 	}
 
-	log.Debug().
-		Dur("client_creation_duration", time.Since(clientStartTime)).
-		Msg("GitHub client created successfully")
+	logger.Trace().
+		Dur("duration", time.Since(clientStart)).
+		Msg("GitHub client created")
 
 	// Get project
-	apiStartTime := time.Now()
-	log.Debug().
-		Str("owner", s.Owner).
-		Int("number", s.Number).
-		Msg("initiating GitHub API call to get project")
+	apiStart := time.Now()
+	logger.Debug().Msg("fetching project from GitHub API")
 
 	project, err := client.GetProject(ctx, s.Owner, s.Number)
-	apiDuration := time.Since(apiStartTime)
-
 	if err != nil {
-		log.Debug().
+		logger.Error().
 			Err(err).
-			Str("owner", s.Owner).
-			Int("number", s.Number).
-			Dur("api_call_duration", apiDuration).
-			Msg("GitHub API call failed")
+			Dur("duration", time.Since(apiStart)).
+			Msg("failed to get project")
 		return errors.Wrap(err, "failed to get project")
 	}
 
-	log.Debug().
+	logger.Debug().
 		Str("project_id", project.ID).
 		Str("project_title", project.Title).
-		Bool("project_public", project.Public).
-		Str("project_short_description", project.ShortDescription).
-		Bool("project_closed", project.Closed).
 		Int("total_items", project.Items.TotalCount).
-		Dur("api_call_duration", apiDuration).
-		Msg("GitHub API call completed successfully")
+		Dur("duration", time.Since(apiStart)).
+		Msg("project retrieved")
 
 	// Create row from project data
-	rowStartTime := time.Now()
-	log.Debug().Msg("creating output row from project data")
-
 	row := types.NewRow(
 		types.MRP("id", project.ID),
 		types.MRP("title", project.Title),
@@ -128,67 +106,46 @@ func (c *ProjectCommand) RunIntoGlazeProcessor(
 		types.MRP("total_items", project.Items.TotalCount),
 	)
 
-	log.Debug().
-		Dur("row_creation_duration", time.Since(rowStartTime)).
-		Msg("output row created successfully")
-
 	// Add row to processor
-	processorStartTime := time.Now()
-	log.Debug().Msg("adding row to glazed processor")
-
-	err = gp.AddRow(ctx, row)
-	if err != nil {
-		log.Debug().
+	if err := gp.AddRow(ctx, row); err != nil {
+		logger.Error().
 			Err(err).
-			Dur("processor_duration", time.Since(processorStartTime)).
 			Msg("failed to add row to processor")
 		return errors.Wrap(err, "failed to add row to processor")
 	}
 
-	log.Debug().
-		Dur("processor_duration", time.Since(processorStartTime)).
-		Msg("row added to processor successfully")
+	logger.Debug().
+		Dur("total_duration", time.Since(start)).
+		Msg("project command completed")
 
 	return nil
 }
 
 // NewProjectCommand creates a new project command
 func NewProjectCommand() (*ProjectCommand, error) {
-	startTime := time.Now()
-
-	log.Debug().
+	start := time.Now()
+	logger := log.With().
 		Str("function", "NewProjectCommand").
-		Msg("function entry - creating new project command")
+		Logger()
 
-	defer func() {
-		duration := time.Since(startTime)
-		log.Debug().
-			Str("function", "NewProjectCommand").
-			Dur("duration", duration).
-			Msg("function exit - project command creation completed")
-	}()
+	logger.Trace().Msg("creating project command")
 
 	// Create Glazed layer for output formatting
-	layerStartTime := time.Now()
-	log.Debug().Msg("creating glazed parameter layers")
-
+	glazedStart := time.Now()
 	glazedLayer, err := settings.NewGlazedParameterLayers()
 	if err != nil {
-		log.Debug().
+		logger.Error().
 			Err(err).
-			Dur("layer_creation_duration", time.Since(layerStartTime)).
+			Dur("duration", time.Since(glazedStart)).
 			Msg("failed to create glazed parameter layers")
 		return nil, err
 	}
 
-	log.Debug().
-		Dur("layer_creation_duration", time.Since(layerStartTime)).
-		Msg("glazed parameter layers created successfully")
+	logger.Trace().
+		Dur("duration", time.Since(glazedStart)).
+		Msg("glazed parameter layers created")
 
 	// Create command description
-	descStartTime := time.Now()
-	log.Debug().Msg("creating command description with parameters")
-
 	cmdDesc := cmds.NewCommandDescription(
 		"project",
 		cmds.WithShort("Get project information"),
@@ -206,13 +163,13 @@ Examples:
 				"owner",
 				parameters.ParameterTypeString,
 				parameters.WithHelp("Organization or user name that owns the project"),
-				parameters.WithDefault(githubConfig.Owner),
+				parameters.WithDefault(GetDefaultOwner()),
 			),
 			parameters.NewParameterDefinition(
 				"number",
 				parameters.ParameterTypeInteger,
 				parameters.WithHelp("Project number"),
-				parameters.WithDefault(githubConfig.ProjectNumber),
+				parameters.WithDefault(GetDefaultProjectNumber()),
 			),
 		),
 		// Add parameter layers
@@ -221,19 +178,13 @@ Examples:
 		),
 	)
 
-	log.Debug().
-		Str("command_name", "project").
-		Int("parameter_count", 2).
-		Dur("description_creation_duration", time.Since(descStartTime)).
-		Msg("command description created successfully")
-
 	command := &ProjectCommand{
 		CommandDescription: cmdDesc,
 	}
 
-	log.Debug().
-		Str("command_type", "ProjectCommand").
-		Msg("project command instance created successfully")
+	logger.Trace().
+		Dur("total_duration", time.Since(start)).
+		Msg("project command created")
 
 	return command, nil
 }

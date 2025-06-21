@@ -33,7 +33,7 @@ func (c *ViewerCommand) RunIntoGlazeProcessor(
 	parsedLayers *layers.ParsedLayers,
 	gp middlewares.Processor,
 ) error {
-	startTime := time.Now()
+	start := time.Now()
 
 	// Parse settings
 	s := &ViewerSettings{}
@@ -41,134 +41,92 @@ func (c *ViewerCommand) RunIntoGlazeProcessor(
 		return errors.Wrap(err, "failed to initialize settings")
 	}
 
-	// Use global logger for debugging
-	logger := log.Logger
-
-	logger.Debug().
+	// Create contextual logger
+	logger := log.With().
 		Str("function", "RunIntoGlazeProcessor").
-		Time("start_time", startTime).
-		Msg("entering viewer command execution")
+		Logger()
 
-	defer func() {
-		duration := time.Since(startTime)
-		logger.Debug().
-			Str("function", "RunIntoGlazeProcessor").
-			Dur("execution_time", duration).
-			Msg("exiting viewer command execution")
-	}()
-
-	// Log parsed settings
-	logger.Debug().
-		Interface("settings", s).
-		Msg("parsed viewer command settings")
+	logger.Debug().Msg("starting viewer command")
 
 	// Create GitHub client
-	logger.Debug().Msg("creating GitHub client")
-	clientStartTime := time.Now()
+	clientStart := time.Now()
 	client, err := github.NewClient()
-	clientDuration := time.Since(clientStartTime)
-
 	if err != nil {
 		logger.Error().
 			Err(err).
-			Dur("client_creation_time", clientDuration).
+			Dur("duration", time.Since(clientStart)).
 			Msg("failed to create GitHub client")
 		return errors.Wrap(err, "failed to create GitHub client")
 	}
 
-	logger.Debug().
-		Dur("client_creation_time", clientDuration).
-		Msg("successfully created GitHub client")
+	logger.Trace().
+		Dur("duration", time.Since(clientStart)).
+		Msg("GitHub client created")
 
 	// Get viewer information
-	logger.Debug().Msg("requesting viewer information from GitHub API")
-	viewerStartTime := time.Now()
+	viewerStart := time.Now()
+	logger.Debug().Msg("fetching viewer information from GitHub API")
 	viewer, err := client.GetViewer(ctx)
-	viewerDuration := time.Since(viewerStartTime)
-
 	if err != nil {
 		logger.Error().
 			Err(err).
-			Dur("api_call_duration", viewerDuration).
-			Msg("failed to get viewer information from GitHub API")
+			Dur("duration", time.Since(viewerStart)).
+			Msg("failed to get viewer information")
 		return errors.Wrap(err, "failed to get viewer")
 	}
 
 	logger.Debug().
-		Dur("api_call_duration", viewerDuration).
+		Dur("duration", time.Since(viewerStart)).
 		Str("viewer_login", viewer.Login).
 		Str("viewer_name", viewer.Name).
-		Str("viewer_email", viewer.Email).
-		Msg("successfully retrieved viewer information from GitHub API")
+		Msg("viewer information retrieved")
 
 	// Create row from viewer data
-	logger.Debug().Msg("creating output row from viewer data")
-	rowFields := map[string]interface{}{
-		"login": viewer.Login,
-		"name":  viewer.Name,
-		"email": viewer.Email,
-	}
-
-	logger.Debug().
-		Interface("row_fields", rowFields).
-		Msg("preparing row data for output")
-
 	row := types.NewRow(
 		types.MRP("login", viewer.Login),
 		types.MRP("name", viewer.Name),
 		types.MRP("email", viewer.Email),
 	)
 
-	logger.Debug().Msg("adding row to glazed processor")
 	if err := gp.AddRow(ctx, row); err != nil {
 		logger.Error().
 			Err(err).
-			Interface("row_data", rowFields).
-			Msg("failed to add row to glazed processor")
+			Msg("failed to add row to processor")
 		return errors.Wrap(err, "failed to add row to processor")
 	}
 
 	logger.Debug().
-		Interface("row_data", rowFields).
-		Msg("successfully added row to glazed processor")
+		Dur("total_duration", time.Since(start)).
+		Msg("viewer command completed")
 
 	return nil
 }
 
 // NewViewerCommand creates a new viewer command
 func NewViewerCommand() (*ViewerCommand, error) {
-	startTime := time.Now()
-
-	// Use a basic logger for initialization logging since we don't have access to configured logger yet
-	logger := log.Logger
-
-	logger.Debug().
+	start := time.Now()
+	logger := log.With().
 		Str("function", "NewViewerCommand").
-		Time("start_time", startTime).
-		Msg("entering viewer command initialization")
+		Logger()
+
+	logger.Trace().Msg("creating viewer command")
 
 	// Create Glazed layer for output formatting
-	logger.Debug().Msg("creating glazed parameter layers")
-	glazedLayerStartTime := time.Now()
+	glazedStart := time.Now()
 	glazedLayer, err := settings.NewGlazedParameterLayers()
-	glazedLayerDuration := time.Since(glazedLayerStartTime)
-
 	if err != nil {
 		logger.Error().
 			Err(err).
-			Dur("glazed_layer_creation_time", glazedLayerDuration).
+			Dur("duration", time.Since(glazedStart)).
 			Msg("failed to create glazed parameter layers")
 		return nil, err
 	}
 
-	logger.Debug().
-		Dur("glazed_layer_creation_time", glazedLayerDuration).
-		Msg("successfully created glazed parameter layers")
+	logger.Trace().
+		Dur("duration", time.Since(glazedStart)).
+		Msg("glazed parameter layers created")
 
 	// Create command description
-	logger.Debug().Msg("creating command description")
-	cmdDescStartTime := time.Now()
-
 	cmdDesc := cmds.NewCommandDescription(
 		"viewer",
 		cmds.WithShort("Show current authenticated user information"),
@@ -184,23 +142,13 @@ Examples:
 		cmds.WithLayersList(glazedLayer),
 	)
 
-	cmdDescDuration := time.Since(cmdDescStartTime)
-	logger.Debug().
-		Dur("command_description_creation_time", cmdDescDuration).
-		Str("command_name", "viewer").
-		Msg("successfully created command description")
-
 	viewerCmd := &ViewerCommand{
 		CommandDescription: cmdDesc,
 	}
 
-	logger.Debug().
-		Interface("command_structure", map[string]interface{}{
-			"name":        "viewer",
-			"has_glazed":  glazedLayer != nil,
-			"param_count": 0,
-		}).
-		Msg("successfully created viewer command")
+	logger.Trace().
+		Dur("total_duration", time.Since(start)).
+		Msg("viewer command created")
 
 	return viewerCmd, nil
 }

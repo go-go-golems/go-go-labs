@@ -5,217 +5,254 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/go-go-golems/go-go-mcp/pkg/embeddable"
 	"github.com/go-go-golems/go-go-mcp/pkg/protocol"
-	"github.com/go-go-golems/go-go-mcp/pkg/session"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+
+	"github.com/go-go-golems/go-go-labs/cmd/apps/github-projects/pkg/github"
 )
 
-// Task represents a task with all its properties
+// Task represents a task with all its properties mapped to GitHub Project items
 type Task struct {
-	ID       string    `json:"id"`
-	Content  string    `json:"content"`
-	Status   string    `json:"status"`   // "todo", "in-progress", "completed"
-	Priority string    `json:"priority"` // "low", "medium", "high"
-	Labels   []string  `json:"labels"`   // Optional labels for categorization
-	Created  time.Time `json:"created"`
-	Updated  time.Time `json:"updated"`
+	ID       string    `json:"id"`        // GitHub Project Item ID
+	Content  string    `json:"content"`   // Title of draft issue or issue/PR
+	Status   string    `json:"status"`    // Status field from project
+	Priority string    `json:"priority"`  // Priority field from project
+	Labels   []string  `json:"labels"`    // Labels from issue/PR
+	Created  time.Time `json:"created"`   // Computed from project item
+	Updated  time.Time `json:"updated"`   // Computed from project item
+	ItemType string    `json:"item_type"` // "DRAFT_ISSUE", "ISSUE", "PULL_REQUEST"
 }
 
-// TaskStore manages tasks in memory with session isolation
-type TaskStore struct {
-	mu    sync.RWMutex
-	tasks map[string][]Task // key: session ID
+// GitHubProjectService manages tasks via GitHub Projects API
+type GitHubProjectService struct {
+	client    *github.Client
+	projectID string
+	fields    map[string]string // field name -> field ID mapping
 }
 
-func NewTaskStore() *TaskStore {
-	log.Debug().Msg("creating new task store")
-	return &TaskStore{
-		tasks: make(map[string][]Task),
-	}
-}
-
-func (ts *TaskStore) GetTasks(sessionID string) []Task {
-	start := time.Now()
-	log.Debug().Str("sessionID", sessionID).Msg("getting tasks")
-
-	ts.mu.RLock()
-	defer ts.mu.RUnlock()
-
-	tasks, exists := ts.tasks[sessionID]
-	if !exists {
-		log.Debug().Str("sessionID", sessionID).Msg("no tasks found for session")
-		return []Task{}
+func NewGitHubProjectService() (*GitHubProjectService, error) {
+	client, err := github.NewClient()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create GitHub client: %w", err)
 	}
 
-	log.Debug().
-		Str("sessionID", sessionID).
-		Int("count", len(tasks)).
-		Dur("duration", time.Since(start)).
-		Msg("retrieved tasks")
-
-	return tasks
+	return &GitHubProjectService{
+		client: client,
+	}, nil
 }
 
-func (ts *TaskStore) SetTasks(sessionID string, tasks []Task) {
-	start := time.Now()
-	log.Debug().
-		Str("sessionID", sessionID).
-		Int("count", len(tasks)).
-		Msg("setting tasks")
-
-	ts.mu.Lock()
-	defer ts.mu.Unlock()
-
-	ts.tasks[sessionID] = tasks
-
-	log.Debug().
-		Str("sessionID", sessionID).
-		Dur("duration", time.Since(start)).
-		Msg("tasks set successfully")
-}
-
-func (ts *TaskStore) AddTask(sessionID string, task Task) {
-	start := time.Now()
-	log.Debug().
-		Str("sessionID", sessionID).
-		Str("taskID", task.ID).
-		Str("content", task.Content).
-		Str("priority", task.Priority).
-		Interface("labels", task.Labels).
-		Msg("adding task")
-
-	ts.mu.Lock()
-	defer ts.mu.Unlock()
-
-	if ts.tasks[sessionID] == nil {
-		log.Debug().Str("sessionID", sessionID).Msg("initializing task list for new session")
-		ts.tasks[sessionID] = []Task{}
+func (s *GitHubProjectService) initProject(ctx context.Context) error {
+	if s.projectID != "" {
+		return nil // already initialized
 	}
 
-	ts.tasks[sessionID] = append(ts.tasks[sessionID], task)
+	project, err := s.client.GetProject(ctx, githubConfig.Owner, githubConfig.ProjectNumber)
+	if err != nil {
+		return fmt.Errorf("failed to get project: %w", err)
+	}
 
-	log.Debug().
-		Str("sessionID", sessionID).
-		Str("taskID", task.ID).
-		Int("totalTasks", len(ts.tasks[sessionID])).
-		Dur("duration", time.Since(start)).
-		Msg("task added successfully")
+	s.projectID = project.ID
+
+	// Get field mappings
+	fields, err := s.client.GetProjectFields(ctx, s.projectID)
+	if err != nil {
+		return fmt.Errorf("failed to get project fields: %w", err)
+	}
+
+	s.fields = make(map[string]string)
+	for _, field := range fields {
+		s.fields[field.Name] = field.ID
+	}
+
+	return nil
 }
 
-func (ts *TaskStore) UpdateTask(sessionID, taskID string, updater func(*Task)) error {
-	start := time.Now()
-	log.Debug().
-		Str("sessionID", sessionID).
-		Str("taskID", taskID).
-		Msg("updating task")
+func (s *GitHubProjectService) GetTasks(ctx context.Context) ([]Task, error) {
+	if err := s.initProject(ctx); err != nil {
+		return nil, err
+	}
 
-	ts.mu.Lock()
-	defer ts.mu.Unlock()
+	items, err := s.client.GetProjectItems(ctx, s.projectID, 100)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get project items: %w", err)
+	}
 
-	tasks := ts.tasks[sessionID]
-	log.Debug().
-		Str("sessionID", sessionID).
-		Int("totalTasks", len(tasks)).
-		Msg("searching for task to update")
+	tasks := make([]Task, 0, len(items))
+	for _, item := range items {
+		task := s.projectItemToTask(item)
+		tasks = append(tasks, task)
+	}
 
-	for i := range tasks {
-		if tasks[i].ID == taskID {
-			oldTask := tasks[i]
-			updater(&tasks[i])
-			tasks[i].Updated = time.Now()
+	return tasks, nil
+}
 
-			log.Debug().
-				Str("sessionID", sessionID).
-				Str("taskID", taskID).
-				Interface("oldTask", oldTask).
-				Interface("newTask", tasks[i]).
-				Dur("duration", time.Since(start)).
-				Msg("task updated successfully")
+func (s *GitHubProjectService) AddTask(ctx context.Context, content, priority string, labels []string) (*Task, error) {
+	if err := s.initProject(ctx); err != nil {
+		return nil, err
+	}
 
-			return nil
+	// Create draft issue
+	itemID, err := s.client.CreateDraftIssue(ctx, s.projectID, content, "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create draft issue: %w", err)
+	}
+
+	// Set priority if provided
+	if priority != "" && s.fields["Priority"] != "" {
+		priorityValue := map[string]interface{}{"singleSelectOptionId": s.getPriorityOptionID(priority)}
+		if err := s.client.UpdateFieldValue(ctx, s.projectID, itemID, s.fields["Priority"], priorityValue); err != nil {
+			log.Warn().Err(err).Msg("failed to set priority")
 		}
 	}
 
-	log.Warn().
-		Str("sessionID", sessionID).
-		Str("taskID", taskID).
-		Dur("duration", time.Since(start)).
-		Msg("task not found for update")
+	// Fetch the created item to return complete task
+	items, err := s.client.GetProjectItems(ctx, s.projectID, 100)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch created item: %w", err)
+	}
 
-	return fmt.Errorf("task with ID %s not found", taskID)
-}
-
-func (ts *TaskStore) RemoveTask(sessionID, taskID string) error {
-	start := time.Now()
-	log.Debug().
-		Str("sessionID", sessionID).
-		Str("taskID", taskID).
-		Msg("removing task")
-
-	ts.mu.Lock()
-	defer ts.mu.Unlock()
-
-	tasks := ts.tasks[sessionID]
-	log.Debug().
-		Str("sessionID", sessionID).
-		Int("totalTasks", len(tasks)).
-		Msg("searching for task to remove")
-
-	for i, task := range tasks {
-		if task.ID == taskID {
-			removedTask := task
-			ts.tasks[sessionID] = append(tasks[:i], tasks[i+1:]...)
-
-			log.Debug().
-				Str("sessionID", sessionID).
-				Str("taskID", taskID).
-				Interface("removedTask", removedTask).
-				Int("remainingTasks", len(ts.tasks[sessionID])).
-				Dur("duration", time.Since(start)).
-				Msg("task removed successfully")
-
-			return nil
+	for _, item := range items {
+		if item.ID == itemID {
+			task := s.projectItemToTask(item)
+			return &task, nil
 		}
 	}
 
-	log.Warn().
-		Str("sessionID", sessionID).
-		Str("taskID", taskID).
-		Dur("duration", time.Since(start)).
-		Msg("task not found for removal")
-
-	return fmt.Errorf("task with ID %s not found", taskID)
+	return nil, fmt.Errorf("created item not found")
 }
 
-// Global task store instance
-var taskStore = NewTaskStore()
+func (s *GitHubProjectService) UpdateTask(ctx context.Context, taskID string, updates map[string]interface{}) error {
+	if err := s.initProject(ctx); err != nil {
+		return err
+	}
+
+	for field, value := range updates {
+		fieldID, exists := s.fields[field]
+		if !exists {
+			continue // skip unknown fields
+		}
+
+		var fieldValue interface{}
+		switch field {
+		case "Status":
+			fieldValue = map[string]interface{}{"singleSelectOptionId": s.getStatusOptionID(value.(string))}
+		case "Priority":
+			fieldValue = map[string]interface{}{"singleSelectOptionId": s.getPriorityOptionID(value.(string))}
+		default:
+			fieldValue = map[string]interface{}{"text": value}
+		}
+
+		if err := s.client.UpdateFieldValue(ctx, s.projectID, taskID, fieldID, fieldValue); err != nil {
+			return fmt.Errorf("failed to update field %s: %w", field, err)
+		}
+	}
+
+	return nil
+}
+
+func (s *GitHubProjectService) projectItemToTask(item github.ProjectItem) Task {
+	task := Task{
+		ID:       item.ID,
+		Content:  item.Content.Title,
+		ItemType: item.Type,
+		Created:  time.Now(), // We don't have creation time from API
+		Updated:  time.Now(), // We don't have update time from API
+	}
+
+	// Extract field values
+	for _, fieldValue := range item.FieldValues.Nodes {
+		switch fieldValue.Field.Name {
+		case "Status":
+			if fieldValue.Name != nil {
+				task.Status = strings.ToLower(*fieldValue.Name)
+			}
+		case "Priority":
+			if fieldValue.Name != nil {
+				task.Priority = strings.ToLower(*fieldValue.Name)
+			}
+		}
+	}
+
+	// Set default values if not found
+	if task.Status == "" {
+		task.Status = "todo"
+	}
+	if task.Priority == "" {
+		task.Priority = "medium"
+	}
+
+	return task
+}
+
+func (s *GitHubProjectService) getStatusOptionID(status string) string {
+	// This would need to be populated from project field options
+	// For now, return a placeholder
+	return "status_" + status
+}
+
+func (s *GitHubProjectService) getPriorityOptionID(priority string) string {
+	// This would need to be populated from project field options
+	// For now, return a placeholder
+	return "priority_" + priority
+}
+
+// Global GitHub service instance
+var githubService *GitHubProjectService
+
+// maskToken censors the GitHub token for logging purposes
+func maskToken(token string) string {
+	if len(token) <= 8 {
+		return strings.Repeat("*", len(token))
+	}
+	return token[:8] + strings.Repeat("*", len(token)-8)
+}
+
+// ensureGitHubService ensures GitHub service is initialized
+func ensureGitHubService(ctx context.Context) error {
+	if githubService != nil {
+		return nil
+	}
+
+	// Load config first
+	if err := EnsureGitHubConfig(); err != nil {
+		return err
+	}
+
+	// Initialize GitHub service
+	var err error
+	githubService, err = NewGitHubProjectService()
+	if err != nil {
+		return fmt.Errorf("failed to initialize GitHub service: %w", err)
+	}
+
+	return nil
+}
 
 // addMCPCommand adds MCP server capability to the root command
 func addMCPCommand(rootCmd *cobra.Command) error {
 	log.Info().Msg("adding MCP command to root command")
 
 	return embeddable.AddMCPCommand(rootCmd,
-		embeddable.WithName("GitHub GraphQL CLI with Task Management"),
+		embeddable.WithName("GitHub Projects Item Management"),
 		embeddable.WithVersion("1.0.0"),
-		embeddable.WithServerDescription(fmt.Sprintf("GitHub GraphQL CLI enhanced with task management capabilities for project coordination. Connected to %s project #%d", githubConfig.Owner, githubConfig.ProjectNumber)),
+		embeddable.WithServerDescription("GitHub Projects v2 item management. Manage project items as tasks through MCP."),
 
-		// Read tasks tool
-		embeddable.WithEnhancedTool("read_tasks", readTasksHandler,
-			embeddable.WithEnhancedDescription("Get all current tasks for the agent session"),
+		// Read project items tool
+		embeddable.WithEnhancedTool("read_project_items", readProjectItemsHandler,
+			embeddable.WithEnhancedDescription("Get all current project items (tasks)"),
 			embeddable.WithReadOnlyHint(true),
 			embeddable.WithIdempotentHint(true),
 		),
 
-		// Add task tool
-		embeddable.WithEnhancedTool("add_task", addTaskHandler,
-			embeddable.WithEnhancedDescription("Add a single new task to track work items"),
+		// Add project item tool
+		embeddable.WithEnhancedTool("add_project_item", addProjectItemHandler,
+			embeddable.WithEnhancedDescription("Add a new draft issue as a project item"),
 			embeddable.WithStringProperty("content",
-				embeddable.PropertyDescription("Description of the task"),
+				embeddable.PropertyDescription("Title/description of the draft issue"),
 				embeddable.PropertyRequired(),
 				embeddable.MinLength(1),
 			),
@@ -225,77 +262,56 @@ func addMCPCommand(rootCmd *cobra.Command) error {
 				embeddable.DefaultString("medium"),
 			),
 			embeddable.WithStringProperty("labels",
-				embeddable.PropertyDescription("Comma-separated labels for categorization"),
+				embeddable.PropertyDescription("Comma-separated labels for categorization (not yet implemented)"),
 			),
 		),
 
-		// Update task tool
-		embeddable.WithEnhancedTool("update_task", updateTaskHandler,
-			embeddable.WithEnhancedDescription("Update a specific task's status, priority, or content"),
+		// Update project item tool
+		embeddable.WithEnhancedTool("update_project_item", updateProjectItemHandler,
+			embeddable.WithEnhancedDescription("Update a project item's field values"),
 			embeddable.WithStringProperty("id",
-				embeddable.PropertyDescription("Task ID to update"),
+				embeddable.PropertyDescription("Project item ID to update"),
 				embeddable.PropertyRequired(),
-			),
-			embeddable.WithStringProperty("content",
-				embeddable.PropertyDescription("New task content"),
 			),
 			embeddable.WithStringProperty("status",
-				embeddable.PropertyDescription("New task status"),
-				embeddable.StringEnum("todo", "in-progress", "completed"),
+				embeddable.PropertyDescription("New status (field must exist in project)"),
+				embeddable.StringEnum("todo", "in-progress", "completed", "done", "backlog"),
 			),
 			embeddable.WithStringProperty("priority",
-				embeddable.PropertyDescription("New task priority"),
+				embeddable.PropertyDescription("New priority (field must exist in project)"),
 				embeddable.StringEnum("low", "medium", "high"),
-			),
-			embeddable.WithStringProperty("labels",
-				embeddable.PropertyDescription("Comma-separated labels for categorization"),
-			),
-		),
-
-		// Remove task tool
-		embeddable.WithEnhancedTool("remove_task", removeTaskHandler,
-			embeddable.WithEnhancedDescription("Remove a specific task by ID"),
-			embeddable.WithDestructiveHint(true),
-			embeddable.WithStringProperty("id",
-				embeddable.PropertyDescription("Task ID to remove"),
-				embeddable.PropertyRequired(),
 			),
 		),
 	)
 }
 
-// Helper function to get session ID from context
-func getSessionID(ctx context.Context) (string, error) {
-	log.Debug().Msg("getting session ID from context")
-
-	sess, ok := session.GetSessionFromContext(ctx)
-	if !ok {
-		log.Error().Msg("no session found in context")
-		return "", fmt.Errorf("no session found in context")
-	}
-
-	sessionID := string(sess.ID)
-	log.Debug().Str("sessionID", sessionID).Msg("session ID retrieved successfully")
-
-	return sessionID, nil
-}
-
-// Task management tool handlers
-func readTasksHandler(ctx context.Context, args embeddable.Arguments) (*protocol.ToolResult, error) {
+// Project item management tool handlers
+func readProjectItemsHandler(ctx context.Context, args embeddable.Arguments) (*protocol.ToolResult, error) {
 	start := time.Now()
-	log.Debug().Msg("entering readTasksHandler")
+	log.Debug().
+		Str("function", "readProjectItemsHandler").
+		Msg("entering readProjectItemsHandler")
 
-	sessionID, err := getSessionID(ctx)
-	if err != nil {
-		log.Error().Err(err).Msg("failed to get session ID in readTasksHandler")
-		return protocol.NewErrorToolResult(protocol.NewTextContent("Session error: " + err.Error())), nil
+	if err := ensureGitHubService(ctx); err != nil {
+		log.Error().Err(err).Msg("failed to initialize GitHub service")
+		return protocol.NewErrorToolResult(protocol.NewTextContent("Configuration error: " + err.Error())), nil
 	}
-
-	log.Debug().Str("sessionID", sessionID).Msg("reading tasks for session")
-	tasks := taskStore.GetTasks(sessionID)
 
 	log.Debug().
-		Str("sessionID", sessionID).
+		Str("github_owner", githubConfig.Owner).
+		Int("github_project_number", githubConfig.ProjectNumber).
+		Str("github_token_masked", maskToken(githubConfig.Token)).
+		Msg("using GitHub config")
+
+	tasks, err := githubService.GetTasks(ctx)
+	if err != nil {
+		log.Error().
+			Err(err).
+			Msg("failed to get project items")
+		return protocol.NewErrorToolResult(protocol.NewTextContent("Failed to get project items: " + err.Error())), nil
+	}
+
+	log.Debug().
 		Int("taskCount", len(tasks)).
 		Msg("marshaling tasks to JSON")
 
@@ -303,55 +319,49 @@ func readTasksHandler(ctx context.Context, args embeddable.Arguments) (*protocol
 	if err != nil {
 		log.Error().
 			Err(err).
-			Str("sessionID", sessionID).
 			Msg("failed to marshal tasks")
 		return nil, fmt.Errorf("failed to marshal tasks: %w", err)
 	}
 
-	result := fmt.Sprintf("Current tasks (%d total) for GitHub project %s/%d:\n%s",
+	result := fmt.Sprintf("Current project items (%d total) for GitHub project %s/%d:\n%s",
 		len(tasks), githubConfig.Owner, githubConfig.ProjectNumber, string(tasksJSON))
 
 	log.Debug().
-		Str("sessionID", sessionID).
 		Int("taskCount", len(tasks)).
 		Dur("duration", time.Since(start)).
-		Msg("readTasksHandler completed successfully")
+		Msg("readProjectItemsHandler completed successfully")
 
 	return protocol.NewToolResult(
 		protocol.WithText(result),
 	), nil
 }
 
-func addTaskHandler(ctx context.Context, args embeddable.Arguments) (*protocol.ToolResult, error) {
+func addProjectItemHandler(ctx context.Context, args embeddable.Arguments) (*protocol.ToolResult, error) {
 	start := time.Now()
-	log.Debug().Msg("entering addTaskHandler")
+	log.Debug().
+		Str("function", "addProjectItemHandler").
+		Msg("entering addProjectItemHandler")
 
-	sessionID, err := getSessionID(ctx)
-	if err != nil {
-		log.Error().Err(err).Msg("failed to get session ID in addTaskHandler")
-		return protocol.NewErrorToolResult(protocol.NewTextContent("Session error: " + err.Error())), nil
+	if err := ensureGitHubService(ctx); err != nil {
+		log.Error().Err(err).Msg("failed to initialize GitHub service")
+		return protocol.NewErrorToolResult(protocol.NewTextContent("Configuration error: " + err.Error())), nil
 	}
-
-	log.Debug().Str("sessionID", sessionID).Msg("processing add task parameters")
 
 	content, err := args.RequireString("content")
 	if err != nil {
 		log.Error().
 			Err(err).
-			Str("sessionID", sessionID).
 			Msg("content parameter is required")
 		return protocol.NewErrorToolResult(protocol.NewTextContent("content is required")), nil
 	}
 
 	priority := args.GetString("priority", "medium")
 	log.Debug().
-		Str("sessionID", sessionID).
 		Str("priority", priority).
 		Msg("validating priority")
 
 	if !isValidPriority(priority) {
 		log.Error().
-			Str("sessionID", sessionID).
 			Str("priority", priority).
 			Msg("invalid priority provided")
 		return protocol.NewErrorToolResult(protocol.NewTextContent("Invalid priority: " + priority)), nil
@@ -362,98 +372,80 @@ func addTaskHandler(ctx context.Context, args embeddable.Arguments) (*protocol.T
 	labelsStr := args.GetString("labels", "")
 	if labelsStr != "" {
 		log.Debug().
-			Str("sessionID", sessionID).
 			Str("labelsStr", labelsStr).
 			Msg("parsing labels")
 		labels = parseLabels(labelsStr)
 	}
 
-	// Generate a simple ID based on timestamp
-	taskID := fmt.Sprintf("task_%d", time.Now().UnixNano())
-
 	log.Debug().
-		Str("sessionID", sessionID).
-		Str("taskID", taskID).
 		Str("content", content).
 		Str("priority", priority).
 		Interface("labels", labels).
-		Msg("creating new task")
+		Msg("creating new project item")
 
-	task := Task{
-		ID:       taskID,
-		Content:  content,
-		Status:   "todo",
-		Priority: priority,
-		Labels:   labels,
-		Created:  time.Now(),
-		Updated:  time.Now(),
+	task, err := githubService.AddTask(ctx, content, priority, labels)
+	if err != nil {
+		log.Error().
+			Err(err).
+			Str("content", content).
+			Msg("failed to create project item")
+		return protocol.NewErrorToolResult(protocol.NewTextContent("Failed to create project item: " + err.Error())), nil
 	}
-
-	taskStore.AddTask(sessionID, task)
 
 	taskJSON, err := json.MarshalIndent(task, "", "  ")
 	if err != nil {
 		log.Error().
 			Err(err).
-			Str("sessionID", sessionID).
-			Str("taskID", taskID).
+			Str("taskID", task.ID).
 			Msg("failed to marshal task")
 		return nil, fmt.Errorf("failed to marshal task: %w", err)
 	}
 
 	log.Debug().
-		Str("sessionID", sessionID).
-		Str("taskID", taskID).
+		Str("taskID", task.ID).
 		Dur("duration", time.Since(start)).
-		Msg("addTaskHandler completed successfully")
+		Msg("addProjectItemHandler completed successfully")
 
 	return protocol.NewToolResult(
-		protocol.WithText(fmt.Sprintf("Task added successfully:\n%s", string(taskJSON))),
+		protocol.WithText(fmt.Sprintf("Project item added successfully:\n%s", string(taskJSON))),
 	), nil
 }
 
-func updateTaskHandler(ctx context.Context, args embeddable.Arguments) (*protocol.ToolResult, error) {
+func updateProjectItemHandler(ctx context.Context, args embeddable.Arguments) (*protocol.ToolResult, error) {
 	start := time.Now()
-	log.Debug().Msg("entering updateTaskHandler")
+	log.Debug().
+		Str("function", "updateProjectItemHandler").
+		Msg("entering updateProjectItemHandler")
 
-	sessionID, err := getSessionID(ctx)
-	if err != nil {
-		log.Error().Err(err).Msg("failed to get session ID in updateTaskHandler")
-		return protocol.NewErrorToolResult(protocol.NewTextContent("Session error: " + err.Error())), nil
+	if err := ensureGitHubService(ctx); err != nil {
+		log.Error().Err(err).Msg("failed to initialize GitHub service")
+		return protocol.NewErrorToolResult(protocol.NewTextContent("Configuration error: " + err.Error())), nil
 	}
 
 	taskID, err := args.RequireString("id")
 	if err != nil {
 		log.Error().
 			Err(err).
-			Str("sessionID", sessionID).
 			Msg("id parameter is required")
 		return protocol.NewErrorToolResult(protocol.NewTextContent("id is required")), nil
 	}
 
 	log.Debug().
-		Str("sessionID", sessionID).
 		Str("taskID", taskID).
-		Msg("processing update task parameters")
+		Msg("processing update project item parameters")
 
-	content := args.GetString("content", "")
 	status := args.GetString("status", "")
 	priority := args.GetString("priority", "")
-	labelsStr := args.GetString("labels", "")
 
 	log.Debug().
-		Str("sessionID", sessionID).
 		Str("taskID", taskID).
-		Str("content", content).
 		Str("status", status).
 		Str("priority", priority).
-		Str("labelsStr", labelsStr).
 		Msg("update parameters parsed")
 
 	// Validate provided values
 	if status != "" && !isValidStatus(status) {
 		log.Error().
-			Str("sessionID", sessionID).
 			Str("taskID", taskID).
 			Str("status", status).
 			Msg("invalid status provided")
@@ -461,122 +453,53 @@ func updateTaskHandler(ctx context.Context, args embeddable.Arguments) (*protoco
 	}
 	if priority != "" && !isValidPriority(priority) {
 		log.Error().
-			Str("sessionID", sessionID).
 			Str("taskID", taskID).
 			Str("priority", priority).
 			Msg("invalid priority provided")
 		return protocol.NewErrorToolResult(protocol.NewTextContent("Invalid priority: " + priority)), nil
 	}
 
-	log.Debug().
-		Str("sessionID", sessionID).
-		Str("taskID", taskID).
-		Msg("updating task")
+	// Build updates map
+	updates := make(map[string]interface{})
+	if status != "" {
+		updates["Status"] = status
+	}
+	if priority != "" {
+		updates["Priority"] = priority
+	}
 
-	err = taskStore.UpdateTask(sessionID, taskID, func(task *Task) {
-		if content != "" {
-			log.Debug().
-				Str("sessionID", sessionID).
-				Str("taskID", taskID).
-				Str("newContent", content).
-				Msg("updating task content")
-			task.Content = content
-		}
-		if status != "" {
-			log.Debug().
-				Str("sessionID", sessionID).
-				Str("taskID", taskID).
-				Str("newStatus", status).
-				Msg("updating task status")
-			task.Status = status
-		}
-		if priority != "" {
-			log.Debug().
-				Str("sessionID", sessionID).
-				Str("taskID", taskID).
-				Str("newPriority", priority).
-				Msg("updating task priority")
-			task.Priority = priority
-		}
-		if labelsStr != "" {
-			log.Debug().
-				Str("sessionID", sessionID).
-				Str("taskID", taskID).
-				Str("labelsStr", labelsStr).
-				Msg("updating task labels")
-			task.Labels = parseLabels(labelsStr)
-		}
-	})
-
-	if err != nil {
-		log.Error().
-			Err(err).
-			Str("sessionID", sessionID).
-			Str("taskID", taskID).
-			Msg("failed to update task")
-		return protocol.NewErrorToolResult(protocol.NewTextContent(err.Error())), nil
+	if len(updates) == 0 {
+		return protocol.NewErrorToolResult(protocol.NewTextContent("No valid fields to update")), nil
 	}
 
 	log.Debug().
-		Str("sessionID", sessionID).
+		Str("taskID", taskID).
+		Interface("updates", updates).
+		Msg("updating project item")
+
+	err = githubService.UpdateTask(ctx, taskID, updates)
+	if err != nil {
+		log.Error().
+			Err(err).
+			Str("taskID", taskID).
+			Msg("failed to update project item")
+		return protocol.NewErrorToolResult(protocol.NewTextContent("Failed to update project item: " + err.Error())), nil
+	}
+
+	log.Debug().
 		Str("taskID", taskID).
 		Dur("duration", time.Since(start)).
-		Msg("updateTaskHandler completed successfully")
+		Msg("updateProjectItemHandler completed successfully")
 
 	return protocol.NewToolResult(
-		protocol.WithText(fmt.Sprintf("Task %s updated successfully", taskID)),
-	), nil
-}
-
-func removeTaskHandler(ctx context.Context, args embeddable.Arguments) (*protocol.ToolResult, error) {
-	start := time.Now()
-	log.Debug().Msg("entering removeTaskHandler")
-
-	sessionID, err := getSessionID(ctx)
-	if err != nil {
-		log.Error().Err(err).Msg("failed to get session ID in removeTaskHandler")
-		return protocol.NewErrorToolResult(protocol.NewTextContent("Session error: " + err.Error())), nil
-	}
-
-	taskID, err := args.RequireString("id")
-	if err != nil {
-		log.Error().
-			Err(err).
-			Str("sessionID", sessionID).
-			Msg("id parameter is required")
-		return protocol.NewErrorToolResult(protocol.NewTextContent("id is required")), nil
-	}
-
-	log.Debug().
-		Str("sessionID", sessionID).
-		Str("taskID", taskID).
-		Msg("removing task")
-
-	err = taskStore.RemoveTask(sessionID, taskID)
-	if err != nil {
-		log.Error().
-			Err(err).
-			Str("sessionID", sessionID).
-			Str("taskID", taskID).
-			Msg("failed to remove task")
-		return protocol.NewErrorToolResult(protocol.NewTextContent(err.Error())), nil
-	}
-
-	log.Debug().
-		Str("sessionID", sessionID).
-		Str("taskID", taskID).
-		Dur("duration", time.Since(start)).
-		Msg("removeTaskHandler completed successfully")
-
-	return protocol.NewToolResult(
-		protocol.WithText(fmt.Sprintf("Task %s removed successfully", taskID)),
+		protocol.WithText(fmt.Sprintf("Project item %s updated successfully", taskID)),
 	), nil
 }
 
 // Validation helpers
 func isValidStatus(status string) bool {
 	log.Debug().Str("status", status).Msg("validating status")
-	valid := status == "todo" || status == "in-progress" || status == "completed"
+	valid := status == "todo" || status == "in-progress" || status == "completed" || status == "done" || status == "backlog"
 	log.Debug().Str("status", status).Bool("valid", valid).Msg("status validation result")
 	return valid
 }

@@ -49,36 +49,54 @@ func LoadGitHubConfig() (*GitHubConfig, error) {
 	}, nil
 }
 
+// EnsureGitHubConfig loads config if not already loaded
+func EnsureGitHubConfig() error {
+	if githubConfig != nil {
+		return nil
+	}
+
+	var err error
+	githubConfig, err = LoadGitHubConfig()
+	if err != nil {
+		return fmt.Errorf("configuration error: %v\nRequired environment variables:\n  GITHUB_TOKEN - GitHub personal access token\n  GITHUB_OWNER - GitHub organization or user\n  GITHUB_PROJECT_NUMBER - Project number (integer)", err)
+	}
+	return nil
+}
+
+// GetDefaultOwner returns default owner from env var
+func GetDefaultOwner() string {
+	return os.Getenv("GITHUB_OWNER")
+}
+
+// GetDefaultProjectNumber returns default project number from env var
+func GetDefaultProjectNumber() int {
+	projectNumberStr := os.Getenv("GITHUB_PROJECT_NUMBER")
+	if projectNumberStr == "" {
+		return 0
+	}
+	projectNumber, err := strconv.Atoi(projectNumberStr)
+	if err != nil {
+		return 0
+	}
+	return projectNumber
+}
+
 // Global configuration instance
 var githubConfig *GitHubConfig
 
 func main() {
-	// Load GitHub configuration from environment variables
-	var err error
-	githubConfig, err = LoadGitHubConfig()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Configuration error: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Required environment variables:\n")
-		fmt.Fprintf(os.Stderr, "  GITHUB_TOKEN - GitHub personal access token\n")
-		fmt.Fprintf(os.Stderr, "  GITHUB_OWNER - GitHub organization or user\n")
-		fmt.Fprintf(os.Stderr, "  GITHUB_PROJECT_NUMBER - Project number (integer)\n")
-		os.Exit(1)
-	}
-
 	// Create root command
 	rootCmd := &cobra.Command{
 		Use:   "github-graphql-cli",
 		Short: "GitHub GraphQL CLI for Projects v2",
-		Long: fmt.Sprintf(`A command-line tool for interacting with GitHub's GraphQL API,
+		Long: `A command-line tool for interacting with GitHub's GraphQL API,
 specifically designed for Projects v2 (Beta). Supports querying projects,
 managing project items, and updating custom fields.
 
-Current configuration:
-  GitHub Owner: %s
-  Project Number: %d
-  Token: %s...`,
-
-			githubConfig.Owner, githubConfig.ProjectNumber, githubConfig.Token[:8]),
+Configuration is loaded from environment variables when needed:
+  GITHUB_TOKEN - GitHub personal access token
+  GITHUB_OWNER - GitHub organization or user
+  GITHUB_PROJECT_NUMBER - Project number (integer)`,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			log.Info().Msg("Initializing logger")
 			err := logging.InitLoggerFromViper()
@@ -89,7 +107,7 @@ Current configuration:
 			return nil
 		},
 	}
-	err = logging.AddLoggingLayerToRootCommand(rootCmd, "github-projects")
+	err := logging.AddLoggingLayerToRootCommand(rootCmd, "github-projects")
 	cobra.CheckErr(err)
 
 	logging.InitViper("github-projects", rootCmd)
