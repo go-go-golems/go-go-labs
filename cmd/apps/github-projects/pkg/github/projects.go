@@ -60,6 +60,7 @@ type ProjectItem struct {
 // ItemContent represents the content of a project item
 type ItemContent struct {
 	Typename  string `json:"__typename"`
+	ID        string `json:"id"`        // GitHub node ID
 	Title     string `json:"title"`
 	URL       string `json:"url"`
 	Number    int    `json:"number"`
@@ -313,12 +314,14 @@ func (c *Client) GetProjectItems(ctx context.Context, projectID string, first in
 							content {
 								__typename
 								... on Issue {
+									id
 									title
 									number
 									url
 									assignees(first: 5) { nodes { login } }
 								}
 								... on PullRequest {
+									id
 									title
 									number
 									url
@@ -699,6 +702,191 @@ func (c *Client) UpdateFieldValue(ctx context.Context, projectID, itemID, fieldI
 
 	log.Debug().
 		Str("function", "UpdateFieldValue").
+		Dur("duration", time.Since(start)).
+		Msg("exiting function")
+
+	return nil
+}
+
+// AddComment adds a comment to an issue or pull request
+func (c *Client) AddComment(ctx context.Context, subjectID, body string) error {
+	start := time.Now()
+	log.Debug().
+		Str("function", "AddComment").
+		Str("subjectID", subjectID).
+		Int("bodyLength", len(body)).
+		Msg("entering function")
+
+	mutation := `
+		mutation($subjectId: ID!, $body: String!) {
+			addComment(input: { subjectId: $subjectId, body: $body }) {
+				commentEdge {
+					node {
+						id
+						body
+						createdAt
+					}
+				}
+			}
+		}
+	`
+
+	log.Debug().
+		Str("function", "AddComment").
+		Str("mutation", mutation).
+		Msg("constructed GraphQL mutation")
+
+	variables := map[string]interface{}{
+		"subjectId": subjectID,
+		"body":      body,
+	}
+
+	log.Debug().
+		Str("function", "AddComment").
+		Interface("variables", variables).
+		Msg("constructed mutation variables")
+
+	var resp struct {
+		AddComment struct {
+			CommentEdge struct {
+				Node struct {
+					ID        string `json:"id"`
+					Body      string `json:"body"`
+					CreatedAt string `json:"createdAt"`
+				} `json:"node"`
+			} `json:"commentEdge"`
+		} `json:"addComment"`
+	}
+
+	log.Debug().
+		Str("function", "AddComment").
+		Msg("executing GraphQL mutation")
+
+	if err := c.ExecuteQuery(ctx, mutation, variables, &resp); err != nil {
+		log.Error().
+			Str("function", "AddComment").
+			Err(err).
+			Str("subjectID", subjectID).
+			Dur("duration", time.Since(start)).
+			Msg("mutation execution failed")
+		return errors.Wrap(err, "failed to add comment")
+	}
+
+	log.Debug().
+		Str("function", "AddComment").
+		Interface("response", resp).
+		Msg("received GraphQL response")
+
+	log.Debug().
+		Str("function", "AddComment").
+		Str("commentID", resp.AddComment.CommentEdge.Node.ID).
+		Str("createdAt", resp.AddComment.CommentEdge.Node.CreatedAt).
+		Dur("duration", time.Since(start)).
+		Msg("comment added successfully")
+
+	log.Debug().
+		Str("function", "AddComment").
+		Dur("duration", time.Since(start)).
+		Msg("exiting function")
+
+	return nil
+}
+
+// ConvertDraftIssueToIssue converts a draft issue to a regular issue
+func (c *Client) ConvertDraftIssueToIssue(ctx context.Context, projectID, itemID, repositoryID, title, body string) error {
+	start := time.Now()
+	log.Debug().
+		Str("function", "ConvertDraftIssueToIssue").
+		Str("projectID", projectID).
+		Str("itemID", itemID).
+		Str("repositoryID", repositoryID).
+		Str("title", title).
+		Msg("entering function")
+
+	mutation := `
+		mutation($projectId: ID!, $itemId: ID!, $repositoryId: ID!, $title: String!, $body: String) {
+			convertProjectV2DraftIssueItemToIssue(input: {
+				projectId: $projectId
+				itemId: $itemId
+				repositoryId: $repositoryId
+				title: $title
+				body: $body
+			}) {
+				projectV2Item {
+					id
+					content {
+						... on Issue {
+							id
+							title
+							number
+						}
+					}
+				}
+			}
+		}
+	`
+
+	log.Debug().
+		Str("function", "ConvertDraftIssueToIssue").
+		Str("mutation", mutation).
+		Msg("constructed GraphQL mutation")
+
+	variables := map[string]interface{}{
+		"projectId":    projectID,
+		"itemId":       itemID,
+		"repositoryId": repositoryID,
+		"title":        title,
+		"body":         body,
+	}
+
+	log.Debug().
+		Str("function", "ConvertDraftIssueToIssue").
+		Interface("variables", variables).
+		Msg("constructed mutation variables")
+
+	var resp struct {
+		ConvertProjectV2DraftIssueItemToIssue struct {
+			ProjectV2Item struct {
+				ID      string `json:"id"`
+				Content struct {
+					ID     string `json:"id"`
+					Title  string `json:"title"`
+					Number int    `json:"number"`
+				} `json:"content"`
+			} `json:"projectV2Item"`
+		} `json:"convertProjectV2DraftIssueItemToIssue"`
+	}
+
+	log.Debug().
+		Str("function", "ConvertDraftIssueToIssue").
+		Msg("executing GraphQL mutation")
+
+	if err := c.ExecuteQuery(ctx, mutation, variables, &resp); err != nil {
+		log.Error().
+			Str("function", "ConvertDraftIssueToIssue").
+			Err(err).
+			Str("projectID", projectID).
+			Str("itemID", itemID).
+			Dur("duration", time.Since(start)).
+			Msg("mutation execution failed")
+		return errors.Wrap(err, "failed to convert draft issue to issue")
+	}
+
+	log.Debug().
+		Str("function", "ConvertDraftIssueToIssue").
+		Interface("response", resp).
+		Msg("received GraphQL response")
+
+	log.Debug().
+		Str("function", "ConvertDraftIssueToIssue").
+		Str("issueID", resp.ConvertProjectV2DraftIssueItemToIssue.ProjectV2Item.Content.ID).
+		Str("issueTitle", resp.ConvertProjectV2DraftIssueItemToIssue.ProjectV2Item.Content.Title).
+		Int("issueNumber", resp.ConvertProjectV2DraftIssueItemToIssue.ProjectV2Item.Content.Number).
+		Dur("duration", time.Since(start)).
+		Msg("draft issue converted successfully")
+
+	log.Debug().
+		Str("function", "ConvertDraftIssueToIssue").
 		Dur("duration", time.Since(start)).
 		Msg("exiting function")
 

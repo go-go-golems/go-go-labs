@@ -127,6 +127,7 @@ Configuration is loaded from environment variables when needed:
 	commands := []func() error{
 		func() error { return addViewerCommand(rootCmd) },
 		func() error { return addProjectCommand(rootCmd) },
+		func() error { return addProjectInfoCommand(rootCmd) },
 		func() error { return addFieldsCommand(rootCmd) },
 		func() error { return addItemsCommand(rootCmd) },
 		func() error { return addIssueCommand(rootCmd) },
@@ -256,6 +257,21 @@ func addUpdateIssueCommand(rootCmd *cobra.Command) error {
 
 func addUpdateFieldCommand(rootCmd *cobra.Command) error {
 	cmd, err := NewUpdateFieldCommand()
+	if err != nil {
+		return err
+	}
+
+	cobraCmd, err := cli.BuildCobraCommandFromCommand(cmd)
+	if err != nil {
+		return err
+	}
+
+	rootCmd.AddCommand(cobraCmd)
+	return nil
+}
+
+func addProjectInfoCommand(rootCmd *cobra.Command) error {
+	cmd, err := NewProjectInfoCommand()
 	if err != nil {
 		return err
 	}

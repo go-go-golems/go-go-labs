@@ -1,4 +1,4 @@
-- [ ] Fix updating project items: 
+- [x] Fix updating project items: 
 
 (from /tmp/github-projects.log, written by the MCP)
 
@@ -8,7 +8,18 @@
 2025-06-21T18:58:17.632780229-04:00 ERR workspaces/2025-06-20/github-graphql-cli/go-go-labs/cmd/apps/github-projects/mcp.go:465 > failed to update project item error="failed to update field Status: failed to update field value: GraphQL query failed: graphql: The single select option Id does not belong to the field" taskID=PVTI_lADOB23p8s4ALtcXzgbwFps
 2025-06-21T18:58:17.632806391-04:00 DBG workspaces/2025-06-20/github-graphql-cli/go-go-mcp/pkg/transport/stdio/transport.go:150 > Sending response component=stdio_transport pid=399339 response={"id":61,"jsonrpc":"2.0","result":{"content":[{"text":"Failed to update project item: failed to update field Status: failed to update field value: GraphQL query failed: graphql: The single select option Id does not belong to the field","type":"text"}],"isError":true}} session_id=64e97b5b-4c0a-4f4b-bbd4-39c776016ddd
 
+- [x] Add setting item type (draft, etc...) to add_projec_item and update_project_item and describe the values in the MCP tool prompt
+- [x] Updating allows setting labels  
+- [x] Add verb and tool to add item comment
+
+- [x] bug when adding new project item, the item is created suvccess fully, but we get an error ( see bug.log)
+- [x] mention in the add comment tool that only ISSUE and PULL_REQUEST types can have comments, not DRAFT_ISSUE
+
+- [x] Allow updating issue type
+- [x] Make ISSUE the default type, mention that DRAFT_ISSUE should be used for tentative items
+
+- [x] Add verb to get project info (including defined labels)
+- [x] Allow setting initial labels in add_project_items
+
 - [ ] Add searching by status/label for getting project items (in CLI and MCP)
 - [ ] Add sorting + limit + date range for getting project items as well
-- [ ] Updating allows setting labels
-- [ ] Add verb and tool to add item comment
