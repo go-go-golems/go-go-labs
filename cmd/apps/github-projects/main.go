@@ -6,8 +6,11 @@ import (
 	"strconv"
 
 	"github.com/go-go-golems/glazed/pkg/cli"
+	"github.com/go-go-golems/glazed/pkg/cmds/logging"
 	"github.com/go-go-golems/glazed/pkg/help"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // GitHubConfig holds configuration for GitHub integration
@@ -73,12 +76,34 @@ managing project items, and updating custom fields.
 Current configuration:
   GitHub Owner: %s
   Project Number: %d
-  Token: %s...`, githubConfig.Owner, githubConfig.ProjectNumber, githubConfig.Token[:8]),
+  Token: %s...`,
+
+			githubConfig.Owner, githubConfig.ProjectNumber, githubConfig.Token[:8]),
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			log.Info().Msg("Initializing logger")
+			err := logging.InitLoggerFromViper()
+			if err != nil {
+				return err
+			}
+			log.Info().Msg("Logger initialized")
+			return nil
+		},
 	}
+	err = logging.AddLoggingLayerToRootCommand(rootCmd, "github-projects")
+	cobra.CheckErr(err)
+
+	logging.InitViper("github-projects", rootCmd)
+
+	err = viper.BindPFlags(rootCmd.PersistentFlags())
+	cobra.CheckErr(err)
+
+	err = logging.InitLoggerFromViper()
+	cobra.CheckErr(err)
 
 	// Initialize help system
 	helpSystem := help.NewHelpSystem()
 	helpSystem.SetupCobraRootCommand(rootCmd)
+
 
 	// Create and add commands
 	commands := []func() error{

@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -86,6 +87,13 @@ type FieldValue struct {
 
 // GetProject retrieves a project by owner and number
 func (c *Client) GetProject(ctx context.Context, owner string, number int) (*Project, error) {
+	start := time.Now()
+	log.Debug().
+		Str("function", "GetProject").
+		Str("owner", owner).
+		Int("number", number).
+		Msg("entering function")
+
 	query := `
 		query($owner: String!, $number: Int!) {
 			organization(login: $owner) {
@@ -101,10 +109,20 @@ func (c *Client) GetProject(ctx context.Context, owner string, number int) (*Pro
 		}
 	`
 
+	log.Debug().
+		Str("function", "GetProject").
+		Str("query", query).
+		Msg("constructed GraphQL query")
+
 	variables := map[string]interface{}{
 		"owner":  owner,
 		"number": number,
 	}
+
+	log.Debug().
+		Str("function", "GetProject").
+		Interface("variables", variables).
+		Msg("constructed query variables")
 
 	var resp struct {
 		Organization struct {
@@ -112,15 +130,52 @@ func (c *Client) GetProject(ctx context.Context, owner string, number int) (*Pro
 		} `json:"organization"`
 	}
 
+	log.Debug().
+		Str("function", "GetProject").
+		Msg("executing GraphQL query")
+
 	if err := c.ExecuteQuery(ctx, query, variables, &resp); err != nil {
+		log.Error().
+			Str("function", "GetProject").
+			Err(err).
+			Str("owner", owner).
+			Int("number", number).
+			Dur("duration", time.Since(start)).
+			Msg("query execution failed")
 		return nil, errors.Wrap(err, "failed to get project")
 	}
+
+	log.Debug().
+		Str("function", "GetProject").
+		Interface("response", resp).
+		Msg("received GraphQL response")
+
+	log.Debug().
+		Str("function", "GetProject").
+		Str("projectID", resp.Organization.ProjectV2.ID).
+		Str("projectTitle", resp.Organization.ProjectV2.Title).
+		Bool("public", resp.Organization.ProjectV2.Public).
+		Bool("closed", resp.Organization.ProjectV2.Closed).
+		Int("itemCount", resp.Organization.ProjectV2.Items.TotalCount).
+		Dur("duration", time.Since(start)).
+		Msg("project data processed successfully")
+
+	log.Debug().
+		Str("function", "GetProject").
+		Dur("duration", time.Since(start)).
+		Msg("exiting function")
 
 	return &resp.Organization.ProjectV2, nil
 }
 
 // GetProjectFields retrieves fields for a project
 func (c *Client) GetProjectFields(ctx context.Context, projectID string) ([]ProjectField, error) {
+	start := time.Now()
+	log.Debug().
+		Str("function", "GetProjectFields").
+		Str("projectID", projectID).
+		Msg("entering function")
+
 	query := `
 		query($projectId: ID!) {
 			node(id: $projectId) {
@@ -157,13 +212,19 @@ func (c *Client) GetProjectFields(ctx context.Context, projectID string) ([]Proj
 		}
 	`
 
-	log.Info().Str("projectID", projectID).Msg("GetProjectFields called")
-	log.Info().Str("query", query).Msg("GraphQL query being executed")
-	log.Info().Msg("About to call ExecuteQuery")
+	log.Debug().
+		Str("function", "GetProjectFields").
+		Str("query", query).
+		Msg("constructed GraphQL query")
 
 	variables := map[string]interface{}{
 		"projectId": projectID,
 	}
+
+	log.Debug().
+		Str("function", "GetProjectFields").
+		Interface("variables", variables).
+		Msg("constructed query variables")
 
 	var resp struct {
 		Node struct {
@@ -173,21 +234,74 @@ func (c *Client) GetProjectFields(ctx context.Context, projectID string) ([]Proj
 		} `json:"node"`
 	}
 
-	log.Info().Interface("variables", variables).Msg("About to execute query with variables")
+	log.Debug().
+		Str("function", "GetProjectFields").
+		Msg("executing GraphQL query")
 
 	if err := c.ExecuteQuery(ctx, query, variables, &resp); err != nil {
-		log.Error().Err(err).Msg("ExecuteQuery failed")
+		log.Error().
+			Str("function", "GetProjectFields").
+			Err(err).
+			Str("projectID", projectID).
+			Dur("duration", time.Since(start)).
+			Msg("query execution failed")
 		return nil, errors.Wrap(err, "failed to get project fields")
 	}
 
-	log.Info().Interface("response", resp).Msg("Query executed successfully")
-	log.Info().Int("fieldCount", len(resp.Node.Fields.Nodes)).Msg("Number of fields returned")
+	log.Debug().
+		Str("function", "GetProjectFields").
+		Interface("response", resp).
+		Msg("received GraphQL response")
 
-	return resp.Node.Fields.Nodes, nil
+	fields := resp.Node.Fields.Nodes
+	log.Debug().
+		Str("function", "GetProjectFields").
+		Int("fieldCount", len(fields)).
+		Msg("processing field data")
+
+	// Log individual field processing
+	for i, field := range fields {
+		log.Debug().
+			Str("function", "GetProjectFields").
+			Int("fieldIndex", i).
+			Str("fieldID", field.ID).
+			Str("fieldName", field.Name).
+			Str("fieldType", field.Typename).
+			Int("optionsCount", len(field.Options)).
+			Msg("processing field")
+
+		if field.Configuration != nil && len(field.Configuration.Iterations) > 0 {
+			log.Debug().
+				Str("function", "GetProjectFields").
+				Str("fieldID", field.ID).
+				Int("iterationsCount", len(field.Configuration.Iterations)).
+				Msg("field has iteration configuration")
+		}
+	}
+
+	log.Debug().
+		Str("function", "GetProjectFields").
+		Int("fieldCount", len(fields)).
+		Dur("duration", time.Since(start)).
+		Msg("field data processed successfully")
+
+	log.Debug().
+		Str("function", "GetProjectFields").
+		Dur("duration", time.Since(start)).
+		Msg("exiting function")
+
+	return fields, nil
 }
 
 // GetProjectItems retrieves items for a project
 func (c *Client) GetProjectItems(ctx context.Context, projectID string, first int) ([]ProjectItem, error) {
+	start := time.Now()
+	log.Debug().
+		Str("function", "GetProjectItems").
+		Str("projectID", projectID).
+		Int("first", first).
+		Msg("entering function")
+
 	query := `
 		query($projectId: ID!, $first: Int!) {
 			node(id: $projectId) {
@@ -248,10 +362,20 @@ func (c *Client) GetProjectItems(ctx context.Context, projectID string, first in
 		}
 	`
 
+	log.Debug().
+		Str("function", "GetProjectItems").
+		Str("query", query).
+		Msg("constructed GraphQL query")
+
 	variables := map[string]interface{}{
 		"projectId": projectID,
 		"first":     first,
 	}
+
+	log.Debug().
+		Str("function", "GetProjectItems").
+		Interface("variables", variables).
+		Msg("constructed query variables")
 
 	var resp struct {
 		Node struct {
@@ -261,15 +385,94 @@ func (c *Client) GetProjectItems(ctx context.Context, projectID string, first in
 		} `json:"node"`
 	}
 
+	log.Debug().
+		Str("function", "GetProjectItems").
+		Msg("executing GraphQL query")
+
 	if err := c.ExecuteQuery(ctx, query, variables, &resp); err != nil {
+		log.Error().
+			Str("function", "GetProjectItems").
+			Err(err).
+			Str("projectID", projectID).
+			Int("first", first).
+			Dur("duration", time.Since(start)).
+			Msg("query execution failed")
 		return nil, errors.Wrap(err, "failed to get project items")
 	}
 
-	return resp.Node.Items.Nodes, nil
+	log.Debug().
+		Str("function", "GetProjectItems").
+		Interface("response", resp).
+		Msg("received GraphQL response")
+
+	items := resp.Node.Items.Nodes
+	log.Debug().
+		Str("function", "GetProjectItems").
+		Int("itemCount", len(items)).
+		Msg("processing item data")
+
+	// Log individual item processing
+	for i, item := range items {
+		log.Debug().
+			Str("function", "GetProjectItems").
+			Int("itemIndex", i).
+			Str("itemID", item.ID).
+			Str("itemType", item.Type).
+			Str("contentType", item.Content.Typename).
+			Str("contentTitle", item.Content.Title).
+			Int("contentNumber", item.Content.Number).
+			Int("fieldValueCount", len(item.FieldValues.Nodes)).
+			Msg("processing item")
+
+		// Log assignees if present
+		if len(item.Content.Assignees.Nodes) > 0 {
+			assignees := make([]string, len(item.Content.Assignees.Nodes))
+			for j, assignee := range item.Content.Assignees.Nodes {
+				assignees[j] = assignee.Login
+			}
+			log.Debug().
+				Str("function", "GetProjectItems").
+				Str("itemID", item.ID).
+				Strs("assignees", assignees).
+				Msg("item has assignees")
+		}
+
+		// Log field values
+		for j, fieldValue := range item.FieldValues.Nodes {
+			log.Debug().
+				Str("function", "GetProjectItems").
+				Str("itemID", item.ID).
+				Int("fieldValueIndex", j).
+				Str("fieldValueType", fieldValue.Typename).
+				Str("fieldName", fieldValue.Field.Name).
+				Interface("fieldValue", fieldValue).
+				Msg("processing field value")
+		}
+	}
+
+	log.Debug().
+		Str("function", "GetProjectItems").
+		Int("itemCount", len(items)).
+		Dur("duration", time.Since(start)).
+		Msg("item data processed successfully")
+
+	log.Debug().
+		Str("function", "GetProjectItems").
+		Dur("duration", time.Since(start)).
+		Msg("exiting function")
+
+	return items, nil
 }
 
 // AddItemToProject adds an existing issue or PR to a project
 func (c *Client) AddItemToProject(ctx context.Context, projectID, contentID string) (string, error) {
+	start := time.Now()
+	log.Debug().
+		Str("function", "AddItemToProject").
+		Str("projectID", projectID).
+		Str("contentID", contentID).
+		Msg("entering function")
+
 	mutation := `
 		mutation($projectId: ID!, $contentId: ID!) {
 			addProjectV2ItemById(input: { projectId: $projectId, contentId: $contentId }) {
@@ -280,10 +483,20 @@ func (c *Client) AddItemToProject(ctx context.Context, projectID, contentID stri
 		}
 	`
 
+	log.Debug().
+		Str("function", "AddItemToProject").
+		Str("mutation", mutation).
+		Msg("constructed GraphQL mutation")
+
 	variables := map[string]interface{}{
 		"projectId": projectID,
 		"contentId": contentID,
 	}
+
+	log.Debug().
+		Str("function", "AddItemToProject").
+		Interface("variables", variables).
+		Msg("constructed mutation variables")
 
 	var resp struct {
 		AddProjectV2ItemById struct {
@@ -293,15 +506,51 @@ func (c *Client) AddItemToProject(ctx context.Context, projectID, contentID stri
 		} `json:"addProjectV2ItemById"`
 	}
 
+	log.Debug().
+		Str("function", "AddItemToProject").
+		Msg("executing GraphQL mutation")
+
 	if err := c.ExecuteQuery(ctx, mutation, variables, &resp); err != nil {
+		log.Error().
+			Str("function", "AddItemToProject").
+			Err(err).
+			Str("projectID", projectID).
+			Str("contentID", contentID).
+			Dur("duration", time.Since(start)).
+			Msg("mutation execution failed")
 		return "", errors.Wrap(err, "failed to add item to project")
 	}
 
-	return resp.AddProjectV2ItemById.Item.ID, nil
+	log.Debug().
+		Str("function", "AddItemToProject").
+		Interface("response", resp).
+		Msg("received GraphQL response")
+
+	itemID := resp.AddProjectV2ItemById.Item.ID
+	log.Debug().
+		Str("function", "AddItemToProject").
+		Str("newItemID", itemID).
+		Dur("duration", time.Since(start)).
+		Msg("item added to project successfully")
+
+	log.Debug().
+		Str("function", "AddItemToProject").
+		Dur("duration", time.Since(start)).
+		Msg("exiting function")
+
+	return itemID, nil
 }
 
 // CreateDraftIssue creates a draft issue in a project
 func (c *Client) CreateDraftIssue(ctx context.Context, projectID, title, body string) (string, error) {
+	start := time.Now()
+	log.Debug().
+		Str("function", "CreateDraftIssue").
+		Str("projectID", projectID).
+		Str("title", title).
+		Int("bodyLength", len(body)).
+		Msg("entering function")
+
 	mutation := `
 		mutation($projectId: ID!, $title: String!, $body: String) {
 			addProjectV2DraftIssue(input: { projectId: $projectId, title: $title, body: $body }) {
@@ -312,11 +561,21 @@ func (c *Client) CreateDraftIssue(ctx context.Context, projectID, title, body st
 		}
 	`
 
+	log.Debug().
+		Str("function", "CreateDraftIssue").
+		Str("mutation", mutation).
+		Msg("constructed GraphQL mutation")
+
 	variables := map[string]interface{}{
 		"projectId": projectID,
 		"title":     title,
 		"body":      body,
 	}
+
+	log.Debug().
+		Str("function", "CreateDraftIssue").
+		Interface("variables", variables).
+		Msg("constructed mutation variables")
 
 	var resp struct {
 		AddProjectV2DraftIssue struct {
@@ -326,15 +585,52 @@ func (c *Client) CreateDraftIssue(ctx context.Context, projectID, title, body st
 		} `json:"addProjectV2DraftIssue"`
 	}
 
+	log.Debug().
+		Str("function", "CreateDraftIssue").
+		Msg("executing GraphQL mutation")
+
 	if err := c.ExecuteQuery(ctx, mutation, variables, &resp); err != nil {
+		log.Error().
+			Str("function", "CreateDraftIssue").
+			Err(err).
+			Str("projectID", projectID).
+			Str("title", title).
+			Dur("duration", time.Since(start)).
+			Msg("mutation execution failed")
 		return "", errors.Wrap(err, "failed to create draft issue")
 	}
 
-	return resp.AddProjectV2DraftIssue.ProjectItem.ID, nil
+	log.Debug().
+		Str("function", "CreateDraftIssue").
+		Interface("response", resp).
+		Msg("received GraphQL response")
+
+	itemID := resp.AddProjectV2DraftIssue.ProjectItem.ID
+	log.Debug().
+		Str("function", "CreateDraftIssue").
+		Str("draftIssueID", itemID).
+		Dur("duration", time.Since(start)).
+		Msg("draft issue created successfully")
+
+	log.Debug().
+		Str("function", "CreateDraftIssue").
+		Dur("duration", time.Since(start)).
+		Msg("exiting function")
+
+	return itemID, nil
 }
 
 // UpdateFieldValue updates a field value for a project item
 func (c *Client) UpdateFieldValue(ctx context.Context, projectID, itemID, fieldID string, value interface{}) error {
+	start := time.Now()
+	log.Debug().
+		Str("function", "UpdateFieldValue").
+		Str("projectID", projectID).
+		Str("itemID", itemID).
+		Str("fieldID", fieldID).
+		Interface("value", value).
+		Msg("entering function")
+
 	mutation := `
 		mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
 			updateProjectV2ItemFieldValue(input: {
@@ -348,12 +644,22 @@ func (c *Client) UpdateFieldValue(ctx context.Context, projectID, itemID, fieldI
 		}
 	`
 
+	log.Debug().
+		Str("function", "UpdateFieldValue").
+		Str("mutation", mutation).
+		Msg("constructed GraphQL mutation")
+
 	variables := map[string]interface{}{
 		"projectId": projectID,
 		"itemId":    itemID,
 		"fieldId":   fieldID,
 		"value":     value,
 	}
+
+	log.Debug().
+		Str("function", "UpdateFieldValue").
+		Interface("variables", variables).
+		Msg("constructed mutation variables")
 
 	var resp struct {
 		UpdateProjectV2ItemFieldValue struct {
@@ -363,9 +669,38 @@ func (c *Client) UpdateFieldValue(ctx context.Context, projectID, itemID, fieldI
 		} `json:"updateProjectV2ItemFieldValue"`
 	}
 
+	log.Debug().
+		Str("function", "UpdateFieldValue").
+		Msg("executing GraphQL mutation")
+
 	if err := c.ExecuteQuery(ctx, mutation, variables, &resp); err != nil {
+		log.Error().
+			Str("function", "UpdateFieldValue").
+			Err(err).
+			Str("projectID", projectID).
+			Str("itemID", itemID).
+			Str("fieldID", fieldID).
+			Interface("value", value).
+			Dur("duration", time.Since(start)).
+			Msg("mutation execution failed")
 		return errors.Wrap(err, "failed to update field value")
 	}
+
+	log.Debug().
+		Str("function", "UpdateFieldValue").
+		Interface("response", resp).
+		Msg("received GraphQL response")
+
+	log.Debug().
+		Str("function", "UpdateFieldValue").
+		Str("updatedItemID", resp.UpdateProjectV2ItemFieldValue.ProjectV2Item.ID).
+		Dur("duration", time.Since(start)).
+		Msg("field value updated successfully")
+
+	log.Debug().
+		Str("function", "UpdateFieldValue").
+		Dur("duration", time.Since(start)).
+		Msg("exiting function")
 
 	return nil
 }
