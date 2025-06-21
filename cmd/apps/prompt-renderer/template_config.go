@@ -348,34 +348,10 @@ func (m *TemplateConfigModel) View() string {
 	// Preview (right side)
 	previewContent := m.renderPreview(rightWidth, contentHeight)
 
-	// Combine left and right sides
-	formLines := strings.Split(formContent, "\n")
-	previewLines := strings.Split(previewContent, "\n")
-	
-	maxLines := len(formLines)
-	if len(previewLines) > maxLines {
-		maxLines = len(previewLines)
-	}
-
-	for i := 0; i < maxLines; i++ {
-		leftLine := ""
-		if i < len(formLines) {
-			leftLine = formLines[i]
-		}
-		// Pad left line to exact width
-		if len(leftLine) < leftWidth {
-			leftLine += strings.Repeat(" ", leftWidth-len(leftLine))
-		}
-
-		rightLine := ""
-		if i < len(previewLines) {
-			rightLine = previewLines[i]
-		}
-
-		b.WriteString(leftLine)
-		b.WriteString(rightLine)
-		b.WriteString("\n")
-	}
+	// Use lipgloss to join horizontally
+	mainContent := lipgloss.JoinHorizontal(lipgloss.Top, formContent, previewContent)
+	b.WriteString(mainContent)
+	b.WriteString("\n")
 
 	// Status bar
 	statusStyle := lipgloss.NewStyle().
@@ -397,6 +373,12 @@ func (m *TemplateConfigModel) View() string {
 // renderFormItems renders the form section
 func (m *TemplateConfigModel) renderFormItems(width, height int) string {
 	var b strings.Builder
+
+	// Create a container with fixed width
+	containerStyle := lipgloss.NewStyle().
+		Width(width).
+		Height(height).
+		Padding(0, 1)
 
 	b.WriteString("Variables:\n")
 	
@@ -428,7 +410,7 @@ func (m *TemplateConfigModel) renderFormItems(width, height int) string {
 			boxStyle := lipgloss.NewStyle().
 				Border(lipgloss.RoundedBorder()).
 				Padding(0, 1).
-				Width(width - 6)
+				Width(width - 8) // Account for padding and cursor
 
 			if i == m.focusIndex {
 				boxStyle = boxStyle.BorderForeground(lipgloss.Color("#7D56F4"))
@@ -480,11 +462,17 @@ func (m *TemplateConfigModel) renderFormItems(width, height int) string {
 		}
 	}
 
-	return b.String()
+	return containerStyle.Render(b.String())
 }
 
 // renderPreview renders the preview section
 func (m *TemplateConfigModel) renderPreview(width, height int) string {
+	// Create a container with fixed width
+	containerStyle := lipgloss.NewStyle().
+		Width(width).
+		Height(height).
+		Padding(0, 1)
+
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(lipgloss.Color("#7D56F4"))
@@ -492,13 +480,14 @@ func (m *TemplateConfigModel) renderPreview(width, height int) string {
 	previewStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		Padding(1).
-		Width(width - 4).
+		Width(width - 6). // Account for container padding
 		Height(height - 4)
 
 	title := titleStyle.Render("Preview:")
 	content := previewStyle.Render(m.preview)
 
-	return title + "\n" + content
+	previewContent := title + "\n" + content
+	return containerStyle.Render(previewContent)
 }
 
 // Message types
