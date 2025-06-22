@@ -59,6 +59,7 @@ require (
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/labstack/echo/v4 v4.13.3
 	github.com/levigross/grequests v0.0.0-20221222020224-9eee758d18d5
+	github.com/machinebox/graphql v0.2.2
 	github.com/maragudk/gomponents v0.20.1
 	github.com/maragudk/gomponents-htmx v0.4.0
 	github.com/mattn/go-sqlite3 v1.14.28
@@ -172,7 +173,7 @@ require (
 	github.com/labstack/gommon v0.4.2 // indirect
 	github.com/lib/pq v1.10.9 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
-	github.com/machinebox/graphql v0.2.2 // indirect
+	github.com/matryer/is v1.4.1 // indirect
 	github.com/pion/datachannel v1.5.8 // indirect
 	github.com/pion/dtls/v2 v2.2.12 // indirect
 	github.com/pion/ice/v2 v2.3.36 // indirect

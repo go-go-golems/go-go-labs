@@ -41,7 +41,9 @@ type ToolHandlers struct {
 	AddProjectItem        ToolHandler
 	UpdateProjectItem     ToolHandler
 	AddProjectItemComment ToolHandler
+	UpdateIssueComment    ToolHandler
 	GetProjectInfo        ToolHandler
+	GetIssueComments      ToolHandler
 }
 
 // AddMCPCommand adds MCP server capability to the root command
@@ -123,9 +125,36 @@ func AddMCPCommand(rootCmd *cobra.Command, handlers *ToolHandlers) error {
 			),
 		),
 
+		// Update issue comment tool
+		embeddable.WithEnhancedTool("update_issue_comment", handlers.UpdateIssueComment,
+			embeddable.WithEnhancedDescription("Update an existing comment on an issue or pull request"),
+			embeddable.WithStringProperty("comment_id",
+				embeddable.PropertyDescription("ID of the comment to update"),
+				embeddable.PropertyRequired(),
+			),
+			embeddable.WithStringProperty("body",
+				embeddable.PropertyDescription("New comment text/body"),
+				embeddable.PropertyRequired(),
+				embeddable.MinLength(1),
+			),
+		),
+
 		// Get project information tool
 		embeddable.WithEnhancedTool("get_project_info", handlers.GetProjectInfo,
 			embeddable.WithEnhancedDescription("Get detailed project information including all fields, field types, and repository labels"),
+			embeddable.WithReadOnlyHint(true),
+			embeddable.WithIdempotentHint(true),
+		),
+
+		// Get issue comments tool
+		embeddable.WithEnhancedTool("get_issue_comments", handlers.GetIssueComments,
+			embeddable.WithEnhancedDescription("Get all comments from an issue or pull request"),
+			embeddable.WithStringProperty("issue_id",
+				embeddable.PropertyDescription("GitHub node ID of the issue or pull request"),
+			),
+			embeddable.WithStringProperty("project_item_id",
+				embeddable.PropertyDescription("Project item ID to get comments from its underlying issue/PR (alternative to issue_id)"),
+			),
 			embeddable.WithReadOnlyHint(true),
 			embeddable.WithIdempotentHint(true),
 		),

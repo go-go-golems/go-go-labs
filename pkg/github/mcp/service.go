@@ -324,11 +324,11 @@ func (s *GitHubProjectService) UpdateTask(ctx context.Context, taskID string, up
 	return nil
 }
 
-func (s *GitHubProjectService) AddTaskComment(ctx context.Context, taskID, comment string) error {
+func (s *GitHubProjectService) AddTaskComment(ctx context.Context, taskID, comment string) (*github.Comment, error) {
 	// First, get the project item to find the underlying issue/PR
 	items, err := s.client.GetProjectItems(ctx, s.projectID, 100)
 	if err != nil {
-		return fmt.Errorf("failed to fetch project items: %w", err)
+		return nil, fmt.Errorf("failed to fetch project items: %w", err)
 	}
 
 	var targetItem *github.ProjectItem
@@ -340,20 +340,20 @@ func (s *GitHubProjectService) AddTaskComment(ctx context.Context, taskID, comme
 	}
 
 	if targetItem == nil {
-		return fmt.Errorf("project item %s not found", taskID)
+		return nil, fmt.Errorf("project item %s not found", taskID)
 	}
 
 	// Check if the item type supports comments
 	if targetItem.Content.Typename != "Issue" && targetItem.Content.Typename != "PullRequest" {
-		return fmt.Errorf("comments can only be added to issues and pull requests, not %s", targetItem.Content.Typename)
+		return nil, fmt.Errorf("comments can only be added to issues and pull requests, not %s", targetItem.Content.Typename)
 	}
 
 	// Use the GitHub node ID to add the comment
 	if targetItem.Content.ID == "" {
-		return fmt.Errorf("unable to find GitHub node ID for project item %s", taskID)
+		return nil, fmt.Errorf("unable to find GitHub node ID for project item %s", taskID)
 	}
 
-	return s.client.AddComment(ctx, targetItem.Content.ID, comment)
+	return s.client.AddCommentWithResponse(ctx, targetItem.Content.ID, comment)
 }
 
 // Helper methods
@@ -581,4 +581,52 @@ func maskToken(token string) string {
 		return strings.Repeat("*", len(token))
 	}
 	return token[:8] + strings.Repeat("*", len(token)-8)
+}
+
+// GetClient returns the underlying GitHub client
+func (s *GitHubProjectService) GetClient() *github.Client {
+	return s.client
+}
+
+// GetProjectID returns the project ID
+func (s *GitHubProjectService) GetProjectID() string {
+	return s.projectID
+}
+
+// GetIssueCommentsByIssueID retrieves all comments for an issue/PR by its node ID
+func (s *GitHubProjectService) GetIssueCommentsByIssueID(ctx context.Context, issueID string) ([]github.Comment, error) {
+	return s.client.GetIssueComments(ctx, issueID)
+}
+
+// GetIssueCommentsByProjectItemID retrieves all comments for an issue/PR by project item ID
+func (s *GitHubProjectService) GetIssueCommentsByProjectItemID(ctx context.Context, projectItemID string) ([]github.Comment, error) {
+	// First, get the project item to find the underlying issue/PR
+	items, err := s.client.GetProjectItems(ctx, s.projectID, 100)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch project items: %w", err)
+	}
+
+	var targetItem *github.ProjectItem
+	for _, item := range items {
+		if item.ID == projectItemID {
+			targetItem = &item
+			break
+		}
+	}
+
+	if targetItem == nil {
+		return nil, fmt.Errorf("project item %s not found", projectItemID)
+	}
+
+	// Check if the item type supports comments
+	if targetItem.Content.Typename != "Issue" && targetItem.Content.Typename != "PullRequest" {
+		return nil, fmt.Errorf("comments can only be retrieved from issues and pull requests, not %s", targetItem.Content.Typename)
+	}
+
+	// Use the GitHub node ID to get the comments
+	if targetItem.Content.ID == "" {
+		return nil, fmt.Errorf("unable to find GitHub node ID for project item %s", projectItemID)
+	}
+
+	return s.client.GetIssueComments(ctx, targetItem.Content.ID)
 }

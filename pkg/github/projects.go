@@ -792,6 +792,123 @@ func (c *Client) AddComment(ctx context.Context, subjectID, body string) error {
 	return nil
 }
 
+// AddCommentWithResponse adds a comment to an issue or pull request and returns the comment details
+func (c *Client) AddCommentWithResponse(ctx context.Context, subjectID, body string) (*Comment, error) {
+	start := time.Now()
+	log.Debug().
+		Str("function", "AddCommentWithResponse").
+		Str("subjectID", subjectID).
+		Int("bodyLength", len(body)).
+		Msg("entering function")
+
+	mutation := `
+		mutation($subjectId: ID!, $body: String!) {
+			addComment(input: { subjectId: $subjectId, body: $body }) {
+				commentEdge {
+					node {
+						id
+						body
+						url
+						createdAt
+						updatedAt
+						author {
+							login
+							avatarUrl
+						}
+					}
+				}
+			}
+		}
+	`
+
+	log.Debug().
+		Str("function", "AddCommentWithResponse").	
+		Str("mutation", mutation).
+		Msg("constructed GraphQL mutation")
+
+	variables := map[string]interface{}{
+		"subjectId": subjectID,
+		"body":      body,
+	}
+
+	log.Debug().
+		Str("function", "AddCommentWithResponse").
+		Interface("variables", variables).
+		Msg("constructed mutation variables")
+
+	var resp struct {
+		AddComment struct {
+			CommentEdge struct {
+				Node struct {
+					ID        string `json:"id"`
+					Body      string `json:"body"`
+					URL       string `json:"url"`
+					CreatedAt string `json:"createdAt"`
+					UpdatedAt string `json:"updatedAt"`
+					Author    struct {
+						Login     string `json:"login"`
+						AvatarURL string `json:"avatarUrl"`
+					} `json:"author"`
+				} `json:"node"`
+			} `json:"commentEdge"`
+		} `json:"addComment"`
+	}
+
+	log.Debug().
+		Str("function", "AddCommentWithResponse").	
+		Msg("executing GraphQL mutation")
+
+	if err := c.ExecuteQuery(ctx, mutation, variables, &resp); err != nil {
+		log.Error().
+			Str("function", "AddCommentWithResponse").
+			Err(err).
+			Str("subjectID", subjectID).
+			Dur("duration", time.Since(start)).
+			Msg("mutation execution failed")
+		return nil, errors.Wrap(err, "failed to add comment")
+	}
+
+	// Parse timestamps
+	createdAt, err := time.Parse(time.RFC3339, resp.AddComment.CommentEdge.Node.CreatedAt)
+	if err != nil {
+		log.Error().
+			Err(err).
+			Str("createdAt", resp.AddComment.CommentEdge.Node.CreatedAt).
+			Msg("failed to parse createdAt timestamp")
+		createdAt = time.Time{}
+	}
+
+	updatedAt, err := time.Parse(time.RFC3339, resp.AddComment.CommentEdge.Node.UpdatedAt)
+	if err != nil {
+		log.Error().
+			Err(err).
+			Str("updatedAt", resp.AddComment.CommentEdge.Node.UpdatedAt).
+			Msg("failed to parse updatedAt timestamp")
+		updatedAt = time.Time{}
+	}
+
+	comment := &Comment{
+		ID:        resp.AddComment.CommentEdge.Node.ID,
+		Body:      resp.AddComment.CommentEdge.Node.Body,
+		URL:       resp.AddComment.CommentEdge.Node.URL,
+		CreatedAt: createdAt,
+		UpdatedAt: updatedAt,
+		Author: Author{
+			Login:     resp.AddComment.CommentEdge.Node.Author.Login,
+			AvatarURL: resp.AddComment.CommentEdge.Node.Author.AvatarURL,
+		},
+	}
+
+	log.Debug().
+		Str("function", "AddCommentWithResponse").
+		Str("commentID", comment.ID).
+		Str("commentURL", comment.URL).
+		Dur("duration", time.Since(start)).
+		Msg("comment added successfully")
+
+	return comment, nil
+}
+
 // ConvertDraftIssueToIssue converts a draft issue to a regular issue
 func (c *Client) ConvertDraftIssueToIssue(ctx context.Context, projectID, itemID, repositoryID, title, body string) error {
 	start := time.Now()

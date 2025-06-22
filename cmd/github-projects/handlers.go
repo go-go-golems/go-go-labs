@@ -11,8 +11,35 @@ import (
 	"github.com/go-go-golems/go-go-mcp/pkg/protocol"
 	"github.com/rs/zerolog/log"
 
+	"github.com/go-go-golems/go-go-labs/pkg/github"
 	"github.com/go-go-golems/go-go-labs/pkg/github/mcp"
 )
+
+// Response structures for MCP tools
+type AddProjectItemResponse struct {
+	Message       string `json:"message"`
+	ProjectItemID string `json:"project_item_id"`
+	IssueID       string `json:"issue_id,omitempty"`       // Only for new issues
+	ContentID     string `json:"content_id,omitempty"`     // Only for existing content
+	Task          *mcp.Task `json:"task"`
+}
+
+type AddCommentResponse struct {
+	Message   string `json:"message"`
+	CommentID string `json:"comment_id"`
+}
+
+type UpdateCommentResponse struct {
+	Message   string `json:"message"`
+	CommentID string `json:"comment_id"`
+	URL       string `json:"url"`
+}
+
+type UpdateProjectItemResponse struct {
+	Message       string `json:"message"`
+	ProjectItemID string `json:"project_item_id"`
+	NewIssueID    string `json:"new_issue_id,omitempty"` // Only when converting DRAFT_ISSUE to ISSUE
+}
 
 // ReadProjectItemsHandler handles reading all project items
 func ReadProjectItemsHandler(ctx context.Context, args embeddable.Arguments) (*protocol.ToolResult, error) {
@@ -141,22 +168,48 @@ func AddProjectItemHandler(ctx context.Context, args embeddable.Arguments) (*pro
 		return protocol.NewErrorToolResult(protocol.NewTextContent("Failed to create project item: " + err.Error())), nil
 	}
 
-	taskJSON, err := json.MarshalIndent(task, "", "  ")
+	// Create detailed response
+	response := AddProjectItemResponse{
+		Message:       "Project item added successfully",
+		ProjectItemID: task.ID,
+		Task:          task,
+	}
+
+	// Add issue/content ID based on what was created
+	if content != "" {
+		// This was a new issue creation, get the underlying issue ID from the task
+		items, err := service.GetClient().GetProjectItems(ctx, service.GetProjectID(), 100)
+		if err == nil {
+			for _, item := range items {
+				if item.ID == task.ID && item.Content.ID != "" {
+					response.IssueID = item.Content.ID
+					break
+				}
+			}
+		}
+	} else {
+		// This was adding existing content
+		response.ContentID = contentID
+	}
+
+	responseJSON, err := json.MarshalIndent(response, "", "  ")
 	if err != nil {
 		log.Error().
 			Err(err).
 			Str("taskID", task.ID).
-			Msg("failed to marshal task")
-		return nil, fmt.Errorf("failed to marshal task: %w", err)
+			Msg("failed to marshal response")
+		return nil, fmt.Errorf("failed to marshal response: %w", err)
 	}
 
 	log.Debug().
 		Str("taskID", task.ID).
+		Str("issueID", response.IssueID).
+		Str("contentID", response.ContentID).
 		Dur("duration", time.Since(start)).
 		Msg("addProjectItemHandler completed successfully")
 
 	return protocol.NewToolResult(
-		protocol.WithText(fmt.Sprintf("Project item added successfully:\n%s", string(taskJSON))),
+		protocol.WithText(string(responseJSON)),
 	), nil
 }
 
@@ -235,13 +288,42 @@ func UpdateProjectItemHandler(ctx context.Context, args embeddable.Arguments) (*
 		return protocol.NewErrorToolResult(protocol.NewTextContent("Failed to update project item: " + err.Error())), nil
 	}
 
+	// Create detailed response
+	response := UpdateProjectItemResponse{
+		Message:       "Project item updated successfully",
+		ProjectItemID: id,
+	}
+
+	// Check if we converted a DRAFT_ISSUE to ISSUE and get the new issue ID
+	if itemType == "ISSUE" {
+		items, err := service.GetClient().GetProjectItems(ctx, service.GetProjectID(), 100)
+		if err == nil {
+			for _, item := range items {
+				if item.ID == id && item.Content.Typename == "Issue" && item.Content.ID != "" {
+					response.NewIssueID = item.Content.ID
+					break
+				}
+			}
+		}
+	}
+
+	responseJSON, err := json.MarshalIndent(response, "", "  ")
+	if err != nil {
+		log.Error().
+			Err(err).
+			Str("id", id).
+			Msg("failed to marshal response")
+		return nil, fmt.Errorf("failed to marshal response: %w", err)
+	}
+
 	log.Debug().
 		Str("id", id).
+		Str("newIssueID", response.NewIssueID).
 		Dur("duration", time.Since(start)).
 		Msg("updateProjectItemHandler completed successfully")
 
 	return protocol.NewToolResult(
-		protocol.WithText(fmt.Sprintf("Project item %s updated successfully", id)),
+		protocol.WithText(string(responseJSON)),
 	), nil
 }
 
@@ -280,7 +362,7 @@ func AddProjectItemCommentHandler(ctx context.Context, args embeddable.Arguments
 		Str("body", body).
 		Msg("adding comment to project item")
 
-	err := service.AddTaskComment(ctx, id, body)
+	comment, err := service.AddTaskComment(ctx, id, body)
 	if err != nil {
 		log.Error().
 			Err(err).
@@ -289,13 +371,102 @@ func AddProjectItemCommentHandler(ctx context.Context, args embeddable.Arguments
 		return protocol.NewErrorToolResult(protocol.NewTextContent("Failed to add comment: " + err.Error())), nil
 	}
 
+	// Create detailed response
+	response := AddCommentResponse{
+		Message:   "Comment added successfully",
+		CommentID: comment.ID,
+	}
+
+	responseJSON, err := json.MarshalIndent(response, "", "  ")
+	if err != nil {
+		log.Error().
+			Err(err).
+			Str("id", id).
+			Str("commentID", comment.ID).
+			Msg("failed to marshal response")
+		return nil, fmt.Errorf("failed to marshal response: %w", err)
+	}
+
 	log.Debug().
 		Str("id", id).
+		Str("commentID", comment.ID).
+		Str("commentURL", comment.URL).
 		Dur("duration", time.Since(start)).
 		Msg("addProjectItemCommentHandler completed successfully")
 
 	return protocol.NewToolResult(
-		protocol.WithText(fmt.Sprintf("Comment added successfully to project item %s", id)),
+		protocol.WithText(string(responseJSON)),
+	), nil
+}
+
+// UpdateIssueCommentHandler handles updating existing comments on issues or pull requests
+func UpdateIssueCommentHandler(ctx context.Context, args embeddable.Arguments) (*protocol.ToolResult, error) {
+	start := time.Now()
+	log.Debug().
+		Str("function", "updateIssueCommentHandler").
+		Msg("entering updateIssueCommentHandler")
+
+	if err := mcp.EnsureService(ctx); err != nil {
+		log.Error().Err(err).Msg("failed to ensure GitHub service")
+		return protocol.NewErrorToolResult(protocol.NewTextContent("Failed to initialize GitHub service: " + err.Error())), nil
+	}
+
+	service := mcp.GetService()
+	if service == nil {
+		log.Error().Msg("GitHub service not initialized")
+		return protocol.NewErrorToolResult(protocol.NewTextContent("GitHub service not initialized")), nil
+	}
+
+	commentID := args.GetString("comment_id", "")
+	if commentID == "" {
+		log.Error().Msg("comment_id parameter is required")
+		return protocol.NewErrorToolResult(protocol.NewTextContent("Comment ID is required")), nil
+	}
+
+	body := args.GetString("body", "")
+	if body == "" {
+		log.Error().Msg("body parameter is required")
+		return protocol.NewErrorToolResult(protocol.NewTextContent("Comment body is required")), nil
+	}
+
+	log.Debug().
+		Str("comment_id", commentID).
+		Int("body_length", len(body)).
+		Msg("updating issue comment")
+
+	comment, err := service.GetClient().UpdateIssueComment(ctx, commentID, body)
+	if err != nil {
+		log.Error().
+			Err(err).
+			Str("comment_id", commentID).
+			Msg("failed to update issue comment")
+		return protocol.NewErrorToolResult(protocol.NewTextContent("Failed to update comment: " + err.Error())), nil
+	}
+
+	// Create detailed response
+	response := UpdateCommentResponse{
+		Message:   "Comment updated successfully",
+		CommentID: comment.ID,
+		URL:       comment.URL,
+	}
+
+	responseJSON, err := json.MarshalIndent(response, "", "  ")
+	if err != nil {
+		log.Error().
+			Err(err).
+			Str("comment_id", commentID).
+			Msg("failed to marshal response")
+		return nil, fmt.Errorf("failed to marshal response: %w", err)
+	}
+
+	log.Debug().
+		Str("comment_id", commentID).
+		Str("updated_comment_url", comment.URL).
+		Dur("duration", time.Since(start)).
+		Msg("updateIssueCommentHandler completed successfully")
+
+	return protocol.NewToolResult(
+		protocol.WithText(string(responseJSON)),
 	), nil
 }
 
@@ -348,6 +519,79 @@ func GetProjectInfoHandler(ctx context.Context, args embeddable.Arguments) (*pro
 
 	return protocol.NewToolResult(
 		protocol.WithText(string(infoJSON)),
+	), nil
+}
+
+// GetIssueCommentsHandler handles getting all comments from an issue or pull request
+func GetIssueCommentsHandler(ctx context.Context, args embeddable.Arguments) (*protocol.ToolResult, error) {
+	start := time.Now()
+	log.Debug().
+		Str("function", "getIssueCommentsHandler").
+		Msg("entering getIssueCommentsHandler")
+
+	if err := mcp.EnsureService(ctx); err != nil {
+		log.Error().Err(err).Msg("failed to ensure GitHub service")
+		return protocol.NewErrorToolResult(protocol.NewTextContent("Failed to initialize GitHub service: " + err.Error())), nil
+	}
+
+	service := mcp.GetService()
+	if service == nil {
+		log.Error().Msg("GitHub service not initialized")
+		return protocol.NewErrorToolResult(protocol.NewTextContent("GitHub service not initialized")), nil
+	}
+
+	issueID := args.GetString("issue_id", "")
+	projectItemID := args.GetString("project_item_id", "")
+
+	// Validate that either issue_id or project_item_id is provided
+	if issueID == "" && projectItemID == "" {
+		log.Error().Msg("either issue_id or project_item_id parameter is required")
+		return protocol.NewErrorToolResult(protocol.NewTextContent("Either 'issue_id' (GitHub node ID) or 'project_item_id' (project item ID) is required")), nil
+	}
+
+	if issueID != "" && projectItemID != "" {
+		log.Error().Msg("cannot specify both issue_id and project_item_id")
+		return protocol.NewErrorToolResult(protocol.NewTextContent("Cannot specify both 'issue_id' and 'project_item_id' - use one or the other")), nil
+	}
+
+	log.Debug().
+		Str("issue_id", issueID).
+		Str("project_item_id", projectItemID).
+		Msg("getting issue comments")
+
+	var comments []github.Comment
+	var err error
+
+	if issueID != "" {
+		comments, err = service.GetIssueCommentsByIssueID(ctx, issueID)
+	} else {
+		comments, err = service.GetIssueCommentsByProjectItemID(ctx, projectItemID)
+	}
+
+	if err != nil {
+		log.Error().
+			Err(err).
+			Str("issue_id", issueID).
+			Str("project_item_id", projectItemID).
+			Msg("failed to get issue comments")
+		return protocol.NewErrorToolResult(protocol.NewTextContent("Failed to get issue comments: " + err.Error())), nil
+	}
+
+	commentsJSON, err := json.MarshalIndent(comments, "", "  ")
+	if err != nil {
+		log.Error().
+			Err(err).
+			Msg("failed to marshal comments")
+		return nil, fmt.Errorf("failed to marshal comments: %w", err)
+	}
+
+	log.Debug().
+		Int("comments_count", len(comments)).
+		Dur("duration", time.Since(start)).
+		Msg("getIssueCommentsHandler completed successfully")
+
+	return protocol.NewToolResult(
+		protocol.WithText(string(commentsJSON)),
 	), nil
 }
 

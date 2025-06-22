@@ -24,6 +24,22 @@ type Label struct {
 	Name string `json:"name"`
 }
 
+// Comment represents a GitHub issue comment
+type Comment struct {
+	ID        string    `json:"id"`
+	Body      string    `json:"body"`
+	URL       string    `json:"url"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+	Author    Author    `json:"author"`
+}
+
+// Author represents a GitHub comment author
+type Author struct {
+	Login     string `json:"login"`
+	AvatarURL string `json:"avatarUrl"`
+}
+
 // Repository represents a GitHub repository
 type Repository struct {
 	ID   string `json:"id"`
@@ -622,6 +638,118 @@ func (c *Client) GetLabelIDsByNames(ctx context.Context, owner, name string, lab
 	return labelIDs, nil
 }
 
+// UpdateIssueComment updates an existing issue comment
+func (c *Client) UpdateIssueComment(ctx context.Context, commentID, body string) (*Comment, error) {
+	start := time.Now()
+	logger := log.With().
+		Str("function", "UpdateIssueComment").
+		Str("comment_id", commentID).
+		Int("new_body_length", len(body)).
+		Logger()
+
+	logger.Debug().Msg("entering UpdateIssueComment")
+	defer func() {
+		logger.Debug().
+			Dur("duration", time.Since(start)).
+			Msg("exiting UpdateIssueComment")
+	}()
+
+	mutation := `
+		mutation($id: ID!, $body: String!) {
+			updateIssueComment(input: { id: $id, body: $body }) {
+				issueComment {
+					id
+					body
+					url
+					createdAt
+					updatedAt
+					author {
+						login
+						avatarUrl
+					}
+				}
+			}
+		}
+	`
+
+	logger.Debug().
+		Str("mutation", mutation).
+		Msg("constructed GraphQL mutation for comment update")
+
+	variables := map[string]interface{}{
+		"id":   commentID,
+		"body": body,
+	}
+
+	logger.Debug().
+		Interface("variables", variables).
+		Msg("prepared GraphQL variables for comment update")
+
+	var resp struct {
+		UpdateIssueComment struct {
+			IssueComment struct {
+				ID        string `json:"id"`
+				Body      string `json:"body"`
+				URL       string `json:"url"`
+				CreatedAt string `json:"createdAt"`
+				UpdatedAt string `json:"updatedAt"`
+				Author    struct {
+					Login     string `json:"login"`
+					AvatarURL string `json:"avatarUrl"`
+				} `json:"author"`
+			} `json:"issueComment"`
+		} `json:"updateIssueComment"`
+	}
+
+	logger.Debug().Msg("executing GraphQL mutation for comment update")
+	if err := c.ExecuteQuery(ctx, mutation, variables, &resp); err != nil {
+		logger.Error().
+			Err(err).
+			Dur("duration", time.Since(start)).
+			Msg("failed to execute GraphQL mutation for comment update")
+		return nil, errors.Wrap(err, "failed to update issue comment")
+	}
+
+	// Parse timestamps
+	createdAt, err := time.Parse(time.RFC3339, resp.UpdateIssueComment.IssueComment.CreatedAt)
+	if err != nil {
+		logger.Error().
+			Err(err).
+			Str("createdAt", resp.UpdateIssueComment.IssueComment.CreatedAt).
+			Msg("failed to parse createdAt timestamp")
+		createdAt = time.Time{}
+	}
+
+	updatedAt, err := time.Parse(time.RFC3339, resp.UpdateIssueComment.IssueComment.UpdatedAt)
+	if err != nil {
+		logger.Error().
+			Err(err).
+			Str("updatedAt", resp.UpdateIssueComment.IssueComment.UpdatedAt).
+			Msg("failed to parse updatedAt timestamp")
+		updatedAt = time.Time{}
+	}
+
+	comment := &Comment{
+		ID:        resp.UpdateIssueComment.IssueComment.ID,
+		Body:      resp.UpdateIssueComment.IssueComment.Body,
+		URL:       resp.UpdateIssueComment.IssueComment.URL,
+		CreatedAt: createdAt,
+		UpdatedAt: updatedAt,
+		Author: Author{
+			Login:     resp.UpdateIssueComment.IssueComment.Author.Login,
+			AvatarURL: resp.UpdateIssueComment.IssueComment.Author.AvatarURL,
+		},
+	}
+
+	logger.Debug().
+		Str("updated_comment_id", comment.ID).
+		Str("updated_comment_url", comment.URL).
+		Int("updated_body_length", len(comment.Body)).
+		Msg("successfully updated issue comment")
+
+	return comment, nil
+}
+
 // AddLabelsToLabelable adds labels to an issue or pull request
 func (c *Client) AddLabelsToLabelable(ctx context.Context, labelableID string, labelIDs []string) error {
 	start := time.Now()
@@ -774,4 +902,136 @@ func (c *Client) RemoveLabelsFromLabelable(ctx context.Context, labelableID stri
 		Msg("successfully removed labels from labelable")
 
 	return nil
+}
+
+// GetIssueComments retrieves all comments for an issue or pull request by node ID
+func (c *Client) GetIssueComments(ctx context.Context, issueID string) ([]Comment, error) {
+	start := time.Now()
+	logger := log.With().
+		Str("function", "GetIssueComments").
+		Str("issue_id", issueID).
+		Logger()
+
+	logger.Debug().Msg("entering GetIssueComments")
+	defer func() {
+		logger.Debug().
+			Dur("duration", time.Since(start)).
+			Msg("exiting GetIssueComments")
+	}()
+
+	query := `
+		query($id: ID!) {
+			node(id: $id) {
+				... on Issue {
+					comments(first: 100) {
+						nodes {
+							id
+							body
+							url
+							createdAt
+							updatedAt
+							author {
+								login
+								avatarUrl
+							}
+						}
+					}
+				}
+				... on PullRequest {
+					comments(first: 100) {
+						nodes {
+							id
+							body
+							url
+							createdAt
+							updatedAt
+							author {
+								login
+								avatarUrl
+							}
+						}
+					}
+				}
+			}
+		}
+	`
+
+	logger.Debug().
+		Str("query", query).
+		Msg("constructed GraphQL query for issue comments")
+
+	variables := map[string]interface{}{
+		"id": issueID,
+	}
+
+	logger.Debug().
+		Interface("variables", variables).
+		Msg("prepared GraphQL variables for comments query")
+
+	var resp struct {
+		Node struct {
+			Comments struct {
+				Nodes []struct {
+					ID        string `json:"id"`
+					Body      string `json:"body"`
+					URL       string `json:"url"`
+					CreatedAt string `json:"createdAt"`
+					UpdatedAt string `json:"updatedAt"`
+					Author    struct {
+						Login     string `json:"login"`
+						AvatarURL string `json:"avatarUrl"`
+					} `json:"author"`
+				} `json:"nodes"`
+			} `json:"comments"`
+		} `json:"node"`
+	}
+
+	logger.Debug().Msg("executing GraphQL query for issue comments")
+	if err := c.ExecuteQuery(ctx, query, variables, &resp); err != nil {
+		logger.Error().
+			Err(err).
+			Dur("duration", time.Since(start)).
+			Msg("failed to execute GraphQL query for issue comments")
+		return nil, errors.Wrap(err, "failed to get issue comments")
+	}
+
+	comments := make([]Comment, 0, len(resp.Node.Comments.Nodes))
+	for _, comment := range resp.Node.Comments.Nodes {
+		// Parse timestamps
+		createdAt, err := time.Parse(time.RFC3339, comment.CreatedAt)
+		if err != nil {
+			logger.Error().
+				Err(err).
+				Str("createdAt", comment.CreatedAt).
+				Msg("failed to parse createdAt timestamp")
+			createdAt = time.Time{}
+		}
+
+		updatedAt, err := time.Parse(time.RFC3339, comment.UpdatedAt)
+		if err != nil {
+			logger.Error().
+				Err(err).
+				Str("updatedAt", comment.UpdatedAt).
+				Msg("failed to parse updatedAt timestamp")
+			updatedAt = time.Time{}
+		}
+
+		comments = append(comments, Comment{
+			ID:        comment.ID,
+			Body:      comment.Body,
+			URL:       comment.URL,
+			CreatedAt: createdAt,
+			UpdatedAt: updatedAt,
+			Author: Author{
+				Login:     comment.Author.Login,
+				AvatarURL: comment.Author.AvatarURL,
+			},
+		})
+	}
+
+	logger.Debug().
+		Int("comments_count", len(comments)).
+		Msg("successfully retrieved issue comments")
+
+	return comments, nil
 }

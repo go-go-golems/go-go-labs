@@ -241,7 +241,9 @@ func addMCPCommand(rootCmd *cobra.Command) error {
 		AddProjectItem:        AddProjectItemHandler,
 		UpdateProjectItem:     UpdateProjectItemHandler,
 		AddProjectItemComment: AddProjectItemCommentHandler,
+		UpdateIssueComment:    UpdateIssueCommentHandler,
 		GetProjectInfo:        GetProjectInfoHandler,
+		GetIssueComments:      GetIssueCommentsHandler,
 	}
 	return mcp.AddMCPCommand(rootCmd, handlers)
 }
