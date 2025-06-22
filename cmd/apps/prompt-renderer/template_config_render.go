@@ -149,28 +149,16 @@ func (u *UIRenderer) renderFormItems(template *TemplateDefinition, formHandler *
 
 				for _, opt := range item.Options {
 					marker := "○"
-					optValue := opt
-					if opt == item.Value {
+					if opt.ID == item.Value {
 						marker = "●"
 					}
 
-					// Show description if available for the variant
-					for _, section := range template.Sections {
-						if section.ID == item.Key {
-							for _, variant := range section.Variants {
-								variantDisplayName := variant.Label
-								if variantDisplayName == "" {
-									variantDisplayName = variant.ID
-								}
-								if opt == variantDisplayName && variant.Description != "" {
-									optValue = fmt.Sprintf("%s - %s", opt, variant.Description)
-								}
-							}
-							break
-						}
+					displayLabel := opt.Label
+					if opt.Description != "" {
+						displayLabel = fmt.Sprintf("%s - %s", displayLabel, opt.Description)
 					}
 
-					b.WriteString(fmt.Sprintf("  %s %s\n", marker, optValue))
+					b.WriteString(fmt.Sprintf("  %s %s\n", marker, displayLabel))
 				}
 				b.WriteString("\n")
 			} else if item.Type == "bullet_header" {
@@ -186,9 +174,9 @@ func (u *UIRenderer) renderFormItems(template *TemplateDefinition, formHandler *
 				b.WriteString(headerStyle.Render(item.Label))
 				b.WriteString("\n\n")
 			} else if item.Type == "bullet" || item.Type == "toggle" {
-				marker := "☐"
+				marker := "○"
 				if item.Selected {
-					marker = "☑"
+					marker = "●"
 				}
 
 				style := lipgloss.NewStyle().Foreground(lipgloss.Color("#FAFAFA"))

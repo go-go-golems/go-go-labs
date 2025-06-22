@@ -230,18 +230,10 @@ func CreateDefaultSelection(templateDef *TemplateDefinition) *SelectionState {
 				VariantEnabled:  false, // Default toggles to off
 			}
 
-			// Set default bullet selections for first variant
-			firstVariant := section.Variants[0]
-			if firstVariant.Type == "bullets" && len(firstVariant.Bullets) > 0 {
-				// Select first 2-3 bullets by default (max 3, or all if fewer)
-				maxDefault := 3
-				if len(firstVariant.Bullets) < maxDefault {
-					maxDefault = len(firstVariant.Bullets)
-				}
-				for i := 0; i < maxDefault; i++ {
-					bulletKey := fmt.Sprintf("%d", i)
-					sectionSelection.SelectedBullets[bulletKey] = true
-				}
+			// Select all bullets by default so users can deselect as needed.
+			for i := range section.Variants[0].Bullets {
+				bulletKey := fmt.Sprintf("%d", i)
+				sectionSelection.SelectedBullets[bulletKey] = true
 			}
 
 			selection.Sections[section.ID] = sectionSelection

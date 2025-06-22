@@ -62,8 +62,9 @@ func (s *StateManager) CycleSectionVariant(sectionID string) {
 			// Cycle to next variant
 			nextIndex := (currentIndex + 1) % len(section.Variants)
 			sectionSelection.Variant = section.Variants[nextIndex].ID
-			sectionSelection.SelectedBullets = make(map[string]bool) // Reset bullet selections
-			sectionSelection.VariantEnabled = false                  // Reset toggle state
+			// Preserve bullet selections across variant changes so users don't lose work.
+			// They will simply be ignored for non-bullet variants.
+			sectionSelection.VariantEnabled = false // Reset toggle state only
 			s.Selection.Sections[sectionID] = sectionSelection
 			break
 		}

@@ -25,43 +25,8 @@ func main() {
 into clipboard-ready prompts through an interactive configuration interface.`,
 		RunE: runApp,
 	}
-
-	var testCmd = &cobra.Command{
-		Use:   "test",
-		Short: "Test the renderer functionality",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			setupLogging()
-			TestRenderer()
-			return nil
-		},
-	}
-
-	var testP0Cmd = &cobra.Command{
-		Use:   "test-p0",
-		Short: "Test the P0 fixes",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			setupLogging()
-			TestP0Fixes()
-			return nil
-		},
-	}
-
-	var testUICmd = &cobra.Command{
-		Use:   "test-ui",
-		Short: "Test the UI improvements",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			setupLogging()
-			TestUIImprovements()
-			return nil
-		},
-	}
-
 	rootCmd.Flags().StringVar(&logLevel, "log-level", "info", "Log level (debug, info, warn, error)")
 	rootCmd.Flags().StringVar(&dslFilePath, "dsl", "", "Path to DSL file (defaults to auto-discovery)")
-
-	rootCmd.AddCommand(testCmd)
-	rootCmd.AddCommand(testP0Cmd)
-	rootCmd.AddCommand(testUICmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)

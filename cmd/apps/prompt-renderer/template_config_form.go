@@ -5,6 +5,16 @@ import (
 	"sort"
 )
 
+// FormOption represents a selectable option in a section selector.
+// ID is the internal identifier (e.g. variant ID) while Label is what gets
+// rendered in the UI. We also keep the Description around so it can be shown
+// next to the label without having to look it up again at render time.
+type FormOption struct {
+	ID          string
+	Label       string
+	Description string
+}
+
 // FormItem represents a configurable item in the form
 type FormItem struct {
 	Type        string // "variable", "section", "bullet", "toggle", "bullet_header"
@@ -15,8 +25,8 @@ type FormItem struct {
 	Label       string
 	Value       string
 	Hint        string
-	Options     []string // for sections
-	Selected    bool     // for bullets and toggles
+	Options     []FormOption // for sections
+	Selected    bool         // for bullets and toggles
 }
 
 // FormHandler manages form structure and navigation
@@ -66,12 +76,16 @@ func (f *FormHandler) RebuildFormItems(template *TemplateDefinition, selection *
 
 		// Add section variant selector (only if multiple variants)
 		if len(section.Variants) > 1 {
-			options := make([]string, len(section.Variants))
+			options := make([]FormOption, len(section.Variants))
 			for i, variant := range section.Variants {
-				if variant.Label != "" {
-					options[i] = variant.Label
-				} else {
-					options[i] = variant.ID
+				label := variant.Label
+				if label == "" {
+					label = variant.ID
+				}
+				options[i] = FormOption{
+					ID:          variant.ID,
+					Label:       label,
+					Description: variant.Description,
 				}
 			}
 
