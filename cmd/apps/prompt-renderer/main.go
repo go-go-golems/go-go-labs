@@ -102,7 +102,7 @@ type AppModel struct {
 	persistence *PersistenceManager
 
 	listModel   *TemplateListModel
-	configModel *TemplateConfigModel
+	configModel *RootConfigModel
 
 	width    int
 	height   int
@@ -150,7 +150,7 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case SelectTemplateMsg:
 		log.Info().Str("template", msg.Template.ID).Msg("Template selected")
 		m.state = StateTemplateConfig
-		m.configModel = NewTemplateConfigModel(&msg.Template, m.renderer)
+		m.configModel = NewRootConfigModel(&msg.Template, m.renderer)
 		m.configModel.SetSize(m.width, m.height)
 
 		// Try to load previous state for this template
@@ -159,7 +159,7 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				log.Info().Msg("Loaded previous state for template")
 				// We need to update the state manager directly since selection is internal
 				// For now, let's create a new model with the saved state
-				m.configModel = NewTemplateConfigModel(&msg.Template, m.renderer)
+				m.configModel = NewRootConfigModel(&msg.Template, m.renderer)
 				m.configModel.SetSize(m.width, m.height)
 				// TODO: Add method to restore saved state
 			}
@@ -208,7 +208,7 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.configModel != nil {
 			var cmd tea.Cmd
 			model, cmd := m.configModel.Update(msg)
-			m.configModel = model.(*TemplateConfigModel)
+			m.configModel = model.(*RootConfigModel)
 			return m, cmd
 		}
 	}

@@ -105,7 +105,8 @@ func (r *PromptRenderer) renderBullets(variant *VariantDefinition, sectionSelect
 		var selectedBullets []string
 		for i, bullet := range variant.Bullets {
 			bulletKey := fmt.Sprintf("%d", i)
-			if sectionSelection.SelectedBullets != nil && sectionSelection.SelectedBullets[bulletKey] {
+			fullKey := fmt.Sprintf("%s_%s", variant.ID, bulletKey)
+			if sectionSelection.SelectedBullets != nil && sectionSelection.SelectedBullets[fullKey] {
 				selectedBullets = append(selectedBullets, bulletPrefix+bullet)
 			}
 		}
@@ -118,7 +119,8 @@ func (r *PromptRenderer) renderBullets(variant *VariantDefinition, sectionSelect
 	// Default: just render selected bullets
 	for i, bullet := range variant.Bullets {
 		bulletKey := fmt.Sprintf("%d", i)
-		if sectionSelection.SelectedBullets != nil && sectionSelection.SelectedBullets[bulletKey] {
+		fullKey := fmt.Sprintf("%s_%s", variant.ID, bulletKey)
+		if sectionSelection.SelectedBullets != nil && sectionSelection.SelectedBullets[fullKey] {
 			bullets.WriteString(bulletPrefix)
 			bullets.WriteString(bullet)
 			bullets.WriteString("\n")
@@ -233,7 +235,8 @@ func CreateDefaultSelection(templateDef *TemplateDefinition) *SelectionState {
 			// Select all bullets by default so users can deselect as needed.
 			for i := range section.Variants[0].Bullets {
 				bulletKey := fmt.Sprintf("%d", i)
-				sectionSelection.SelectedBullets[bulletKey] = true
+				fullKey := fmt.Sprintf("%s_%s", section.Variants[0].ID, bulletKey)
+				sectionSelection.SelectedBullets[fullKey] = true
 			}
 
 			selection.Sections[section.ID] = sectionSelection

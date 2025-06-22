@@ -151,7 +151,7 @@ func (f *FormHandler) RebuildFormItems(template *TemplateDefinition, selection *
 						bulletKey := fmt.Sprintf("%d", i)
 						selected := false
 						if sectionSelection.SelectedBullets != nil {
-							selected = sectionSelection.SelectedBullets[bulletKey]
+							selected = sectionSelection.SelectedBullets[fmt.Sprintf("%s_%s", variant.ID, bulletKey)]
 						}
 
 						f.Items = append(f.Items, FormItem{

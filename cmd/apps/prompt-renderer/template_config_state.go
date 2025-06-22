@@ -61,10 +61,24 @@ func (s *StateManager) CycleSectionVariant(sectionID string) {
 
 			// Cycle to next variant
 			nextIndex := (currentIndex + 1) % len(section.Variants)
-			sectionSelection.Variant = section.Variants[nextIndex].ID
-			// Preserve bullet selections across variant changes so users don't lose work.
-			// They will simply be ignored for non-bullet variants.
+			nextVariant := section.Variants[nextIndex]
+			sectionSelection.Variant = nextVariant.ID
+			// Preserve bullet selections across variant changes so users don't lose work (keys now namespaced by variant).
 			sectionSelection.VariantEnabled = false // Reset toggle state only
+
+			// If the newly selected variant is of type bullets and its keys are not present yet, default them to on.
+			if nextVariant.Type == "bullets" {
+				if sectionSelection.SelectedBullets == nil {
+					sectionSelection.SelectedBullets = make(map[string]bool)
+				}
+				for i := range nextVariant.Bullets {
+					key := fmt.Sprintf("%s_%d", nextVariant.ID, i)
+					if _, ok := sectionSelection.SelectedBullets[key]; !ok {
+						sectionSelection.SelectedBullets[key] = true
+					}
+				}
+			}
+
 			s.Selection.Sections[sectionID] = sectionSelection
 			break
 		}
@@ -73,7 +87,7 @@ func (s *StateManager) CycleSectionVariant(sectionID string) {
 	s.UpdatePreview()
 }
 
-// ToggleBullet toggles a bullet selection
+// ToggleBullet toggles a bullet selection. Selection is tracked per variant.
 func (s *StateManager) ToggleBullet(sectionID, variantID, bulletKey string) {
 	sectionSelection := s.Selection.Sections[sectionID]
 
@@ -82,8 +96,10 @@ func (s *StateManager) ToggleBullet(sectionID, variantID, bulletKey string) {
 		sectionSelection.SelectedBullets = make(map[string]bool)
 	}
 
-	// Toggle bullet selection
-	sectionSelection.SelectedBullets[bulletKey] = !sectionSelection.SelectedBullets[bulletKey]
+	fullKey := variantID + "_" + bulletKey
+
+	// Toggle bullet selection for this variant
+	sectionSelection.SelectedBullets[fullKey] = !sectionSelection.SelectedBullets[fullKey]
 	s.Selection.Sections[sectionID] = sectionSelection
 
 	s.UpdatePreview()
