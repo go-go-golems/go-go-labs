@@ -25,7 +25,7 @@ services:
       - DB_POSTGRESDB_DATABASE=n8n_db
       - DB_POSTGRESDB_USER=n8n_user
       - DB_POSTGRESDB_PASSWORD=strongpassword
-      - WEBHOOK_URL=https://90ee-2600-8805-9398-8a00-d86f-564c-85d8-3c4b.ngrok-free.app/    # (Required if you expose n8n via a domain/proxy)
+      - WEBHOOK_URL=https://020c-2600-8805-9398-8a00-5efa-8029-8059-23e8.ngrok-free.app/     # (Required if you expose n8n via a domain/proxy)
       - GENERIC_TIMEZONE=America/New_York         # (Configure timezone if needed)
     volumes:
       - n8n-data:/home/node/.n8n    # Persist n8n data (including SQLite if used, and encryption key)

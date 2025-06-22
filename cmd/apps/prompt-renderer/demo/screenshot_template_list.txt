@@ -1,0 +1,48 @@
+ PROMPT BUILDER
+
+                                                             Select a Template
+
+►  1. Code Review Assistant                     [SELECTED]
+      Model: claude-3-sonnet
+
+   2. Text Summarization
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ ↑↓/j/k: Navigate    Enter: Select    q/Ctrl+C: Quit    ?: Help
+

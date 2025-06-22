@@ -1,0 +1,55 @@
+ Code Review Assistant
+
+ Variables:                                                                    Preview:
+   code_snippet                                                                ╭────────────────────────────────────────────────────────────────────────╮
+   ╭──────────────────────────────────────────────────────────────────────╮    │                                                                        │
+ │ package mainfunc fibonacci(n int) int {    return fibonacci(n-1) +   │      │ Please review the following go code and provide feedback:              │
+ │ fibonacci(n-2)jjfunc test() { return 42 }                            │      │                                                                        │
+ ╰──────────────────────────────────────────────────────────────────────╯      │ ```go                                                                  │
+                                                                               │ package mainfunc fibonacci(n int) int {    return fibonacci(n-1) +     │
+   language                                                                    │ fibonacci(n-2)jjfunc test() { return 42 }                              │
+   ╭──────────────────────────────────────────────────────────────────────╮    │ ```                                                                    │
+ │ go                                                                   │      │                                                                        │
+ ╰──────────────────────────────────────────────────────────────────────╯      │                                                                        │
+                                                                               │                                                                        │
+ Sections:                                                                     │                                                                        │
+                                                                               │                                                                        │
+   introduction                                                                │                                                                        │
+   ● basic                                                                     │                                                                        │
+   ○ detailed                                                                  │                                                                        │
+                                                                               │                                                                        │
+   code_block                                                                  │                                                                        │
+   ● simple                                                                    │                                                                        │
+                                                                               │                                                                        │
+   review_aspects                                                              │                                                                        │
+   ● standard                                                                  │                                                                        │
+   ○ focused                                                                   │                                                                        │
+                                                                               │                                                                        │
+   ☐ quality                                                                   │                                                                        │
+ ► ☐ security                                                                  │                                                                        │
+   ☐ structure                                                                 │                                                                        │
+                                                                               │                                                                        │
+                                                                               │                                                                        │
+                                                                               │                                                                        │
+                                                                               │                                                                        │
+                                                                               │                                                                        │
+                                                                               │                                                                        │
+                                                                               │                                                                        │
+                                                                               │                                                                        │
+                                                                               │                                                                        │
+                                                                               │                                                                        │
+                                                                               │                                                                        │
+                                                                               │                                                                        │
+                                                                               │                                                                        │
+                                                                               │                                                                        │
+                                                                               │                                                                        │
+                                                                               │                                                                        │
+                                                                               │                                                                        │
+                                                                               │                                                                        │
+                                                                               │                                                                        │
+                                                                               │                                                                        │
+                                                                               ╰────────────────────────────────────────────────────────────────────────╯
+
+ ↑↓: Navigate  Enter: Edit  Space: Toggle  c: Copy  s: Save  ←/Esc: Back
+
+
