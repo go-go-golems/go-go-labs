@@ -163,4 +163,4 @@ func (m *RootConfigModel) View() string {
 func (m *RootConfigModel) SetSize(width, height int) tea.Cmd {
 	_, cmd := m.Update(tea.WindowSizeMsg{Width: width, Height: height})
 	return cmd
-} 
+}

@@ -6,4 +6,4 @@ import tea "github.com/charmbracelet/bubbletea"
 type Resizable interface {
 	// SetSize updates the model's width and height and returns any command to execute.
 	SetSize(width, height int) tea.Cmd
-} 
+}

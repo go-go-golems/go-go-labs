@@ -51,4 +51,4 @@ func (m *PreviewModel) SetSize(width, height int) tea.Cmd {
 	m.height = height
 	m.ui.SetSize(width, height)
 	return nil
-} 
+}

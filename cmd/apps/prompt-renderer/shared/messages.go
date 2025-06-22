@@ -8,8 +8,8 @@ type VarChangedMsg struct {
 
 // ToggleChangedMsg is emitted when a toggle or bullet selection is changed in the form.
 type ToggleChangedMsg struct {
-	SectionID   string
-	VariantID   string
+	SectionID string
+	VariantID string
 	// If BulletIndex is non-nil, toggle the bullet at that index; if nil, toggle the variant state.
 	BulletIndex *int
 }
@@ -22,4 +22,4 @@ type PreviewUpdatedMsg struct {
 // SectionVariantMsg is emitted when a section variant is cycled in the form.
 type SectionVariantMsg struct {
 	SectionID string
-} 
+}

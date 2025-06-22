@@ -131,4 +131,4 @@ func (m *FormModel) SetSize(width, height int) tea.Cmd {
 	m.width = width
 	m.height = height
 	return nil
-} 
+}
