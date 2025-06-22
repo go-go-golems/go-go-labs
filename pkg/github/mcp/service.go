@@ -29,6 +29,8 @@ type GitHubProjectService struct {
 	projectID     string
 	owner         string // Store owner for reference
 	projectNumber int    // Store project number for reference
+	repository    string // Repository name for creating issues
+	repositoryID  string // Repository node ID for GraphQL operations
 	fields        map[string]string            // field name -> field ID mapping
 	fieldOptions  map[string]map[string]string // field name -> option name -> option ID mapping
 }
@@ -48,7 +50,7 @@ func NewGitHubProjectService() (*GitHubProjectService, error) {
 	}, nil
 }
 
-func (s *GitHubProjectService) InitProject(ctx context.Context, owner string, projectNumber int) error {
+func (s *GitHubProjectService) InitProject(ctx context.Context, owner string, projectNumber int, repository string) error {
 	if s.projectID != "" {
 		return nil // already initialized
 	}
@@ -56,6 +58,7 @@ func (s *GitHubProjectService) InitProject(ctx context.Context, owner string, pr
 	// Store config for reference
 	s.owner = owner
 	s.projectNumber = projectNumber
+	s.repository = repository
 
 	project, err := s.client.GetProject(ctx, owner, projectNumber)
 	if err != nil {
@@ -90,6 +93,13 @@ func (s *GitHubProjectService) InitProject(ctx context.Context, owner string, pr
 		}
 	}
 
+	// Get repository ID for GraphQL operations
+	repo, err := s.client.GetRepository(ctx, s.owner, s.repository)
+	if err != nil {
+		return fmt.Errorf("failed to get repository: %w", err)
+	}
+	s.repositoryID = repo.ID
+
 	return nil
 }
 
@@ -108,25 +118,49 @@ func (s *GitHubProjectService) GetTasks(ctx context.Context) ([]Task, error) {
 	return tasks, nil
 }
 
-func (s *GitHubProjectService) GetProjectWithCurrentConfig(ctx context.Context) (*github.Project, []github.ProjectField, error) {
+func (s *GitHubProjectService) GetProjectWithCurrentConfig(ctx context.Context) (*github.Project, []github.ProjectField, []github.Label, error) {
 	project, err := s.client.GetProject(ctx, s.owner, s.projectNumber)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get project: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to get project: %w", err)
 	}
 
 	fields, err := s.client.GetProjectFields(ctx, s.projectID)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get project fields: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to get project fields: %w", err)
 	}
 
-	return project, fields, nil
+	// Get repository labels
+	labels, err := s.client.GetRepositoryLabels(ctx, s.owner, s.repository)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to get repository labels: %w", err)
+	}
+
+	return project, fields, labels, nil
 }
 
 func (s *GitHubProjectService) AddTask(ctx context.Context, content, priority string, labels []string) (*Task, error) {
-	// Create draft issue
-	itemID, err := s.client.CreateDraftIssue(ctx, s.projectID, content, "")
+	// Create real issue in repository instead of draft issue
+	var labelIDs []string
+	if len(labels) > 0 {
+		// Get label IDs for the repository
+		var err error
+		labelIDs, err = s.client.GetLabelIDsByNames(ctx, s.owner, s.repository, labels)
+		if err != nil {
+			log.Warn().Err(err).Msg("failed to resolve some labels, continuing without them")
+			labelIDs = []string{} // Continue without labels if they can't be resolved
+		}
+	}
+
+	// Create issue with labels
+	issue, err := s.client.CreateIssueWithLabels(ctx, s.repositoryID, content, "", labelIDs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create draft issue: %w", err)
+		return nil, fmt.Errorf("failed to create issue: %w", err)
+	}
+
+	// Add the issue to the project
+	itemID, err := s.client.AddItemToProject(ctx, s.projectID, issue.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add issue to project: %w", err)
 	}
 
 	// Set priority if provided
@@ -393,9 +427,8 @@ func (s *GitHubProjectService) updateTaskItemType(ctx context.Context, taskID, n
 
 	// Handle conversion from draft issue to issue
 	if targetItem.Content.Typename == "DraftIssue" && newItemType == "ISSUE" {
-		// For converting draft issue to issue, we need repository ID
-		// For now, we'll extract it from the project URL or return an error
-		return fmt.Errorf("draft issue to issue conversion requires repository setup - not implemented yet")
+		// Convert draft issue to real issue in the repository
+		return s.client.ConvertDraftIssueToIssue(ctx, s.projectID, targetItem.ID, s.repositoryID, targetItem.Content.Title, targetItem.Content.Body)
 	}
 
 	// Other conversions may need different handling
@@ -536,20 +569,10 @@ func parseLabels(labelsStr string) []string {
 	return labels
 }
 
-// getLabelIDs resolves label names to IDs for a given repository
+// getLabelIDs resolves label names to IDs for the configured repository
 func (s *GitHubProjectService) getLabelIDs(ctx context.Context, item *github.ProjectItem, labelNames []string) ([]string, error) {
-	// Extract repository owner and name from URL
-	// URL format: https://github.com/owner/repo/issues/123
-	url := item.Content.URL
-	parts := strings.Split(url, "/")
-	if len(parts) < 5 {
-		return nil, fmt.Errorf("invalid URL format: %s", url)
-	}
-	
-	owner := parts[3]
-	repo := parts[4]
-	
-	return s.client.GetLabelIDsByNames(ctx, owner, repo, labelNames)
+	// Use the configured repository instead of extracting from URL
+	return s.client.GetLabelIDsByNames(ctx, s.owner, s.repository, labelNames)
 }
 
 // maskToken censors the GitHub token for logging purposes

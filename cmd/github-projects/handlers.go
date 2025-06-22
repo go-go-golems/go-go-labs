@@ -83,7 +83,7 @@ func AddProjectItemHandler(ctx context.Context, args embeddable.Arguments) (*pro
 	// Validate that either content or content_id is provided
 	if content == "" && contentID == "" {
 		log.Error().Msg("either content or content_id parameter is required")
-		return protocol.NewErrorToolResult(protocol.NewTextContent("Either 'content' (for new draft issue) or 'content_id' (for existing issue/PR) is required")), nil
+		return protocol.NewErrorToolResult(protocol.NewTextContent("Either 'content' (for new issue) or 'content_id' (for existing issue/PR) is required")), nil
 	}
 
 	if content != "" && contentID != "" {
@@ -125,7 +125,7 @@ func AddProjectItemHandler(ctx context.Context, args embeddable.Arguments) (*pro
 	var err error
 
 	if content != "" {
-		// Create draft issue
+		// Create real issue in repository
 		task, err = service.AddTask(ctx, content, priority, labels)
 	} else {
 		// Add existing content to project
@@ -319,7 +319,7 @@ func GetProjectInfoHandler(ctx context.Context, args embeddable.Arguments) (*pro
 
 	log.Debug().Msg("getting project information")
 
-	project, fields, err := service.GetProjectWithCurrentConfig(ctx)
+	project, fields, labels, err := service.GetProjectWithCurrentConfig(ctx)
 	if err != nil {
 		log.Error().
 			Err(err).
@@ -327,10 +327,11 @@ func GetProjectInfoHandler(ctx context.Context, args embeddable.Arguments) (*pro
 		return protocol.NewErrorToolResult(protocol.NewTextContent("Failed to get project info: " + err.Error())), nil
 	}
 
-	// Combine project and fields information
+	// Combine project, fields, and labels information
 	info := map[string]interface{}{
 		"project": project,
 		"fields":  fields,
+		"labels":  labels,
 	}
 
 	infoJSON, err := json.MarshalIndent(info, "", "  ")

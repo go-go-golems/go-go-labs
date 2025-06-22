@@ -12,7 +12,7 @@ import (
 )
 
 // ensureGitHubService ensures GitHub service is initialized
-func ensureGitHubService(ctx context.Context, owner string, projectNumber int) error {
+func ensureGitHubService(ctx context.Context, owner string, projectNumber int, repository string) error {
 	if githubService != nil {
 		return nil
 	}
@@ -25,7 +25,7 @@ func ensureGitHubService(ctx context.Context, owner string, projectNumber int) e
 	}
 
 	// Initialize project
-	if err := githubService.InitProject(ctx, owner, projectNumber); err != nil {
+	if err := githubService.InitProject(ctx, owner, projectNumber, repository); err != nil {
 		return fmt.Errorf("failed to initialize project: %w", err)
 	}
 
@@ -62,13 +62,13 @@ func AddMCPCommand(rootCmd *cobra.Command, handlers *ToolHandlers) error {
 
 		// Add project item tool
 		embeddable.WithEnhancedTool("add_project_item", handlers.AddProjectItem,
-			embeddable.WithEnhancedDescription("Add a new project item. By default creates a draft issue. Can also add existing issues or pull requests by providing their ID."),
+			embeddable.WithEnhancedDescription("Add a new project item. By default creates a real issue in the configured repository. Can also add existing issues or pull requests by providing their ID."),
 			embeddable.WithStringProperty("content",
-				embeddable.PropertyDescription("Title/description for new draft issue, or leave empty when adding existing issue/PR"),
+				embeddable.PropertyDescription("Title/description for new issue, or leave empty when adding existing issue/PR"),
 				embeddable.MinLength(1),
 			),
 			embeddable.WithStringProperty("content_id",
-				embeddable.PropertyDescription("ID of existing issue or pull request to add to project (alternative to creating draft issue)"),
+				embeddable.PropertyDescription("ID of existing issue or pull request to add to project (alternative to creating new issue)"),
 			),
 			embeddable.WithStringProperty("item_type",
 				embeddable.PropertyDescription("Type of item to create: 'ISSUE' (default), 'DRAFT_ISSUE', or 'PULL_REQUEST'. Use DRAFT_ISSUE for tentative items. Only used when adding existing content by ID."),
@@ -81,7 +81,7 @@ func AddMCPCommand(rootCmd *cobra.Command, handlers *ToolHandlers) error {
 				embeddable.DefaultString("medium"),
 			),
 			embeddable.WithStringProperty("labels",
-				embeddable.PropertyDescription("Comma-separated labels to set on the underlying issue/PR (only applicable when creating issues, not draft issues)"),
+				embeddable.PropertyDescription("Comma-separated labels to set on the issue/PR (labels must exist in the configured repository)"),
 			),
 		),
 
@@ -125,7 +125,7 @@ func AddMCPCommand(rootCmd *cobra.Command, handlers *ToolHandlers) error {
 
 		// Get project information tool
 		embeddable.WithEnhancedTool("get_project_info", handlers.GetProjectInfo,
-			embeddable.WithEnhancedDescription("Get detailed project information including all fields, field types, and available options (labels)"),
+			embeddable.WithEnhancedDescription("Get detailed project information including all fields, field types, and repository labels"),
 			embeddable.WithReadOnlyHint(true),
 			embeddable.WithIdempotentHint(true),
 		),
@@ -160,5 +160,10 @@ func EnsureService(ctx context.Context) error {
 		return fmt.Errorf("invalid GITHUB_PROJECT_NUMBER: %v", err)
 	}
 
-	return ensureGitHubService(ctx, owner, projectNumber)
+	repository := os.Getenv("GITHUB_REPOSITORY")
+	if repository == "" {
+		return fmt.Errorf("GITHUB_REPOSITORY environment variable is required")
+	}
+
+	return ensureGitHubService(ctx, owner, projectNumber, repository)
 }

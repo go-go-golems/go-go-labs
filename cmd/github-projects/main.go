@@ -25,7 +25,7 @@ func EnsureGitHubConfig() error {
 	var err error
 	githubConfig, err = config.LoadGitHubConfig()
 	if err != nil {
-		return fmt.Errorf("configuration error: %v\nRequired environment variables:\n  GITHUB_TOKEN - GitHub personal access token\n  GITHUB_OWNER - GitHub organization or user\n  GITHUB_PROJECT_NUMBER - Project number (integer)", err)
+		return fmt.Errorf("configuration error: %v\nRequired environment variables:\n  GITHUB_TOKEN - GitHub personal access token\n  GITHUB_OWNER - GitHub organization or user\n  GITHUB_PROJECT_NUMBER - Project number (integer)\n  GITHUB_REPOSITORY - Repository name for creating issues", err)
 	}
 	return nil
 }
@@ -45,7 +45,8 @@ managing project items, and updating custom fields.
 Configuration is loaded from environment variables when needed:
   GITHUB_TOKEN - GitHub personal access token
   GITHUB_OWNER - GitHub organization or user
-  GITHUB_PROJECT_NUMBER - Project number (integer)`,
+  GITHUB_PROJECT_NUMBER - Project number (integer)
+  GITHUB_REPOSITORY - Repository name for creating issues`,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			log.Info().Msg("Initializing logger")
 			err := logging.InitLoggerFromViper()

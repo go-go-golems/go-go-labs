@@ -11,6 +11,7 @@ type GitHubConfig struct {
 	Token         string
 	Owner         string
 	ProjectNumber int
+	Repository    string
 }
 
 // LoadGitHubConfig loads configuration from environment variables
@@ -35,10 +36,16 @@ func LoadGitHubConfig() (*GitHubConfig, error) {
 		return nil, fmt.Errorf("invalid GITHUB_PROJECT_NUMBER: %v", err)
 	}
 
+	repository := os.Getenv("GITHUB_REPOSITORY")
+	if repository == "" {
+		return nil, fmt.Errorf("GITHUB_REPOSITORY environment variable is required")
+	}
+
 	return &GitHubConfig{
 		Token:         token,
 		Owner:         owner,
 		ProjectNumber: projectNumber,
+		Repository:    repository,
 	}, nil
 }
 
