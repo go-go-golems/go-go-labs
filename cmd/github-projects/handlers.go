@@ -17,10 +17,10 @@ import (
 
 // Response structures for MCP tools
 type AddProjectItemResponse struct {
-	Message       string `json:"message"`
-	ProjectItemID string `json:"project_item_id"`
-	IssueID       string `json:"issue_id,omitempty"`       // Only for new issues
-	ContentID     string `json:"content_id,omitempty"`     // Only for existing content
+	Message       string    `json:"message"`
+	ProjectItemID string    `json:"project_item_id"`
+	IssueID       string    `json:"issue_id,omitempty"`   // Only for new issues
+	ContentID     string    `json:"content_id,omitempty"` // Only for existing content
 	Task          *mcp.Task `json:"task"`
 }
 

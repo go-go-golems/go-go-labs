@@ -60,7 +60,7 @@ type ProjectItem struct {
 // ItemContent represents the content of a project item
 type ItemContent struct {
 	Typename  string `json:"__typename"`
-	ID        string `json:"id"`        // GitHub node ID
+	ID        string `json:"id"` // GitHub node ID
 	Title     string `json:"title"`
 	URL       string `json:"url"`
 	Number    int    `json:"number"`
@@ -822,7 +822,7 @@ func (c *Client) AddCommentWithResponse(ctx context.Context, subjectID, body str
 	`
 
 	log.Debug().
-		Str("function", "AddCommentWithResponse").	
+		Str("function", "AddCommentWithResponse").
 		Str("mutation", mutation).
 		Msg("constructed GraphQL mutation")
 
@@ -855,7 +855,7 @@ func (c *Client) AddCommentWithResponse(ctx context.Context, subjectID, body str
 	}
 
 	log.Debug().
-		Str("function", "AddCommentWithResponse").	
+		Str("function", "AddCommentWithResponse").
 		Msg("executing GraphQL mutation")
 
 	if err := c.ExecuteQuery(ctx, mutation, variables, &resp); err != nil {

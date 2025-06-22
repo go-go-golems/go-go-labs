@@ -72,7 +72,6 @@ Configuration is loaded from environment variables when needed:
 	helpSystem := help.NewHelpSystem()
 	helpSystem.SetupCobraRootCommand(rootCmd)
 
-
 	// Create and add commands
 	commands := []func() error{
 		func() error { return addViewerCommand(rootCmd) },
