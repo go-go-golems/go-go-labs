@@ -72,14 +72,14 @@ func (p *PersistenceManager) SaveToHistory(selection *SelectionState) error {
 	timestamp := selection.Timestamp.Format("20060102-150405")
 	filename := fmt.Sprintf("%s_%s.yml", timestamp, selection.TemplateID)
 	historyPath := filepath.Join(p.dataDir, "history", filename)
-	
+
 	return p.saveSelectionToFile(selection, historyPath)
 }
 
 // saveSelectionToFile saves a selection state to the specified file
 func (p *PersistenceManager) saveSelectionToFile(selection *SelectionState, path string) error {
 	selection.Timestamp = time.Now()
-	
+
 	data, err := yaml.Marshal(selection)
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal selection state")
@@ -114,7 +114,7 @@ func (p *PersistenceManager) loadSelectionFromFile(path string) (*SelectionState
 // ListHistory returns a list of saved history files
 func (p *PersistenceManager) ListHistory() ([]string, error) {
 	historyDir := filepath.Join(p.dataDir, "history")
-	
+
 	entries, err := os.ReadDir(historyDir)
 	if err != nil {
 		if os.IsNotExist(err) {

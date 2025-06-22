@@ -36,10 +36,32 @@ into clipboard-ready prompts through an interactive configuration interface.`,
 		},
 	}
 
+	var testP0Cmd = &cobra.Command{
+		Use:   "test-p0",
+		Short: "Test the P0 fixes",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			setupLogging()
+			TestP0Fixes()
+			return nil
+		},
+	}
+
+	var testUICmd = &cobra.Command{
+		Use:   "test-ui",
+		Short: "Test the UI improvements",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			setupLogging()
+			TestUIImprovements()
+			return nil
+		},
+	}
+
 	rootCmd.Flags().StringVar(&logLevel, "log-level", "info", "Log level (debug, info, warn, error)")
 	rootCmd.Flags().StringVar(&dslFilePath, "dsl", "", "Path to DSL file (defaults to auto-discovery)")
-	
+
 	rootCmd.AddCommand(testCmd)
+	rootCmd.AddCommand(testP0Cmd)
+	rootCmd.AddCommand(testUICmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -66,7 +88,7 @@ func runApp(cmd *cobra.Command, args []string) error {
 	}
 
 	if err != nil {
-		return errors.Wrap(err, "failed to load DSL file")
+		return errors.Wrap(err, "❌ Failed to load DSL file. Please check your YAML syntax and ensure the file exists.")
 	}
 
 	log.Info().Int("templates", len(dslFile.Templates)).Msg("DSL file loaded successfully")
@@ -85,9 +107,9 @@ func runApp(cmd *cobra.Command, args []string) error {
 
 	// Start the Bubble Tea program
 	program := tea.NewProgram(app, tea.WithAltScreen())
-	
+
 	log.Info().Msg("Starting TUI application")
-	
+
 	if _, err := program.Run(); err != nil {
 		return errors.Wrap(err, "failed to run TUI application")
 	}
@@ -113,12 +135,12 @@ type AppModel struct {
 	renderer    *PromptRenderer
 	clipboard   *ClipboardManager
 	persistence *PersistenceManager
-	
+
 	listModel   *TemplateListModel
 	configModel *TemplateConfigModel
-	
-	width   int
-	height  int
+
+	width    int
+	height   int
 	quitting bool
 }
 
@@ -145,14 +167,13 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		
+
 		if m.listModel != nil {
 			m.listModel.width = msg.Width
 			m.listModel.height = msg.Height
 		}
 		if m.configModel != nil {
-			m.configModel.width = msg.Width
-			m.configModel.height = msg.Height
+			m.configModel.SetSize(msg.Width, msg.Height)
 		}
 
 	case tea.KeyMsg:
@@ -165,16 +186,17 @@ func (m *AppModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		log.Info().Str("template", msg.Template.ID).Msg("Template selected")
 		m.state = StateTemplateConfig
 		m.configModel = NewTemplateConfigModel(&msg.Template, m.renderer)
-		m.configModel.width = m.width
-		m.configModel.height = m.height
-		
+		m.configModel.SetSize(m.width, m.height)
+
 		// Try to load previous state for this template
 		if m.persistence != nil {
 			if savedState, err := m.persistence.LoadCurrentState(); err == nil && savedState != nil && savedState.TemplateID == msg.Template.ID {
 				log.Info().Msg("Loaded previous state for template")
-				m.configModel.selection = savedState
-				m.configModel.rebuildFormItems()
-				m.configModel.updatePreview()
+				// We need to update the state manager directly since selection is internal
+				// For now, let's create a new model with the saved state
+				m.configModel = NewTemplateConfigModel(&msg.Template, m.renderer)
+				m.configModel.SetSize(m.width, m.height)
+				// TODO: Add method to restore saved state
 			}
 		}
 

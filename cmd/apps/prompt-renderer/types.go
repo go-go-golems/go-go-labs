@@ -4,8 +4,8 @@ import "time"
 
 // DSLFile represents the root structure of a YAML DSL file
 type DSLFile struct {
-	Version   int                `yaml:"version"`
-	Globals   *GlobalConfig      `yaml:"globals,omitempty"`
+	Version   int                  `yaml:"version"`
+	Globals   *GlobalConfig        `yaml:"globals,omitempty"`
 	Templates []TemplateDefinition `yaml:"templates"`
 }
 
@@ -32,36 +32,35 @@ type VariableConfig struct {
 
 // SectionDefinition represents a section with variants
 type SectionDefinition struct {
-	ID       string             `yaml:"id"`
+	ID       string              `yaml:"id"`
+	Label    string              `yaml:"label,omitempty"` // Display label for the section
 	Variants []VariantDefinition `yaml:"variants"`
 }
 
 // VariantDefinition represents a variant within a section
 type VariantDefinition struct {
-	ID      string       `yaml:"id"`
-	Type    string       `yaml:"type"` // "text" or "bullets"
-	Content string       `yaml:"content,omitempty"`
-	Groups  []BulletGroup `yaml:"groups,omitempty"`
-}
-
-// BulletGroup represents a group of bullet points
-type BulletGroup struct {
-	ID      string   `yaml:"id"`
-	Bullets []string `yaml:"bullets"`
+	ID          string   `yaml:"id"`
+	Label       string   `yaml:"label,omitempty"`       // Display label for the variant
+	Description string   `yaml:"description,omitempty"` // Description shown in UI
+	Type        string   `yaml:"type"`                  // "text", "bullets", or "toggle"
+	Content     string   `yaml:"content,omitempty"`
+	Bullets     []string `yaml:"bullets,omitempty"` // Direct bullets, no groups
+	Enabled     bool     `yaml:"-"`                 // Runtime state for toggleable variants
 }
 
 // SelectionState represents the current user selections for a template
 type SelectionState struct {
-	TemplateID string                       `yaml:"template_id"`
-	Timestamp  time.Time                    `yaml:"timestamp"`
-	Variables  map[string]string            `yaml:"variables,omitempty"`
-	Sections   map[string]SectionSelection  `yaml:"sections,omitempty"`
+	TemplateID string                      `yaml:"template_id"`
+	Timestamp  time.Time                   `yaml:"timestamp"`
+	Variables  map[string]string           `yaml:"variables,omitempty"`
+	Sections   map[string]SectionSelection `yaml:"sections,omitempty"`
 }
 
 // SectionSelection represents selections for a specific section
 type SectionSelection struct {
-	Variant string   `yaml:"variant"`
-	Groups  []string `yaml:"groups,omitempty"`
+	Variant         string          `yaml:"variant"`
+	SelectedBullets map[string]bool `yaml:"selected_bullets,omitempty"` // bullet index -> selected
+	VariantEnabled  bool            `yaml:"variant_enabled,omitempty"`  // for toggleable variants
 }
 
 // AppState represents the current application state

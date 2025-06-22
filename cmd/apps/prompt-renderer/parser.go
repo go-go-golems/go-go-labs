@@ -18,7 +18,7 @@ func ParseDSLFile(path string) (*DSLFile, error) {
 
 	var dslFile DSLFile
 	if err := yaml.Unmarshal(data, &dslFile); err != nil {
-		return nil, errors.Wrapf(err, "failed to parse YAML in file: %s", path)
+		return nil, errors.Wrapf(err, "❌ Failed to parse YAML in file: %s. Please check YAML syntax (indentation, colons, quotes)", path)
 	}
 
 	if err := validateDSLFile(&dslFile); err != nil {
@@ -126,31 +126,20 @@ func validateVariant(variant *VariantDefinition, templateID, sectionID string, i
 		return fmt.Errorf("template '%s' section '%s' variant at index %d missing required ID field", templateID, sectionID, index)
 	}
 
-	if variant.Type != "text" && variant.Type != "bullets" {
-		return fmt.Errorf("template '%s' section '%s' variant '%s' has invalid type: %s (must be 'text' or 'bullets')", templateID, sectionID, variant.ID, variant.Type)
+	if variant.Type != "text" && variant.Type != "bullets" && variant.Type != "toggle" {
+		return fmt.Errorf("template '%s' section '%s' variant '%s' has invalid type: %s (must be 'text', 'bullets', or 'toggle')", templateID, sectionID, variant.ID, variant.Type)
 	}
 
 	if variant.Type == "text" && variant.Content == "" {
 		return fmt.Errorf("template '%s' section '%s' variant '%s' of type 'text' requires content field", templateID, sectionID, variant.ID)
 	}
 
-	if variant.Type == "bullets" && len(variant.Groups) == 0 {
-		return fmt.Errorf("template '%s' section '%s' variant '%s' of type 'bullets' requires at least one group", templateID, sectionID, variant.ID)
+	if variant.Type == "toggle" && variant.Content == "" {
+		return fmt.Errorf("template '%s' section '%s' variant '%s' of type 'toggle' requires content field", templateID, sectionID, variant.ID)
 	}
 
-	// Validate bullet groups for bullets type
-	if variant.Type == "bullets" {
-		groupIDs := make(map[string]bool)
-		for i, group := range variant.Groups {
-			if group.ID == "" {
-				return fmt.Errorf("template '%s' section '%s' variant '%s' group at index %d missing required ID field", templateID, sectionID, variant.ID, i)
-			}
-
-			if groupIDs[group.ID] {
-				return fmt.Errorf("template '%s' section '%s' variant '%s' has duplicate group ID: %s", templateID, sectionID, variant.ID, group.ID)
-			}
-			groupIDs[group.ID] = true
-		}
+	if variant.Type == "bullets" && len(variant.Bullets) == 0 {
+		return fmt.Errorf("template '%s' section '%s' variant '%s' of type 'bullets' requires at least one bullet", templateID, sectionID, variant.ID)
 	}
 
 	return nil

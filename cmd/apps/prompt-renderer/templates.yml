@@ -16,51 +16,54 @@ templates:
         type: "text"
     sections:
       - id: introduction
+        label: "Introduction Style"
         variants:
           - id: basic
+            label: "Basic"
+            description: "Simple and direct review request"
             type: "text"
             content: "Please review the following {{ .language }} code and provide feedback:"
           - id: detailed
+            label: "Detailed"
+            description: "Comprehensive analysis request"
             type: "text"
             content: "I need a comprehensive code review for this {{ .language }} code. Please analyze it thoroughly:"
       - id: code_block
+        label: "Code Presentation"
         variants:
           - id: simple
+            label: "Simple Block"
+            description: "Plain code block format"
             type: "text"
             content: |
               ```{{ .language }}
               {{ .code_snippet }}
               ```
       - id: review_aspects
+        label: "Review Focus Areas"
         variants:
           - id: standard
+            label: "Standard Review"
+            description: "Comprehensive quality assessment"
             type: "bullets"
-            groups:
-              - id: quality
-                bullets:
-                  - "Code quality and readability"
-                  - "Best practices adherence"
-                  - "Performance considerations"
-              - id: security
-                bullets:
-                  - "Security vulnerabilities"
-                  - "Input validation"
-              - id: structure
-                bullets:
-                  - "Code organization and structure"
-                  - "Error handling"
-                  - "Documentation quality"
+            bullets:
+              - "Code quality and readability"
+              - "Best practices adherence"  
+              - "Performance considerations"
+              - "Security vulnerabilities"
+              - "Input validation"
+              - "Code organization and structure"
+              - "Error handling"
+              - "Documentation quality"
           - id: focused
+            label: "Focused Review"
+            description: "Target specific technical issues"
             type: "bullets"
-            groups:
-              - id: bugs
-                bullets:
-                  - "Potential bugs or issues"
-                  - "Logic errors"
-              - id: optimization
-                bullets:
-                  - "Performance optimizations"
-                  - "Memory usage"
+            bullets:
+              - "Potential bugs or issues"
+              - "Logic errors"
+              - "Performance optimizations"
+              - "Memory usage"
 
   - id: summarize-text
     label: "Text Summarization"
@@ -73,31 +76,62 @@ templates:
         type: "text"
     sections:
       - id: instruction
+        label: "Instruction Style"
         variants:
           - id: simple
+            label: "Simple"
+            description: "Basic summarization request"
             type: "text"
             content: "Please summarize the following text in {{ .summary_length }} form:"
           - id: detailed
+            label: "Detailed"
+            description: "Comprehensive summarization with key points"
             type: "text"
             content: "Provide a {{ .summary_length }} summary of the text below, highlighting the key points:"
       - id: content
+        label: "Content Block"
         variants:
           - id: basic
+            label: "Basic"
+            description: "Plain text content"
             type: "text"
             content: |
               
               {{ .text_content }}
       - id: requirements
+        label: "Summary Requirements"
         variants:
           - id: basic
+            label: "Standard Requirements"
+            description: "Essential summarization guidelines"
             type: "bullets"
-            groups:
-              - id: format
-                bullets:
-                  - "Use clear, concise language"
-                  - "Maintain the original tone"
-              - id: content_focus
-                bullets:
-                  - "Focus on main arguments"
-                  - "Include key statistics or data"
-                  - "Preserve important conclusions"
+            bullets:
+              - "Use clear, concise language"
+              - "Maintain the original tone"
+              - "Focus on main arguments"
+              - "Include key statistics or data"
+              - "Preserve important conclusions"
+
+  - id: with-context
+    label: "Code Review with Context"
+    variables:
+      code_snippet:
+        hint: "Code to review"
+        type: "text"
+    sections:
+      - id: context_request
+        label: "Context Request"
+        variants:
+          - id: context
+            label: "Context Toggle"
+            description: "Request project context information"
+            type: "toggle"
+            content: "Please provide context about the project structure and dependencies before reviewing."
+      - id: main_prompt
+        label: "Main Review Prompt"
+        variants:
+          - id: simple
+            label: "Simple"
+            description: "Direct code review request"
+            type: "text"
+            content: "Review this code:\n\n{{ .code_snippet }}"

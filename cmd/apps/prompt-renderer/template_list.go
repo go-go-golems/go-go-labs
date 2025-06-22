@@ -106,11 +106,11 @@ func (m *TemplateListModel) View() string {
 		}
 
 		number := fmt.Sprintf("%d.", i+1)
-		
+
 		// Template line
 		templateStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#FAFAFA"))
-		
+
 		if i == m.cursor {
 			templateStyle = templateStyle.
 				Bold(true).
@@ -121,7 +121,7 @@ func (m *TemplateListModel) View() string {
 		if i == m.cursor {
 			line += "                     [SELECTED]"
 		}
-		
+
 		b.WriteString(templateStyle.Render(line))
 		b.WriteString("\n")
 
@@ -131,12 +131,12 @@ func (m *TemplateListModel) View() string {
 				Foreground(lipgloss.Color("#666666")).
 				Italic(true).
 				MarginLeft(6)
-			
+
 			hint := fmt.Sprintf("Model: %s", template.Model)
 			b.WriteString(hintStyle.Render(hint))
 			b.WriteString("\n")
 		}
-		
+
 		b.WriteString("\n")
 	}
 

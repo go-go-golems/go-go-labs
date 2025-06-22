@@ -31,7 +31,7 @@ func (r *PromptRenderer) RenderPrompt(templateDef *TemplateDefinition, selection
 	// Process each section in order
 	for _, section := range templateDef.Sections {
 		sectionSelection, hasSelection := selection.Sections[section.ID]
-		
+
 		// Default to first variant if no selection
 		selectedVariantID := section.Variants[0].ID
 		if hasSelection && sectionSelection.Variant != "" {
@@ -78,6 +78,11 @@ func (r *PromptRenderer) renderVariant(variant *VariantDefinition, sectionSelect
 	switch variant.Type {
 	case "text":
 		return variant.Content, nil
+	case "toggle":
+		if sectionSelection.VariantEnabled {
+			return variant.Content, nil
+		}
+		return "", nil
 	case "bullets":
 		return r.renderBullets(variant, sectionSelection), nil
 	default:
@@ -87,26 +92,36 @@ func (r *PromptRenderer) renderVariant(variant *VariantDefinition, sectionSelect
 
 // renderBullets processes bullet-type variants
 func (r *PromptRenderer) renderBullets(variant *VariantDefinition, sectionSelection SectionSelection) string {
-	if len(variant.Groups) == 0 {
+	if len(variant.Bullets) == 0 {
 		return ""
 	}
 
 	var bullets strings.Builder
 	bulletPrefix := r.getBulletPrefix()
 
-	// Process each selected group
-	selectedGroups := make(map[string]bool)
-	for _, groupID := range sectionSelection.Groups {
-		selectedGroups[groupID] = true
+	// Check if variant has content with {{.}} placeholder
+	if variant.Content != "" {
+		// Collect selected bullets
+		var selectedBullets []string
+		for i, bullet := range variant.Bullets {
+			bulletKey := fmt.Sprintf("%d", i)
+			if sectionSelection.SelectedBullets != nil && sectionSelection.SelectedBullets[bulletKey] {
+				selectedBullets = append(selectedBullets, bulletPrefix+bullet)
+			}
+		}
+
+		// Replace {{.}} with bullet list
+		content := strings.ReplaceAll(variant.Content, "{{.}}", strings.Join(selectedBullets, "\n"))
+		return content
 	}
 
-	for _, group := range variant.Groups {
-		if selectedGroups[group.ID] {
-			for _, bullet := range group.Bullets {
-				bullets.WriteString(bulletPrefix)
-				bullets.WriteString(bullet)
-				bullets.WriteString("\n")
-			}
+	// Default: just render selected bullets
+	for i, bullet := range variant.Bullets {
+		bulletKey := fmt.Sprintf("%d", i)
+		if sectionSelection.SelectedBullets != nil && sectionSelection.SelectedBullets[bulletKey] {
+			bullets.WriteString(bulletPrefix)
+			bullets.WriteString(bullet)
+			bullets.WriteString("\n")
 		}
 	}
 
@@ -125,7 +140,7 @@ func (r *PromptRenderer) getBulletPrefix() string {
 func (r *PromptRenderer) substituteVariables(content string, templateDef *TemplateDefinition, selection *SelectionState) (string, error) {
 	// Prepare variables map with defaults for missing variables
 	variables := make(map[string]string)
-	
+
 	// Set default values for all defined variables
 	for varName, varConfig := range templateDef.Variables {
 		defaultValue := fmt.Sprintf("DEFAULT_%s", strings.ToUpper(varName))
@@ -206,13 +221,30 @@ func CreateDefaultSelection(templateDef *TemplateDefinition) *SelectionState {
 		selection.Variables[varName] = ""
 	}
 
-	// Initialize sections with first variant selected and no bullet groups
+	// Initialize sections with first variant selected
 	for _, section := range templateDef.Sections {
 		if len(section.Variants) > 0 {
-			selection.Sections[section.ID] = SectionSelection{
-				Variant: section.Variants[0].ID,
-				Groups:  []string{},
+			sectionSelection := SectionSelection{
+				Variant:         section.Variants[0].ID,
+				SelectedBullets: make(map[string]bool),
+				VariantEnabled:  false, // Default toggles to off
 			}
+
+			// Set default bullet selections for first variant
+			firstVariant := section.Variants[0]
+			if firstVariant.Type == "bullets" && len(firstVariant.Bullets) > 0 {
+				// Select first 2-3 bullets by default (max 3, or all if fewer)
+				maxDefault := 3
+				if len(firstVariant.Bullets) < maxDefault {
+					maxDefault = len(firstVariant.Bullets)
+				}
+				for i := 0; i < maxDefault; i++ {
+					bulletKey := fmt.Sprintf("%d", i)
+					sectionSelection.SelectedBullets[bulletKey] = true
+				}
+			}
+
+			selection.Sections[section.ID] = sectionSelection
 		}
 	}
 
