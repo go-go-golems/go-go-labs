@@ -59,6 +59,23 @@ func (m *RootConfigModel) Init() tea.Cmd {
 // Update handles all incoming messages, routing to submodels or updating state.
 func (m *RootConfigModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "c":
+			return m, func() tea.Msg {
+				return CopyPromptMsg{Prompt: m.stateManager.Preview}
+			}
+		case "s":
+			return m, func() tea.Msg {
+				return SaveSelectionMsg{Selection: m.stateManager.Selection}
+			}
+		case "esc", "left":
+			return m, func() tea.Msg {
+				return GoBackMsg{}
+			}
+		case "q", "ctrl+c":
+			return m, tea.Quit
+		}
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
