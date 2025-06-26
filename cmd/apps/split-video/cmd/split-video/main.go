@@ -9,9 +9,9 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 
-	"split-video/pkg/config"
-	"split-video/pkg/tui"
-	"split-video/pkg/video"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/split-video/pkg/config"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/split-video/pkg/tui"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/split-video/pkg/video"
 )
 
 var (

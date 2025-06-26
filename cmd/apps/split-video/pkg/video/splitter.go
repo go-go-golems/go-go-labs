@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
-	"split-video/pkg/config"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/split-video/pkg/config"
 )
 
 // VideoInfo holds metadata about a video file

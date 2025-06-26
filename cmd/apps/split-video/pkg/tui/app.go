@@ -8,8 +8,8 @@ import (
 	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"split-video/pkg/config"
-	"split-video/pkg/video"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/split-video/pkg/config"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/split-video/pkg/video"
 )
 
 // App represents the main TUI application
