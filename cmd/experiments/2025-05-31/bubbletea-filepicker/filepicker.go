@@ -97,6 +97,11 @@ type FilePicker struct {
 	searchQuery    string
 	previewContent string
 	previewWidth   int
+
+	// Navigation history
+	history        []string // Stack of visited directories
+	historyIndex   int      // Current position in history (-1 means at the end)
+	maxHistorySize int      // Maximum history entries to keep
 }
 
 // keyMap defines the key bindings for Tier 4
@@ -127,6 +132,8 @@ type keyMap struct {
 	Escape    key.Binding
 	Backspace key.Binding
 	Refresh   key.Binding
+	Back      key.Binding
+	Forward   key.Binding
 
 	// Tier 4 features
 	TogglePreview key.Binding
@@ -153,7 +160,8 @@ func (k keyMap) FullHelp() [][]key.Binding {
 		{k.Copy, k.Cut, k.Paste, k.Delete},
 		{k.Rename, k.NewFile, k.NewDir, k.Refresh},
 		{k.TogglePreview, k.Search, k.ToggleHidden, k.ToggleDetail},
-		{k.CycleSort, k.Backspace, k.Escape, k.Help, k.Quit},
+		{k.CycleSort, k.Backspace, k.Back, k.Forward},
+		{k.Escape, k.Help, k.Quit},
 	}
 }
 
@@ -235,6 +243,14 @@ func defaultKeyMap() keyMap {
 		Refresh: key.NewBinding(
 			key.WithKeys("f5"),
 			key.WithHelp("f5", "refresh"),
+		),
+		Back: key.NewBinding(
+			key.WithKeys("alt+left", "h"),
+			key.WithHelp("alt+←/h", "back"),
+		),
+		Forward: key.NewBinding(
+			key.WithKeys("alt+right", "l"),
+			key.WithHelp("alt+→/l", "forward"),
 		),
 		TogglePreview: key.NewBinding(
 			key.WithKeys("tab"),
@@ -349,9 +365,12 @@ func NewFilePicker(startPath string) *FilePicker {
 		keys:          defaultKeyMap(),
 		showPreview:   true,
 		showHidden:    false,
-		detailedView:  true,
-		sortMode:      SortByName,
-		previewWidth:  40,
+		detailedView:   true,
+		sortMode:       SortByName,
+		previewWidth:   40,
+		history:        make([]string, 0),
+		historyIndex:   -1,
+		maxHistorySize: 50,
 	}
 
 	// Resolve the starting path
@@ -359,6 +378,9 @@ func NewFilePicker(startPath string) *FilePicker {
 		fp.currentPath = absPath
 	}
 
+	// Add initial directory to history
+	fp.addToHistory(fp.currentPath)
+	
 	fp.loadDirectory()
 	return fp
 }
@@ -366,6 +388,81 @@ func NewFilePicker(startPath string) *FilePicker {
 // Init initializes the file picker
 func (fp *FilePicker) Init() tea.Cmd {
 	return nil
+}
+
+// addToHistory adds a directory to the navigation history
+func (fp *FilePicker) addToHistory(path string) {
+	// If we're in the middle of history (user went back), truncate forward history
+	if fp.historyIndex >= 0 && fp.historyIndex < len(fp.history)-1 {
+		fp.history = fp.history[:fp.historyIndex+1]
+	}
+	
+	// Don't add duplicate consecutive entries
+	if len(fp.history) > 0 && fp.history[len(fp.history)-1] == path {
+		return
+	}
+	
+	// Add to history
+	fp.history = append(fp.history, path)
+	
+	// Limit history size
+	if len(fp.history) > fp.maxHistorySize {
+		fp.history = fp.history[1:]
+	}
+	
+	// Reset history index to end
+	fp.historyIndex = -1
+}
+
+// canGoBack returns true if we can navigate back in history
+func (fp *FilePicker) canGoBack() bool {
+	if fp.historyIndex == -1 {
+		return len(fp.history) > 1
+	}
+	return fp.historyIndex > 0
+}
+
+// canGoForward returns true if we can navigate forward in history
+func (fp *FilePicker) canGoForward() bool {
+	return fp.historyIndex >= 0 && fp.historyIndex < len(fp.history)-1
+}
+
+// goBack navigates to the previous directory in history
+func (fp *FilePicker) goBack() {
+	if !fp.canGoBack() {
+		return
+	}
+	
+	if fp.historyIndex == -1 {
+		fp.historyIndex = len(fp.history) - 2
+	} else {
+		fp.historyIndex--
+	}
+	
+	fp.navigateToHistoryIndex()
+}
+
+// goForward navigates to the next directory in history
+func (fp *FilePicker) goForward() {
+	if !fp.canGoForward() {
+		return
+	}
+	
+	fp.historyIndex++
+	fp.navigateToHistoryIndex()
+}
+
+// navigateToHistoryIndex navigates to the directory at the current history index
+func (fp *FilePicker) navigateToHistoryIndex() {
+	if fp.historyIndex < 0 || fp.historyIndex >= len(fp.history) {
+		return
+	}
+	
+	fp.currentPath = fp.history[fp.historyIndex]
+	fp.cursor = 0
+	fp.multiSelected = make(map[string]bool)
+	fp.searchQuery = ""
+	fp.loadDirectory()
 }
 
 // Update handles messages for Tier 4
@@ -488,11 +585,14 @@ func (fp *FilePicker) updateNormal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if len(fp.filteredFiles) > 0 {
 			selectedFile := fp.filteredFiles[fp.cursor]
 			if selectedFile.IsDir {
+				var newPath string
 				if selectedFile.Name == ".." {
-					fp.currentPath = filepath.Dir(fp.currentPath)
+					newPath = filepath.Dir(fp.currentPath)
 				} else {
-					fp.currentPath = selectedFile.Path
+					newPath = selectedFile.Path
 				}
+				fp.currentPath = newPath
+				fp.addToHistory(newPath)
 				fp.cursor = 0
 				fp.multiSelected = make(map[string]bool)
 				fp.searchQuery = ""
@@ -511,11 +611,19 @@ func (fp *FilePicker) updateNormal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 
 	case key.Matches(msg, fp.keys.Backspace):
-		fp.currentPath = filepath.Dir(fp.currentPath)
+		newPath := filepath.Dir(fp.currentPath)
+		fp.currentPath = newPath
+		fp.addToHistory(newPath)
 		fp.cursor = 0
 		fp.multiSelected = make(map[string]bool)
 		fp.searchQuery = ""
 		fp.loadDirectory()
+
+	case key.Matches(msg, fp.keys.Back):
+		fp.goBack()
+
+	case key.Matches(msg, fp.keys.Forward):
+		fp.goForward()
 
 	case key.Matches(msg, fp.keys.Refresh):
 		fp.loadDirectory()
@@ -1229,81 +1337,129 @@ func (fp *FilePicker) buildStatusLine() string {
 	return statusStyle.Render(strings.Join(parts, " | "))
 }
 
-// formatFileEntry formats a single file entry with Tier 4 features
+// formatFileEntry formats a single file entry with proper table columns
 func (fp *FilePicker) formatFileEntry(file File, isCursor bool, width int) string {
-	var parts []string
-
-	// Selection indicators
-	indicator := " "
-	if isCursor && fp.multiSelected[file.Path] {
-		indicator = "✓▶"
-	} else if isCursor {
-		indicator = "▶"
-	} else if fp.multiSelected[file.Path] {
-		indicator = "✓"
-	}
-	parts = append(parts, indicator)
-
-	// Icon
-	if fp.showIcons {
-		icon := fp.getFileIcon(file)
-		parts = append(parts, icon)
-	}
-
-	// Name
-	name := file.Name
 	if file.Hidden && !fp.showHidden {
 		return "" // Skip hidden files if not showing them
 	}
-	parts = append(parts, name)
 
-	if fp.detailedView {
-		// Size (if enabled and not a directory)
-		if fp.showSizes && !file.IsDir && file.Name != ".." {
-			size := fp.formatFileSize(file.Size)
-			parts = append(parts, size)
+	// Column widths - responsive design with column hiding (no permissions)
+	const (
+		indicatorWidth = 4  // "✓▶  "
+		iconWidth      = 4  // "📁  "
+		sizeWidth      = 12 // "  1.23 GB  " (can get quite wide)
+		dateWidth      = 10 // " Jan 02   "
+		spacerWidth    = 2  // Extra spacing between sections
+		sizeDateSpacer = 4  // Extra spacing between size and date (wider files)
+		minNameWidth   = 25 // Minimum name column width
+	)
+
+	// Calculate which columns to show based on available width
+	baseWidth := indicatorWidth + iconWidth + spacerWidth + minNameWidth + 8 // 8 for padding/safety
+	showSize := fp.detailedView && fp.showSizes
+	showDate := fp.detailedView
+
+	// Progressive column hiding based on available width (no permissions column)
+	fullWidth := baseWidth + sizeWidth + sizeDateSpacer + dateWidth
+	if width < fullWidth {
+		// Not enough space for all columns, start hiding
+		if width < baseWidth + sizeWidth + sizeDateSpacer {
+			showDate = false // Hide date first
 		}
+		if width < baseWidth + sizeWidth {
+			showSize = false // Hide size last
+		}
+	}
 
-		// Modification date
+	// Calculate actual fixed width based on what we're showing
+	fixedWidth := indicatorWidth + iconWidth + spacerWidth
+	if showSize {
+		fixedWidth += sizeWidth + sizeDateSpacer
+	}
+	if showDate {
+		fixedWidth += dateWidth
+	}
+
+	nameWidth := width - fixedWidth - 8 // -8 for border padding and extra safety margin
+	if nameWidth < minNameWidth {
+		nameWidth = minNameWidth
+	}
+
+	var line strings.Builder
+
+	// Selection indicators (fixed width)
+	indicator := "   "
+	if isCursor && fp.multiSelected[file.Path] {
+		indicator = "✓▶ "
+	} else if isCursor {
+		indicator = "▶  "
+	} else if fp.multiSelected[file.Path] {
+		indicator = "✓  "
+	}
+	line.WriteString(fmt.Sprintf("%-*s", indicatorWidth, indicator))
+
+	// Icon (fixed width)
+	if fp.showIcons {
+		icon := fp.getFileIcon(file)
+		line.WriteString(fmt.Sprintf("%-*s", iconWidth, icon))
+	}
+
+	// Spacer after icon
+	line.WriteString(strings.Repeat(" ", spacerWidth))
+
+	// Name (variable width, left-aligned)
+	name := file.Name
+	if len(name) > nameWidth {
+		name = name[:nameWidth-3] + "..."
+	}
+	line.WriteString(fmt.Sprintf("%-*s", nameWidth, name))
+
+	// Add detail columns based on available space
+	if showSize {
+		// Size column (right-aligned with extra spacing after)
+		if !file.IsDir && file.Name != ".." {
+			size := fp.formatFileSize(file.Size)
+			line.WriteString(fmt.Sprintf("%*s", sizeWidth, size))
+		} else {
+			line.WriteString(fmt.Sprintf("%*s", sizeWidth, ""))
+		}
+		// Extra spacer after size column (since sizes can be wide)
+		line.WriteString(strings.Repeat(" ", sizeDateSpacer))
+	}
+
+	if showDate {
+		// Date column (left-aligned)
 		if file.Name != ".." {
 			modTime := file.ModTime.Format("Jan 02")
-			parts = append(parts, modTime)
-		}
-
-		// Permissions (abbreviated)
-		if file.Name != ".." {
-			perms := file.Mode.String()[:10] // Unix-style permissions
-			parts = append(parts, perms)
+			line.WriteString(fmt.Sprintf("%-*s", dateWidth, modTime))
+		} else {
+			line.WriteString(fmt.Sprintf("%-*s", dateWidth, ""))
 		}
 	}
 
-	// Join parts
-	line := strings.Join(parts, " ")
+	result := line.String()
 
-	// Truncate if too long
-	if len(line) > width-2 {
-		line = line[:width-5] + "..."
+	// Ensure we don't exceed width
+	if len(result) > width-2 {
+		result = result[:width-2]
 	}
-
-	// Pad to full width
-	line = fmt.Sprintf("%-*s", width-2, line)
 
 	// Apply styling
 	if file.Hidden {
-		line = hiddenStyle.Render(line)
+		result = hiddenStyle.Render(result)
 	} else if isCursor && fp.multiSelected[file.Path] {
-		line = multiSelectedStyle.Render(line)
+		result = multiSelectedStyle.Render(result)
 	} else if isCursor {
-		line = selectedStyle.Render(line)
+		result = selectedStyle.Render(result)
 	} else if fp.multiSelected[file.Path] {
-		line = multiSelectedStyle.Render(line)
+		result = multiSelectedStyle.Render(result)
 	} else if file.IsDir {
-		line = dirStyle.Render(line)
+		result = dirStyle.Render(result)
 	} else {
-		line = normalStyle.Render(line)
+		result = normalStyle.Render(result)
 	}
 
-	return line
+	return result
 }
 
 // getFileIcon returns an appropriate icon for the file (extended for Tier 4)

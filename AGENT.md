@@ -39,6 +39,11 @@
 - Always serve static files under /static/ URL paths, never directly under functional paths like /admin/
 </webGuidelines>
 
+<terminalUIGuidelines>
+Use VHS by charmbracelet to create gif animations. The version installed can take .txt/.ansi screenshots, so use that to validate things working correctly.
+Use this to debug TUI applications and create demo gifs. Use txt screenshots to validate the UI working correctly by looking at the screenshot.
+</terminalUIGuidelines>
+
 <debuggingGuidelines>
 If me or you the LLM agent seem to go down too deep in a debugging/fixing rabbit hole in our conversations, remind me to take a breath and think about the bigger picture instead of hacking away. Say: "I think I'm stuck, let's TOUCH GRASS".  IMPORTANT: Don't try to fix errors by yourself more than twice in a row. Then STOP. Don't do anything else.
 
