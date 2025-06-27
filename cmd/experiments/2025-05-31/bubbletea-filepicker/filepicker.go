@@ -1229,81 +1229,107 @@ func (fp *FilePicker) buildStatusLine() string {
 	return statusStyle.Render(strings.Join(parts, " | "))
 }
 
-// formatFileEntry formats a single file entry with Tier 4 features
+// formatFileEntry formats a single file entry with proper table columns
 func (fp *FilePicker) formatFileEntry(file File, isCursor bool, width int) string {
-	var parts []string
-
-	// Selection indicators
-	indicator := " "
-	if isCursor && fp.multiSelected[file.Path] {
-		indicator = "✓▶"
-	} else if isCursor {
-		indicator = "▶"
-	} else if fp.multiSelected[file.Path] {
-		indicator = "✓"
-	}
-	parts = append(parts, indicator)
-
-	// Icon
-	if fp.showIcons {
-		icon := fp.getFileIcon(file)
-		parts = append(parts, icon)
-	}
-
-	// Name
-	name := file.Name
 	if file.Hidden && !fp.showHidden {
 		return "" // Skip hidden files if not showing them
 	}
-	parts = append(parts, name)
+
+	// Column widths - adjust based on available width
+	const (
+		indicatorWidth = 3  // "✓▶ "
+		iconWidth      = 3  // "📁 "
+		sizeWidth      = 8  // "123.4 MB"
+		dateWidth      = 8  // "Jan 02  "
+		permWidth      = 11 // "drwxr-xr-x "
+	)
+
+	// Calculate name column width
+	fixedWidth := indicatorWidth + iconWidth
+	if fp.detailedView {
+		fixedWidth += sizeWidth + dateWidth + permWidth
+	}
+	nameWidth := width - fixedWidth - 2 // -2 for border padding
+
+	if nameWidth < 10 {
+		nameWidth = 10 // Minimum name width
+	}
+
+	var line strings.Builder
+
+	// Selection indicators (fixed width)
+	indicator := "  "
+	if isCursor && fp.multiSelected[file.Path] {
+		indicator = "✓▶"
+	} else if isCursor {
+		indicator = "▶ "
+	} else if fp.multiSelected[file.Path] {
+		indicator = "✓ "
+	}
+	line.WriteString(fmt.Sprintf("%-*s", indicatorWidth, indicator))
+
+	// Icon (fixed width)
+	if fp.showIcons {
+		icon := fp.getFileIcon(file)
+		line.WriteString(fmt.Sprintf("%-*s", iconWidth, icon))
+	}
+
+	// Name (variable width, left-aligned)
+	name := file.Name
+	if len(name) > nameWidth {
+		name = name[:nameWidth-3] + "..."
+	}
+	line.WriteString(fmt.Sprintf("%-*s", nameWidth, name))
 
 	if fp.detailedView {
-		// Size (if enabled and not a directory)
+		// Size column (right-aligned)
 		if fp.showSizes && !file.IsDir && file.Name != ".." {
 			size := fp.formatFileSize(file.Size)
-			parts = append(parts, size)
+			line.WriteString(fmt.Sprintf("%*s", sizeWidth, size))
+		} else {
+			line.WriteString(fmt.Sprintf("%*s", sizeWidth, ""))
 		}
 
-		// Modification date
+		// Date column (left-aligned)
 		if file.Name != ".." {
 			modTime := file.ModTime.Format("Jan 02")
-			parts = append(parts, modTime)
+			line.WriteString(fmt.Sprintf(" %-*s", dateWidth-1, modTime))
+		} else {
+			line.WriteString(fmt.Sprintf(" %-*s", dateWidth-1, ""))
 		}
 
-		// Permissions (abbreviated)
+		// Permissions column (left-aligned)
 		if file.Name != ".." {
 			perms := file.Mode.String()[:10] // Unix-style permissions
-			parts = append(parts, perms)
+			line.WriteString(fmt.Sprintf("%-*s", permWidth, perms))
+		} else {
+			line.WriteString(fmt.Sprintf("%-*s", permWidth, ""))
 		}
 	}
 
-	// Join parts
-	line := strings.Join(parts, " ")
+	result := line.String()
 
-	// Truncate if too long
-	if len(line) > width-2 {
-		line = line[:width-5] + "..."
+	// Ensure we don't exceed width
+	if len(result) > width-2 {
+		result = result[:width-2]
 	}
-
-	// Pad to full width
-	line = fmt.Sprintf("%-*s", width-2, line)
 
 	// Apply styling
 	if file.Hidden {
-		line = hiddenStyle.Render(line)
+		result = hiddenStyle.Render(result)
 	} else if isCursor && fp.multiSelected[file.Path] {
-		line = multiSelectedStyle.Render(line)
+		result = multiSelectedStyle.Render(result)
 	} else if isCursor {
-		line = selectedStyle.Render(line)
+		result = selectedStyle.Render(result)
 	} else if fp.multiSelected[file.Path] {
-		line = multiSelectedStyle.Render(line)
+		result = multiSelectedStyle.Render(result)
 	} else if file.IsDir {
-		line = dirStyle.Render(line)
+		result = dirStyle.Render(result)
 	} else {
-		line = normalStyle.Render(line)
+		result = normalStyle.Render(result)
 	}
 
-	return line
+	return result
 }
 
 // getFileIcon returns an appropriate icon for the file (extended for Tier 4)
