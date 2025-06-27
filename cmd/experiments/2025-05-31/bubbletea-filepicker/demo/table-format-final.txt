@@ -1,8 +1,11 @@
 > ./filepicker test-files
-Selected file: /home/manuel/workspaces/2025-06-26/finish-filepicker/go-go-labs/cmd/experiments/2025-05-31/bubbletea-f
-ilepicker/test-files/config.ini
+No file selected (cancelled)
 >
->
+
+
+
+
+
 
 
 

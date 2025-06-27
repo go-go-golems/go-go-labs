@@ -1235,36 +1235,58 @@ func (fp *FilePicker) formatFileEntry(file File, isCursor bool, width int) strin
 		return "" // Skip hidden files if not showing them
 	}
 
-	// Column widths - adjust based on available width
+	// Column widths - responsive design with column hiding (no permissions)
 	const (
-		indicatorWidth = 3  // "✓▶ "
-		iconWidth      = 3  // "📁 "
-		sizeWidth      = 8  // "123.4 MB"
-		dateWidth      = 8  // "Jan 02  "
-		permWidth      = 11 // "drwxr-xr-x "
+		indicatorWidth = 4  // "✓▶  "
+		iconWidth      = 4  // "📁  "
+		sizeWidth      = 12 // "  1.23 GB  " (can get quite wide)
+		dateWidth      = 10 // " Jan 02   "
+		spacerWidth    = 2  // Extra spacing between sections
+		sizeDateSpacer = 4  // Extra spacing between size and date (wider files)
+		minNameWidth   = 25 // Minimum name column width
 	)
 
-	// Calculate name column width
-	fixedWidth := indicatorWidth + iconWidth
-	if fp.detailedView {
-		fixedWidth += sizeWidth + dateWidth + permWidth
-	}
-	nameWidth := width - fixedWidth - 2 // -2 for border padding
+	// Calculate which columns to show based on available width
+	baseWidth := indicatorWidth + iconWidth + spacerWidth + minNameWidth + 8 // 8 for padding/safety
+	showSize := fp.detailedView && fp.showSizes
+	showDate := fp.detailedView
 
-	if nameWidth < 10 {
-		nameWidth = 10 // Minimum name width
+	// Progressive column hiding based on available width (no permissions column)
+	fullWidth := baseWidth + sizeWidth + sizeDateSpacer + dateWidth
+	if width < fullWidth {
+		// Not enough space for all columns, start hiding
+		if width < baseWidth + sizeWidth + sizeDateSpacer {
+			showDate = false // Hide date first
+		}
+		if width < baseWidth + sizeWidth {
+			showSize = false // Hide size last
+		}
+	}
+
+	// Calculate actual fixed width based on what we're showing
+	fixedWidth := indicatorWidth + iconWidth + spacerWidth
+	if showSize {
+		fixedWidth += sizeWidth + sizeDateSpacer
+	}
+	if showDate {
+		fixedWidth += dateWidth
+	}
+
+	nameWidth := width - fixedWidth - 8 // -8 for border padding and extra safety margin
+	if nameWidth < minNameWidth {
+		nameWidth = minNameWidth
 	}
 
 	var line strings.Builder
 
 	// Selection indicators (fixed width)
-	indicator := "  "
+	indicator := "   "
 	if isCursor && fp.multiSelected[file.Path] {
-		indicator = "✓▶"
+		indicator = "✓▶ "
 	} else if isCursor {
-		indicator = "▶ "
+		indicator = "▶  "
 	} else if fp.multiSelected[file.Path] {
-		indicator = "✓ "
+		indicator = "✓  "
 	}
 	line.WriteString(fmt.Sprintf("%-*s", indicatorWidth, indicator))
 
@@ -1274,6 +1296,9 @@ func (fp *FilePicker) formatFileEntry(file File, isCursor bool, width int) strin
 		line.WriteString(fmt.Sprintf("%-*s", iconWidth, icon))
 	}
 
+	// Spacer after icon
+	line.WriteString(strings.Repeat(" ", spacerWidth))
+
 	// Name (variable width, left-aligned)
 	name := file.Name
 	if len(name) > nameWidth {
@@ -1281,29 +1306,26 @@ func (fp *FilePicker) formatFileEntry(file File, isCursor bool, width int) strin
 	}
 	line.WriteString(fmt.Sprintf("%-*s", nameWidth, name))
 
-	if fp.detailedView {
-		// Size column (right-aligned)
-		if fp.showSizes && !file.IsDir && file.Name != ".." {
+	// Add detail columns based on available space
+	if showSize {
+		// Size column (right-aligned with extra spacing after)
+		if !file.IsDir && file.Name != ".." {
 			size := fp.formatFileSize(file.Size)
 			line.WriteString(fmt.Sprintf("%*s", sizeWidth, size))
 		} else {
 			line.WriteString(fmt.Sprintf("%*s", sizeWidth, ""))
 		}
+		// Extra spacer after size column (since sizes can be wide)
+		line.WriteString(strings.Repeat(" ", sizeDateSpacer))
+	}
 
+	if showDate {
 		// Date column (left-aligned)
 		if file.Name != ".." {
 			modTime := file.ModTime.Format("Jan 02")
-			line.WriteString(fmt.Sprintf(" %-*s", dateWidth-1, modTime))
+			line.WriteString(fmt.Sprintf("%-*s", dateWidth, modTime))
 		} else {
-			line.WriteString(fmt.Sprintf(" %-*s", dateWidth-1, ""))
-		}
-
-		// Permissions column (left-aligned)
-		if file.Name != ".." {
-			perms := file.Mode.String()[:10] // Unix-style permissions
-			line.WriteString(fmt.Sprintf("%-*s", permWidth, perms))
-		} else {
-			line.WriteString(fmt.Sprintf("%-*s", permWidth, ""))
+			line.WriteString(fmt.Sprintf("%-*s", dateWidth, ""))
 		}
 	}
 
