@@ -97,6 +97,11 @@ type FilePicker struct {
 	searchQuery    string
 	previewContent string
 	previewWidth   int
+
+	// Navigation history
+	history        []string // Stack of visited directories
+	historyIndex   int      // Current position in history (-1 means at the end)
+	maxHistorySize int      // Maximum history entries to keep
 }
 
 // keyMap defines the key bindings for Tier 4
@@ -127,6 +132,8 @@ type keyMap struct {
 	Escape    key.Binding
 	Backspace key.Binding
 	Refresh   key.Binding
+	Back      key.Binding
+	Forward   key.Binding
 
 	// Tier 4 features
 	TogglePreview key.Binding
@@ -153,7 +160,8 @@ func (k keyMap) FullHelp() [][]key.Binding {
 		{k.Copy, k.Cut, k.Paste, k.Delete},
 		{k.Rename, k.NewFile, k.NewDir, k.Refresh},
 		{k.TogglePreview, k.Search, k.ToggleHidden, k.ToggleDetail},
-		{k.CycleSort, k.Backspace, k.Escape, k.Help, k.Quit},
+		{k.CycleSort, k.Backspace, k.Back, k.Forward},
+		{k.Escape, k.Help, k.Quit},
 	}
 }
 
@@ -235,6 +243,14 @@ func defaultKeyMap() keyMap {
 		Refresh: key.NewBinding(
 			key.WithKeys("f5"),
 			key.WithHelp("f5", "refresh"),
+		),
+		Back: key.NewBinding(
+			key.WithKeys("alt+left", "h"),
+			key.WithHelp("alt+←/h", "back"),
+		),
+		Forward: key.NewBinding(
+			key.WithKeys("alt+right", "l"),
+			key.WithHelp("alt+→/l", "forward"),
 		),
 		TogglePreview: key.NewBinding(
 			key.WithKeys("tab"),
@@ -349,9 +365,12 @@ func NewFilePicker(startPath string) *FilePicker {
 		keys:          defaultKeyMap(),
 		showPreview:   true,
 		showHidden:    false,
-		detailedView:  true,
-		sortMode:      SortByName,
-		previewWidth:  40,
+		detailedView:   true,
+		sortMode:       SortByName,
+		previewWidth:   40,
+		history:        make([]string, 0),
+		historyIndex:   -1,
+		maxHistorySize: 50,
 	}
 
 	// Resolve the starting path
@@ -359,6 +378,9 @@ func NewFilePicker(startPath string) *FilePicker {
 		fp.currentPath = absPath
 	}
 
+	// Add initial directory to history
+	fp.addToHistory(fp.currentPath)
+	
 	fp.loadDirectory()
 	return fp
 }
@@ -366,6 +388,81 @@ func NewFilePicker(startPath string) *FilePicker {
 // Init initializes the file picker
 func (fp *FilePicker) Init() tea.Cmd {
 	return nil
+}
+
+// addToHistory adds a directory to the navigation history
+func (fp *FilePicker) addToHistory(path string) {
+	// If we're in the middle of history (user went back), truncate forward history
+	if fp.historyIndex >= 0 && fp.historyIndex < len(fp.history)-1 {
+		fp.history = fp.history[:fp.historyIndex+1]
+	}
+	
+	// Don't add duplicate consecutive entries
+	if len(fp.history) > 0 && fp.history[len(fp.history)-1] == path {
+		return
+	}
+	
+	// Add to history
+	fp.history = append(fp.history, path)
+	
+	// Limit history size
+	if len(fp.history) > fp.maxHistorySize {
+		fp.history = fp.history[1:]
+	}
+	
+	// Reset history index to end
+	fp.historyIndex = -1
+}
+
+// canGoBack returns true if we can navigate back in history
+func (fp *FilePicker) canGoBack() bool {
+	if fp.historyIndex == -1 {
+		return len(fp.history) > 1
+	}
+	return fp.historyIndex > 0
+}
+
+// canGoForward returns true if we can navigate forward in history
+func (fp *FilePicker) canGoForward() bool {
+	return fp.historyIndex >= 0 && fp.historyIndex < len(fp.history)-1
+}
+
+// goBack navigates to the previous directory in history
+func (fp *FilePicker) goBack() {
+	if !fp.canGoBack() {
+		return
+	}
+	
+	if fp.historyIndex == -1 {
+		fp.historyIndex = len(fp.history) - 2
+	} else {
+		fp.historyIndex--
+	}
+	
+	fp.navigateToHistoryIndex()
+}
+
+// goForward navigates to the next directory in history
+func (fp *FilePicker) goForward() {
+	if !fp.canGoForward() {
+		return
+	}
+	
+	fp.historyIndex++
+	fp.navigateToHistoryIndex()
+}
+
+// navigateToHistoryIndex navigates to the directory at the current history index
+func (fp *FilePicker) navigateToHistoryIndex() {
+	if fp.historyIndex < 0 || fp.historyIndex >= len(fp.history) {
+		return
+	}
+	
+	fp.currentPath = fp.history[fp.historyIndex]
+	fp.cursor = 0
+	fp.multiSelected = make(map[string]bool)
+	fp.searchQuery = ""
+	fp.loadDirectory()
 }
 
 // Update handles messages for Tier 4
@@ -488,11 +585,14 @@ func (fp *FilePicker) updateNormal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if len(fp.filteredFiles) > 0 {
 			selectedFile := fp.filteredFiles[fp.cursor]
 			if selectedFile.IsDir {
+				var newPath string
 				if selectedFile.Name == ".." {
-					fp.currentPath = filepath.Dir(fp.currentPath)
+					newPath = filepath.Dir(fp.currentPath)
 				} else {
-					fp.currentPath = selectedFile.Path
+					newPath = selectedFile.Path
 				}
+				fp.currentPath = newPath
+				fp.addToHistory(newPath)
 				fp.cursor = 0
 				fp.multiSelected = make(map[string]bool)
 				fp.searchQuery = ""
@@ -511,11 +611,19 @@ func (fp *FilePicker) updateNormal(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 
 	case key.Matches(msg, fp.keys.Backspace):
-		fp.currentPath = filepath.Dir(fp.currentPath)
+		newPath := filepath.Dir(fp.currentPath)
+		fp.currentPath = newPath
+		fp.addToHistory(newPath)
 		fp.cursor = 0
 		fp.multiSelected = make(map[string]bool)
 		fp.searchQuery = ""
 		fp.loadDirectory()
+
+	case key.Matches(msg, fp.keys.Back):
+		fp.goBack()
+
+	case key.Matches(msg, fp.keys.Forward):
+		fp.goForward()
 
 	case key.Matches(msg, fp.keys.Refresh):
 		fp.loadDirectory()
