@@ -1,0 +1,16 @@
+enable_audio_bell no
+font_size 9
+
+# separate scrollback buffer of 100 MB
+scrollback_lines 8000
+scrollback_pager_history_size 100
+
+# from https://paul-nameless.com/mastering-kitty.html
+allow_remote_control yes
+listen_on unix:/tmp/kitty
+
+
+# BEGIN_KITTY_THEME
+# Solarized Darcula
+include current-theme.conf
+# END_KITTY_THEME
