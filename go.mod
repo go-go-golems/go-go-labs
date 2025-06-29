@@ -59,6 +59,7 @@ require (
 	github.com/hraban/opus v0.0.0-20230925203106-0188a62cb302
 	github.com/invopop/jsonschema v0.13.0
 	github.com/jmoiron/sqlx v1.4.0
+	github.com/joho/godotenv v1.5.1
 	github.com/labstack/echo/v4 v4.13.3
 	github.com/levigross/grequests v0.0.0-20221222020224-9eee758d18d5
 	github.com/machinebox/graphql v0.2.2
