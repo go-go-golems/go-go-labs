@@ -4,6 +4,7 @@ go 1.24.3
 
 require (
 	github.com/BobuSumisu/aho-corasick v1.0.3
+	github.com/BurntSushi/xgb v0.0.0-20210121224620-deaf085860bc
 	github.com/DataDog/datadog-api-client-go/v2 v2.38.0
 	github.com/GianlucaP106/gotmux v0.5.0
 	github.com/JohannesKaufmann/html-to-markdown v1.6.0
