@@ -7,11 +7,17 @@
 - [x] search by name (fuzzy)
 - [x] add different types (research, ideas, etc...)
 
+- [ ] ALlow printing / show / get-path / to-clipboard functionality
 - [ ] ask for date in TUI (default filled out so enter moves us forward)
 - [x] ask for links / add flag for links
 - [x] **NEW**: Change link behavior - ask by default, skip with --links, disable with --no-links
 - [ ] add subverbs for the search functionality (keep the root command as an alias for the "add" command)
 - [ ] add `edit` verb to open in EDITOR
+
+- [ ] When appending, as kfor a subtitle, insert ---
+- [ ] Allow editing metadata
+- [ ] Per default, append list selection should select the last created / edited MCP
+- [ ] Add a created-at / updated-at (list of dates) when updating a research note
 
 ## Completed New Features
 

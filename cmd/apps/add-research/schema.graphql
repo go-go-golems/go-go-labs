@@ -1,0 +1,1 @@
+type User {\n  id: ID!\n  name: String!\n  email: String!\n}

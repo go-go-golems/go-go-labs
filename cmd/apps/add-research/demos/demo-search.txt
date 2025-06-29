@@ -1,0 +1,41 @@
+> cd cmd/apps/add-research
+bash: cd: cmd/apps/add-research: No such file or directory
+> echo '# Demo: Search & Export' && echo
+# Demo: Search & Export
+
+> echo 'Setting up test notes for search demo...'
+Setting up test notes for search demo...
+> ./add-research --title 'Docker Best Practices' --message 'Container optimization techniques and security guidelines
+' --no-links
+1:41PM INF Creating research note filepath=/home/manuel/code/wesen/obsidian-vault/research/2025-06-29/008-Docker-Best
+-Practices.md
+Created research note: /home/manuel/code/wesen/obsidian-vault/research/2025-06-29/008-Docker-Best-Practices.md
+> ./add-research --title 'Kubernetes Deployment' --message 'Pod management and service discovery patterns' --no-links
+1:41PM INF Creating research note filepath=/home/manuel/code/wesen/obsidian-vault/research/2025-06-29/009-Kubernetes-
+Deployment.md
+Created research note: /home/manuel/code/wesen/obsidian-vault/research/2025-06-29/009-Kubernetes-Deployment.md
+> ./add-research --title 'Database Scaling' --date '2024-01-10' --message 'Horizontal vs vertical scaling strategies
+for PostgreSQL' --no-links
+1:41PM INF Creating research note filepath=/home/manuel/code/wesen/obsidian-vault/research/2024-01-10/001-Database-Sc
+aling.md
+Created research note: /home/manuel/code/wesen/obsidian-vault/research/2024-01-10/001-Database-Scaling.md
+> echo '✅ Test notes created!'
+✅ Test notes created!
+> echo '' && echo '🔍 Searching existing notes...'
+
+🔍 Searching existing notes...
+> ./add-research --search
+=== Database Scaling ===
+Date: 2024-01-10
+Path: /home/manuel/code/wesen/obsidian-vault/research/2024-01-10/001-Database-Scaling.md
+
+# Database Scaling
+
+Horizontal vs vertical scaling strategies for PostgreSQL
+> y
+bash: y: command not found
+> echo '✅ Search completed with clipboard copy!'
+✅ Search completed with clipboard copy!
+> echo '' && echo '📤 Exporting notes...'
+
+📤 Exporting notes...

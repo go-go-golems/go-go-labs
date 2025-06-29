@@ -1,0 +1,41 @@
+> cd cmd/apps/add-research
+bash: cd: cmd/apps/add-research: No such file or directory
+> echo '# Demo: Content Sources' && echo
+# Demo: Content Sources
+
+> echo 'Setting up clipboard content...'
+Setting up clipboard content...
+> echo 'Key research insights:\n- Microservices architecture benefits\n- Container orchestration with Kubernetes\n- C
+I/CD pipeline optimization strategies' | tee /tmp/clipboard_content
+Key research insights:\n- Microservices architecture benefits\n- Container orchestration with Kubernetes\n- CI/CD pip
+eline optimization strategies
+> cat /tmp/clipboard_content | head -4
+Key research insights:\n- Microservices architecture benefits\n- Container orchestration with Kubernetes\n- CI/CD pip
+eline optimization strategies
+> echo '📋 Clipboard content ready. Creating note from clipboard...'
+📋 Clipboard content ready. Creating note from clipboard...
+> cat /tmp/clipboard_content | ./add-research --clip --title 'Microservices Research'
+
+Enter relevant links (press Enter with empty line to finish):
+Link: 1:41PM INF Creating research note filepath=/home/manuel/code/wesen/obsidian-vault/research/2025-06-29/010-Micro
+services-Research.md
+Created research note: /home/manuel/code/wesen/obsidian-vault/research/2025-06-29/010-Microservices-Research.md
+> https://microservices.io/
+bash: https://microservices.io/: No such file or directory
+> https://kubernetes.io/docs/concepts/
+bash: https://kubernetes.io/docs/concepts/: No such file or directory
+>
+> echo '✅ Note created from clipboard!'
+✅ Note created from clipboard!
+> echo '' && echo '📥 Now demonstrating piped input...'
+
+📥 Now demonstrating piped input...
+> echo 'Performance Benchmarks:\n\n## Database Queries\n- SELECT operations: 150ms avg\n- INSERT operations: 45ms avg
+\n- Complex joins: 300ms avg\n\n## API Response Times\n- GET /users: 25ms\n- POST /orders: 80ms' > /tmp/performance_d
+ata
+> cat /tmp/performance_data | ./add-research --title 'Performance Analysis' --no-links
+1:42PM INF Creating research note filepath=/home/manuel/code/wesen/obsidian-vault/research/2025-06-29/012-Performance
+-Analysis.md
+Created research note: /home/manuel/code/wesen/obsidian-vault/research/2025-06-29/012-Performance-Analysis.md
+> echo '✅ Note created from piped input!'
+✅ Note created from piped input!
