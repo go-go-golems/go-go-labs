@@ -5,37 +5,37 @@ bash: cd: cmd/apps/add-research: No such file or directory
 
 > echo 'Creating sample files to attach...'
 Creating sample files to attach...
-> echo 'server:\n  host: localhost\n  port: 8080\ndatabase:\n  driver: postgres' > config.yaml
-> echo 'type User {\n  id: ID!\n  name: String!\n  email: String!\n}' > schema.graphql
-> echo 'package main' > example.go
-> echo 'import fmt' >> example.go
-> echo 'func main() { fmt.Println(Hello) }' >> example.go
-> echo '📁 Files created. Now attaching them to a research note...'
-📁 Files created. Now attaching them to a research note...
-> ./add-research --title 'Configuration Analysis' --file config.yaml --file schema.graphql --message 'Reviewing confi
-guration files and GraphQL schema'
-
-Enter relevant links (press Enter with empty line to finish):
-Link:
-1:46PM INF Creating research note filepath=/home/manuel/code/wesen/obsidian-vault/research/2025-06-29/014-Configurati
-on-Analysis.md
-Created research note: /home/manuel/code/wesen/obsidian-vault/research/2025-06-29/014-Configuration-Analysis.md
-> echo '✅ Note with attachments created!'
-✅ Note with attachments created!
+> echo 'host: localhost' > config.yaml
+> echo 'port: 8080' >> config.yaml
+> echo 'version=1.0' > app.properties
+> echo 'debug=true' >> app.properties
+> echo 'README content here' > README.md
+> echo '📁 Files created. Attaching them to a research note...'
+📁 Files created. Attaching them to a research note...
+> ./add-research --title 'Configuration Files Review' --file config.yaml --file app.properties --file README.md --no-
+links --message 'Reviewing project configuration files.'
+2:37PM INF Creating research note filepath=/home/manuel/code/wesen/obsidian-vault/research/2025-06-29/032-Configurati
+on-Files-Review.md
+Created research note: /home/manuel/code/wesen/obsidian-vault/research/2025-06-29/032-Configuration-Files-Review.md
+> echo '✅ Note with multiple file attachments created!'
+✅ Note with multiple file attachments created!
 > echo '📄 Preview of attached files in note:'
 📄 Preview of attached files in note:
-> find ~/code/wesen/obsidian-vault/research -name '*Configuration-Analysis*' -exec cat {} \\; | head -20
-bash: syntax error near unexpected token `|'
-> echo '' && echo '🎯 Now trying interactive file browser...'
+> find ~/code/wesen/obsidian-vault/research -name '*Configuration-Files-Review*' -exec head -20 {} \\;
+find: missing argument to `-exec'
+> echo '' && echo '📊 File info:'
 
-🎯 Now trying interactive file browser...
-> ./add-research --browse --title 'Project Files Review' --no-links
-┃ Browse files in: /home/manuel/code/wesen/corporate-headquarters/go-go-labs/cmd
-┃ Selected files: 0
-┃ > .. (parent directory)
-┃   📁 add-research/
-┃   📁 agent-fleet/
-┃   📁 anki/
-┃   📁 asciinema-split/
-┃   📁 bandcamp/
-┃   📁 bubbletea-markdown-test/
+📊 File info:
+> ls -la config.yaml app.properties README.md
+-rw-rw-r-- 1 manuel manuel 23 Jun 29 14:37 app.properties
+-rw-rw-r-- 1 manuel manuel 27 Jun 29 14:37 config.yaml
+-rw-rw-r-- 1 manuel manuel 20 Jun 29 14:37 README.md
+> echo '' && echo '📝 Attaching existing project files:'
+
+📝 Attaching existing project files:
+> ./add-research --title 'Project Files Analysis' --file go.mod --file README.md --no-links --message 'Analysis of ex
+isting project structure and dependencies.'
+2:38PM WRN File does not exist, skipping file=go.mod
+2:38PM INF Creating research note filepath=/home/manuel/code/wesen/obsidian-vault/research/2025-06-29/033-Project-Fil
+es-Analysis.md
+Created research note: /home/manuel/code/wesen/obsidian-vault/research/2025-06-29/033-Project-Files-Analysis.md

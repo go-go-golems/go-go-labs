@@ -1,5 +1,5 @@
 # Demo: File Attachments
-# Shows attaching files with -f flag and file browser functionality
+# Shows attaching files with -f flag and syntax highlighting
 
 Output demos/demo-files.gif
 
@@ -17,82 +17,98 @@ Type "echo '# Demo: File Attachments' && echo"
 Enter
 Sleep 1s
 
-# Create some sample files to attach
+# Create some simple sample files to attach
 Type "echo 'Creating sample files to attach...'"
 Enter
+Sleep 1s
 
-Type "echo 'server:\n  host: localhost\n  port: 8080\ndatabase:\n  driver: postgres' > config.yaml"
+# Create simple files without complex escaping
+Type "echo 'host: localhost' > config.yaml"
+Enter
+Type "echo 'port: 8080' >> config.yaml"
 Enter
 
-Type "echo 'type User {\n  id: ID!\n  name: String!\n  email: String!\n}' > schema.graphql"
+Type "echo 'version=1.0' > app.properties"
+Enter
+Type "echo 'debug=true' >> app.properties"
 Enter
 
-Type "echo 'package main' > example.go"
-Enter
-Type "echo 'import fmt' >> example.go"
-Enter  
-Type "echo 'func main() { fmt.Println(Hello) }' >> example.go"
+Type "echo 'README content here' > README.md"
 Enter
 
 Sleep 1s
 
-Type "echo '📁 Files created. Now attaching them to a research note...'"
+Type "echo '📁 Files created. Attaching them to a research note...'"
 Enter
 Sleep 1s
 
-# Attach files using -f flag
-Type "./add-research --title 'Configuration Analysis' --file config.yaml --file schema.graphql --message 'Reviewing configuration files and GraphQL schema'"
+# Attach multiple files using -f flag
+Type "./add-research --title 'Configuration Files Review' --file config.yaml --file app.properties --file README.md --no-links --message 'Reviewing project configuration files.'"
 Enter
-Sleep 2s
+Sleep 3s
 
-# Links (can skip)
-Type ""
-Enter
-Sleep 1s
-
-Type "echo '✅ Note with attachments created!'"
+Type "echo '✅ Note with multiple file attachments created!'"
 Enter
 Sleep 1s
 
 # Show the result
 Type "echo '📄 Preview of attached files in note:'"
 Enter
-Type "find ~/code/wesen/obsidian-vault/research -name '*Configuration-Analysis*' -exec cat {} \\; | head -20"
+Type "find ~/code/wesen/obsidian-vault/research -name '*Configuration-Files-Review*' -exec head -20 {} \\;"
 Enter
-Sleep 3s
+Sleep 4s
 
-Type "echo '' && echo '🎯 Now trying interactive file browser...'"
+Type "echo '' && echo '📊 File info:'"
 Enter
-Sleep 1s
-
-# Demo file browser (if practical - this might need modification based on actual behavior)
-Type "./add-research --browse --title 'Project Files Review' --no-links"
-Enter
-Sleep 1s
-
-# Simulate file selection in browser (this might not work exactly as shown)
-Type "example.go"
-Enter
-Sleep 500ms
-
-Type "y"
-Enter
-Sleep 1s
-
-# Add some content
-Type "Reviewed Go example file structure and patterns."
-Ctrl+D
-Sleep 1s
-
-Type "echo '✅ File browser demo completed!'"
+Type "ls -la config.yaml app.properties README.md"
 Enter
 Sleep 2s
 
-# Show syntax highlighting preview
-Type "echo '🎨 File attachments include syntax highlighting:'"
+# Demonstrate that existing files can also be attached
+Type "echo '' && echo '📝 Attaching existing project files:'"
 Enter
-Type "find ~/code/wesen/obsidian-vault/research -name '*Project-Files-Review*' -exec head -15 {} \\;"
+Sleep 1s
+
+# Use existing files from the project
+Type "./add-research --title 'Project Files Analysis' --file go.mod --file README.md --no-links --message 'Analysis of existing project structure and dependencies.'"
+Enter
+Sleep 2s
+
+Type "echo '📄 Project files note preview:'"
+Enter
+Type "find ~/code/wesen/obsidian-vault/research -name '*Project-Files-Analysis*' -exec head -15 {} \\;"
 Enter
 Sleep 3s
+
+# Show file contents are preserved with syntax highlighting
+Type "echo '' && echo '🎨 Files are embedded with syntax highlighting:'"
+Enter
+Type "echo '• YAML files show structured data'"
+Enter
+Type "echo '• Properties files show key-value pairs'"
+Enter
+Type "echo '• Markdown files preserve formatting'"
+Enter
+Type "echo '• Go mod files show dependencies'"
+Enter
+Sleep 2s
+
+# Show the complete note structure
+Type "echo '' && echo '📋 Complete note with attachments:'"
+Enter
+Type "find ~/code/wesen/obsidian-vault/research -name '*Configuration-Files-Review*' -exec wc -l {} \\;"
+Enter
+Sleep 1s
+
+# Clean up sample files
+Type "echo '' && echo '🧹 Cleaning up sample files...'"
+Enter
+Type "rm -f config.yaml app.properties"
+Enter
+Sleep 1s
+
+Type "echo '✅ File attachments demo completed!'"
+Enter
+Sleep 2s
 
 Screenshot demos/demo-files.txt

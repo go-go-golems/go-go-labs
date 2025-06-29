@@ -3,39 +3,39 @@ bash: cd: cmd/apps/add-research: No such file or directory
 > echo '# Demo: Search & Export' && echo
 # Demo: Search & Export
 
-> echo 'Setting up test notes for search demo...'
-Setting up test notes for search demo...
-> ./add-research --title 'Docker Best Practices' --message 'Container optimization techniques and security guidelines
-' --no-links
-1:41PM INF Creating research note filepath=/home/manuel/code/wesen/obsidian-vault/research/2025-06-29/008-Docker-Best
+> echo 'Setting up test notes for search & export demo...'
+Setting up test notes for search & export demo...
+> ./add-research --title 'Docker Best Practices' --no-links --message 'Container optimization techniques: minimal bas
+e images, non-root users, vulnerability scanning, multi-stage builds, resource limits.'
+2:47PM INF Creating research note filepath=/home/manuel/code/wesen/obsidian-vault/research/2025-06-29/038-Docker-Best
 -Practices.md
-Created research note: /home/manuel/code/wesen/obsidian-vault/research/2025-06-29/008-Docker-Best-Practices.md
-> ./add-research --title 'Kubernetes Deployment' --message 'Pod management and service discovery patterns' --no-links
-1:41PM INF Creating research note filepath=/home/manuel/code/wesen/obsidian-vault/research/2025-06-29/009-Kubernetes-
+Created research note: /home/manuel/code/wesen/obsidian-vault/research/2025-06-29/038-Docker-Best-Practices.md
+> ./add-research --title 'Kubernetes Deployment' --no-links --message 'Pod management patterns: rolling updates, blue
+-green deployments, service discovery, load balancing, ingress controllers.'
+2:47PM INF Creating research note filepath=/home/manuel/code/wesen/obsidian-vault/research/2025-06-29/039-Kubernetes-
 Deployment.md
-Created research note: /home/manuel/code/wesen/obsidian-vault/research/2025-06-29/009-Kubernetes-Deployment.md
-> ./add-research --title 'Database Scaling' --date '2024-01-10' --message 'Horizontal vs vertical scaling strategies
-for PostgreSQL' --no-links
-1:41PM INF Creating research note filepath=/home/manuel/code/wesen/obsidian-vault/research/2024-01-10/001-Database-Sc
+Created research note: /home/manuel/code/wesen/obsidian-vault/research/2025-06-29/039-Kubernetes-Deployment.md
+> ./add-research --title 'Database Scaling' --date '2024-01-10' --no-links --message 'Scaling strategies: vertical sc
+aling with CPU/memory increases, horizontal scaling with read replicas and sharding.'
+2:47PM INF Creating research note filepath=/home/manuel/code/wesen/obsidian-vault/research/2024-01-10/003-Database-Sc
 aling.md
-Created research note: /home/manuel/code/wesen/obsidian-vault/research/2024-01-10/001-Database-Scaling.md
+Created research note: /home/manuel/code/wesen/obsidian-vault/research/2024-01-10/003-Database-Scaling.md
 > echo '✅ Test notes created!'
 ✅ Test notes created!
-> echo '' && echo '🔍 Searching existing notes...'
+> echo '' && echo '📁 Current notes structure:'
 
-🔍 Searching existing notes...
-> ./add-research --search
-=== Database Scaling ===
-Date: 2024-01-10
-Path: /home/manuel/code/wesen/obsidian-vault/research/2024-01-10/001-Database-Scaling.md
+📁 Current notes structure:
+> find ~/code/wesen/obsidian-vault/research -name '*.md' -type f | grep -E '(Docker|Kubernetes|Database)' | head -5
+/home/manuel/code/wesen/obsidian-vault/research/2025-06-29/009-Kubernetes-Deployment.md
+/home/manuel/code/wesen/obsidian-vault/research/2025-06-29/027-Docker-Best-Practices.md
+/home/manuel/code/wesen/obsidian-vault/research/2025-06-29/024-Kubernetes-Deep-Dive.md
+/home/manuel/code/wesen/obsidian-vault/research/2025-06-29/038-Docker-Best-Practices.md
+/home/manuel/code/wesen/obsidian-vault/research/2025-06-29/008-Docker-Best-Practices.md
+> echo '' && echo '📤 Demonstrating export functionality...'
 
-# Database Scaling
-
-Horizontal vs vertical scaling strategies for PostgreSQL
-> y
-bash: y: command not found
-> echo '✅ Search completed with clipboard copy!'
-✅ Search completed with clipboard copy!
-> echo '' && echo '📤 Exporting notes...'
-
-📤 Exporting notes...
+📤 Demonstrating export functionality...
+> ./add-research --export --export-path 'complete-research-export.md'
+Exported 43 notes to: complete-research-export.md
+> echo '✅ Complete export created!'
+✅ Complete export created!
+> echo '📄 Export preview (first 15 lines):'

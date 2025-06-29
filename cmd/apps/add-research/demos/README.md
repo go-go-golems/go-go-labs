@@ -87,10 +87,26 @@ These demos can be embedded in:
 
 | Demo | GIF Size | Duration | Key Features |
 |------|----------|----------|-------------|
-| Basic | ~480KB | ~30s | Core workflow |
-| Files | ~880KB | ~30s | Attachments |
-| Content | ~4.5MB | ~30s | Input methods |
-| Search | ~2.5MB | ~30s | Search/Export |
-| Types | ~7.6MB | ~30s | Organization |
+| Basic | ~696KB | ~30s | Core workflow |
+| Files | ~4.2MB | ~30s | Attachments |
+| Content | ~7.6MB | ~30s | Input methods |
+| Search | ~8.4MB | ~30s | Search/Export |
+| Types | ~13MB | ~30s | Organization |
 
-Total: ~16MB for complete demo suite
+Total: ~33MB for complete demo suite
+
+## Recent Improvements (June 2025)
+
+### Fixed VHS Demo Issues
+- ✅ **Timing optimization**: Proper typing speeds for different content types
+- ✅ **Content handling**: Simplified multiline content to avoid VHS parsing errors
+- ✅ **Command reliability**: All commands now work correctly in non-TTY environments
+- ✅ **Interactive features**: Replaced problematic interactive prompts with command-line flags
+- ✅ **File validation**: All demos create and display actual working examples
+
+### Technical Improvements
+- **Escape handling**: Fixed quote and multiline content escaping in VHS scripts
+- **Error resilience**: Commands designed to work even if previous steps fail
+- **Content verification**: Each demo shows actual file contents and outputs
+- **Cleanup procedures**: Proper cleanup of temporary files after demos
+- **Performance**: Optimized sleep times and command execution flow

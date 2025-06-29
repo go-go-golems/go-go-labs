@@ -1,1 +1,0 @@
-server:\n  host: localhost\n  port: 8080\ndatabase:\n  driver: postgres

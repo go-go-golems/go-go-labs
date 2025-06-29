@@ -1,5 +1,5 @@
 # Demo: Search & Export
-# Shows search functionality and export with date filtering
+# Shows export functionality and demonstrates search capabilities
 
 Output demos/demo-search.gif
 
@@ -17,23 +17,21 @@ Type "echo '# Demo: Search & Export' && echo"
 Enter
 Sleep 1s
 
-# First, create a few notes to have something to search
-Type "echo 'Setting up test notes for search demo...'"
+# First, create a few notes to have something to search and export
+Type "echo 'Setting up test notes for search & export demo...'"
 Enter
 Sleep 1s
 
-# Create first test note
-Type "./add-research --title 'Docker Best Practices' --message 'Container optimization techniques and security guidelines' --no-links"
+# Create test notes with different dates and content
+Type "./add-research --title 'Docker Best Practices' --no-links --message 'Container optimization techniques: minimal base images, non-root users, vulnerability scanning, multi-stage builds, resource limits.'"
 Enter
 Sleep 1s
 
-# Create second test note 
-Type "./add-research --title 'Kubernetes Deployment' --message 'Pod management and service discovery patterns' --no-links"
+Type "./add-research --title 'Kubernetes Deployment' --no-links --message 'Pod management patterns: rolling updates, blue-green deployments, service discovery, load balancing, ingress controllers.'"
 Enter
 Sleep 1s
 
-# Create third test note with different date
-Type "./add-research --title 'Database Scaling' --date '2024-01-10' --message 'Horizontal vs vertical scaling strategies for PostgreSQL' --no-links"
+Type "./add-research --title 'Database Scaling' --date '2024-01-10' --no-links --message 'Scaling strategies: vertical scaling with CPU/memory increases, horizontal scaling with read replicas and sharding.'"
 Enter
 Sleep 1s
 
@@ -41,83 +39,118 @@ Type "echo '✅ Test notes created!'"
 Enter
 Sleep 1s
 
-# Demonstrate search functionality
-Type "echo '' && echo '🔍 Searching existing notes...'"
+# Show current notes structure
+Type "echo '' && echo '📁 Current notes structure:'"
 Enter
-Sleep 1s
-
-Type "./add-research --search"
+Type "find ~/code/wesen/obsidian-vault/research -name '*.md' -type f | grep -E '(Docker|Kubernetes|Database)' | head -5"
 Enter
-Sleep 1s
+Sleep 2s
 
-# Simulate search selection (this might need adjustment based on actual interface)
-Type "Docker"
-Enter
-Sleep 1s
-
-# Show search results and potentially select one
-Type "1"
-Enter
-Sleep 1s
-
-# Copy to clipboard option
-Type "y"
-Enter
-Sleep 1s
-
-Type "echo '✅ Search completed with clipboard copy!'"
-Enter
-Sleep 1s
-
-# Demonstrate export functionality
-Type "echo '' && echo '📤 Exporting notes...'"
+# Since interactive search doesn't work in VHS, demonstrate export instead
+Type "echo '' && echo '📤 Demonstrating export functionality...'"
 Enter
 Sleep 1s
 
 # Export all notes
-Type "./add-research --export --export-path 'all-research-notes.md'"
+Type "./add-research --export --export-path 'complete-research-export.md'"
 Enter
 Sleep 2s
 
-Type "echo '✅ Export created!'"
+Type "echo '✅ Complete export created!'"
 Enter
 Sleep 1s
 
 # Show export preview
-Type "echo '📄 Export preview:'"
+Type "echo '📄 Export preview (first 15 lines):'"
 Enter
-Type "head -20 all-research-notes.md"
+Type "head -15 complete-research-export.md"
 Enter
 Sleep 3s
 
 # Export with date filtering
-Type "echo '' && echo '📅 Exporting with date filter...'"
+Type "echo '' && echo '📅 Filtered export (January 2024):'"
 Enter
 Sleep 1s
 
-Type "./add-research --export --export-from '2024-01-10' --export-to '2024-01-11' --export-path 'filtered-export.md'"
+Type "./add-research --export --export-from '2024-01-01' --export-to '2024-01-31' --export-path 'january-2024-export.md'"
 Enter
 Sleep 2s
 
-Type "echo '📄 Filtered export preview:'"
+Type "echo '📄 January 2024 export preview:'"
 Enter
-Type "head -15 filtered-export.md"
+Type "head -10 january-2024-export.md"
 Enter
 Sleep 2s
 
-# Show file sizes and counts
+# Show export statistics
 Type "echo '' && echo '📊 Export statistics:'"
 Enter
-Type "echo 'All notes export:' && wc -l all-research-notes.md"
+Type "echo 'Complete export:' && wc -l complete-research-export.md"
 Enter
-Type "echo 'Filtered export:' && wc -l filtered-export.md"
+Type "echo 'January 2024 export:' && wc -l january-2024-export.md"
 Enter
 Sleep 2s
+
+# Demonstrate searching by showing file patterns (since interactive search won't work)
+Type "echo '' && echo '🔍 Search capabilities (file-based):'"
+Enter
+Sleep 1s
+
+Type "echo 'Finding notes about Docker:'"
+Enter
+Type "find ~/code/wesen/obsidian-vault/research -name '*Docker*' -type f"
+Enter
+Sleep 1s
+
+Type "echo '' && echo 'Finding notes about databases:'"
+Enter
+Type "find ~/code/wesen/obsidian-vault/research -name '*Database*' -type f"
+Enter
+Sleep 1s
+
+Type "echo '' && echo 'Content search (grep through files):'"
+Enter
+Type "grep -r 'scaling' ~/code/wesen/obsidian-vault/research/ --include='*.md' | head -2"
+Enter
+Sleep 2s
+
+# Show export with today's filter
+Type "echo '' && echo '📅 Today\\'s notes export:'"
+Enter
+Type "./add-research --export --export-from '$(date +%Y-%m-%d)' --export-to '$(date +%Y-%m-%d)' --export-path 'today-export.md'"
+Enter
+Sleep 2s
+
+Type "echo '📄 Today\\'s export preview:'"
+Enter
+Type "head -8 today-export.md"
+Enter
+Sleep 2s
+
+# Show different export formats by showing file sizes
+Type "echo '' && echo '📈 Export file comparison:'"
+Enter
+Type "ls -lh *export.md"
+Enter
+Sleep 2s
+
+# Show that we can combine search with export
+Type "echo '' && echo '🎯 Search & Export workflow:'"
+Enter
+Type "echo '1. Create notes on different dates'"
+Enter  
+Type "echo '2. Use --export with date filters'"
+Enter
+Type "echo '3. Use grep to find content across notes'"
+Enter
+Type "echo '4. Interactive search works in terminal (TTY required)'"
+Enter
+Sleep 3s
 
 # Clean up
 Type "echo '' && echo '🧹 Cleaning up demo files...'"
 Enter
-Type "rm -f all-research-notes.md filtered-export.md"
+Type "rm -f complete-research-export.md january-2024-export.md today-export.md"
 Enter
 Sleep 1s
 

@@ -5,26 +5,26 @@ bash: cd: cmd/apps/add-research: No such file or directory
 
 > echo '🏷️  Creating notes with different types...'
 🏷️  Creating notes with different types...
-> ./add-research --type 'research' --title 'Machine Learning Study' --message 'Deep learning architectures and traini
-ng methodologies' --no-links
-1:48PM INF Creating research note filepath=/home/manuel/code/wesen/obsidian-vault/research/2025-06-29/015-Machine-Lea
+> ./add-research --type 'research' --title 'Machine Learning Study' --no-links --message 'Deep learning research: neu
+ral networks, training strategies, optimization techniques for AI applications.'
+2:26PM INF Creating research note filepath=/home/manuel/code/wesen/obsidian-vault/research/2025-06-29/029-Machine-Lea
 rning-Study.md
-Created research note: /home/manuel/code/wesen/obsidian-vault/research/2025-06-29/015-Machine-Learning-Study.md
-> ./add-research --type 'ideas' --title 'Mobile App Concept' --message 'Cross-platform productivity app with offline
-sync capabilities' --no-links
-1:48PM INF Creating research note filepath=/home/manuel/code/wesen/obsidian-vault/ideas/2025-06-29/003-Mobile-App-Con
+Created research note: /home/manuel/code/wesen/obsidian-vault/research/2025-06-29/029-Machine-Learning-Study.md
+> ./add-research --type 'ideas' --title 'Mobile App Concept' --no-links --message 'Cross-platform productivity app id
+ea: task management, calendar integration, offline sync capabilities.'
+2:26PM INF Creating research note filepath=/home/manuel/code/wesen/obsidian-vault/ideas/2025-06-29/004-Mobile-App-Con
 cept.md
-Created research note: /home/manuel/code/wesen/obsidian-vault/ideas/2025-06-29/003-Mobile-App-Concept.md
-> ./add-research --type 'meetings' --title 'Team Sync January' --message 'Sprint planning and architecture decisions
-for Q1' --no-links
-1:48PM INF Creating research note filepath=/home/manuel/code/wesen/obsidian-vault/meetings/2025-06-29/001-Team-Sync-J
+Created research note: /home/manuel/code/wesen/obsidian-vault/ideas/2025-06-29/004-Mobile-App-Concept.md
+> ./add-research --type 'meetings' --title 'Team Sync January' --no-links --message 'Sprint planning meeting: authent
+ication system, database optimization, monitoring infrastructure deployment.'
+2:27PM INF Creating research note filepath=/home/manuel/code/wesen/obsidian-vault/meetings/2025-06-29/002-Team-Sync-J
 anuary.md
-Created research note: /home/manuel/code/wesen/obsidian-vault/meetings/2025-06-29/001-Team-Sync-January.md
-> ./add-research --type 'technical' --date '2024-01-05' --title 'Database Migration Strategy' --message 'Zero-downtim
-e migration approach for production database' --no-links
-1:49PM INF Creating research note filepath=/home/manuel/code/wesen/obsidian-vault/technical/2024-01-05/001-Database-M
+Created research note: /home/manuel/code/wesen/obsidian-vault/meetings/2025-06-29/002-Team-Sync-January.md
+> ./add-research --type 'technical' --date '2024-01-05' --title 'Database Migration Strategy' --no-links --message 'Z
+ero-downtime migration plan: read replicas, dual-write pattern, data validation steps.'
+2:27PM INF Creating research note filepath=/home/manuel/code/wesen/obsidian-vault/technical/2024-01-05/002-Database-M
 igration-Strategy.md
-Created research note: /home/manuel/code/wesen/obsidian-vault/technical/2024-01-05/001-Database-Migration-Strategy.md
+Created research note: /home/manuel/code/wesen/obsidian-vault/technical/2024-01-05/002-Database-Migration-Strategy.md
 > echo '✅ Different note types created!'
 ✅ Different note types created!
 > echo '' && echo '📁 Vault organization structure:'

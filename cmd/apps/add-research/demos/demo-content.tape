@@ -1,5 +1,5 @@
 # Demo: Content Sources
-# Shows clipboard integration and piped input
+# Shows different ways to provide content: command line, piped input, clipboard simulation
 
 Output demos/demo-content.gif
 
@@ -17,53 +17,29 @@ Type "echo '# Demo: Content Sources' && echo"
 Enter
 Sleep 1s
 
-# Demonstrate clipboard integration
-Type "echo 'Setting up clipboard content...'"
-Enter
-
-# Simulate clipboard content (using echo to simulate)
-Type "echo 'Key research insights:\n- Microservices architecture benefits\n- Container orchestration with Kubernetes\n- CI/CD pipeline optimization strategies' | tee /tmp/clipboard_content"
+# Demonstrate command line message
+Type "echo '📝 Method 1: Command line message...'"
 Enter
 Sleep 1s
 
-# Copy to clipboard (simulate)
-Type "cat /tmp/clipboard_content | head -4"
+Type "./add-research --title 'Microservices Architecture' --no-links --message 'Research findings on microservices: benefits include independent deployment and scaling, challenges include distributed complexity, key patterns are API gateway and event-driven communication.'"
+Enter
+Sleep 2s
+
+Type "echo '✅ Note created from command line!'"
 Enter
 Sleep 1s
 
-Type "echo '📋 Clipboard content ready. Creating note from clipboard...'"
+# Demonstrate piped input
+Type "echo '' && echo '📥 Method 2: Piped input...'"
 Enter
 Sleep 1s
 
-# Create note from clipboard
-Type "cat /tmp/clipboard_content | ./add-research --clip --title 'Microservices Research'"
-Enter
-Sleep 1s
-
-# Add links
-Type "https://microservices.io/"
-Enter
-Type "https://kubernetes.io/docs/concepts/"
-Enter
-Type ""
-Enter
-Sleep 1s
-
-Type "echo '✅ Note created from clipboard!'"
-Enter
-Sleep 1s
-
-# Show piped input
-Type "echo '' && echo '📥 Now demonstrating piped input...'"
-Enter
-Sleep 1s
-
-# Create content to pipe
-Type "echo 'Performance Benchmarks:\n\n## Database Queries\n- SELECT operations: 150ms avg\n- INSERT operations: 45ms avg\n- Complex joins: 300ms avg\n\n## API Response Times\n- GET /users: 25ms\n- POST /orders: 80ms' > /tmp/performance_data"
+# Create content file and pipe it
+Type "echo 'Performance Benchmarks Report: Database SELECT operations average 150ms, INSERT operations average 45ms, API endpoints average 25-80ms response time. Recommendations include query caching and index optimization.' > /tmp/performance_data"
 Enter
 
-# Pipe content to add-research
-Type "cat /tmp/performance_data | ./add-research --title 'Performance Analysis' --no-links"
+Type "cat /tmp/performance_data | ./add-research --title 'Performance Analysis Q1 2024' --no-links"
 Enter
 Sleep 2s
 
@@ -71,44 +47,97 @@ Type "echo '✅ Note created from piped input!'"
 Enter
 Sleep 1s
 
-# Show combined sources
-Type "echo '' && echo '🔄 Combining multiple content sources...'"
+# Demonstrate clipboard simulation (using a temp file)
+Type "echo '' && echo '📋 Method 3: Clipboard content...'"
 Enter
 Sleep 1s
 
-# Create note with message + file + clipboard simulation
-Type "echo 'Additional context from command line' | ./add-research --title 'Multi-Source Research' --message 'Base findings from investigation' --file config.yaml"
+Type "echo 'Creating clipboard content...'"
 Enter
-Sleep 1s
 
-# Add links
-Type "https://example.com/research"
+Type "echo 'Container Orchestration Study: Kubernetes key concepts include Pods, Services, Deployments. Best practices are resource limits, health checks, autoscaling. Security considerations include RBAC and network policies.' > /tmp/clipboard_content"
 Enter
-Type ""
-Enter
-Sleep 1s
 
-# Show results
-Type "echo '📊 Results summary:'"
+Type "echo '📄 Clipboard content ready:'"
 Enter
-Sleep 1s
-
-Type "echo '1. Clipboard-based note:'"
-Enter
-Type "find ~/code/wesen/obsidian-vault/research -name '*Microservices-Research*' -exec head -8 {} \\;"
+Type "cat /tmp/clipboard_content"
 Enter
 Sleep 2s
 
-Type "echo '' && echo '2. Piped input note:'"
-Enter
-Type "find ~/code/wesen/obsidian-vault/research -name '*Performance-Analysis*' -exec head -8 {} \\;"
+# Create note from "clipboard" (temp file)  
+Type "cat /tmp/clipboard_content | ./add-research --title 'Kubernetes Deep Dive' --no-links"
 Enter
 Sleep 2s
 
-Type "echo '' && echo '3. Multi-source note:'"
+Type "echo '✅ Note created from clipboard content!'"
 Enter
-Type "find ~/code/wesen/obsidian-vault/research -name '*Multi-Source-Research*' -exec head -8 {} \\;"
+Sleep 1s
+
+# Show all three methods' results
+Type "echo '' && echo '📊 Summary of content sources:'"
+Enter
+Sleep 1s
+
+Type "echo '1. Command line message:'"
+Enter
+Type "find ~/code/wesen/obsidian-vault/research -name '*Microservices-Architecture*' -exec cat {} \\;"
+Enter
+Sleep 2s
+
+Type "echo '' && echo '2. Piped input:'"
+Enter  
+Type "find ~/code/wesen/obsidian-vault/research -name '*Performance-Analysis*' -exec cat {} \\;"
+Enter
+Sleep 2s
+
+Type "echo '' && echo '3. Clipboard content:'"
+Enter
+Type "find ~/code/wesen/obsidian-vault/research -name '*Kubernetes-Deep-Dive*' -exec cat {} \\;"
 Enter
 Sleep 3s
+
+# Show flexibility with mixed content
+Type "echo '' && echo '🔄 Bonus: Combining message + file content...'"
+Enter
+Sleep 1s
+
+Type "echo 'Combined content example' > summary.txt"
+Enter
+
+Type "./add-research --title 'Multi-Source Research' --file summary.txt --no-links --message 'This note demonstrates combining multiple content sources in one organized note.'"
+Enter
+Sleep 2s
+
+Type "echo '📄 Multi-source note preview:'"
+Enter
+Type "find ~/code/wesen/obsidian-vault/research -name '*Multi-Source-Research*' -exec cat {} \\;"
+Enter
+Sleep 3s
+
+# Show the different input methods
+Type "echo '' && echo '⚡ Content input methods available:'"
+Enter
+Type "echo '• --message flag: Direct command line input'"
+Enter
+Type "echo '• Piped input: echo content | add-research'"
+Enter
+Type "echo '• --clip flag: Use clipboard content'"
+Enter
+Type "echo '• --file flag: Attach and embed files'"
+Enter
+Type "echo '• Interactive mode: Type content directly'"
+Enter
+Sleep 3s
+
+# Clean up
+Type "echo '' && echo '🧹 Cleaning up...'"
+Enter
+Type "rm -f /tmp/clipboard_content /tmp/performance_data summary.txt"
+Enter
+Sleep 1s
+
+Type "echo '✅ Content sources demo completed!'"
+Enter
+Sleep 2s
 
 Screenshot demos/demo-content.txt
