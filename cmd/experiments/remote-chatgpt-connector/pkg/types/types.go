@@ -15,8 +15,8 @@ type SearchRequest struct {
 type SearchResult struct {
 	ID    string `json:"id"`
 	Title string `json:"title"`
+	Text  string `json:"text"` // Brief text snippet
 	URL   string `json:"url"`
-	Chunk string `json:"chunk"` // Brief text snippet
 }
 
 type FetchRequest struct {
@@ -24,8 +24,11 @@ type FetchRequest struct {
 }
 
 type FetchResult struct {
-	ID   string `json:"id"`
-	Data string `json:"data"` // Full content
+	ID       string                 `json:"id"`
+	Title    string                 `json:"title"`
+	Text     string                 `json:"text"` // Full content
+	URL      string                 `json:"url"`
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // MCP Server Interface - allows parallel development
@@ -82,16 +85,14 @@ type DiscoveryService interface {
 
 // Config represents the application configuration
 type Config struct {
-	// Server config
-	Port int    `json:"port"`
-	Host string `json:"host"`
+	// OIDC Configuration
+	OIDCIssuer      string `json:"oidc_issuer"`
+	DefaultUser     string `json:"default_user"`
+	DefaultPassword string `json:"default_password"`
 
-	// GitHub OAuth config
-	GitHubClientID     string `json:"github_client_id"`
-	GitHubClientSecret string `json:"github_client_secret"`
-	AllowedLogin       string `json:"allowed_login"`
-
-	// Logging
+	// Server Configuration
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
 	LogLevel string `json:"log_level"`
 }
 
