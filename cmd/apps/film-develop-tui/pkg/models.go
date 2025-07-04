@@ -2,7 +2,10 @@ package pkg
 
 import (
 	"fmt"
+	"strings"
 	"time"
+	
+	"github.com/charmbracelet/lipgloss"
 )
 
 // Film represents a film type with its properties
@@ -96,6 +99,117 @@ type ChemicalModel struct {
 	Water        int
 	Time         string
 	IsCalculated bool
+}
+
+// ChemicalComponent represents a chemical with its own rendering logic
+type ChemicalComponent struct {
+	Name         string
+	Dilution     string
+	Concentrate  int
+	Water        int
+	Time         string
+	IsCalculated bool
+}
+
+// Render renders the chemical component as a styled string
+func (c *ChemicalComponent) Render() string {
+	var b strings.Builder
+	
+	// Name
+	b.WriteString(fmt.Sprintf("%-14s", c.Name))
+	b.WriteString("\n")
+	
+	// Dilution
+	b.WriteString(fmt.Sprintf("%-14s", c.Dilution+" dilution"))
+	b.WriteString("\n")
+	
+	// Concentrate
+	concStr := "--ml conc"
+	if c.IsCalculated {
+		concStr = fmt.Sprintf("%dml conc", c.Concentrate)
+	}
+	b.WriteString(fmt.Sprintf("%-14s", concStr))
+	b.WriteString("\n")
+	
+	// Water
+	waterStr := "--ml water"
+	if c.IsCalculated {
+		waterStr = fmt.Sprintf("%dml water", c.Water)
+	}
+	b.WriteString(fmt.Sprintf("%-14s", waterStr))
+	b.WriteString("\n")
+	
+	// Time
+	b.WriteString(fmt.Sprintf("%-14s", fmt.Sprintf("Time: %s", c.Time)))
+	
+	return b.String()
+}
+
+// RenderWithHighlight renders the chemical component with highlighting for calculated values
+func (c *ChemicalComponent) RenderWithHighlight(highlightStyle lipgloss.Style) string {
+	var b strings.Builder
+	
+	// Name
+	b.WriteString(fmt.Sprintf("%-14s", c.Name))
+	b.WriteString("\n")
+	
+	// Dilution
+	b.WriteString(fmt.Sprintf("%-14s", c.Dilution+" dilution"))
+	b.WriteString("\n")
+	
+	// Concentrate
+	concStr := "--ml conc"
+	if c.IsCalculated {
+		concStr = fmt.Sprintf("%dml conc", c.Concentrate)
+		concStr = highlightStyle.Render(concStr)
+	}
+	b.WriteString(fmt.Sprintf("%-14s", concStr))
+	b.WriteString("\n")
+	
+	// Water
+	waterStr := "--ml water"
+	if c.IsCalculated {
+		waterStr = fmt.Sprintf("%dml water", c.Water)
+	}
+	b.WriteString(fmt.Sprintf("%-14s", waterStr))
+	b.WriteString("\n")
+	
+	// Time
+	timeStr := fmt.Sprintf("Time: %s", c.Time)
+	if c.IsCalculated {
+		timeStr = highlightStyle.Render(timeStr)
+	}
+	b.WriteString(fmt.Sprintf("%-14s", timeStr))
+	
+	return b.String()
+}
+
+// NewChemicalComponent creates a new ChemicalComponent
+func NewChemicalComponent(name, dilution string, concentrate, water int, time string, isCalculated bool) ChemicalComponent {
+	return ChemicalComponent{
+		Name:         name,
+		Dilution:     dilution,
+		Concentrate:  concentrate,
+		Water:        water,
+		Time:         time,
+		IsCalculated: isCalculated,
+	}
+}
+
+// ChemicalModelsToComponents converts ChemicalModel slice to ChemicalComponent slice
+func ChemicalModelsToComponents(models []ChemicalModel) []ChemicalComponent {
+	components := make([]ChemicalComponent, len(models))
+	for i, model := range models {
+		components[i] = NewChemicalComponent(
+			model.Name,
+			model.Dilution,
+			model.Concentrate,
+			model.Water,
+			model.Time,
+			model.IsCalculated,
+		)
+	}
+	return components
 }
 
 // NewChemicalModel creates a new ChemicalModel

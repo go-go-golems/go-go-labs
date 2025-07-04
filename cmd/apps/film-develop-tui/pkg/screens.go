@@ -128,63 +128,49 @@ func (s *MainScreen) renderMainContent(state *ApplicationState) string {
 }
 
 func (s *MainScreen) renderChemicalModels(state *ApplicationState) string {
-	var b strings.Builder
-
 	chemicals := GetCalculatedChemicals(state.Calculations)
+	components := ChemicalModelsToComponents(chemicals)
+	
+	return s.renderChemicalComponents(components, false)
+}
 
-	// Chemical names
-	for i, chem := range chemicals {
-		if i > 0 {
-			b.WriteString(" │  ")
-		}
-		b.WriteString(fmt.Sprintf("%-14s", chem.Name))
+// renderChemicalComponents renders chemical components with proper separation
+func (s *MainScreen) renderChemicalComponents(components []ChemicalComponent, highlight bool) string {
+	if len(components) == 0 {
+		return ""
 	}
-	b.WriteString("\n")
-
-	// Dilutions
-	for i, chem := range chemicals {
-		if i > 0 {
-			b.WriteString(" │  ")
+	
+	// Get component lines
+	var componentLines [][]string
+	for _, component := range components {
+		var rendered string
+		if highlight {
+			rendered = component.RenderWithHighlight(highlightStyle)
+		} else {
+			rendered = component.Render()
 		}
-		b.WriteString(fmt.Sprintf("%-14s", chem.Dilution+" dilution"))
+		componentLines = append(componentLines, strings.Split(rendered, "\n"))
 	}
-	b.WriteString("\n")
-
-	// Concentrate amounts
-	for i, chem := range chemicals {
-		if i > 0 {
-			b.WriteString(" │  ")
+	
+	// Build output by joining lines horizontally
+	var result strings.Builder
+	maxLines := 5 // Name, Dilution, Concentrate, Water, Time
+	
+	for line := 0; line < maxLines; line++ {
+		for i, componentLine := range componentLines {
+			if i > 0 {
+				result.WriteString(" │  ")
+			}
+			if line < len(componentLine) {
+				result.WriteString(componentLine[line])
+			}
 		}
-		concStr := "--ml conc"
-		if chem.IsCalculated {
-			concStr = fmt.Sprintf("%dml conc", chem.Concentrate)
+		if line < maxLines-1 {
+			result.WriteString("\n")
 		}
-		b.WriteString(fmt.Sprintf("%-14s", concStr))
 	}
-	b.WriteString("\n")
-
-	// Water amounts
-	for i, chem := range chemicals {
-		if i > 0 {
-			b.WriteString(" │  ")
-		}
-		waterStr := "--ml water"
-		if chem.IsCalculated {
-			waterStr = fmt.Sprintf("%dml water", chem.Water)
-		}
-		b.WriteString(fmt.Sprintf("%-14s", waterStr))
-	}
-	b.WriteString("\n")
-
-	// Times
-	for i, chem := range chemicals {
-		if i > 0 {
-			b.WriteString(" │  ")
-		}
-		b.WriteString(fmt.Sprintf("%-14s", fmt.Sprintf("Time: %s", chem.Time)))
-	}
-
-	return b.String()
+	
+	return result.String()
 }
 
 func (s *MainScreen) renderFilmSetup(state *ApplicationState) string {
@@ -785,68 +771,49 @@ func (s *CalculatedScreen) renderMainContent(state *ApplicationState) string {
 }
 
 func (s *CalculatedScreen) renderChemicalModels(state *ApplicationState) string {
-	var b strings.Builder
-
 	chemicals := GetCalculatedChemicals(state.Calculations)
+	components := ChemicalModelsToComponents(chemicals)
+	
+	return s.renderChemicalComponents(components, true)
+}
 
-	// Chemical names
-	for i, chem := range chemicals {
-		if i > 0 {
-			b.WriteString(" │  ")
-		}
-		b.WriteString(fmt.Sprintf("%-14s", chem.Name))
+// renderChemicalComponents renders chemical components with proper separation
+func (s *CalculatedScreen) renderChemicalComponents(components []ChemicalComponent, highlight bool) string {
+	if len(components) == 0 {
+		return ""
 	}
-	b.WriteString("\n")
-
-	// Dilutions
-	for i, chem := range chemicals {
-		if i > 0 {
-			b.WriteString(" │  ")
+	
+	// Get component lines
+	var componentLines [][]string
+	for _, component := range components {
+		var rendered string
+		if highlight {
+			rendered = component.RenderWithHighlight(highlightStyle)
+		} else {
+			rendered = component.Render()
 		}
-		b.WriteString(fmt.Sprintf("%-14s", chem.Dilution+" dilution"))
+		componentLines = append(componentLines, strings.Split(rendered, "\n"))
 	}
-	b.WriteString("\n")
-
-	// Concentrate amounts (highlighted if calculated)
-	for i, chem := range chemicals {
-		if i > 0 {
-			b.WriteString(" │  ")
+	
+	// Build output by joining lines horizontally
+	var result strings.Builder
+	maxLines := 5 // Name, Dilution, Concentrate, Water, Time
+	
+	for line := 0; line < maxLines; line++ {
+		for i, componentLine := range componentLines {
+			if i > 0 {
+				result.WriteString(" │  ")
+			}
+			if line < len(componentLine) {
+				result.WriteString(componentLine[line])
+			}
 		}
-		concStr := "--ml conc"
-		if chem.IsCalculated {
-			concStr = fmt.Sprintf("%dml conc", chem.Concentrate)
-			concStr = highlightStyle.Render(concStr)
+		if line < maxLines-1 {
+			result.WriteString("\n")
 		}
-		b.WriteString(fmt.Sprintf("%-14s", concStr))
 	}
-	b.WriteString("\n")
-
-	// Water amounts
-	for i, chem := range chemicals {
-		if i > 0 {
-			b.WriteString(" │  ")
-		}
-		waterStr := "--ml water"
-		if chem.IsCalculated {
-			waterStr = fmt.Sprintf("%dml water", chem.Water)
-		}
-		b.WriteString(fmt.Sprintf("%-14s", waterStr))
-	}
-	b.WriteString("\n")
-
-	// Times (highlighted if calculated)
-	for i, chem := range chemicals {
-		if i > 0 {
-			b.WriteString(" │  ")
-		}
-		timeStr := fmt.Sprintf("Time: %s", chem.Time)
-		if chem.IsCalculated {
-			timeStr = highlightStyle.Render(timeStr)
-		}
-		b.WriteString(fmt.Sprintf("%-14s", timeStr))
-	}
-
-	return b.String()
+	
+	return result.String()
 }
 
 func (s *CalculatedScreen) renderFilmSetup(state *ApplicationState) string {
