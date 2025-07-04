@@ -6,11 +6,12 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/film-develop-tui/internal/models"
 )
 
 // Model represents the main application model
 type Model struct {
-	stateMachine *StateMachine
+	stateMachine *models.StateMachine
 	screen       Screen
 	width        int
 	height       int
@@ -19,7 +20,7 @@ type Model struct {
 
 // NewModel creates a new application model
 func NewModel() *Model {
-	sm := NewStateMachine()
+	sm := models.NewStateMachine()
 	return &Model{
 		stateMachine: sm,
 		screen:       GetScreenForState(sm.GetCurrentState()),
@@ -55,7 +56,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case TimerTickMsg:
 		// Continue ticking if we're on the timer screen or if any timer is running
-		if m.stateMachine.GetCurrentState() == TimerScreenState ||
+		if m.stateMachine.GetCurrentState() == models.TimerScreenState ||
 			(m.stateMachine.GetApplicationState().TimerState != nil &&
 				m.stateMachine.GetApplicationState().TimerState.IsRunning) {
 			return m, m.tickCmd()
@@ -84,7 +85,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Start timer ticks if we enter timer screen
 		var cmd tea.Cmd
-		if m.stateMachine.GetCurrentState() == TimerScreenState {
+		if m.stateMachine.GetCurrentState() == models.TimerScreenState {
 			cmd = m.tickCmd()
 		}
 
@@ -144,6 +145,6 @@ func (m *Model) normalizeKey(msg tea.KeyMsg) string {
 }
 
 // GetStateMachine returns the state machine for testing
-func (m *Model) GetStateMachine() *StateMachine {
+func (m *Model) GetStateMachine() *models.StateMachine {
 	return m.stateMachine
 }

@@ -6,12 +6,13 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/film-develop-tui/internal/models"
 )
 
 // Screen represents a screen in the application
 type Screen interface {
-	Render(state *ApplicationState) string
-	HandleInput(key string, sm *StateMachine) bool
+	Render(state *models.ApplicationState) string
+	HandleInput(key string, sm *models.StateMachine) bool
 }
 
 // Styles for the UI
@@ -63,7 +64,7 @@ var (
 // MainScreen represents the main screen
 type MainScreen struct{}
 
-func (s *MainScreen) Render(state *ApplicationState) string {
+func (s *MainScreen) Render(state *models.ApplicationState) string {
 	var b strings.Builder
 
 	// Title
@@ -82,7 +83,7 @@ func (s *MainScreen) Render(state *ApplicationState) string {
 	return b.String()
 }
 
-func (s *MainScreen) renderMainContent(state *ApplicationState) string {
+func (s *MainScreen) renderMainContent(state *models.ApplicationState) string {
 	var b strings.Builder
 
 	// Film Setup Section
@@ -127,15 +128,28 @@ func (s *MainScreen) renderMainContent(state *ApplicationState) string {
 	return b.String()
 }
 
-func (s *MainScreen) renderChemicalModels(state *ApplicationState) string {
-	chemicals := GetCalculatedChemicals(state.Calculations)
-	components := ChemicalModelsToComponents(chemicals)
+func (s *MainScreen) renderChemicalModels(state *models.ApplicationState) string {
+	// Convert models.DilutionCalculation to pkg.DilutionCalculation
+	var calculations []models.DilutionCalculation
+	for _, calc := range state.Calculations {
+		calculations = append(calculations, models.DilutionCalculation{
+			Chemical:    calc.Chemical,
+			Dilution:    calc.Dilution,
+			TotalVolume: calc.TotalVolume,
+			Concentrate: calc.Concentrate,
+			Water:       calc.Water,
+			Time:        calc.Time,
+		})
+	}
+	
+	chemicals := models.GetCalculatedChemicals(calculations)
+	components := models.ChemicalModelsToComponents(chemicals)
 	
 	return s.renderChemicalComponents(components, false)
 }
 
 // renderChemicalComponents renders chemical components with proper separation
-func (s *MainScreen) renderChemicalComponents(components []ChemicalComponent, highlight bool) string {
+func (s *MainScreen) renderChemicalComponents(components []models.ChemicalComponent, highlight bool) string {
 	if len(components) == 0 {
 		return ""
 	}
@@ -173,119 +187,20 @@ func (s *MainScreen) renderChemicalComponents(components []ChemicalComponent, hi
 	return result.String()
 }
 
-func (s *MainScreen) renderFilmSetup(state *ApplicationState) string {
-	var b strings.Builder
-	b.WriteString(sectionStyle.Render("Film Setup"))
-	b.WriteString("\n\n")
-
-	filmType := "[ Not Selected ]"
-	if state.SelectedFilm != nil {
-		filmType = fmt.Sprintf("[ %s ]", state.SelectedFilm.Name)
-	}
-
-	ei := "[ -- ]"
-	if state.SelectedEI > 0 {
-		ei = fmt.Sprintf("[ %d ]", state.SelectedEI)
-	}
-
-	rolls := "[ -- ]"
-	tank := "[ --ml ]"
-	if state.RollSetup != nil {
-		rolls = fmt.Sprintf("[ %s ]", state.RollSetup.String())
-		tank = fmt.Sprintf("[ %dml ]", state.RollSetup.TotalVolume)
-	}
-
-	b.WriteString(fmt.Sprintf("Film Type:    %-30s EI:  %s\n", filmType, ei))
-	b.WriteString(fmt.Sprintf("Rolls:        %-30s Tank: %s", rolls, tank))
-
-	return b.String()
-}
-
-func (s *MainScreen) renderChemicals(state *ApplicationState) string {
-	var b strings.Builder
-	b.WriteString(sectionStyle.Render("Chemicals (20°C)"))
-	b.WriteString("\n\n")
-
-	if len(state.Calculations) == 0 {
-		b.WriteString("ILFOSOL 3     │  ILFOSTOP      │  SPRINT FIXER\n")
-		b.WriteString("1+9 dilution  │  1+19 dilution │  1+4 dilution\n")
-		b.WriteString("--ml conc     │  --ml conc     │  --ml conc\n")
-		b.WriteString("--ml water    │  --ml water    │  --ml water\n")
-		b.WriteString("Time: --:--   │  Time: 0:10    │  Time: 2:30")
-	} else {
-		// Render calculated values with proper column width
-		for i, calc := range state.Calculations {
-			if i > 0 {
-				b.WriteString(" │  ")
-			}
-			b.WriteString(fmt.Sprintf("%-16s", calc.Chemical))
-		}
-		b.WriteString("\n")
-
-		for i, calc := range state.Calculations {
-			if i > 0 {
-				b.WriteString(" │  ")
-			}
-			b.WriteString(fmt.Sprintf("%-16s", calc.Dilution+" dilution"))
-		}
-		b.WriteString("\n")
-
-		for i, calc := range state.Calculations {
-			if i > 0 {
-				b.WriteString(" │  ")
-			}
-			b.WriteString(fmt.Sprintf("%-16s", fmt.Sprintf("%dml conc", calc.Concentrate)))
-		}
-		b.WriteString("\n")
-
-		for i, calc := range state.Calculations {
-			if i > 0 {
-				b.WriteString(" │  ")
-			}
-			b.WriteString(fmt.Sprintf("%-16s", fmt.Sprintf("%dml water", calc.Water)))
-		}
-		b.WriteString("\n")
-
-		for i, calc := range state.Calculations {
-			if i > 0 {
-				b.WriteString(" │  ")
-			}
-			b.WriteString(fmt.Sprintf("%-16s", fmt.Sprintf("Time: %s", calc.Time)))
-		}
-	}
-
-	return b.String()
-}
-
-func (s *MainScreen) renderFixerUsage(state *ApplicationState) string {
-	var b strings.Builder
-	b.WriteString(sectionStyle.Render("Fixer Usage"))
-	b.WriteString("\n\n")
-
-	capacity := state.FixerState.CapacityPerLiter
-	used := state.FixerState.UsedRolls
-	remaining := state.FixerState.RemainingCapacity()
-
-	b.WriteString(fmt.Sprintf("Capacity: %d rolls per liter    Used: %d rolls    Remaining: %d rolls",
-		capacity, used, remaining))
-
-	return b.String()
-}
-
 func (s *MainScreen) renderActions() string {
 	return "[F] Film Type    [U] Fixer Usage    [S] Settings    [Q] Quit"
 }
 
-func (s *MainScreen) HandleInput(key string, sm *StateMachine) bool {
+func (s *MainScreen) HandleInput(key string, sm *models.StateMachine) bool {
 	switch strings.ToLower(key) {
 	case "f":
-		sm.TransitionTo(FilmSelectionState)
+		sm.TransitionTo(models.FilmSelectionState)
 		return true
 	case "u":
-		sm.TransitionTo(FixerTrackingState)
+		sm.TransitionTo(models.FixerTrackingState)
 		return true
 	case "s":
-		sm.TransitionTo(SettingsState)
+		sm.TransitionTo(models.SettingsState)
 		return true
 	case "q":
 		return false
@@ -296,7 +211,7 @@ func (s *MainScreen) HandleInput(key string, sm *StateMachine) bool {
 // FilmSelectionScreen represents the film selection screen
 type FilmSelectionScreen struct{}
 
-func (s *FilmSelectionScreen) Render(state *ApplicationState) string {
+func (s *FilmSelectionScreen) Render(state *models.ApplicationState) string {
 	var b strings.Builder
 
 	// Title
@@ -315,12 +230,12 @@ func (s *FilmSelectionScreen) Render(state *ApplicationState) string {
 	return b.String()
 }
 
-func (s *FilmSelectionScreen) renderFilmSelection(state *ApplicationState) string {
+func (s *FilmSelectionScreen) renderFilmSelection(state *models.ApplicationState) string {
 	var b strings.Builder
 	b.WriteString(sectionStyle.Render("Select Film Type"))
 	b.WriteString("\n\n")
 
-	filmOrder := GetFilmOrder()
+	filmOrder := models.GetFilmOrder()
 	for i, filmID := range filmOrder {
 		if film, ok := state.FilmDB.GetFilmByID(filmID); ok {
 			eiRatings := make([]string, len(film.EIRatings))
@@ -353,11 +268,11 @@ func (s *FilmSelectionScreen) renderActions() string {
 	return b.String()
 }
 
-func (s *FilmSelectionScreen) HandleInput(key string, sm *StateMachine) bool {
+func (s *FilmSelectionScreen) HandleInput(key string, sm *models.StateMachine) bool {
 	switch strings.ToLower(key) {
 	case "1", "2", "3", "4", "5", "6", "7":
 		index, _ := strconv.Atoi(key)
-		filmOrder := GetFilmOrder()
+		filmOrder := models.GetFilmOrder()
 		if index > 0 && index <= len(filmOrder) {
 			sm.HandleFilmSelection(filmOrder[index-1])
 		}
@@ -374,7 +289,7 @@ func (s *FilmSelectionScreen) HandleInput(key string, sm *StateMachine) bool {
 // EISelectionScreen represents the EI selection screen
 type EISelectionScreen struct{}
 
-func (s *EISelectionScreen) Render(state *ApplicationState) string {
+func (s *EISelectionScreen) Render(state *models.ApplicationState) string {
 	var b strings.Builder
 
 	// Title
@@ -398,7 +313,7 @@ func (s *EISelectionScreen) Render(state *ApplicationState) string {
 	return b.String()
 }
 
-func (s *EISelectionScreen) renderFilmSetup(state *ApplicationState) string {
+func (s *EISelectionScreen) renderFilmSetup(state *models.ApplicationState) string {
 	var b strings.Builder
 	b.WriteString(sectionStyle.Render("Film Setup"))
 	b.WriteString("\n\n")
@@ -426,7 +341,7 @@ func (s *EISelectionScreen) renderFilmSetup(state *ApplicationState) string {
 	return b.String()
 }
 
-func (s *EISelectionScreen) renderEISelection(state *ApplicationState) string {
+func (s *EISelectionScreen) renderEISelection(state *models.ApplicationState) string {
 	var b strings.Builder
 	b.WriteString(sectionStyle.Render("Select EI Rating"))
 	b.WriteString("\n\n")
@@ -477,12 +392,12 @@ func (s *EISelectionScreen) renderActions() string {
 	return b.String()
 }
 
-func (s *EISelectionScreen) HandleInput(key string, sm *StateMachine) bool {
+func (s *EISelectionScreen) HandleInput(key string, sm *models.StateMachine) bool {
 	switch strings.ToLower(key) {
 	case "1", "2", "3", "4", "5", "6", "7", "8", "9":
 		index, _ := strconv.Atoi(key)
-		if sm.appState.SelectedFilm != nil && index > 0 && index <= len(sm.appState.SelectedFilm.EIRatings) {
-			ei := sm.appState.SelectedFilm.EIRatings[index-1]
+		if sm.GetApplicationState().SelectedFilm != nil && index > 0 && index <= len(sm.GetApplicationState().SelectedFilm.EIRatings) {
+			ei := sm.GetApplicationState().SelectedFilm.EIRatings[index-1]
 			sm.HandleEISelection(ei)
 		}
 		return true
@@ -498,7 +413,7 @@ func (s *EISelectionScreen) HandleInput(key string, sm *StateMachine) bool {
 // RollSelectionScreen represents the roll selection screen
 type RollSelectionScreen struct{}
 
-func (s *RollSelectionScreen) Render(state *ApplicationState) string {
+func (s *RollSelectionScreen) Render(state *models.ApplicationState) string {
 	var b strings.Builder
 
 	// Title
@@ -522,7 +437,7 @@ func (s *RollSelectionScreen) Render(state *ApplicationState) string {
 	return b.String()
 }
 
-func (s *RollSelectionScreen) renderFilmSetup(state *ApplicationState) string {
+func (s *RollSelectionScreen) renderFilmSetup(state *models.ApplicationState) string {
 	var b strings.Builder
 	b.WriteString(sectionStyle.Render("Film Setup"))
 	b.WriteString("\n\n")
@@ -550,7 +465,7 @@ func (s *RollSelectionScreen) renderFilmSetup(state *ApplicationState) string {
 	return b.String()
 }
 
-func (s *RollSelectionScreen) renderRollSelection(state *ApplicationState) string {
+func (s *RollSelectionScreen) renderRollSelection(state *models.ApplicationState) string {
 	var b strings.Builder
 	b.WriteString(sectionStyle.Render("Number of Rolls"))
 	b.WriteString("\n\n")
@@ -580,7 +495,7 @@ func (s *RollSelectionScreen) renderActions() string {
 	return b.String()
 }
 
-func (s *RollSelectionScreen) HandleInput(key string, sm *StateMachine) bool {
+func (s *RollSelectionScreen) HandleInput(key string, sm *models.StateMachine) bool {
 	switch strings.ToLower(key) {
 	case "1", "2", "3", "4", "5", "6":
 		rolls, _ := strconv.Atoi(key)
@@ -592,7 +507,7 @@ func (s *RollSelectionScreen) HandleInput(key string, sm *StateMachine) bool {
 		sm.HandleRollSelection("120mm", rolls)
 		return true
 	case "m":
-		sm.TransitionTo(MixedRollInputState)
+		sm.TransitionTo(models.MixedRollInputState)
 		return true
 	case "esc":
 		sm.GoBack()
@@ -609,7 +524,7 @@ type MixedRollInputScreen struct {
 	rolls120mm int
 }
 
-func (s *MixedRollInputScreen) Render(state *ApplicationState) string {
+func (s *MixedRollInputScreen) Render(state *models.ApplicationState) string {
 	var b strings.Builder
 
 	// Title
@@ -628,12 +543,16 @@ func (s *MixedRollInputScreen) Render(state *ApplicationState) string {
 	return b.String()
 }
 
-func (s *MixedRollInputScreen) renderMixedRollSetup(state *ApplicationState) string {
+func (s *MixedRollInputScreen) renderMixedRollSetup(state *models.ApplicationState) string {
 	var b strings.Builder
 	b.WriteString(sectionStyle.Render("Custom Mix Setup"))
 	b.WriteString("\n\n")
 
-	totalVolume := CalculateMixedTankSize(s.rolls35mm, s.rolls120mm, state.TankDB)
+	// Convert models.TankDatabase to pkg.TankDatabase
+	tankDB := &models.TankDatabase{
+		Sizes: state.TankDB.Sizes,
+	}
+	totalVolume := models.CalculateMixedTankSize(s.rolls35mm, s.rolls120mm, tankDB)
 
 	b.WriteString(fmt.Sprintf("35mm Rolls: %s    (↑/↓ or +/- to adjust)\n", highlightStyle.Render(fmt.Sprintf("[ %d ]", s.rolls35mm))))
 	b.WriteString(fmt.Sprintf("120mm Rolls: %s   (↑/↓ or +/- to adjust)\n", highlightStyle.Render(fmt.Sprintf("[ %d ]", s.rolls120mm))))
@@ -656,7 +575,7 @@ func (s *MixedRollInputScreen) renderActions() string {
 	return b.String()
 }
 
-func (s *MixedRollInputScreen) HandleInput(key string, sm *StateMachine) bool {
+func (s *MixedRollInputScreen) HandleInput(key string, sm *models.StateMachine) bool {
 	switch key {
 	case "up":
 		if s.rolls35mm < 6 {
@@ -697,7 +616,7 @@ func (s *MixedRollInputScreen) HandleInput(key string, sm *StateMachine) bool {
 // CalculatedScreen represents the calculated results screen
 type CalculatedScreen struct{}
 
-func (s *CalculatedScreen) Render(state *ApplicationState) string {
+func (s *CalculatedScreen) Render(state *models.ApplicationState) string {
 	var b strings.Builder
 
 	// Title
@@ -716,7 +635,7 @@ func (s *CalculatedScreen) Render(state *ApplicationState) string {
 	return b.String()
 }
 
-func (s *CalculatedScreen) renderMainContent(state *ApplicationState) string {
+func (s *CalculatedScreen) renderMainContent(state *models.ApplicationState) string {
 	var b strings.Builder
 
 	// Film Setup Section
@@ -770,15 +689,28 @@ func (s *CalculatedScreen) renderMainContent(state *ApplicationState) string {
 	return b.String()
 }
 
-func (s *CalculatedScreen) renderChemicalModels(state *ApplicationState) string {
-	chemicals := GetCalculatedChemicals(state.Calculations)
-	components := ChemicalModelsToComponents(chemicals)
+func (s *CalculatedScreen) renderChemicalModels(state *models.ApplicationState) string {
+	// Convert models.DilutionCalculation to pkg.DilutionCalculation
+	var calculations []models.DilutionCalculation
+	for _, calc := range state.Calculations {
+		calculations = append(calculations, models.DilutionCalculation{
+			Chemical:    calc.Chemical,
+			Dilution:    calc.Dilution,
+			TotalVolume: calc.TotalVolume,
+			Concentrate: calc.Concentrate,
+			Water:       calc.Water,
+			Time:        calc.Time,
+		})
+	}
+	
+	chemicals := models.GetCalculatedChemicals(calculations)
+	components := models.ChemicalModelsToComponents(chemicals)
 	
 	return s.renderChemicalComponents(components, true)
 }
 
 // renderChemicalComponents renders chemical components with proper separation
-func (s *CalculatedScreen) renderChemicalComponents(components []ChemicalComponent, highlight bool) string {
+func (s *CalculatedScreen) renderChemicalComponents(components []models.ChemicalComponent, highlight bool) string {
 	if len(components) == 0 {
 		return ""
 	}
@@ -816,127 +748,23 @@ func (s *CalculatedScreen) renderChemicalComponents(components []ChemicalCompone
 	return result.String()
 }
 
-func (s *CalculatedScreen) renderFilmSetup(state *ApplicationState) string {
-	var b strings.Builder
-	b.WriteString(sectionStyle.Render("Film Setup"))
-	b.WriteString("\n\n")
-
-	filmType := "[ Not Selected ]"
-	if state.SelectedFilm != nil {
-		filmType = fmt.Sprintf("[ %s ]", state.SelectedFilm.Name)
-	}
-
-	ei := "[ -- ]"
-	if state.SelectedEI > 0 {
-		ei = fmt.Sprintf("[ %d ]", state.SelectedEI)
-	}
-
-	rolls := "[ -- ]"
-	tank := "[ --ml ]"
-	if state.RollSetup != nil {
-		rolls = fmt.Sprintf("[ %s ]", state.RollSetup.String())
-		tank = fmt.Sprintf("[ %dml ]", state.RollSetup.TotalVolume)
-	}
-
-	b.WriteString(fmt.Sprintf("Film Type:    %-30s EI:  %s\n", filmType, ei))
-	b.WriteString(fmt.Sprintf("Rolls:        %-30s Tank: %s", rolls, tank))
-
-	return b.String()
-}
-
-func (s *CalculatedScreen) renderChemicals(state *ApplicationState) string {
-	var b strings.Builder
-	b.WriteString(sectionStyle.Render("Chemicals (20°C)"))
-	b.WriteString("\n\n")
-
-	if len(state.Calculations) == 0 {
-		b.WriteString(errorStyle.Render("No calculations available"))
-		return b.String()
-	}
-
-	// Render calculated values in a table format with proper column width
-	for i, calc := range state.Calculations {
-		if i > 0 {
-			b.WriteString(" │  ")
-		}
-		b.WriteString(fmt.Sprintf("%-16s", calc.Chemical))
-	}
-	b.WriteString("\n")
-
-	for i, calc := range state.Calculations {
-		if i > 0 {
-			b.WriteString(" │  ")
-		}
-		b.WriteString(fmt.Sprintf("%-16s", calc.Dilution+" dilution"))
-	}
-	b.WriteString("\n")
-
-	for i, calc := range state.Calculations {
-		if i > 0 {
-			b.WriteString(" │  ")
-		}
-		b.WriteString(fmt.Sprintf("%-16s", highlightStyle.Render(fmt.Sprintf("%dml conc", calc.Concentrate))))
-	}
-	b.WriteString("\n")
-
-	for i, calc := range state.Calculations {
-		if i > 0 {
-			b.WriteString(" │  ")
-		}
-		b.WriteString(fmt.Sprintf("%-16s", fmt.Sprintf("%dml water", calc.Water)))
-	}
-	b.WriteString("\n")
-
-	for i, calc := range state.Calculations {
-		if i > 0 {
-			b.WriteString(" │  ")
-		}
-		b.WriteString(fmt.Sprintf("%-16s", highlightStyle.Render(fmt.Sprintf("Time: %s", calc.Time))))
-	}
-
-	return b.String()
-}
-
-func (s *CalculatedScreen) renderFixerUsage(state *ApplicationState) string {
-	var b strings.Builder
-	b.WriteString(sectionStyle.Render("Fixer Usage"))
-	b.WriteString("\n\n")
-
-	capacity := state.FixerState.CapacityPerLiter
-	used := state.FixerState.UsedRolls
-	remaining := state.FixerState.RemainingCapacity()
-
-	batchRolls := 0
-	if state.RollSetup != nil {
-		batchRolls = state.RollSetup.TotalRolls()
-	}
-
-	b.WriteString(fmt.Sprintf("Capacity: %d rolls per liter    Used: %d rolls    Remaining: %d rolls\n",
-		capacity, used, remaining))
-	b.WriteString(fmt.Sprintf("This batch uses: %s         After use: %s remaining",
-		highlightStyle.Render(fmt.Sprintf("%d roll", batchRolls)),
-		highlightStyle.Render(fmt.Sprintf("%d rolls", remaining-batchRolls))))
-
-	return b.String()
-}
-
 func (s *CalculatedScreen) renderActions() string {
 	return "[T] Timer    [U] Use Fixer    [R] Change Rolls    [F] Change Film    [Q] Quit"
 }
 
-func (s *CalculatedScreen) HandleInput(key string, sm *StateMachine) bool {
+func (s *CalculatedScreen) HandleInput(key string, sm *models.StateMachine) bool {
 	switch strings.ToLower(key) {
 	case "u":
 		sm.HandleFixerUsage()
 		return true
 	case "t":
-		sm.TransitionTo(TimerScreenState)
+		sm.TransitionTo(models.TimerScreenState)
 		return true
 	case "r":
-		sm.TransitionTo(RollSelectionState)
+		sm.TransitionTo(models.RollSelectionState)
 		return true
 	case "f":
-		sm.TransitionTo(FilmSelectionState)
+		sm.TransitionTo(models.FilmSelectionState)
 		return true
 	case "q":
 		return false
@@ -947,7 +775,7 @@ func (s *CalculatedScreen) HandleInput(key string, sm *StateMachine) bool {
 // TimerScreen represents the timer screen
 type TimerScreen struct{}
 
-func (s *TimerScreen) Render(state *ApplicationState) string {
+func (s *TimerScreen) Render(state *models.ApplicationState) string {
 	var b strings.Builder
 
 	// Title
@@ -966,7 +794,7 @@ func (s *TimerScreen) Render(state *ApplicationState) string {
 	return b.String()
 }
 
-func (s *TimerScreen) renderMainContent(state *ApplicationState) string {
+func (s *TimerScreen) renderMainContent(state *models.ApplicationState) string {
 	var b strings.Builder
 
 	// Timer Display Section
@@ -983,7 +811,7 @@ func (s *TimerScreen) renderMainContent(state *ApplicationState) string {
 	return b.String()
 }
 
-func (s *TimerScreen) renderTimerContent(state *ApplicationState) string {
+func (s *TimerScreen) renderTimerContent(state *models.ApplicationState) string {
 	var b strings.Builder
 
 	if state.TimerState == nil || len(state.TimerState.Steps) == 0 {
@@ -1003,15 +831,15 @@ func (s *TimerScreen) renderTimerContent(state *ApplicationState) string {
 
 	// Step name and target time
 	b.WriteString(fmt.Sprintf("Step: %s\n", highlightStyle.Render(currentStep.Name)))
-	b.WriteString(fmt.Sprintf("Target Time: %s\n", FormatDuration(currentStep.Duration)))
+	b.WriteString(fmt.Sprintf("Target Time: %s\n", models.FormatDuration(currentStep.Duration)))
 
 	// Timer display
-	elapsedStr := FormatDuration(elapsed)
-	remainingStr := FormatDuration(remaining)
+	elapsedStr := models.FormatDuration(elapsed)
+	remainingStr := models.FormatDuration(remaining)
 
 	if isOvertime {
 		b.WriteString(fmt.Sprintf("Elapsed: %s ⚠️  OVERTIME\n", errorStyle.Render(elapsedStr)))
-		b.WriteString(fmt.Sprintf("Overtime: %s\n", errorStyle.Render(FormatDuration(elapsed-currentStep.Duration))))
+		b.WriteString(fmt.Sprintf("Overtime: %s\n", errorStyle.Render(models.FormatDuration(elapsed-currentStep.Duration))))
 	} else {
 		b.WriteString(fmt.Sprintf("Elapsed: %s\n", highlightStyle.Render(elapsedStr)))
 		b.WriteString(fmt.Sprintf("Remaining: %s\n", remainingStr))
@@ -1033,7 +861,7 @@ func (s *TimerScreen) renderTimerContent(state *ApplicationState) string {
 	return b.String()
 }
 
-func (s *TimerScreen) renderStepsContent(state *ApplicationState) string {
+func (s *TimerScreen) renderStepsContent(state *models.ApplicationState) string {
 	var b strings.Builder
 
 	if state.TimerState == nil || len(state.TimerState.Steps) == 0 {
@@ -1053,7 +881,7 @@ func (s *TimerScreen) renderStepsContent(state *ApplicationState) string {
 			style = highlightStyle
 		}
 
-		stepText := fmt.Sprintf("%s %s (%s)", icon, step.Name, FormatDuration(step.Duration))
+		stepText := fmt.Sprintf("%s %s (%s)", icon, step.Name, models.FormatDuration(step.Duration))
 		b.WriteString(style.Render(stepText))
 		b.WriteString("\n")
 	}
@@ -1061,89 +889,7 @@ func (s *TimerScreen) renderStepsContent(state *ApplicationState) string {
 	return b.String()
 }
 
-func (s *TimerScreen) renderTimer(state *ApplicationState) string {
-	var b strings.Builder
-	b.WriteString(sectionStyle.Render("Current Step"))
-	b.WriteString("\n\n")
-
-	if state.TimerState == nil || len(state.TimerState.Steps) == 0 {
-		b.WriteString(errorStyle.Render("No timer available"))
-		return b.String()
-	}
-
-	currentStep := state.TimerState.GetCurrentStep()
-	if currentStep == nil {
-		b.WriteString(highlightStyle.Render("🎉 All steps completed!"))
-		return b.String()
-	}
-
-	elapsed := state.TimerState.GetCurrentElapsed()
-	remaining := state.TimerState.GetRemainingTime()
-	isOvertime := state.TimerState.IsCurrentStepOvertime()
-
-	// Step name and target time
-	b.WriteString(fmt.Sprintf("Step: %s\n", highlightStyle.Render(currentStep.Name)))
-	b.WriteString(fmt.Sprintf("Target Time: %s\n\n", FormatDuration(currentStep.Duration)))
-
-	// Timer display
-	elapsedStr := FormatDuration(elapsed)
-	remainingStr := FormatDuration(remaining)
-
-	if isOvertime {
-		b.WriteString(fmt.Sprintf("Elapsed: %s ⚠️  OVERTIME\n", errorStyle.Render(elapsedStr)))
-		b.WriteString(fmt.Sprintf("Overtime: %s\n", errorStyle.Render(FormatDuration(elapsed-currentStep.Duration))))
-	} else {
-		b.WriteString(fmt.Sprintf("Elapsed: %s\n", highlightStyle.Render(elapsedStr)))
-		b.WriteString(fmt.Sprintf("Remaining: %s\n", remainingStr))
-	}
-
-	// Status
-	status := ""
-	if state.TimerState.IsRunning {
-		if state.TimerState.IsPaused {
-			status = dimStyle.Render("⏸️  PAUSED")
-		} else {
-			status = highlightStyle.Render("⏱️  RUNNING")
-		}
-	} else {
-		status = dimStyle.Render("⏹️  STOPPED")
-	}
-	b.WriteString(fmt.Sprintf("\nStatus: %s", status))
-
-	return b.String()
-}
-
-func (s *TimerScreen) renderSteps(state *ApplicationState) string {
-	var b strings.Builder
-	b.WriteString(sectionStyle.Render("Development Steps"))
-	b.WriteString("\n\n")
-
-	if state.TimerState == nil || len(state.TimerState.Steps) == 0 {
-		b.WriteString(dimStyle.Render("No steps available"))
-		return b.String()
-	}
-
-	for i, step := range state.TimerState.Steps {
-		icon := "○"
-		style := dimStyle
-
-		if step.Finished {
-			icon = "✅"
-			style = dimStyle
-		} else if i == state.TimerState.CurrentStep {
-			icon = "🔵"
-			style = highlightStyle
-		}
-
-		stepText := fmt.Sprintf("%s %s (%s)", icon, step.Name, FormatDuration(step.Duration))
-		b.WriteString(style.Render(stepText))
-		b.WriteString("\n")
-	}
-
-	return b.String()
-}
-
-func (s *TimerScreen) renderActions(state *ApplicationState) string {
+func (s *TimerScreen) renderActions(state *models.ApplicationState) string {
 	if state.TimerState == nil || state.TimerState.IsComplete {
 		return "[R] Reset    [ESC] Back    [Q] Quit"
 	}
@@ -1159,31 +905,31 @@ func (s *TimerScreen) renderActions(state *ApplicationState) string {
 	}
 }
 
-func (s *TimerScreen) HandleInput(key string, sm *StateMachine) bool {
-	if sm.appState.TimerState == nil {
+func (s *TimerScreen) HandleInput(key string, sm *models.StateMachine) bool {
+	if sm.GetApplicationState().TimerState == nil {
 		return true
 	}
 
 	switch key {
 	case "space":
-		if sm.appState.TimerState.IsRunning {
-			if sm.appState.TimerState.IsPaused {
-				sm.appState.TimerState.ResumeTimer()
+		if sm.GetApplicationState().TimerState.IsRunning {
+			if sm.GetApplicationState().TimerState.IsPaused {
+				sm.GetApplicationState().TimerState.ResumeTimer()
 			} else {
-				sm.appState.TimerState.PauseTimer()
+				sm.GetApplicationState().TimerState.PauseTimer()
 			}
 		} else {
-			sm.appState.TimerState.StartTimer()
+			sm.GetApplicationState().TimerState.StartTimer()
 		}
 		return true
 	case "s":
-		sm.appState.TimerState.StopTimer()
+		sm.GetApplicationState().TimerState.StopTimer()
 		return true
 	case "n":
-		sm.appState.TimerState.CompleteCurrentStep()
+		sm.GetApplicationState().TimerState.CompleteCurrentStep()
 		return true
 	case "r":
-		sm.appState.TimerState.Reset()
+		sm.GetApplicationState().TimerState.Reset()
 		return true
 	case "esc":
 		sm.GoBack()
@@ -1195,21 +941,21 @@ func (s *TimerScreen) HandleInput(key string, sm *StateMachine) bool {
 }
 
 // GetScreenForState returns the appropriate screen for the given state
-func GetScreenForState(state AppState) Screen {
+func GetScreenForState(state models.AppState) Screen {
 	switch state {
-	case MainScreenState:
+	case models.MainScreenState:
 		return &MainScreen{}
-	case FilmSelectionState:
+	case models.FilmSelectionState:
 		return &FilmSelectionScreen{}
-	case EISelectionState:
+	case models.EISelectionState:
 		return &EISelectionScreen{}
-	case RollSelectionState:
+	case models.RollSelectionState:
 		return &RollSelectionScreen{}
-	case MixedRollInputState:
+	case models.MixedRollInputState:
 		return &MixedRollInputScreen{}
-	case CalculatedScreenState:
+	case models.CalculatedScreenState:
 		return &CalculatedScreen{}
-	case TimerScreenState:
+	case models.TimerScreenState:
 		return &TimerScreen{}
 	default:
 		return &MainScreen{}
