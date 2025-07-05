@@ -1,4 +1,4 @@
-package pkg
+package types
 
 // NewFilmDatabase creates a new film database with all the film data
 func NewFilmDatabase() *FilmDatabase {
@@ -151,29 +151,4 @@ func GetFilmOrder() []string {
 		"pan_f_plus",
 		"sfx_200",
 	}
-}
-
-// CalculateMixedTankSize calculates the tank size for mixed formats
-func CalculateMixedTankSize(format35mm, format120mm int, tankDB *TankDatabase) int {
-	size35mm := 0
-	size120mm := 0
-
-	if format35mm > 0 {
-		if s, ok := tankDB.GetTankSize("35mm", format35mm); ok {
-			size35mm = s
-		}
-	}
-
-	if format120mm > 0 {
-		if s, ok := tankDB.GetTankSize("120mm", format120mm); ok {
-			size120mm = s
-		}
-	}
-
-	// For mixed formats, we need to calculate based on the larger requirement
-	// This is a simplified calculation - in reality it would be more complex
-	if size35mm > size120mm {
-		return size35mm
-	}
-	return size120mm
-}
+} 

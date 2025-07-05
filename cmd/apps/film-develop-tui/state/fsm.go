@@ -1,4 +1,6 @@
-package pkg
+package state
+
+import "github.com/go-go-golems/go-go-labs/cmd/apps/film-develop-tui/types"
 
 // AppState represents the different states of the application
 type AppState int
@@ -106,7 +108,7 @@ func (sm *StateMachine) HandleEISelection(ei int) {
 // HandleRollSelection handles roll selection
 func (sm *StateMachine) HandleRollSelection(format string, rolls int) {
 	tankSize := 0
-	rollSetup := &RollSetup{}
+	rollSetup := &types.RollSetup{}
 
 	if format == "35mm" {
 		rollSetup.Format35mm = rolls
@@ -128,8 +130,8 @@ func (sm *StateMachine) HandleRollSelection(format string, rolls int) {
 
 // HandleMixedRollSetup handles mixed roll setup
 func (sm *StateMachine) HandleMixedRollSetup(format35mm, format120mm int) {
-	tankSize := CalculateMixedTankSize(format35mm, format120mm, sm.appState.TankDB)
-	rollSetup := &RollSetup{
+	tankSize := types.CalculateMixedTankSize(format35mm, format120mm, sm.appState.TankDB)
+	rollSetup := &types.RollSetup{
 		Format35mm:  format35mm,
 		Format120mm: format120mm,
 		TotalVolume: tankSize,
@@ -190,4 +192,4 @@ func (sm *StateMachine) CanTransitionTo(state AppState) bool {
 		}
 	}
 	return false
-}
+} 

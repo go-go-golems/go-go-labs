@@ -1,4 +1,4 @@
-package pkg
+package app
 
 import (
 	"fmt"
@@ -6,12 +6,15 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/go-go-golems/go-go-labs/cmd/apps/film-develop-tui/state"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/film-develop-tui/ui"
 )
 
 // Model represents the main application model
 type Model struct {
-	stateMachine *StateMachine
-	screen       Screen
+	stateMachine *state.StateMachine
+	screen       ui.Screen
 	width        int
 	height       int
 	ready        bool
@@ -19,10 +22,10 @@ type Model struct {
 
 // NewModel creates a new application model
 func NewModel() *Model {
-	sm := NewStateMachine()
+	sm := state.NewStateMachine()
 	return &Model{
 		stateMachine: sm,
-		screen:       GetScreenForState(sm.GetCurrentState()),
+		screen:       ui.GetScreenForState(sm.GetCurrentState()),
 		width:        80,
 		height:       24,
 		ready:        false,
@@ -55,7 +58,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case TimerTickMsg:
 		// Continue ticking if we're on the timer screen or if any timer is running
-		if m.stateMachine.GetCurrentState() == TimerScreenState ||
+		if m.stateMachine.GetCurrentState() == state.TimerScreenState ||
 			(m.stateMachine.GetApplicationState().TimerState != nil &&
 				m.stateMachine.GetApplicationState().TimerState.IsRunning) {
 			return m, m.tickCmd()
@@ -77,14 +80,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		// Update screen if state changed
-		newScreen := GetScreenForState(m.stateMachine.GetCurrentState())
+		newScreen := ui.GetScreenForState(m.stateMachine.GetCurrentState())
 		if fmt.Sprintf("%T", newScreen) != fmt.Sprintf("%T", m.screen) {
 			m.screen = newScreen
 		}
 
 		// Start timer ticks if we enter timer screen
 		var cmd tea.Cmd
-		if m.stateMachine.GetCurrentState() == TimerScreenState {
+		if m.stateMachine.GetCurrentState() == state.TimerScreenState {
 			cmd = m.tickCmd()
 		}
 
@@ -144,6 +147,6 @@ func (m *Model) normalizeKey(msg tea.KeyMsg) string {
 }
 
 // GetStateMachine returns the state machine for testing
-func (m *Model) GetStateMachine() *StateMachine {
+func (m *Model) GetStateMachine() *state.StateMachine {
 	return m.stateMachine
-}
+} 
