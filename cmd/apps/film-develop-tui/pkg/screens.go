@@ -481,8 +481,9 @@ func (s *EISelectionScreen) HandleInput(key string, sm *StateMachine) bool {
 	switch strings.ToLower(key) {
 	case "1", "2", "3", "4", "5", "6", "7", "8", "9":
 		index, _ := strconv.Atoi(key)
-		if sm.appState.SelectedFilm != nil && index > 0 && index <= len(sm.appState.SelectedFilm.EIRatings) {
-			ei := sm.appState.SelectedFilm.EIRatings[index-1]
+		appState := sm.GetApplicationState()
+		if appState.SelectedFilm != nil && index > 0 && index <= len(appState.SelectedFilm.EIRatings) {
+			ei := appState.SelectedFilm.EIRatings[index-1]
 			sm.HandleEISelection(ei)
 		}
 		return true
@@ -779,41 +780,18 @@ func (s *CalculatedScreen) renderChemicalModels(state *ApplicationState) string 
 
 // renderChemicalComponents renders chemical components with proper separation
 func (s *CalculatedScreen) renderChemicalComponents(components []ChemicalComponent, highlight bool) string {
-	if len(components) == 0 {
-		return ""
-	}
+	var renderedComponents []string
 	
-	// Get component lines
-	var componentLines [][]string
 	for _, component := range components {
-		var rendered string
 		if highlight {
-			rendered = component.RenderWithHighlight(highlightStyle)
+			renderedComponents = append(renderedComponents, component.RenderWithHighlight(highlightStyle))
 		} else {
-			rendered = component.Render()
-		}
-		componentLines = append(componentLines, strings.Split(rendered, "\n"))
-	}
-	
-	// Build output by joining lines horizontally
-	var result strings.Builder
-	maxLines := 5 // Name, Dilution, Concentrate, Water, Time
-	
-	for line := 0; line < maxLines; line++ {
-		for i, componentLine := range componentLines {
-			if i > 0 {
-				result.WriteString(" │  ")
-			}
-			if line < len(componentLine) {
-				result.WriteString(componentLine[line])
-			}
-		}
-		if line < maxLines-1 {
-			result.WriteString("\n")
+			renderedComponents = append(renderedComponents, component.Render())
 		}
 	}
 	
-	return result.String()
+	// Join components horizontally
+	return lipgloss.JoinHorizontal(lipgloss.Top, renderedComponents...)
 }
 
 func (s *CalculatedScreen) renderFilmSetup(state *ApplicationState) string {
@@ -1160,30 +1138,31 @@ func (s *TimerScreen) renderActions(state *ApplicationState) string {
 }
 
 func (s *TimerScreen) HandleInput(key string, sm *StateMachine) bool {
-	if sm.appState.TimerState == nil {
+	appState := sm.GetApplicationState()
+	if appState.TimerState == nil {
 		return true
 	}
 
 	switch key {
 	case "space":
-		if sm.appState.TimerState.IsRunning {
-			if sm.appState.TimerState.IsPaused {
-				sm.appState.TimerState.ResumeTimer()
+		if appState.TimerState.IsRunning {
+			if appState.TimerState.IsPaused {
+				appState.TimerState.ResumeTimer()
 			} else {
-				sm.appState.TimerState.PauseTimer()
+				appState.TimerState.PauseTimer()
 			}
 		} else {
-			sm.appState.TimerState.StartTimer()
+			appState.TimerState.StartTimer()
 		}
 		return true
 	case "s":
-		sm.appState.TimerState.StopTimer()
+		appState.TimerState.StopTimer()
 		return true
 	case "n":
-		sm.appState.TimerState.CompleteCurrentStep()
+		appState.TimerState.CompleteCurrentStep()
 		return true
 	case "r":
-		sm.appState.TimerState.Reset()
+		appState.TimerState.Reset()
 		return true
 	case "esc":
 		sm.GoBack()
