@@ -3,6 +3,7 @@ package pkg
 import (
 	types "github.com/go-go-golems/go-go-labs/cmd/apps/film-develop-tui/types"
 	statepkg "github.com/go-go-golems/go-go-labs/cmd/apps/film-develop-tui/state"
+	uipkg "github.com/go-go-golems/go-go-labs/cmd/apps/film-develop-tui/ui"
 )
 
 // Type aliases to bridge existing code with new types package
@@ -23,6 +24,7 @@ type (
 	TimerStep           = types.TimerStep
 	AppState            = statepkg.AppState
 	StateMachine        = statepkg.StateMachine
+	Screen              = uipkg.Screen
 )
 
 // Wrapper constructors
@@ -38,6 +40,7 @@ var (
 	CalculateMixedTankSize  = types.CalculateMixedTankSize
 	GetFilmOrder            = types.GetFilmOrder
 	ChemicalModelsToComponents = types.ChemicalModelsToComponents
+	GetScreenForState        = uipkg.GetScreenForState
 )
 
 const (
