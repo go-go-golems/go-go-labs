@@ -4,7 +4,6 @@ go 1.24.3
 
 require (
 	github.com/BobuSumisu/aho-corasick v1.0.3
-	github.com/BurntSushi/xgb v0.0.0-20210121224620-deaf085860bc
 	github.com/DataDog/datadog-api-client-go/v2 v2.38.0
 	github.com/GianlucaP106/gotmux v0.5.0
 	github.com/JohannesKaufmann/html-to-markdown v1.6.0
@@ -70,6 +69,7 @@ require (
 	github.com/mmcdole/gofeed v1.2.1
 	github.com/muesli/reflow v0.3.0
 	github.com/neo4j/neo4j-go-driver/v5 v5.28.0
+	github.com/ory/fosite v0.49.0
 	github.com/philippgille/chromem-go v0.5.0
 	github.com/pion/webrtc/v3 v3.3.5
 	github.com/pkg/errors v0.9.1
@@ -189,7 +189,6 @@ require (
 	github.com/matryer/is v1.4.1 // indirect
 	github.com/mattn/goveralls v0.0.12 // indirect
 	github.com/openzipkin/zipkin-go v0.4.2 // indirect
-	github.com/ory/fosite v0.49.0 // indirect
 	github.com/ory/go-acc v0.2.9-0.20230103102148-6b1c9a70dbbe // indirect
 	github.com/ory/go-convenience v0.1.0 // indirect
 	github.com/ory/x v0.0.665 // indirect
