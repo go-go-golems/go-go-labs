@@ -1,0 +1,30 @@
+> ./film-develop-tui --log-level=warn
+A terminal user interface for calculating B&W film development parameters using ILFOSOL 3
+, ILFOSTOP, and Sprint Fixer.
+
+Usage:
+  film-develop-tui [flags]
+  film-develop-tui [command]
+
+Available Commands:
+  completion  Generate the autocompletion script for the specified shell
+  help        Help about any command
+  start       Start the film development calculator TUI
+
+Flags:
+  -h, --help               help for film-develop-tui
+      --log-level string   Set the log level (debug, info, warn, error) (default "info")
+  -v, --version            version for film-develop-tui
+
+Use "film-develop-tui [command] --help" for more information about a command.
+> f
+
+
+
+
+
+
+
+
+
+
