@@ -4,7 +4,6 @@ go 1.24.3
 
 require (
 	github.com/BobuSumisu/aho-corasick v1.0.3
-	github.com/BurntSushi/xgb v0.0.0-20210121224620-deaf085860bc
 	github.com/DataDog/datadog-api-client-go/v2 v2.38.0
 	github.com/GianlucaP106/gotmux v0.5.0
 	github.com/JohannesKaufmann/html-to-markdown v1.6.0
@@ -70,6 +69,7 @@ require (
 	github.com/mmcdole/gofeed v1.2.1
 	github.com/muesli/reflow v0.3.0
 	github.com/neo4j/neo4j-go-driver/v5 v5.28.0
+	github.com/ory/fosite v0.49.0
 	github.com/philippgille/chromem-go v0.5.0
 	github.com/pion/webrtc/v3 v3.3.5
 	github.com/pkg/errors v0.9.1
@@ -81,6 +81,7 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
+	github.com/tarm/serial v0.0.0-20180830185346-98f6abe2eb07
 	github.com/tdewolff/parse/v2 v2.8.1
 	github.com/tiktoken-go/tokenizer v0.2.0
 	github.com/weaviate/tiktoken-go v0.0.2
@@ -91,6 +92,7 @@ require (
 	github.com/xeipuuv/gojsonschema v1.2.0
 	github.com/xuri/excelize/v2 v2.9.0
 	github.com/yuin/goldmark v1.7.8
+	go.bug.st/serial v1.6.4
 	go.lsp.dev/jsonrpc2 v0.10.0
 	go.lsp.dev/protocol v0.12.0
 	go.uber.org/zap v1.24.0
@@ -153,6 +155,7 @@ require (
 	github.com/charmbracelet/colorprofile v0.3.0 // indirect
 	github.com/charmbracelet/x/cellbuf v0.0.13 // indirect
 	github.com/chewxy/math32 v1.10.1 // indirect
+	github.com/creack/goselect v0.1.2 // indirect
 	github.com/cristalhq/jwt/v4 v4.0.2 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dgraph-io/ristretto v1.0.0 // indirect
@@ -189,7 +192,6 @@ require (
 	github.com/matryer/is v1.4.1 // indirect
 	github.com/mattn/goveralls v0.0.12 // indirect
 	github.com/openzipkin/zipkin-go v0.4.2 // indirect
-	github.com/ory/fosite v0.49.0 // indirect
 	github.com/ory/go-acc v0.2.9-0.20230103102148-6b1c9a70dbbe // indirect
 	github.com/ory/go-convenience v0.1.0 // indirect
 	github.com/ory/x v0.0.665 // indirect
@@ -220,7 +222,6 @@ require (
 	github.com/shopspring/decimal v1.2.0 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
-	github.com/tarm/serial v0.0.0-20180830185346-98f6abe2eb07 // indirect
 	github.com/tcnksm/go-input v0.0.0-20180404061846-548a7d7a8ee8 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
@@ -406,11 +407,11 @@ require (
 	golang.org/x/exp/shiny v0.0.0-20240823005443-9b4947da3948 // indirect
 	golang.org/x/mobile v0.0.0-20231127183840-76ac6878050a // indirect
 	golang.org/x/oauth2 v0.25.0
-	golang.org/x/sys v0.33.0 // indirect
+	golang.org/x/sys v0.33.0
 	golang.org/x/text v0.26.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20241223144023-3abc09e42ca8 // indirect
 	google.golang.org/grpc v1.67.3 // indirect
-	google.golang.org/protobuf v1.36.1 // indirect
+	google.golang.org/protobuf v1.36.1
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	layeh.com/gopher-luar v1.0.11

@@ -15,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/charmbracelet/bubbletea"
+	"github.com/go-go-golems/go-go-labs/cmd/apps/meshtastic/cmd"
 	"github.com/go-go-golems/go-go-labs/cmd/apps/meshtastic/pkg/client"
 	pb "github.com/go-go-golems/go-go-labs/cmd/apps/meshtastic/pkg/pb"
 	"github.com/go-go-golems/go-go-labs/cmd/apps/meshtastic/pkg/ui/model"
@@ -44,7 +45,7 @@ var infoCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		log.Info().Str("port", port).Msg("Getting device info")
 
-		// Create client
+		// Create robust client
 		config := &client.Config{
 			DevicePath:  port,
 			Timeout:     timeout,
@@ -52,11 +53,20 @@ var infoCmd = &cobra.Command{
 			HexDump:     hexDump,
 		}
 
-		meshtasticClient, err := client.NewMeshtasticClient(config)
+		meshtasticClient, err := client.NewRobustMeshtasticClient(config)
 		if err != nil {
-			return errors.Wrap(err, "failed to create client")
+			return errors.Wrap(err, "failed to create robust client")
 		}
 		defer meshtasticClient.Close()
+
+		// Connect to the device
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+
+		if err := meshtasticClient.Connect(ctx); err != nil {
+			return errors.Wrap(err, "failed to connect to device")
+		}
+		defer meshtasticClient.Disconnect()
 
 		// Check connection status
 		if !meshtasticClient.IsConnected() {
@@ -109,7 +119,7 @@ var sendCmd = &cobra.Command{
 		message := args[0]
 		log.Info().Str("port", port).Str("message", message).Msg("Sending message")
 
-		// Create client
+		// Create robust client
 		config := &client.Config{
 			DevicePath:  port,
 			Timeout:     timeout,
@@ -117,11 +127,20 @@ var sendCmd = &cobra.Command{
 			HexDump:     hexDump,
 		}
 
-		meshtasticClient, err := client.NewMeshtasticClient(config)
+		meshtasticClient, err := client.NewRobustMeshtasticClient(config)
 		if err != nil {
-			return errors.Wrap(err, "failed to create client")
+			return errors.Wrap(err, "failed to create robust client")
 		}
 		defer meshtasticClient.Close()
+
+		// Connect to the device
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+
+		if err := meshtasticClient.Connect(ctx); err != nil {
+			return errors.Wrap(err, "failed to connect to device")
+		}
+		defer meshtasticClient.Disconnect()
 
 		// Check connection status
 		if !meshtasticClient.IsConnected() {
@@ -146,7 +165,7 @@ var listenCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		log.Info().Str("port", port).Msg("Starting to listen for messages")
 
-		// Create client
+		// Create robust client
 		config := &client.Config{
 			DevicePath:  port,
 			Timeout:     timeout,
@@ -154,11 +173,20 @@ var listenCmd = &cobra.Command{
 			HexDump:     hexDump,
 		}
 
-		meshtasticClient, err := client.NewMeshtasticClient(config)
+		meshtasticClient, err := client.NewRobustMeshtasticClient(config)
 		if err != nil {
-			return errors.Wrap(err, "failed to create client")
+			return errors.Wrap(err, "failed to create robust client")
 		}
 		defer meshtasticClient.Close()
+
+		// Connect to the device
+		connectCtx, connectCancel := context.WithTimeout(context.Background(), timeout)
+		defer connectCancel()
+
+		if err := meshtasticClient.Connect(connectCtx); err != nil {
+			return errors.Wrap(err, "failed to connect to device")
+		}
+		defer meshtasticClient.Disconnect()
 
 		// Check connection status
 		if !meshtasticClient.IsConnected() {
@@ -211,7 +239,7 @@ var tuiCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		log.Info().Str("port", port).Msg("Starting TUI")
 
-		// Create client
+		// Create robust client
 		config := &client.Config{
 			DevicePath:  port,
 			Timeout:     timeout,
@@ -219,22 +247,28 @@ var tuiCmd = &cobra.Command{
 			HexDump:     hexDump,
 		}
 
-		meshtasticClient, err := client.NewMeshtasticClient(config)
+		meshtasticClient, err := client.NewRobustMeshtasticClient(config)
 		if err != nil {
-			return errors.Wrap(err, "failed to create client")
+			return errors.Wrap(err, "failed to create robust client")
 		}
 
-		// Check connection status (non-blocking)
-		if !meshtasticClient.IsConnected() {
-			log.Warn().Str("port", port).Msg("Device not connected, but launching TUI anyway")
+		// Connect to the device (non-blocking for TUI)
+		connectCtx, connectCancel := context.WithTimeout(context.Background(), timeout)
+		defer connectCancel()
+
+		if err := meshtasticClient.Connect(connectCtx); err != nil {
+			log.Warn().Str("port", port).Err(err).Msg("Failed to connect to device, but launching TUI anyway")
 		}
+
+		// Start heartbeat for robust connection
+		meshtasticClient.StartHeartbeat()
 
 		// Launch TUI (client will be cleaned up by the TUI model)
 		return launchTUI(meshtasticClient)
 	},
 }
 
-func launchTUI(client *client.MeshtasticClient) error {
+func launchTUI(client *client.RobustMeshtasticClient) error {
 	// Create the root model and inject the client
 	m := model.NewRootModelWithClient(client)
 
@@ -322,8 +356,5 @@ func init() {
 }
 
 func main() {
-	if err := rootCmd.Execute(); err != nil {
-		log.Error().Err(err).Msg("Command failed")
-		os.Exit(1)
-	}
+	cmd.Execute()
 }
