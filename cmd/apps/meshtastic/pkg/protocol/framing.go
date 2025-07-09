@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
@@ -11,6 +13,67 @@ import (
 
 	pb "github.com/go-go-golems/go-go-labs/cmd/apps/meshtastic/pkg/pb"
 )
+
+// stateString returns a string representation of the frame state
+func (fp *FrameParser) stateString() string {
+	switch fp.state {
+	case StateWaitingForStart1:
+		return "WaitingForStart1"
+	case StateWaitingForStart2:
+		return "WaitingForStart2"
+	case StateWaitingForLength:
+		return "WaitingForLength"
+	case StateWaitingForPayload:
+		return "WaitingForPayload"
+	default:
+		return "Unknown"
+	}
+}
+
+// hexDumpData creates a hexdump-style representation of data
+func (fp *FrameParser) hexDumpData(data []byte, maxBytes int) string {
+	if len(data) == 0 {
+		return ""
+	}
+
+	// Limit data to maxBytes for display
+	displayData := data
+	if len(displayData) > maxBytes {
+		displayData = data[:maxBytes]
+	}
+
+	var result strings.Builder
+	for i := 0; i < len(displayData); i += 16 {
+		// Hex bytes
+		hexPart := make([]string, 0, 16)
+		asciiPart := make([]byte, 0, 16)
+
+		for j := 0; j < 16 && i+j < len(displayData); j++ {
+			b := displayData[i+j]
+			hexPart = append(hexPart, fmt.Sprintf("%02x", b))
+			if b >= 32 && b < 127 {
+				asciiPart = append(asciiPart, b)
+			} else {
+				asciiPart = append(asciiPart, '.')
+			}
+		}
+
+		// Format line
+		if i > 0 {
+			result.WriteString(" ")
+		}
+		result.WriteString(fmt.Sprintf("%04x: %-48s |%s|", i, strings.Join(hexPart, " "), string(asciiPart)))
+		if i+16 < len(displayData) {
+			result.WriteString("\n")
+		}
+	}
+
+	if len(data) > maxBytes {
+		result.WriteString(fmt.Sprintf("\n... (%d more bytes)", len(data)-maxBytes))
+	}
+
+	return result.String()
+}
 
 // Protocol constants
 const (
@@ -67,6 +130,15 @@ type FrameParser struct {
 	onFrame     func(*Frame)
 	onLogByte   func(byte)
 	debugOutput io.Writer
+
+	// Debug tracking
+	bytesProcessed  uint64
+	framesProcessed uint64
+	parseErrors     uint64
+	stateResets     uint64
+	lastFrameTime   time.Time
+	debugSerial     bool
+	hexDump         bool
 }
 
 // NewFrameParser creates a new frame parser
@@ -82,6 +154,16 @@ func NewFrameParser(onFrame func(*Frame), onLogByte func(byte)) *FrameParser {
 // SetDebugOutput sets the debug output writer
 func (fp *FrameParser) SetDebugOutput(w io.Writer) {
 	fp.debugOutput = w
+}
+
+// SetDebugSerial enables debug serial logging
+func (fp *FrameParser) SetDebugSerial(enable bool) {
+	fp.debugSerial = enable
+}
+
+// SetHexDump enables hex dump logging
+func (fp *FrameParser) SetHexDump(enable bool) {
+	fp.hexDump = enable
 }
 
 // ProcessByte processes a single byte from the serial stream
@@ -122,6 +204,12 @@ func (fp *FrameParser) ProcessByte(b byte) {
 				return
 			}
 
+			if payloadLen < 0 {
+				log.Warn().Int("length", payloadLen).Msg("Negative payload length, resetting parser")
+				fp.resetParser()
+				return
+			}
+
 			fp.expectLen = payloadLen
 			if payloadLen == 0 {
 				// Empty payload, frame is complete
@@ -142,13 +230,66 @@ func (fp *FrameParser) ProcessByte(b byte) {
 
 // ProcessBytes processes multiple bytes from the serial stream
 func (fp *FrameParser) ProcessBytes(data []byte) {
-	for _, b := range data {
+	defer func() {
+		if r := recover(); r != nil {
+			fp.parseErrors++
+			if fp.debugSerial {
+				log.Error().
+					Interface("panic", r).
+					Uint64("bytesProcessed", fp.bytesProcessed).
+					Uint64("framesProcessed", fp.framesProcessed).
+					Uint64("parseErrors", fp.parseErrors).
+					Msg("Panic in frame parser, resetting state")
+			} else {
+				log.Error().
+					Interface("panic", r).
+					Msg("Panic in frame parser, resetting state")
+			}
+			fp.resetParser()
+		}
+	}()
+
+	fp.bytesProcessed += uint64(len(data))
+
+	if fp.debugSerial {
+		log.Debug().
+			Int("dataLength", len(data)).
+			Uint64("totalBytesProcessed", fp.bytesProcessed).
+			Str("currentState", fp.stateString()).
+			Msg("Processing bytes in frame parser")
+	}
+
+	if fp.hexDump {
+		log.Debug().
+			Str("hexDump", fp.hexDumpData(data, 64)).
+			Msg("Raw bytes to process")
+	}
+
+	for i, b := range data {
+		if fp.debugSerial {
+			log.Debug().
+				Int("byteIndex", i).
+				Int("byteValue", int(b)).
+				Str("state", fp.stateString()).
+				Int("bufferLen", len(fp.buffer)).
+				Msg("Processing byte")
+		}
 		fp.ProcessByte(b)
 	}
 }
 
 // resetParser resets the parser state
 func (fp *FrameParser) resetParser() {
+	fp.stateResets++
+
+	if fp.debugSerial {
+		log.Debug().
+			Str("oldState", fp.stateString()).
+			Int("bufferLen", len(fp.buffer)).
+			Uint64("stateResets", fp.stateResets).
+			Msg("Resetting frame parser state")
+	}
+
 	fp.state = StateWaitingForStart1
 	fp.buffer = fp.buffer[:0]
 	fp.expectLen = 0
@@ -156,6 +297,9 @@ func (fp *FrameParser) resetParser() {
 
 // handleCompleteFrame handles a complete frame
 func (fp *FrameParser) handleCompleteFrame() {
+	fp.framesProcessed++
+	frameProcessStart := time.Now()
+
 	frame := &Frame{
 		Payload: make([]byte, fp.expectLen),
 	}
@@ -168,13 +312,42 @@ func (fp *FrameParser) handleCompleteFrame() {
 		copy(frame.Payload, fp.buffer[HEADER_LEN:HEADER_LEN+fp.expectLen])
 	}
 
+	if fp.debugSerial {
+		timeSinceLastFrame := time.Duration(0)
+		if !fp.lastFrameTime.IsZero() {
+			timeSinceLastFrame = frameProcessStart.Sub(fp.lastFrameTime)
+		}
+
+		log.Debug().
+			Int("payloadLen", fp.expectLen).
+			Int("totalFrameLen", len(fp.buffer)).
+			Uint64("framesProcessed", fp.framesProcessed).
+			Dur("timeSinceLastFrame", timeSinceLastFrame).
+			Msg("Processing complete frame")
+	}
+
 	if fp.debugOutput != nil {
 		fmt.Fprintf(fp.debugOutput, "RX: %s\n", formatFrame(frame))
+	}
+
+	if fp.hexDump {
+		log.Debug().
+			Str("frameHexDump", fp.hexDumpData(fp.buffer[:HEADER_LEN+fp.expectLen], 64)).
+			Msg("Complete frame hex dump")
 	}
 
 	// Call the frame handler
 	if fp.onFrame != nil {
 		fp.onFrame(frame)
+	}
+
+	frameProcessDuration := time.Since(frameProcessStart)
+	fp.lastFrameTime = time.Now()
+
+	if fp.debugSerial {
+		log.Debug().
+			Dur("frameProcessDuration", frameProcessDuration).
+			Msg("Frame processing complete")
 	}
 
 	// Reset parser for next frame
@@ -184,6 +357,8 @@ func (fp *FrameParser) handleCompleteFrame() {
 // FrameBuilder helps build protocol frames
 type FrameBuilder struct {
 	debugOutput io.Writer
+	debugSerial bool
+	hexDump     bool
 }
 
 // NewFrameBuilder creates a new frame builder
@@ -194,6 +369,16 @@ func NewFrameBuilder() *FrameBuilder {
 // SetDebugOutput sets the debug output writer
 func (fb *FrameBuilder) SetDebugOutput(w io.Writer) {
 	fb.debugOutput = w
+}
+
+// SetDebugSerial enables debug serial logging
+func (fb *FrameBuilder) SetDebugSerial(enable bool) {
+	fb.debugSerial = enable
+}
+
+// SetHexDump enables hex dump logging
+func (fb *FrameBuilder) SetHexDump(enable bool) {
+	fb.hexDump = enable
 }
 
 // BuildFrame builds a frame from a ToRadio message

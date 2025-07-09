@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"io"
 	"sync"
 	"time"
 
@@ -51,6 +52,8 @@ type Config struct {
 	DevicePath  string
 	Timeout     time.Duration
 	DebugOutput interface{}
+	DebugSerial bool
+	HexDump     bool
 }
 
 // DefaultConfig returns a default configuration
@@ -71,6 +74,8 @@ func NewMeshtasticClient(config *Config) (*MeshtasticClient, error) {
 	// Create serial interface
 	serialConfig := serial.DefaultConfig()
 	serialConfig.DevicePath = config.DevicePath
+	serialConfig.DebugSerial = config.DebugSerial
+	serialConfig.HexDump = config.HexDump
 	if config.DebugOutput != nil {
 		if writer, ok := config.DebugOutput.(interface{ Write([]byte) (int, error) }); ok {
 			serialConfig.DebugOutput = writer
@@ -107,6 +112,13 @@ func NewMeshtasticClient(config *Config) (*MeshtasticClient, error) {
 	return client, nil
 }
 
+// isDebugSerial checks if debug serial logging is enabled
+func (c *MeshtasticClient) isDebugSerial() bool {
+	// Check if the underlying serial interface has debug serial enabled
+	// This is a simple check - in a real implementation you might want to store this in the client
+	return false // For now, we'll rely on the serial interface debug flags
+}
+
 // initialize initializes the device connection
 func (c *MeshtasticClient) initialize() error {
 	log.Info().Msg("Initializing Meshtastic device")
@@ -136,6 +148,13 @@ func (c *MeshtasticClient) sendWantConfig() error {
 
 // handleFromRadio handles messages from the device
 func (c *MeshtasticClient) handleFromRadio(fromRadio *pb.FromRadio) {
+	messageStart := time.Now()
+
+	// Log message type and timing for debugging
+	log.Debug().
+		Str("messageType", fmt.Sprintf("%T", fromRadio.PayloadVariant)).
+		Msg("Processing FromRadio message")
+
 	switch payload := fromRadio.PayloadVariant.(type) {
 	case *pb.FromRadio_Packet:
 		c.handleMeshPacket(payload.Packet)
@@ -150,12 +169,24 @@ func (c *MeshtasticClient) handleFromRadio(fromRadio *pb.FromRadio) {
 	case *pb.FromRadio_Channel:
 		c.handleChannel(payload.Channel)
 	case *pb.FromRadio_ConfigCompleteId:
-		log.Debug().Uint32("id", payload.ConfigCompleteId).Msg("Config complete")
+		log.Debug().
+			Uint32("id", payload.ConfigCompleteId).
+			Dur("processingTime", time.Since(messageStart)).
+			Msg("Config complete")
 	case *pb.FromRadio_Rebooted:
-		log.Info().Msg("Device rebooted")
+		log.Info().
+			Dur("processingTime", time.Since(messageStart)).
+			Msg("Device rebooted")
 	default:
-		log.Debug().Str("type", fmt.Sprintf("%T", payload)).Msg("Unhandled FromRadio message")
+		log.Debug().
+			Str("type", fmt.Sprintf("%T", payload)).
+			Dur("processingTime", time.Since(messageStart)).
+			Msg("Unhandled FromRadio message")
 	}
+
+	log.Debug().
+		Dur("totalProcessingTime", time.Since(messageStart)).
+		Msg("FromRadio message processing complete")
 }
 
 // handleMeshPacket handles mesh packets
@@ -332,6 +363,12 @@ func (c *MeshtasticClient) handleLogOutput(line string) {
 // handleDisconnect handles device disconnection
 func (c *MeshtasticClient) handleDisconnect(err error) {
 	log.Error().Err(err).Msg("Device disconnected")
+
+	// Additional recovery logic could be added here
+	// For now, just log the disconnection event
+	if err == io.EOF {
+		log.Info().Msg("EOF detected - device likely physically disconnected")
+	}
 }
 
 // nextPacketID returns the next packet ID

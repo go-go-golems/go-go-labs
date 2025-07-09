@@ -21,9 +21,11 @@ import (
 )
 
 var (
-	port     string
-	logLevel string
-	timeout  time.Duration
+	port        string
+	logLevel    string
+	timeout     time.Duration
+	debugSerial bool
+	hexDump     bool
 )
 
 var rootCmd = &cobra.Command{
@@ -44,8 +46,10 @@ var infoCmd = &cobra.Command{
 
 		// Create client
 		config := &client.Config{
-			DevicePath: port,
-			Timeout:    timeout,
+			DevicePath:  port,
+			Timeout:     timeout,
+			DebugSerial: debugSerial,
+			HexDump:     hexDump,
 		}
 
 		meshtasticClient, err := client.NewMeshtasticClient(config)
@@ -107,8 +111,10 @@ var sendCmd = &cobra.Command{
 
 		// Create client
 		config := &client.Config{
-			DevicePath: port,
-			Timeout:    timeout,
+			DevicePath:  port,
+			Timeout:     timeout,
+			DebugSerial: debugSerial,
+			HexDump:     hexDump,
 		}
 
 		meshtasticClient, err := client.NewMeshtasticClient(config)
@@ -142,8 +148,10 @@ var listenCmd = &cobra.Command{
 
 		// Create client
 		config := &client.Config{
-			DevicePath: port,
-			Timeout:    timeout,
+			DevicePath:  port,
+			Timeout:     timeout,
+			DebugSerial: debugSerial,
+			HexDump:     hexDump,
 		}
 
 		meshtasticClient, err := client.NewMeshtasticClient(config)
@@ -205,8 +213,10 @@ var tuiCmd = &cobra.Command{
 
 		// Create client
 		config := &client.Config{
-			DevicePath: port,
-			Timeout:    timeout,
+			DevicePath:  port,
+			Timeout:     timeout,
+			DebugSerial: debugSerial,
+			HexDump:     hexDump,
 		}
 
 		meshtasticClient, err := client.NewMeshtasticClient(config)
@@ -301,6 +311,8 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&port, "port", "p", "/dev/ttyUSB0", "Serial port for Meshtastic device")
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "Log level (debug, info, warn, error)")
 	rootCmd.PersistentFlags().DurationVar(&timeout, "timeout", 10*time.Second, "Connection timeout")
+	rootCmd.PersistentFlags().BoolVar(&debugSerial, "debug-serial", false, "Enable verbose serial communication logging")
+	rootCmd.PersistentFlags().BoolVar(&hexDump, "hex-dump", false, "Enable hex dump logging of raw serial data")
 
 	// Add subcommands
 	rootCmd.AddCommand(infoCmd)
