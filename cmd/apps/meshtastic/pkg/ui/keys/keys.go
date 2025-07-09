@@ -16,9 +16,12 @@ type KeyMap struct {
 	Enter key.Binding
 
 	// Tabs
-	TabMessages key.Binding
-	TabNodes    key.Binding
-	TabStatus   key.Binding
+	TabMessages  key.Binding
+	TabNodes     key.Binding
+	TabStatus    key.Binding
+	TabTelemetry key.Binding
+	TabConfig    key.Binding
+	TabPosition  key.Binding
 
 	// Actions
 	Compose key.Binding
@@ -74,6 +77,18 @@ func DefaultKeyMap() *KeyMap {
 			key.WithKeys("3"),
 			key.WithHelp("3", "status"),
 		),
+		TabTelemetry: key.NewBinding(
+			key.WithKeys("4"),
+			key.WithHelp("4", "telemetry"),
+		),
+		TabConfig: key.NewBinding(
+			key.WithKeys("5"),
+			key.WithHelp("5", "config"),
+		),
+		TabPosition: key.NewBinding(
+			key.WithKeys("6"),
+			key.WithHelp("6", "position"),
+		),
 
 		// Actions
 		Compose: key.NewBinding(
@@ -113,7 +128,7 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.Left, k.Right},
 		{k.Tab, k.Enter, k.Escape},
-		{k.TabMessages, k.TabNodes, k.TabStatus},
+		{k.TabMessages, k.TabNodes, k.TabStatus, k.TabTelemetry, k.TabConfig, k.TabPosition},
 		{k.Compose, k.Send},
 		{k.Help, k.Quit},
 	}

@@ -319,9 +319,20 @@ func launchTUI(client *client.RobustMeshtasticClient) error {
 func setupLogging(level string) error {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 
-	// Configure console writer for human-readable output
-	output := zerolog.ConsoleWriter{Out: os.Stderr}
-	log.Logger = zerolog.New(output).With().Timestamp().Logger()
+	// Configure console writer for human-readable output with caller info
+	output := zerolog.ConsoleWriter{
+		Out:        os.Stderr,
+		TimeFormat: "15:04:05",
+		NoColor:    false,
+	}
+
+	// Create logger with caller information and improved formatting
+	log.Logger = zerolog.New(output).
+		With().
+		Timestamp().
+		Caller().
+		Str("component", "meshtastic-tui").
+		Logger()
 
 	// Set log level
 	switch strings.ToLower(level) {
@@ -337,6 +348,7 @@ func setupLogging(level string) error {
 		return errors.Errorf("invalid log level: %s", level)
 	}
 
+	log.Info().Str("log_level", level).Msg("Logging configured")
 	return nil
 }
 

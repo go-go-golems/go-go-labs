@@ -18,6 +18,9 @@ const (
 	TabMessages Tab = iota
 	TabNodes
 	TabStatus
+	TabTelemetry
+	TabConfig
+	TabPosition
 )
 
 // String returns the string representation of the tab
@@ -29,6 +32,12 @@ func (t Tab) String() string {
 		return "Nodes"
 	case TabStatus:
 		return "Status"
+	case TabTelemetry:
+		return "Telemetry"
+	case TabConfig:
+		return "Config"
+	case TabPosition:
+		return "Position"
 	default:
 		return "Unknown"
 	}
@@ -57,10 +66,13 @@ type RootModel struct {
 	showHelp   bool
 
 	// Sub-models
-	messages *MessagesModel
-	nodes    *NodesModel
-	status   *StatusModel
-	compose  *ComposeModel
+	messages  *MessagesModel
+	nodes     *NodesModel
+	status    *StatusModel
+	telemetry *TelemetryModel
+	config    *SimpleConfigModel
+	position  *PositionModel
+	compose   *ComposeModel
 
 	// Error state
 	err error
@@ -77,13 +89,16 @@ func NewRootModel() *RootModel {
 	styles := view.DefaultStyles()
 
 	return &RootModel{
-		keys:     keyMap,
-		styles:   styles,
-		messages: NewMessagesModel(styles),
-		nodes:    NewNodesModel(styles),
-		status:   NewStatusModel(styles),
-		compose:  NewComposeModel(styles),
-		mode:     ModeView,
+		keys:      keyMap,
+		styles:    styles,
+		messages:  NewMessagesModel(styles),
+		nodes:     NewNodesModel(styles),
+		status:    NewStatusModel(styles),
+		telemetry: NewTelemetryModel(styles),
+		config:    NewSimpleConfigModel(styles),
+		position:  NewPositionModel(styles),
+		compose:   NewComposeModel(styles),
+		mode:      ModeView,
 	}
 }
 
@@ -100,6 +115,9 @@ func (m *RootModel) Init() tea.Cmd {
 		m.messages.Init(),
 		m.nodes.Init(),
 		m.status.Init(),
+		m.telemetry.Init(),
+		m.config.Init(),
+		m.position.Init(),
 		m.compose.Init(),
 	)
 }
@@ -137,6 +155,24 @@ func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		})
 		cmds = append(cmds, cmd)
 
+		m.telemetry, cmd = m.telemetry.Update(tea.WindowSizeMsg{
+			Width:  contentWidth,
+			Height: contentHeight,
+		})
+		cmds = append(cmds, cmd)
+
+		m.config, cmd = m.config.Update(tea.WindowSizeMsg{
+			Width:  contentWidth,
+			Height: contentHeight,
+		})
+		cmds = append(cmds, cmd)
+
+		m.position, cmd = m.position.Update(tea.WindowSizeMsg{
+			Width:  contentWidth,
+			Height: contentHeight,
+		})
+		cmds = append(cmds, cmd)
+
 		m.compose, cmd = m.compose.Update(tea.WindowSizeMsg{
 			Width:  contentWidth,
 			Height: contentHeight,
@@ -159,8 +195,14 @@ func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.currentTab = TabNodes
 		case key.Matches(msg, m.keys.TabStatus):
 			m.currentTab = TabStatus
+		case key.Matches(msg, m.keys.TabTelemetry):
+			m.currentTab = TabTelemetry
+		case key.Matches(msg, m.keys.TabConfig):
+			m.currentTab = TabConfig
+		case key.Matches(msg, m.keys.TabPosition):
+			m.currentTab = TabPosition
 		case key.Matches(msg, m.keys.Tab):
-			m.currentTab = (m.currentTab + 1) % 3
+			m.currentTab = (m.currentTab + 1) % 6
 		case key.Matches(msg, m.keys.Compose):
 			m.mode = ModeCompose
 		default:
@@ -174,6 +216,15 @@ func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cmds = append(cmds, cmd)
 			case TabStatus:
 				m.status, cmd = m.status.Update(msg)
+				cmds = append(cmds, cmd)
+			case TabTelemetry:
+				m.telemetry, cmd = m.telemetry.Update(msg)
+				cmds = append(cmds, cmd)
+			case TabConfig:
+				m.config, cmd = m.config.Update(msg)
+				cmds = append(cmds, cmd)
+			case TabPosition:
+				m.position, cmd = m.position.Update(msg)
 				cmds = append(cmds, cmd)
 			}
 		}
@@ -199,6 +250,15 @@ func (m *RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 
 		m.status, cmd = m.status.Update(msg)
+		cmds = append(cmds, cmd)
+
+		m.telemetry, cmd = m.telemetry.Update(msg)
+		cmds = append(cmds, cmd)
+
+		m.config, cmd = m.config.Update(msg)
+		cmds = append(cmds, cmd)
+
+		m.position, cmd = m.position.Update(msg)
 		cmds = append(cmds, cmd)
 
 		m.compose, cmd = m.compose.Update(msg)
@@ -245,6 +305,12 @@ func (m *RootModel) View() string {
 		content = m.nodes.View()
 	case TabStatus:
 		content = m.status.View()
+	case TabTelemetry:
+		content = m.telemetry.View()
+	case TabConfig:
+		content = m.config.View()
+	case TabPosition:
+		content = m.position.View()
 	}
 
 	header := m.headerView()
@@ -278,9 +344,9 @@ func (m *RootModel) headerView() string {
 
 // tabsView renders the tabs
 func (m *RootModel) tabsView() string {
-	tabs := make([]string, 3)
+	tabs := make([]string, 6)
 
-	for i := Tab(0); i < 3; i++ {
+	for i := Tab(0); i < 6; i++ {
 		style := m.styles.TabInactive
 		if i == m.currentTab {
 			style = m.styles.TabActive

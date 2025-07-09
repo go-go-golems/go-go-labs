@@ -73,6 +73,7 @@ type Styles struct {
 	StatusItem  lipgloss.Style
 	StatusKey   lipgloss.Style
 	StatusValue lipgloss.Style
+	StatusText  lipgloss.Style
 
 	// Compose
 	ComposeBox   lipgloss.Style
@@ -232,6 +233,9 @@ func DefaultStyles() *Styles {
 
 	s.StatusValue = lipgloss.NewStyle().
 		Foreground(Colors.Primary)
+
+	s.StatusText = lipgloss.NewStyle().
+		Foreground(Colors.Secondary)
 
 	// Compose
 	s.ComposeBox = lipgloss.NewStyle().

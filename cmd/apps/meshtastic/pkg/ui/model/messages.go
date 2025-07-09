@@ -9,17 +9,36 @@ import (
 	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/go-go-golems/go-go-labs/cmd/apps/meshtastic/pkg/ui/view"
+	"github.com/rs/zerolog/log"
+)
+
+// FilterMode represents different filtering modes
+type FilterMode int
+
+const (
+	FilterAll FilterMode = iota
+	FilterSent
+	FilterReceived
+	FilterPrivate
+	FilterPublic
+	FilterChannel
 )
 
 // Message represents a message in the TUI
 type Message struct {
-	ID      string
-	From    string
-	To      string
-	Content string
-	Time    time.Time
-	IsSent  bool
-	IsRead  bool
+	ID         string
+	From       string
+	FromNodeID uint32
+	To         string
+	ToNodeID   uint32
+	Content    string
+	Time       time.Time
+	IsSent     bool
+	IsRead     bool
+	IsPrivate  bool
+	Channel    uint32
+	ReplyTo    string // ID of message this is replying to
+	ThreadID   string // ID of thread this message belongs to
 }
 
 // MessagesModel handles the messages view
@@ -34,6 +53,19 @@ type MessagesModel struct {
 	// Selection
 	selected int
 	focused  bool
+
+	// Filtering
+	filterMode   FilterMode
+	filterText   string
+	filterActive bool
+
+	// Threading
+	showThreads   bool
+	currentThread string
+
+	// Channels
+	currentChannel uint32
+	channels       map[uint32]string
 }
 
 // NewMessagesModel creates a new messages model
@@ -41,10 +73,13 @@ func NewMessagesModel(styles *view.Styles) *MessagesModel {
 	vp := viewport.New(0, 0)
 
 	return &MessagesModel{
-		styles:   styles,
-		viewport: vp,
-		messages: make([]Message, 0),
-		focused:  true,
+		styles:         styles,
+		viewport:       vp,
+		messages:       make([]Message, 0),
+		focused:        true,
+		filterMode:     FilterAll,
+		channels:       make(map[uint32]string),
+		currentChannel: 0,
 	}
 }
 
@@ -118,6 +153,41 @@ func (m *MessagesModel) Update(msg tea.Msg) (*MessagesModel, tea.Cmd) {
 				m.messages[m.selected].IsRead = true
 				m.updateContent()
 			}
+		case key.Matches(msg, key.NewBinding(key.WithKeys("f"))):
+			// Cycle through filter modes
+			m.filterMode = (m.filterMode + 1) % 6
+			m.updateContent()
+			log.Debug().Int("filter_mode", int(m.filterMode)).Msg("Changed filter mode")
+		case key.Matches(msg, key.NewBinding(key.WithKeys("t"))):
+			// Toggle thread view
+			m.showThreads = !m.showThreads
+			m.updateContent()
+			log.Debug().Bool("show_threads", m.showThreads).Msg("Toggled thread view")
+		case key.Matches(msg, key.NewBinding(key.WithKeys("r"))):
+			// Reply to selected message
+			if m.selected < len(m.messages) {
+				selectedMsg := m.messages[m.selected]
+				// This would typically trigger a compose with reply context
+				log.Debug().Str("reply_to", selectedMsg.ID).Msg("Replying to message")
+			}
+		case key.Matches(msg, key.NewBinding(key.WithKeys("p"))):
+			// Toggle private message filter
+			if m.filterMode == FilterPrivate {
+				m.filterMode = FilterAll
+			} else {
+				m.filterMode = FilterPrivate
+			}
+			m.updateContent()
+			log.Debug().Int("filter_mode", int(m.filterMode)).Msg("Toggled private filter")
+		case key.Matches(msg, key.NewBinding(key.WithKeys("c"))):
+			// Toggle channel message filter
+			if m.filterMode == FilterChannel {
+				m.filterMode = FilterAll
+			} else {
+				m.filterMode = FilterChannel
+			}
+			m.updateContent()
+			log.Debug().Int("filter_mode", int(m.filterMode)).Msg("Toggled channel filter")
 		}
 
 	case ComposeCompleteMsg:
@@ -151,16 +221,22 @@ func (m *MessagesModel) View() string {
 		return "Loading messages..."
 	}
 
-	title := m.styles.Title.Render("Messages")
+	// Create title with filter info
+	filterInfo := m.getFilterInfo()
+	title := m.styles.Title.Render(fmt.Sprintf("Messages %s", filterInfo))
 
-	if len(m.messages) == 0 {
-		empty := m.styles.Muted.Render("No messages yet")
-		return lipgloss.JoinVertical(lipgloss.Left, title, empty)
+	// Create help text
+	help := m.styles.Help.Render("↑/↓: navigate • f: filter • t: threads • r: reply • p: private • c: channel")
+
+	filteredMessages := m.getFilteredMessages()
+	if len(filteredMessages) == 0 {
+		empty := m.styles.Muted.Render("No messages match current filter")
+		return lipgloss.JoinVertical(lipgloss.Left, title, empty, help)
 	}
 
 	content := m.viewport.View()
 
-	return lipgloss.JoinVertical(lipgloss.Left, title, content)
+	return lipgloss.JoinVertical(lipgloss.Left, title, content, help)
 }
 
 // updateContent updates the viewport content
@@ -170,8 +246,9 @@ func (m *MessagesModel) updateContent() {
 	}
 
 	var content []string
+	filteredMessages := m.getFilteredMessages()
 
-	for i, msg := range m.messages {
+	for i, msg := range filteredMessages {
 		var msgStyle lipgloss.Style
 		if msg.IsSent {
 			msgStyle = m.styles.MessageSent
@@ -260,5 +337,62 @@ func ComposeCancel() tea.Cmd {
 func NewMessage(msg Message) tea.Cmd {
 	return func() tea.Msg {
 		return NewMessageMsg(msg)
+	}
+}
+
+// getFilteredMessages returns messages filtered by current filter mode
+func (m *MessagesModel) getFilteredMessages() []Message {
+	var filtered []Message
+
+	for _, msg := range m.messages {
+		if m.shouldIncludeMessage(msg) {
+			filtered = append(filtered, msg)
+		}
+	}
+
+	return filtered
+}
+
+// shouldIncludeMessage checks if a message should be included based on current filter
+func (m *MessagesModel) shouldIncludeMessage(msg Message) bool {
+	switch m.filterMode {
+	case FilterAll:
+		return true
+	case FilterSent:
+		return msg.IsSent
+	case FilterReceived:
+		return !msg.IsSent
+	case FilterPrivate:
+		return msg.IsPrivate
+	case FilterPublic:
+		return !msg.IsPrivate
+	case FilterChannel:
+		return msg.Channel == m.currentChannel
+	default:
+		return true
+	}
+}
+
+// getFilterInfo returns a string describing the current filter
+func (m *MessagesModel) getFilterInfo() string {
+	switch m.filterMode {
+	case FilterAll:
+		return "(All)"
+	case FilterSent:
+		return "(Sent)"
+	case FilterReceived:
+		return "(Received)"
+	case FilterPrivate:
+		return "(Private)"
+	case FilterPublic:
+		return "(Public)"
+	case FilterChannel:
+		channelName := m.channels[m.currentChannel]
+		if channelName == "" {
+			channelName = fmt.Sprintf("Channel %d", m.currentChannel)
+		}
+		return fmt.Sprintf("(%s)", channelName)
+	default:
+		return ""
 	}
 }
