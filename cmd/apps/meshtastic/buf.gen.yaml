@@ -1,0 +1,7 @@
+version: v1
+plugins:
+  - plugin: buf.build/protocolbuffers/go
+    out: ../pkg/pb
+    opt:
+      - paths=source_relative
+      - M=nanopb.proto=github.com/go-go-golems/go-go-labs/cmd/apps/meshtastic/pkg/pb
