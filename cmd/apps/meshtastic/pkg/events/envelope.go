@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"time"
 
+	pb "github.com/go-go-golems/go-go-labs/cmd/apps/meshtastic/pkg/pb"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	pb "github.com/go-go-golems/go-go-labs/cmd/apps/meshtastic/pkg/pb"
 )
 
 // Envelope represents the standard event envelope
@@ -87,9 +87,9 @@ type DeviceDisconnectedEvent struct {
 }
 
 type DeviceReconnectingEvent struct {
-	DevicePath string `json:"device_path"`
-	Attempt    int    `json:"attempt"`
-	MaxAttempts int   `json:"max_attempts"`
+	DevicePath  string `json:"device_path"`
+	Attempt     int    `json:"attempt"`
+	MaxAttempts int    `json:"max_attempts"`
 }
 
 type DeviceErrorEvent struct {
@@ -141,11 +141,11 @@ type NodePresenceEvent struct {
 }
 
 type NodeBatteryEvent struct {
-	NodeID         uint32    `json:"node_id"`
-	BatteryLevel   uint32    `json:"battery_level"`
-	Voltage        float32   `json:"voltage,omitempty"`
-	IsCharging     bool      `json:"is_charging"`
-	Timestamp      time.Time `json:"timestamp"`
+	NodeID       uint32    `json:"node_id"`
+	BatteryLevel uint32    `json:"battery_level"`
+	Voltage      float32   `json:"voltage,omitempty"`
+	IsCharging   bool      `json:"is_charging"`
+	Timestamp    time.Time `json:"timestamp"`
 }
 
 // Telemetry events
@@ -156,17 +156,17 @@ type TelemetryReceivedEvent struct {
 }
 
 type PositionUpdatedEvent struct {
-	NodeID    uint32      `json:"node_id"`
+	NodeID    uint32       `json:"node_id"`
 	Position  *pb.Position `json:"position"`
 	Previous  *pb.Position `json:"previous,omitempty"`
 	Timestamp time.Time    `json:"timestamp"`
 }
 
 type EnvironmentUpdatedEvent struct {
-	NodeID          uint32                  `json:"node_id"`
-	Environment     *pb.EnvironmentMetrics  `json:"environment"`
-	Previous        *pb.EnvironmentMetrics  `json:"previous,omitempty"`
-	Timestamp       time.Time               `json:"timestamp"`
+	NodeID      uint32                 `json:"node_id"`
+	Environment *pb.EnvironmentMetrics `json:"environment"`
+	Previous    *pb.EnvironmentMetrics `json:"previous,omitempty"`
+	Timestamp   time.Time              `json:"timestamp"`
 }
 
 // Command events
@@ -193,11 +193,11 @@ type RequestPositionCommandEvent struct {
 
 // Response events
 type ResponseSuccessEvent struct {
-	CommandID     string      `json:"command_id"`
-	CorrelationID string      `json:"correlation_id"`
-	Response      interface{} `json:"response"`
+	CommandID     string        `json:"command_id"`
+	CorrelationID string        `json:"correlation_id"`
+	Response      interface{}   `json:"response"`
 	Duration      time.Duration `json:"duration"`
-	Timestamp     time.Time   `json:"timestamp"`
+	Timestamp     time.Time     `json:"timestamp"`
 }
 
 type ResponseErrorEvent struct {

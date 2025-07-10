@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -39,7 +40,12 @@ var (
 	bus           *meshbus.Bus
 	adapter       *deviceadapter.DeviceAdapter
 	eventListener *EventListener
-	
+	handlerAdded  bool // Track if we've added the handler
+
+	// Active connections tracking
+	activeConnections = make(map[string]bool)
+	connectionsMu     sync.RWMutex
+
 	// Colors for output
 	colorSuccess = color.New(color.FgGreen).SprintFunc()
 	colorError   = color.New(color.FgRed).SprintFunc()
@@ -73,13 +79,16 @@ func (el *EventListener) Start() error {
 		return nil
 	}
 
-	// Subscribe to all broadcast events
-	if err := el.bus.AddHandler(
-		"repl_event_listener",
-		"broadcast.*",
-		el.handleEvent,
-	); err != nil {
-		return errors.Wrap(err, "failed to add event handler")
+	// Only add handler once since Watermill doesn't support removing handlers
+	if !handlerAdded {
+		if err := el.bus.AddHandler(
+			"repl_event_listener",
+			"broadcast.*",
+			el.handleEvent,
+		); err != nil {
+			return errors.Wrap(err, "failed to add event handler")
+		}
+		handlerAdded = true
 	}
 
 	el.listening = true
@@ -91,13 +100,19 @@ func (el *EventListener) Stop() {
 	if !el.listening {
 		return
 	}
-	
-	el.cancel()
+
+	// Note: We can't actually remove handlers from Watermill once added
+	// We just mark as not listening so handleEvent will ignore messages
 	el.listening = false
 }
 
 // handleEvent handles incoming events
 func (el *EventListener) handleEvent(msg *message.Message) error {
+	// Skip if not listening
+	if !el.listening {
+		return nil
+	}
+
 	// Parse envelope
 	var envelope events.Envelope
 	if err := json.Unmarshal(msg.Payload, &envelope); err != nil {
@@ -248,8 +263,9 @@ func main() {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		<-sigChan
-		log.Info().Msg("Shutdown signal received")
+		sig := <-sigChan
+		log.Info().Str("signal", sig.String()).Msg("Shutdown signal received")
+		fmt.Printf("\n%s Received signal %s, shutting down gracefully...\n", colorWarning("⚠"), sig.String())
 		cancel()
 	}()
 
@@ -311,7 +327,7 @@ func initializeREPL(ctx context.Context) error {
 
 func startREPL(ctx context.Context) error {
 	scanner := bufio.NewScanner(os.Stdin)
-	
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -319,7 +335,7 @@ func startREPL(ctx context.Context) error {
 		default:
 			// Show prompt
 			fmt.Printf("%s ", colorCommand("meshtastic>"))
-			
+
 			// Read input
 			if !scanner.Scan() {
 				if err := scanner.Err(); err != nil {
@@ -328,12 +344,12 @@ func startREPL(ctx context.Context) error {
 				// EOF
 				return cleanup()
 			}
-			
+
 			input := strings.TrimSpace(scanner.Text())
 			if input == "" {
 				continue
 			}
-			
+
 			// Process command
 			if err := processCommand(ctx, input); err != nil {
 				fmt.Printf("%s: %v\n", colorError("Error"), err)
@@ -403,6 +419,7 @@ func cmdConnect(ctx context.Context, cmdArgs []string) error {
 		devicePath = cmdArgs[0]
 	} else {
 		// Auto-discover device
+		fmt.Printf("%s Auto-discovering device...\n", colorInfo("🔍"))
 		discovered, err := discovery.FindBestMeshtasticPort()
 		if err != nil {
 			return errors.Wrap(err, "failed to auto-discover device")
@@ -410,32 +427,70 @@ func cmdConnect(ctx context.Context, cmdArgs []string) error {
 		devicePath = discovered
 	}
 
-	fmt.Printf("Connecting to device: %s\n", colorDevice(devicePath))
-
-	// Create client config
-	config := &client.Config{
-		DevicePath:  devicePath,
-		Timeout:     time.Duration(args.Timeout) * time.Second,
-		DebugSerial: args.LogLevel == "debug",
-		HexDump:     args.LogLevel == "debug",
+	// Check if already connecting to this device
+	connectionsMu.Lock()
+	if activeConnections[devicePath] {
+		connectionsMu.Unlock()
+		return errors.New("already connecting to this device")
 	}
+	activeConnections[devicePath] = true
+	connectionsMu.Unlock()
 
-	// Create robust client
-	robustClient, err := client.NewRobustMeshtasticClient(config)
-	if err != nil {
-		return errors.Wrap(err, "failed to create client")
-	}
+	fmt.Printf("Connecting to device: %s...\n", colorDevice(devicePath))
 
-	// Create device adapter
-	deviceID := fmt.Sprintf("dev_%s", strings.ReplaceAll(strings.TrimPrefix(devicePath, "/dev/"), "/", "_"))
-	adapter = deviceadapter.NewDeviceAdapter(deviceID, robustClient, bus)
+	// Start connection process in background
+	go func() {
+		defer func() {
+			connectionsMu.Lock()
+			delete(activeConnections, devicePath)
+			connectionsMu.Unlock()
+		}()
 
-	// Start adapter
-	if err := adapter.Start(ctx); err != nil {
-		return errors.Wrap(err, "failed to start adapter")
-	}
+		// For now, we'll create a simple client that delays the connection
+		// This is a workaround since the current client architecture opens
+		// the serial port immediately during construction
 
-	fmt.Printf("%s Connected to %s\n", colorSuccess("✓"), colorDevice(devicePath))
+		// Sleep briefly to ensure we return to the prompt first
+		time.Sleep(100 * time.Millisecond)
+
+		// Create context with timeout
+		connectCtx, cancel := context.WithTimeout(ctx, time.Duration(args.Timeout)*time.Second)
+		defer cancel()
+
+		// Create client config
+		config := &client.Config{
+			DevicePath:  devicePath,
+			Timeout:     time.Duration(args.Timeout) * time.Second,
+			DebugSerial: args.LogLevel == "debug",
+			HexDump:     args.LogLevel == "debug",
+		}
+
+		// Create robust client - this will fail immediately if device doesn't exist
+		robustClient, err := client.NewRobustMeshtasticClient(config)
+		if err != nil {
+			fmt.Printf("%s Failed to create client: %v\n", colorError("✗"), err)
+			return
+		}
+
+		// Create device adapter
+		deviceID := fmt.Sprintf("dev_%s", strings.ReplaceAll(strings.TrimPrefix(devicePath, "/dev/"), "/", "_"))
+		newAdapter := deviceadapter.NewDeviceAdapter(deviceID, robustClient, bus)
+
+		// Start adapter with timeout context
+		if err := newAdapter.Start(connectCtx); err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				fmt.Printf("%s Connection timed out after %ds\n", colorError("✗"), args.Timeout)
+			} else {
+				fmt.Printf("%s Failed to connect: %v\n", colorError("✗"), err)
+			}
+			return
+		}
+
+		// Set global adapter reference
+		adapter = newAdapter
+		fmt.Printf("%s Connected to %s\n", colorSuccess("✓"), colorDevice(devicePath))
+	}()
+
 	return nil
 }
 
@@ -626,23 +681,28 @@ func cmdQuit(cmdArgs []string) error {
 func cleanup() error {
 	fmt.Println("\nShutting down...")
 
-	// Stop event listener
+	// Stop event listener first
 	if eventListener != nil {
+		log.Info().Msg("Stopping event listener...")
 		eventListener.Stop()
 	}
 
 	// Stop adapter
 	if adapter != nil {
+		log.Info().Msg("Stopping device adapter...")
 		if err := adapter.Stop(); err != nil {
 			log.Error().Err(err).Msg("Error stopping adapter")
 		}
+		adapter = nil
 	}
 
-	// Stop bus
+	// Stop bus last
 	if bus != nil {
+		log.Info().Msg("Stopping event bus...")
 		if err := bus.Stop(); err != nil {
 			log.Error().Err(err).Msg("Error stopping bus")
 		}
+		bus = nil
 	}
 
 	fmt.Println("Shutdown complete")

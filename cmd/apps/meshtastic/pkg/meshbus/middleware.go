@@ -91,11 +91,11 @@ func NewLoggingMiddleware() message.HandlerMiddleware {
 	return func(h message.HandlerFunc) message.HandlerFunc {
 		return func(msg *message.Message) ([]*message.Message, error) {
 			start := time.Now()
-			
+
 			correlationID := msg.Metadata.Get("correlation_id")
 			eventType := msg.Metadata.Get("event_type")
 			deviceID := msg.Metadata.Get("device_id")
-			
+
 			logger := log.With().
 				Str("correlation_id", correlationID).
 				Str("event_type", eventType).
@@ -111,7 +111,7 @@ func NewLoggingMiddleware() message.HandlerMiddleware {
 			results, err := h(msg)
 
 			duration := time.Since(start)
-			
+
 			if err != nil {
 				logger.Error().
 					Err(err).
@@ -137,14 +137,14 @@ func NewRecoveryMiddleware() message.HandlerMiddleware {
 				if r := recover(); r != nil {
 					correlationID := msg.Metadata.Get("correlation_id")
 					eventType := msg.Metadata.Get("event_type")
-					
+
 					log.Error().
 						Str("correlation_id", correlationID).
 						Str("event_type", eventType).
 						Str("message_uuid", msg.UUID).
 						Interface("panic", r).
 						Msg("Panic recovered in message handler")
-					
+
 					err = errors.Errorf("panic recovered: %v", r)
 					results = nil
 				}
@@ -178,7 +178,7 @@ func NewRetryMiddleware(maxRetries int, backoffDuration time.Duration) message.H
 						Msg("Message processing failed, retrying")
 
 					// Add retry metadata
-					msg.Metadata.Set("retry_count", "1") // Simplified
+					msg.Metadata.Set("retry_count", "1")   // Simplified
 					msg.Metadata.Set("retry_attempt", "1") // Simplified
 
 					// Wait before retry

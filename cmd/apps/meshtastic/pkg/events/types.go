@@ -9,15 +9,15 @@ const (
 	EventDeviceError        = "device.error"
 
 	// Mesh packet events
-	EventMeshPacketRx       = "mesh.packet.rx"
-	EventMeshPacketTx       = "mesh.packet.tx"
-	EventMeshPacketAck      = "mesh.packet.ack"
-	EventMeshPacketTimeout  = "mesh.packet.timeout"
+	EventMeshPacketRx      = "mesh.packet.rx"
+	EventMeshPacketTx      = "mesh.packet.tx"
+	EventMeshPacketAck     = "mesh.packet.ack"
+	EventMeshPacketTimeout = "mesh.packet.timeout"
 
 	// Node events
-	EventNodeInfoUpdated    = "mesh.nodeinfo.updated"
-	EventNodePresence       = "mesh.node.presence"
-	EventNodeBattery        = "mesh.node.battery"
+	EventNodeInfoUpdated = "mesh.nodeinfo.updated"
+	EventNodePresence    = "mesh.node.presence"
+	EventNodeBattery     = "mesh.node.battery"
 
 	// Telemetry events
 	EventTelemetryReceived  = "mesh.telemetry.received"
@@ -25,8 +25,8 @@ const (
 	EventEnvironmentUpdated = "mesh.environment.updated"
 
 	// Command events
-	EventCommandSendText       = "command.send_text"
-	EventCommandRequestInfo    = "command.request_info"
+	EventCommandSendText         = "command.send_text"
+	EventCommandRequestInfo      = "command.request_info"
 	EventCommandRequestTelemetry = "command.request_telemetry"
 	EventCommandRequestPosition  = "command.request_position"
 
@@ -36,26 +36,26 @@ const (
 	EventResponseTimeout = "response.timeout"
 
 	// System events
-	EventSystemStartup   = "system.startup"
-	EventSystemShutdown  = "system.shutdown"
-	EventSystemError     = "system.error"
+	EventSystemStartup  = "system.startup"
+	EventSystemShutdown = "system.shutdown"
+	EventSystemError    = "system.error"
 )
 
 // Event source constants
 const (
 	SourceDeviceAdapter = "device_adapter"
-	SourceMeshBus      = "mesh_bus"
-	SourceREPL         = "repl"
-	SourceTUI          = "tui"
-	SourceMQTT         = "mqtt"
-	SourceSystem       = "system"
+	SourceMeshBus       = "mesh_bus"
+	SourceREPL          = "repl"
+	SourceTUI           = "tui"
+	SourceMQTT          = "mqtt"
+	SourceSystem        = "system"
 )
 
 // Event priority constants
 const (
-	PriorityLow    = "low"
-	PriorityNormal = "normal"
-	PriorityHigh   = "high"
+	PriorityLow      = "low"
+	PriorityNormal   = "normal"
+	PriorityHigh     = "high"
 	PriorityCritical = "critical"
 )
 
@@ -78,9 +78,9 @@ const (
 
 // Node status constants
 const (
-	NodeStatusOnline   = "online"
-	NodeStatusOffline  = "offline"
-	NodeStatusUnknown  = "unknown"
+	NodeStatusOnline  = "online"
+	NodeStatusOffline = "offline"
+	NodeStatusUnknown = "unknown"
 )
 
 // Device state constants
@@ -241,25 +241,25 @@ func IsValidSeverity(severity string) bool {
 func GetEventCategory(eventType string) string {
 	switch {
 	case eventType == EventDeviceConnected || eventType == EventDeviceDisconnected ||
-		 eventType == EventDeviceReconnecting || eventType == EventDeviceError:
+		eventType == EventDeviceReconnecting || eventType == EventDeviceError:
 		return "device"
 	case eventType == EventMeshPacketRx || eventType == EventMeshPacketTx ||
-		 eventType == EventMeshPacketAck || eventType == EventMeshPacketTimeout:
+		eventType == EventMeshPacketAck || eventType == EventMeshPacketTimeout:
 		return "mesh"
 	case eventType == EventNodeInfoUpdated || eventType == EventNodePresence ||
-		 eventType == EventNodeBattery:
+		eventType == EventNodeBattery:
 		return "node"
 	case eventType == EventTelemetryReceived || eventType == EventPositionUpdated ||
-		 eventType == EventEnvironmentUpdated:
+		eventType == EventEnvironmentUpdated:
 		return "telemetry"
 	case eventType == EventCommandSendText || eventType == EventCommandRequestInfo ||
-		 eventType == EventCommandRequestTelemetry || eventType == EventCommandRequestPosition:
+		eventType == EventCommandRequestTelemetry || eventType == EventCommandRequestPosition:
 		return "command"
 	case eventType == EventResponseSuccess || eventType == EventResponseError ||
-		 eventType == EventResponseTimeout:
+		eventType == EventResponseTimeout:
 		return "response"
 	case eventType == EventSystemStartup || eventType == EventSystemShutdown ||
-		 eventType == EventSystemError:
+		eventType == EventSystemError:
 		return "system"
 	default:
 		return "unknown"

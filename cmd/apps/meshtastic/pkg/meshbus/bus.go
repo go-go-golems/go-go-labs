@@ -14,14 +14,17 @@ import (
 
 // Bus represents the main event bus using Watermill
 type Bus struct {
-	router       *message.Router
-	pubSub       *gochannel.GoChannel
-	logger       watermill.LoggerAdapter
-	middlewares  []message.HandlerMiddleware
-	mu           sync.RWMutex
-	running      bool
-	ctx          context.Context
-	cancel       context.CancelFunc
+	router      *message.Router
+	pubSub      *gochannel.GoChannel
+	logger      watermill.LoggerAdapter
+	middlewares []message.HandlerMiddleware
+	mu          sync.RWMutex
+	running     bool
+	ctx         context.Context
+	cancel      context.CancelFunc
+
+	// Handler tracking to prevent duplicates
+	handlers map[string]bool
 }
 
 // Config holds configuration for the event bus
@@ -86,6 +89,7 @@ func NewBus(config *Config) (*Bus, error) {
 		middlewares: allMiddlewares,
 		ctx:         ctx,
 		cancel:      cancel,
+		handlers:    make(map[string]bool),
 	}, nil
 }
 
@@ -151,15 +155,22 @@ func (b *Bus) Subscriber() message.Subscriber {
 	return b.pubSub
 }
 
-// AddHandler adds a handler to the router
+// AddHandler adds a handler to the router (can be called even when running)
 func (b *Bus) AddHandler(handlerName, subscribeTopic string, handler message.NoPublishHandlerFunc) error {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
+	b.mu.Lock()
+	defer b.mu.Unlock()
 
-	if b.running {
-		return errors.New("cannot add handler to running bus")
+	// Check if handler already exists
+	if b.handlers[handlerName] {
+		log.Warn().
+			Str("handler_name", handlerName).
+			Str("topic", subscribeTopic).
+			Msg("Handler already exists, skipping")
+		return nil
 	}
 
+	// Note: Watermill doesn't support replacing handlers with same name
+	// This will panic if handler already exists
 	b.router.AddNoPublisherHandler(
 		handlerName,
 		subscribeTopic,
@@ -167,18 +178,29 @@ func (b *Bus) AddHandler(handlerName, subscribeTopic string, handler message.NoP
 		handler,
 	)
 
+	// Mark handler as added
+	b.handlers[handlerName] = true
+
 	return nil
 }
 
 // AddRouterHandler adds a handler that can publish to other topics
 func (b *Bus) AddRouterHandler(handlerName, subscribeTopic, publishTopic string, handler message.HandlerFunc) error {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
+	b.mu.Lock()
+	defer b.mu.Unlock()
 
-	if b.running {
-		return errors.New("cannot add handler to running bus")
+	// Check if handler already exists
+	if b.handlers[handlerName] {
+		log.Warn().
+			Str("handler_name", handlerName).
+			Str("subscribe_topic", subscribeTopic).
+			Str("publish_topic", publishTopic).
+			Msg("Router handler already exists, skipping")
+		return nil
 	}
 
+	// Note: Watermill doesn't support replacing handlers with same name
+	// This will panic if handler already exists
 	b.router.AddHandler(
 		handlerName,
 		subscribeTopic,
@@ -188,6 +210,23 @@ func (b *Bus) AddRouterHandler(handlerName, subscribeTopic, publishTopic string,
 		handler,
 	)
 
+	// Mark handler as added
+	b.handlers[handlerName] = true
+
+	return nil
+}
+
+// RemoveHandler removes a handler from the router
+func (b *Bus) RemoveHandler(handlerName string) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	// Remove from tracking
+	delete(b.handlers, handlerName)
+
+	// Note: Watermill doesn't support removing handlers after they're added
+	// This is a limitation of the current Watermill implementation
+	log.Debug().Str("handler", handlerName).Msg("Handler removal not supported by Watermill")
 	return nil
 }
 
@@ -215,21 +254,21 @@ func (b *Bus) WaitForReady(timeout time.Duration) error {
 // Topic constants
 const (
 	// Device lifecycle events
-	TopicDeviceConnected     = "device.connected"
-	TopicDeviceDisconnected  = "device.disconnected"
-	TopicDeviceReconnecting  = "device.reconnecting"
-	TopicDeviceError         = "device.error"
+	TopicDeviceConnected    = "device.connected"
+	TopicDeviceDisconnected = "device.disconnected"
+	TopicDeviceReconnecting = "device.reconnecting"
+	TopicDeviceError        = "device.error"
 
 	// Mesh packet events
-	TopicMeshPacketRx       = "mesh.packet.rx"
-	TopicMeshPacketTx       = "mesh.packet.tx"
-	TopicMeshPacketAck      = "mesh.packet.ack"
-	TopicMeshPacketTimeout  = "mesh.packet.timeout"
+	TopicMeshPacketRx      = "mesh.packet.rx"
+	TopicMeshPacketTx      = "mesh.packet.tx"
+	TopicMeshPacketAck     = "mesh.packet.ack"
+	TopicMeshPacketTimeout = "mesh.packet.timeout"
 
 	// Node events
-	TopicNodeInfoUpdated    = "mesh.nodeinfo.updated"
-	TopicNodePresence       = "mesh.node.presence"
-	TopicNodeBattery        = "mesh.node.battery"
+	TopicNodeInfoUpdated = "mesh.nodeinfo.updated"
+	TopicNodePresence    = "mesh.node.presence"
+	TopicNodeBattery     = "mesh.node.battery"
 
 	// Telemetry events
 	TopicTelemetryReceived  = "mesh.telemetry.received"
@@ -237,8 +276,8 @@ const (
 	TopicEnvironmentUpdated = "mesh.environment.updated"
 
 	// Command events
-	TopicCommandSendText       = "command.send_text"
-	TopicCommandRequestInfo    = "command.request_info"
+	TopicCommandSendText         = "command.send_text"
+	TopicCommandRequestInfo      = "command.request_info"
 	TopicCommandRequestTelemetry = "command.request_telemetry"
 	TopicCommandRequestPosition  = "command.request_position"
 
@@ -248,9 +287,9 @@ const (
 	TopicResponseTimeout = "response.timeout"
 
 	// System events
-	TopicSystemStartup   = "system.startup"
-	TopicSystemShutdown  = "system.shutdown"
-	TopicSystemError     = "system.error"
+	TopicSystemStartup  = "system.startup"
+	TopicSystemShutdown = "system.shutdown"
+	TopicSystemError    = "system.error"
 )
 
 // BuildTopicName builds a topic name with device ID
