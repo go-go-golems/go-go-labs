@@ -26,7 +26,7 @@ func BrowseForFiles() ([]string, error) {
 
 		// Create options for selection
 		var options []huh.Option[string]
-		
+
 		// Add parent directory option (unless we're at root)
 		if currentDir != "/" {
 			options = append(options, huh.NewOption(".. (parent directory)", ".."))

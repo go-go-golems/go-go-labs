@@ -14,49 +14,49 @@ func TestAppendOnlyWrites(t *testing.T) {
 
 	// Simulate log file append-only pattern
 	baseTime := time.Now()
-	
+
 	// Initial log content
 	log1 := []byte("2025-05-28 10:00:00 INFO Starting application\n")
 	fc.AddRead(pathHash, 0, log1)
-	
+
 	// Advance time and append more log entries
 	mockTime.time = baseTime.Add(1 * time.Minute)
 	log2 := []byte("2025-05-28 10:01:00 INFO User login: alice\n")
 	fc.AddRead(pathHash, uint64(len(log1)), log2)
-	
+
 	mockTime.time = baseTime.Add(2 * time.Minute)
 	log3 := []byte("2025-05-28 10:02:00 ERROR Database connection failed\n")
 	fc.AddRead(pathHash, uint64(len(log1)+len(log2)), log3)
-	
+
 	// Verify we can reconstruct the entire log
 	totalLen := uint64(len(log1) + len(log2) + len(log3))
 	reconstructed, exists := fc.GetOldContent(pathHash, 0, totalLen)
-	
+
 	if !exists {
 		t.Fatal("Expected to be able to reconstruct append-only log")
 	}
-	
+
 	expectedLog := append(append(log1, log2...), log3...)
 	if !bytes.Equal(reconstructed, expectedLog) {
-		t.Errorf("Log reconstruction failed:\nexpected: %s\ngot: %s", 
+		t.Errorf("Log reconstruction failed:\nexpected: %s\ngot: %s",
 			string(expectedLog), string(reconstructed))
 	}
-	
+
 	// Simulate writing to middle of log (should invalidate subsequent content)
 	insertOffset := uint64(len(log1) + 10) // Middle of log2
 	insertData := []byte("INSERTED ")
 	fc.UpdateWithWrite(pathHash, insertOffset, insertData)
-	
+
 	// Content after write might be invalidated (implementation dependent)
 	_, exists = fc.GetOldContent(pathHash, insertOffset+uint64(len(insertData)), 10)
 	// This is implementation dependent - some implementations might invalidate, others might not
-	
+
 	// Content before write should remain
 	beforeWrite, exists := fc.GetOldContent(pathHash, 0, insertOffset)
 	if !exists {
 		t.Error("Expected content before write to remain cached")
 	}
-	
+
 	expected := append(log1, log2[:10]...)
 	if !bytes.Equal(beforeWrite, expected) {
 		t.Error("Content before write was corrupted")
@@ -72,37 +72,37 @@ func TestFileTruncationAndNew(t *testing.T) {
 	// Original file content
 	originalContent := []byte("This is the original file content that will be truncated")
 	fc.AddRead(pathHash, 0, originalContent)
-	
+
 	// Verify content is cached
 	retrieved, exists := fc.GetOldContent(pathHash, 0, uint64(len(originalContent)))
 	if !exists || !bytes.Equal(retrieved, originalContent) {
 		t.Fatal("Original content not properly cached")
 	}
-	
+
 	// Simulate file truncation (write at offset 0 with smaller content)
 	newContent := []byte("Truncated file")
 	fc.UpdateWithWrite(pathHash, 0, newContent)
-	
+
 	// Old content should be invalidated
 	_, exists = fc.GetOldContent(pathHash, 0, uint64(len(originalContent)))
 	if exists {
 		t.Error("Expected original content to be invalidated after truncation")
 	}
-	
+
 	// Read new content after truncation
 	fc.AddRead(pathHash, 0, newContent)
-	
+
 	// Should be able to retrieve new truncated content
 	retrieved, exists = fc.GetOldContent(pathHash, 0, uint64(len(newContent)))
 	if !exists {
 		t.Fatal("Expected new content to be cached after truncation")
 	}
-	
+
 	if !bytes.Equal(retrieved, newContent) {
-		t.Errorf("New content corrupted: expected %s, got %s", 
+		t.Errorf("New content corrupted: expected %s, got %s",
 			string(newContent), string(retrieved))
 	}
-	
+
 	// Content beyond new size should not exist
 	_, exists = fc.GetOldContent(pathHash, uint64(len(newContent)), 10)
 	if exists {
@@ -122,10 +122,10 @@ func TestSparseFileOperations(t *testing.T) {
 		data   []byte
 	}{
 		{0, []byte("File header")},
-		{1024, []byte("Data block 1")},          // 1KB gap
-		{1024*10, []byte("Data block 2")},       // 9KB gap
-		{1024*100, []byte("Data block 3")},      // 90KB gap
-		{1024*1000, []byte("Data block 4")},     // 900KB gap
+		{1024, []byte("Data block 1")},        // 1KB gap
+		{1024 * 10, []byte("Data block 2")},   // 9KB gap
+		{1024 * 100, []byte("Data block 3")},  // 90KB gap
+		{1024 * 1000, []byte("Data block 4")}, // 900KB gap
 	}
 
 	// Add all segments
@@ -157,7 +157,7 @@ func TestSparseFileOperations(t *testing.T) {
 	}
 
 	if uint64(len(reconstructed)) != spanLength {
-		t.Fatalf("Reconstructed length mismatch: expected %d, got %d", 
+		t.Fatalf("Reconstructed length mismatch: expected %d, got %d",
 			spanLength, len(reconstructed))
 	}
 

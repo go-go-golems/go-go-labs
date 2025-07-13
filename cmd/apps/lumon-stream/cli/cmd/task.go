@@ -40,26 +40,26 @@ var addTaskCmd = &cobra.Command{
 		}
 
 		url := fmt.Sprintf("%s/api/steps", serverURL)
-		
+
 		// Prepare request data
 		requestData := map[string]string{
 			"content": content,
 			"status":  status,
 		}
-		
+
 		jsonData, err := json.Marshal(requestData)
 		if err != nil {
 			fmt.Printf("Error preparing request: %v\n", err)
 			return
 		}
-		
+
 		req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 		if err != nil {
 			fmt.Printf("Error creating request: %v\n", err)
 			return
 		}
 		req.Header.Set("Content-Type", "application/json")
-		
+
 		client := &http.Client{}
 		resp, err := client.Do(req)
 		if err != nil {
@@ -67,24 +67,24 @@ var addTaskCmd = &cobra.Command{
 			return
 		}
 		defer resp.Body.Close()
-		
+
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			fmt.Printf("Error reading response: %v\n", err)
 			return
 		}
-		
+
 		var response Response
 		if err := json.Unmarshal(body, &response); err != nil {
 			fmt.Printf("Error parsing response: %v\n", err)
 			return
 		}
-		
+
 		if !response.Success {
 			fmt.Printf("Error: %s\n", response.Message)
 			return
 		}
-		
+
 		fmt.Println("Task added successfully")
 	},
 }
@@ -107,26 +107,26 @@ var updateTaskCmd = &cobra.Command{
 		}
 
 		url := fmt.Sprintf("%s/api/steps/status", serverURL)
-		
+
 		// Prepare request data
 		requestData := map[string]interface{}{
 			"id":     stepID,
 			"status": status,
 		}
-		
+
 		jsonData, err := json.Marshal(requestData)
 		if err != nil {
 			fmt.Printf("Error preparing request: %v\n", err)
 			return
 		}
-		
+
 		req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 		if err != nil {
 			fmt.Printf("Error creating request: %v\n", err)
 			return
 		}
 		req.Header.Set("Content-Type", "application/json")
-		
+
 		client := &http.Client{}
 		resp, err := client.Do(req)
 		if err != nil {
@@ -134,24 +134,24 @@ var updateTaskCmd = &cobra.Command{
 			return
 		}
 		defer resp.Body.Close()
-		
+
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			fmt.Printf("Error reading response: %v\n", err)
 			return
 		}
-		
+
 		var response Response
 		if err := json.Unmarshal(body, &response); err != nil {
 			fmt.Printf("Error parsing response: %v\n", err)
 			return
 		}
-		
+
 		if !response.Success {
 			fmt.Printf("Error: %s\n", response.Message)
 			return
 		}
-		
+
 		fmt.Println("Task status updated successfully")
 	},
 }
@@ -160,12 +160,12 @@ func init() {
 	rootCmd.AddCommand(taskCmd)
 	taskCmd.AddCommand(addTaskCmd)
 	taskCmd.AddCommand(updateTaskCmd)
-	
+
 	// Add flags for task commands
 	addTaskCmd.Flags().StringVar(&content, "content", "", "Task content")
 	addTaskCmd.Flags().StringVar(&status, "status", "upcoming", "Task status (completed, active, or upcoming)")
 	addTaskCmd.MarkFlagRequired("content")
-	
+
 	updateTaskCmd.Flags().IntVar(&stepID, "id", 0, "Task ID")
 	updateTaskCmd.Flags().StringVar(&status, "status", "", "Task status (completed, active, or upcoming)")
 	updateTaskCmd.MarkFlagRequired("id")

@@ -67,12 +67,12 @@ func validateConfig(config *types.Config) error {
 // redactSensitiveFields creates a copy of the config with sensitive fields redacted for logging
 func redactSensitiveFields(config *types.Config) map[string]interface{} {
 	return map[string]interface{}{
-		"oidc_issuer":       config.OIDCIssuer,
-		"default_user":      config.DefaultUser,
-		"default_password":  redactSecret(config.DefaultPassword),
-		"host":              config.Host,
-		"port":              config.Port,
-		"log_level":         config.LogLevel,
+		"oidc_issuer":      config.OIDCIssuer,
+		"default_user":     config.DefaultUser,
+		"default_password": redactSecret(config.DefaultPassword),
+		"host":             config.Host,
+		"port":             config.Port,
+		"log_level":        config.LogLevel,
 	}
 }
 

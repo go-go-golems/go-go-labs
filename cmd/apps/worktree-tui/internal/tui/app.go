@@ -20,29 +20,29 @@ const (
 
 // App represents the main TUI application
 type App struct {
-	config  *config.Config
-	screen  Screen
-	width   int
-	height  int
-	
+	config *config.Config
+	screen Screen
+	width  int
+	height int
+
 	// Screen models
 	selection  *screens.SelectionModel
 	config_    *screens.ConfigModel
 	progress   *screens.ProgressModel
 	completion *screens.CompletionModel
-	
+
 	// Shared state
 	selectedRepos []config.RepositorySelection
 	workspaceReq  *config.WorkspaceRequest
-	
+
 	// Key bindings
 	keys keyMap
 }
 
 type keyMap struct {
-	Quit   key.Binding
-	Back   key.Binding
-	Help   key.Binding
+	Quit key.Binding
+	Back key.Binding
+	Help key.Binding
 }
 
 var defaultKeys = keyMap{
@@ -67,10 +67,10 @@ func NewApp(cfg *config.Config) *App {
 		screen: SelectionScreen,
 		keys:   defaultKeys,
 	}
-	
+
 	// Initialize screens
 	app.selection = screens.NewSelectionModel(cfg)
-	
+
 	return app
 }
 
@@ -85,7 +85,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		a.width = msg.Width
 		a.height = msg.Height
-		
+
 		// Update all screen models with new size
 		if a.selection != nil {
 			a.selection.SetSize(msg.Width, msg.Height)
@@ -99,9 +99,9 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if a.completion != nil {
 			a.completion.SetSize(msg.Width, msg.Height)
 		}
-		
+
 		return a, nil
-		
+
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, a.keys.Quit):
@@ -109,20 +109,20 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, a.keys.Back):
 			return a.handleBack()
 		}
-		
+
 	case screens.NavigateToConfigMsg:
 		return a.navigateToConfig(msg)
-		
+
 	case screens.NavigateToProgressMsg:
 		return a.navigateToProgress(msg)
-		
+
 	case screens.NavigateToCompletionMsg:
 		return a.navigateToCompletion(msg)
-		
+
 	case screens.QuitMsg:
 		return a, tea.Quit
 	}
-	
+
 	// Route to current screen
 	return a.updateCurrentScreen(msg)
 }
@@ -147,13 +147,13 @@ func (a *App) View() string {
 			return a.completion.View()
 		}
 	}
-	
+
 	return "Loading..."
 }
 
 func (a *App) updateCurrentScreen(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
-	
+
 	switch a.screen {
 	case SelectionScreen:
 		if a.selection != nil {
@@ -180,7 +180,7 @@ func (a *App) updateCurrentScreen(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.completion = model.(*screens.CompletionModel)
 		}
 	}
-	
+
 	return a, cmd
 }
 
@@ -207,40 +207,40 @@ func (a *App) handleBack() (tea.Model, tea.Cmd) {
 func (a *App) navigateToConfig(msg screens.NavigateToConfigMsg) (tea.Model, tea.Cmd) {
 	a.selectedRepos = msg.SelectedRepos
 	a.screen = ConfigScreen
-	
+
 	if a.config_ == nil {
 		a.config_ = screens.NewConfigModel(a.config, a.selectedRepos)
 		a.config_.SetSize(a.width, a.height)
 	} else {
 		a.config_.SetSelectedRepos(a.selectedRepos)
 	}
-	
+
 	return a, a.config_.Init()
 }
 
 func (a *App) navigateToProgress(msg screens.NavigateToProgressMsg) (tea.Model, tea.Cmd) {
 	a.workspaceReq = msg.WorkspaceRequest
 	a.screen = ProgressScreen
-	
+
 	if a.progress == nil {
 		a.progress = screens.NewProgressModel(a.workspaceReq)
 		a.progress.SetSize(a.width, a.height)
 	} else {
 		a.progress.SetWorkspaceRequest(a.workspaceReq)
 	}
-	
+
 	return a, a.progress.Init()
 }
 
 func (a *App) navigateToCompletion(msg screens.NavigateToCompletionMsg) (tea.Model, tea.Cmd) {
 	a.screen = CompletionScreen
-	
+
 	if a.completion == nil {
 		a.completion = screens.NewCompletionModel(a.workspaceReq, msg.Success, msg.Error)
 		a.completion.SetSize(a.width, a.height)
 	} else {
 		a.completion.SetResult(a.workspaceReq, msg.Success, msg.Error)
 	}
-	
+
 	return a, a.completion.Init()
 }

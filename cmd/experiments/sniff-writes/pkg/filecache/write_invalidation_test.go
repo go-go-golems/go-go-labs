@@ -6,11 +6,11 @@ import (
 
 func TestWriteInvalidation(t *testing.T) {
 	tests := []struct {
-		name     string
-		initial  []*Segment
-		writeOff uint64
+		name      string
+		initial   []*Segment
+		writeOff  uint64
 		writeData []byte
-		expected []*Segment
+		expected  []*Segment
 	}{
 		{
 			name: "write completely replaces segment",
@@ -139,11 +139,11 @@ func TestWriteInvalidation(t *testing.T) {
 
 func TestWriteInvalidationComplexCases(t *testing.T) {
 	tests := []struct {
-		name     string
-		initial  []*Segment
-		writeOff uint64
+		name      string
+		initial   []*Segment
+		writeOff  uint64
 		writeData []byte
-		expected []*Segment
+		expected  []*Segment
 	}{
 		{
 			name: "write covers multiple complete segments",

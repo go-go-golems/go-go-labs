@@ -149,4 +149,4 @@ func (m *Model) normalizeKey(msg tea.KeyMsg) string {
 // GetStateMachine returns the state machine for testing
 func (m *Model) GetStateMachine() *state.StateMachine {
 	return m.stateMachine
-} 
+}

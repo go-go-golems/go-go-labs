@@ -22,7 +22,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-
 	mystorage "github.com/go-go-golems/go-go-labs/cmd/experiments/remote-chatgpt-connector/pkg/storage"
 )
 
@@ -37,10 +36,10 @@ type OIDCProvider struct {
 
 // OIDCConfig holds configuration for the OIDC provider
 type OIDCConfig struct {
-	Issuer         string
-	Port           int
-	SigningKey     *rsa.PrivateKey
-	DefaultUser    string
+	Issuer          string
+	Port            int
+	SigningKey      *rsa.PrivateKey
+	DefaultUser     string
 	DefaultPassword string
 }
 
@@ -50,7 +49,7 @@ func NewOIDCProvider(config *OIDCConfig) (*OIDCProvider, error) {
 
 	// Create Fosite's built-in memory storage
 	store := storage.NewMemoryStore()
-	
+
 	// Create our custom storage for user management and client registration
 	mystore := mystorage.NewMemoryStore()
 
@@ -66,16 +65,16 @@ func NewOIDCProvider(config *OIDCConfig) (*OIDCProvider, error) {
 
 	// Create Fosite configuration
 	fositeConfig := &fosite.Config{
-		GlobalSecret:                   []byte("global-secret-for-hmac-tokens-32bytes!!"),
-		AccessTokenLifespan:            time.Hour,
-		RefreshTokenLifespan:           time.Hour * 24,
-		AuthorizeCodeLifespan:          time.Minute * 10,
-		IDTokenLifespan:                time.Hour,
-		IDTokenIssuer:                  config.Issuer,
-		HashCost:                       12, // bcrypt cost
-		SendDebugMessagesToClients:     true, // Enable for development
-		EnforcePKCE:                    true, // Require PKCE
-		EnforcePKCEForPublicClients:    true,
+		GlobalSecret:                []byte("global-secret-for-hmac-tokens-32bytes!!"),
+		AccessTokenLifespan:         time.Hour,
+		RefreshTokenLifespan:        time.Hour * 24,
+		AuthorizeCodeLifespan:       time.Minute * 10,
+		IDTokenLifespan:             time.Hour,
+		IDTokenIssuer:               config.Issuer,
+		HashCost:                    12,   // bcrypt cost
+		SendDebugMessagesToClients:  true, // Enable for development
+		EnforcePKCE:                 true, // Require PKCE
+		EnforcePKCEForPublicClients: true,
 	}
 
 	// Create HMAC strategy for access/refresh tokens
@@ -96,7 +95,7 @@ func NewOIDCProvider(config *OIDCConfig) (*OIDCProvider, error) {
 		},
 		// Core OAuth2 flows
 		compose.OAuth2AuthorizeExplicitFactory,
-		compose.OAuth2TokenIntrospectionFactory, 
+		compose.OAuth2TokenIntrospectionFactory,
 		compose.OAuth2TokenRevocationFactory,
 		compose.OAuth2RefreshTokenGrantFactory,
 		compose.OAuth2PKCEFactory,
@@ -117,19 +116,19 @@ func NewOIDCProvider(config *OIDCConfig) (*OIDCProvider, error) {
 // DynamicClientRegistration handles POST /register for client registration
 func (p *OIDCProvider) DynamicClientRegistration(w http.ResponseWriter, r *http.Request) {
 	logger := p.logger.With().Str("handler", "register").Logger()
-	
+
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	var regReq struct {
-		RedirectURIs               []string `json:"redirect_uris"`
-		GrantTypes                 []string `json:"grant_types,omitempty"`
-		ResponseTypes              []string `json:"response_types,omitempty"`
-		ClientName                 string   `json:"client_name,omitempty"`
-		TokenEndpointAuthMethod    string   `json:"token_endpoint_auth_method,omitempty"`
-		Scope                      string   `json:"scope,omitempty"`
+		RedirectURIs            []string `json:"redirect_uris"`
+		GrantTypes              []string `json:"grant_types,omitempty"`
+		ResponseTypes           []string `json:"response_types,omitempty"`
+		ClientName              string   `json:"client_name,omitempty"`
+		TokenEndpointAuthMethod string   `json:"token_endpoint_auth_method,omitempty"`
+		Scope                   string   `json:"scope,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&regReq); err != nil {
@@ -168,7 +167,7 @@ func (p *OIDCProvider) DynamicClientRegistration(w http.ResponseWriter, r *http.
 
 	// Determine if public client
 	publicClient := regReq.TokenEndpointAuthMethod == "none" || regReq.TokenEndpointAuthMethod == ""
-	
+
 	// Generate client credentials
 	clientID := p.mystore.GenerateClientID()
 	var clientSecret string
@@ -199,7 +198,7 @@ func (p *OIDCProvider) DynamicClientRegistration(w http.ResponseWriter, r *http.
 
 	// Store the client in fosite storage
 	p.store.Clients[clientID] = client
-	
+
 	// Also store in our custom storage for tracking
 	if err := p.mystore.CreateClient(client); err != nil {
 		logger.Error().Err(err).Msg("failed to store client in custom storage")
@@ -209,11 +208,11 @@ func (p *OIDCProvider) DynamicClientRegistration(w http.ResponseWriter, r *http.
 
 	// Prepare response
 	resp := map[string]interface{}{
-		"client_id":         clientID,
+		"client_id":           clientID,
 		"client_id_issued_at": time.Now().Unix(),
-		"redirect_uris":     regReq.RedirectURIs,
-		"grant_types":       regReq.GrantTypes,
-		"response_types":    regReq.ResponseTypes,
+		"redirect_uris":       regReq.RedirectURIs,
+		"grant_types":         regReq.GrantTypes,
+		"response_types":      regReq.ResponseTypes,
 	}
 
 	if !publicClient {
@@ -302,16 +301,16 @@ func (p *OIDCProvider) AuthorizeHandler(w http.ResponseWriter, r *http.Request) 
 				ExpiresAt: time.Now().Add(time.Hour),
 				AuthTime:  time.Now(),
 			},
-			Headers:    &jwt.Headers{},
-			ExpiresAt:  map[fosite.TokenType]time.Time{},
-			Username:   user.Username,
-			Subject:    user.Subject,
+			Headers:   &jwt.Headers{},
+			ExpiresAt: map[fosite.TokenType]time.Time{},
+			Username:  user.Username,
+			Subject:   user.Subject,
 		}
 
 		// Create authorize response (generates code)
 		response, err := p.provider.NewAuthorizeResponse(ctx, authReq, session)
 		if err != nil {
-			logger.Error().Err(err).Msg("failed to create authorize response") 
+			logger.Error().Err(err).Msg("failed to create authorize response")
 			p.provider.WriteAuthorizeError(ctx, w, authReq, err)
 			return
 		}
@@ -394,12 +393,12 @@ func ExtractBearerToken(authHeader string) string {
 	if authHeader == "" {
 		return ""
 	}
-	
+
 	parts := strings.SplitN(authHeader, " ", 2)
 	if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
 		return ""
 	}
-	
+
 	return parts[1]
 }
 
@@ -407,7 +406,7 @@ func ExtractBearerToken(authHeader string) string {
 func (p *OIDCProvider) showLoginForm(w http.ResponseWriter, r *http.Request) {
 	// Include all query parameters in form action to maintain state
 	queryParams := r.URL.RawQuery
-	
+
 	html := fmt.Sprintf(`
 <!DOCTYPE html>
 <html>

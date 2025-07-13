@@ -19,7 +19,7 @@ type CompletionModel struct {
 	err          error
 	width        int
 	height       int
-	
+
 	// Key bindings
 	keys completionKeyMap
 }
@@ -69,7 +69,7 @@ func (m *CompletionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	}
-	
+
 	return m, nil
 }
 

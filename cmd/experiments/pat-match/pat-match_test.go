@@ -32,10 +32,10 @@ func TestPatMatch(t *testing.T) {
 
 		// 2. Constant Matching
 		{
-			name:        "Constant matches same",
-			pattern:     Const("a"),
-			input:       "a",
-			shouldMatch: true,
+			name:             "Constant matches same",
+			pattern:          Const("a"),
+			input:            "a",
+			shouldMatch:      true,
 			expectedBindings: nil,
 		},
 		{

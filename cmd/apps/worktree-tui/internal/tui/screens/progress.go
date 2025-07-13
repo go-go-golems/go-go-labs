@@ -21,10 +21,10 @@ type ProgressModel struct {
 	workspaceReq *config.WorkspaceRequest
 	width        int
 	height       int
-	
+
 	// UI components
 	progressBar progress.Model
-	
+
 	// State
 	currentStep int
 	totalSteps  int
@@ -33,7 +33,7 @@ type ProgressModel struct {
 	completed   bool
 	success     bool
 	err         error
-	
+
 	// Key bindings
 	keys progressKeyMap
 }
@@ -97,19 +97,19 @@ func (m *ProgressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.currentStep = msg.step
 		m.totalSteps = msg.total
 		m.currentTask = msg.currentTask
-		
+
 		if msg.logMessage != "" {
 			m.logs = append(m.logs, logEntry{
 				timestamp: time.Now(),
 				message:   msg.logMessage,
 			})
-			
+
 			// Keep only the last 10 log entries
 			if len(m.logs) > 10 {
 				m.logs = m.logs[len(m.logs)-10:]
 			}
 		}
-		
+
 		progress := float64(m.currentStep) / float64(m.totalSteps)
 		return m, m.progressBar.SetPercent(progress)
 
@@ -117,7 +117,7 @@ func (m *ProgressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.completed = true
 		m.success = msg.Success
 		m.err = msg.Error
-		
+
 		return m, func() tea.Msg {
 			return NavigateToCompletionMsg{
 				Success: msg.Success,
@@ -176,7 +176,7 @@ func (m *ProgressModel) renderProgress() string {
 		MarginBottom(1)
 
 	steps := make([]string, m.totalSteps)
-	
+
 	// Directory creation
 	if m.currentStep > 0 {
 		steps[0] = "✓ Creating workspace directory"
@@ -255,7 +255,7 @@ func (m *ProgressModel) renderLogs() string {
 	logLines := make([]string, len(m.logs))
 	for i, entry := range m.logs {
 		timestamp := entry.timestamp.Format("15:04:05")
-		logLines[i] = fmt.Sprintf("%s │ %s", 
+		logLines[i] = fmt.Sprintf("%s │ %s",
 			lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render(timestamp),
 			entry.message)
 	}
@@ -317,47 +317,47 @@ func (m *ProgressModel) SetWorkspaceRequest(req *config.WorkspaceRequest) {
 func (m *ProgressModel) startWorkspaceCreation() tea.Cmd {
 	return func() tea.Msg {
 		manager := workspace.NewManager()
-		
+
 		// Create a context that can be cancelled
 		ctx := context.Background()
-		
+
 		// Create progress channel
 		progressCh := make(chan progressTickMsg, 10)
-		
+
 		// Start workspace creation in a goroutine
 		go func() {
 			defer close(progressCh)
-			
+
 			err := manager.CreateWorkspace(ctx, m.workspaceReq, func(step, total int, task, logMsg string) {
-			select {
-			case progressCh <- progressTickMsg{
-			step:        step,
-			total:       total,
-			currentTask: task,
-			logMessage:  logMsg,
-			}:
-			case <-ctx.Done():
-			return
-			}
+				select {
+				case progressCh <- progressTickMsg{
+					step:        step,
+					total:       total,
+					currentTask: task,
+					logMessage:  logMsg,
+				}:
+				case <-ctx.Done():
+					return
+				}
 			})
-			
+
 			// Send completion message with result
 			select {
 			case progressCh <- progressTickMsg{
-			step:        m.totalSteps,
-			total:       m.totalSteps,
-			currentTask: "",
-			logMessage:  fmt.Sprintf("Workspace creation completed (success: %t)", err == nil),
+				step:        m.totalSteps,
+				total:       m.totalSteps,
+				currentTask: "",
+				logMessage:  fmt.Sprintf("Workspace creation completed (success: %t)", err == nil),
 			}:
 			case <-ctx.Done():
-			return
+				return
 			}
-			
+
 			// TODO: Send final completion result through proper channel
 			// For now, this is a simplified implementation
 			_ = err // Acknowledge the error variable is captured
 		}()
-		
+
 		// Return the first progress update
 		select {
 		case msg := <-progressCh:

@@ -30,4 +30,4 @@ func GetScreenForState(appState state.AppState) Screen {
 	default:
 		return &MainScreen{}
 	}
-} 
+}

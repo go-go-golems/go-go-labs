@@ -28,4 +28,4 @@ func (fd *FilmDatabase) GetFilms() []Film {
 func (fd *FilmDatabase) GetFilmByID(id string) (Film, bool) {
 	film, ok := fd.Films[id]
 	return film, ok
-} 
+}

@@ -48,7 +48,7 @@ func NewOpenAIWhisperClient(config *OpenAIWhisperConfig) *OpenAIWhisperClient {
 	logger := log.With().
 		Str("component", "WhisperAPIClient").
 		Logger()
-		
+
 	if config == nil {
 		logger.Warn().Msg("No config provided, using default configuration")
 		config = DefaultOpenAIConfig()
@@ -62,7 +62,7 @@ func NewOpenAIWhisperClient(config *OpenAIWhisperConfig) *OpenAIWhisperClient {
 			logger.Error().Msg("No API key available from config or environment")
 		}
 	}
-	
+
 	// Mask the API key for logging (show last 4 chars)
 	var maskedKey string
 	if len(config.APIKey) > 4 {
@@ -72,12 +72,12 @@ func NewOpenAIWhisperClient(config *OpenAIWhisperConfig) *OpenAIWhisperClient {
 	} else {
 		maskedKey = "MISSING"
 	}
-	
+
 	// Create HTTP client with appropriate timeout
 	client := &http.Client{
 		Timeout: config.Timeout,
 	}
-	
+
 	logger.Info().
 		Str("model", config.Model).
 		Str("language", config.Language).
@@ -102,7 +102,7 @@ func (c *OpenAIWhisperClient) TranscribePCMWithAPI(samples []int16) error {
 	// Generate a unique ID for this transcription request
 	requestID := fmt.Sprintf("req-%s", time.Now().Format("20060102-150405.000000"))
 	audioDuration := float64(len(samples)) / float64(48000) // Assuming 48kHz sample rate
-	
+
 	// Calculate audio fingerprint for logging/debugging
 	audioHash := sha256.Sum256(binary.LittleEndian.AppendUint32(nil, uint32(samples[0])))
 	audioFingerprint := hex.EncodeToString(audioHash[:8]) // Use first 8 bytes for brevity
@@ -114,10 +114,10 @@ func (c *OpenAIWhisperClient) TranscribePCMWithAPI(samples []int16) error {
 		Float64("audioDuration", audioDuration).
 		Str("audioFingerprint", audioFingerprint).
 		Logger()
-	
+
 	startTime := time.Now()
 	logger.Info().Msg("Starting transcription request")
-	
+
 	// Validate configuration
 	if c.Config.APIKey == "" {
 		logger.Error().Msg("OpenAI API key is not set")
@@ -171,7 +171,7 @@ func (c *OpenAIWhisperClient) TranscribePCMWithAPI(samples []int16) error {
 		Float64("temperature", c.Config.Temperature).
 		Int("contentLength", body.Len()).
 		Msg("Sending request to Whisper API")
-		
+
 	resp, err := c.Client.Do(req)
 	if err != nil {
 		logger.Error().
@@ -181,7 +181,7 @@ func (c *OpenAIWhisperClient) TranscribePCMWithAPI(samples []int16) error {
 		return errors.Wrap(err, "failed to send HTTP request")
 	}
 	defer resp.Body.Close()
-	
+
 	requestDuration := time.Since(requestStartTime)
 
 	// Check the response status
@@ -190,7 +190,7 @@ func (c *OpenAIWhisperClient) TranscribePCMWithAPI(samples []int16) error {
 		Str("status", resp.Status).
 		Dur("requestDuration", requestDuration).
 		Msg("Received response from Whisper API")
-		
+
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
 		logger.Error().
@@ -215,7 +215,7 @@ func (c *OpenAIWhisperClient) TranscribePCMWithAPI(samples []int16) error {
 	totalDuration := time.Since(startTime)
 	transcriptionLength := len(result.Text)
 	wordsCount := len(bytes.Fields([]byte(result.Text)))
-	
+
 	// Send the transcription to the client
 	logger.Info().
 		Str("text", result.Text).
@@ -225,7 +225,7 @@ func (c *OpenAIWhisperClient) TranscribePCMWithAPI(samples []int16) error {
 		Dur("totalDuration", totalDuration).
 		Float64("processingRatio", totalDuration.Seconds()/audioDuration).
 		Msg("Received transcription from API")
-		
+
 	// Send the transcription to clients via SSE
 	sse.SendTranscription(result.Text)
 

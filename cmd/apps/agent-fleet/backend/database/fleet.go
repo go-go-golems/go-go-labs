@@ -56,12 +56,12 @@ func (db *DB) GetFleetStatus() (*models.FleetStatus, error) {
 func (db *DB) GetRecentUpdates(limit int, since *time.Time) ([]models.Event, error) {
 	query := "SELECT id, agent_id, type, message, metadata, timestamp FROM events"
 	args := []interface{}{}
-	
+
 	if since != nil {
 		query += " WHERE timestamp >= ?"
 		args = append(args, since)
 	}
-	
+
 	query += " ORDER BY timestamp DESC LIMIT ?"
 	args = append(args, limit)
 

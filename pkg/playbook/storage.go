@@ -102,7 +102,7 @@ func (s *Storage) initDB() error {
 func (s *Storage) CreateEntity(entity *Entity) error {
 	// Generate slug from title
 	entity.Slug = GenerateSlug(entity.Title)
-	
+
 	// Handle slug conflicts by appending numbers
 	originalSlug := entity.Slug
 	counter := 1

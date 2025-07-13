@@ -28,11 +28,11 @@ func NewApp(cfg *config.Config) *App {
 func (a *App) Run() error {
 	model := initialModel(a.config)
 	p := tea.NewProgram(model, tea.WithAltScreen())
-	
+
 	if _, err := p.Run(); err != nil {
 		return fmt.Errorf("failed to run TUI: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -48,7 +48,7 @@ type Model struct {
 	duration     time.Duration
 	extractAudio bool
 	audioFormat  string
-	
+
 	// UI state
 	activeField  int
 	processing   bool
@@ -56,9 +56,9 @@ type Model struct {
 	messageStyle lipgloss.Style
 	inputMode    bool
 	inputBuffer  string
-	
+
 	// Status
-	videoInfo    *video.VideoInfo
+	videoInfo *video.VideoInfo
 }
 
 // Field constants for navigation
@@ -80,71 +80,71 @@ const (
 // Styles
 var (
 	titleStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#FFFFFF")).
-		Background(lipgloss.Color("#0000AA")).
-		Bold(true).
-		Padding(0, 1)
+			Foreground(lipgloss.Color("#FFFFFF")).
+			Background(lipgloss.Color("#0000AA")).
+			Bold(true).
+			Padding(0, 1)
 
 	headerStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#FFFFFF")).
-		Background(lipgloss.Color("#0000AA")).
-		Bold(true)
+			Foreground(lipgloss.Color("#FFFFFF")).
+			Background(lipgloss.Color("#0000AA")).
+			Bold(true)
 
 	boxStyle = lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("#AAAAAA")).
-		Padding(0, 1)
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#AAAAAA")).
+			Padding(0, 1)
 
 	activeBoxStyle = lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("#FFFF00")).
-		Padding(0, 1)
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#FFFF00")).
+			Padding(0, 1)
 
 	fieldLabelStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#FFFFFF")).
-		Bold(true).
-		Width(18)
+			Foreground(lipgloss.Color("#FFFFFF")).
+			Bold(true).
+			Width(18)
 
 	fieldValueStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#00FFFF")).
-		Background(lipgloss.Color("#000080")).
-		Padding(0, 1).
-		Width(25)
+			Foreground(lipgloss.Color("#00FFFF")).
+			Background(lipgloss.Color("#000080")).
+			Padding(0, 1).
+			Width(25)
 
 	activeFieldStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#000000")).
-		Background(lipgloss.Color("#FFFF00")).
-		Padding(0, 1).
-		Width(25)
+				Foreground(lipgloss.Color("#000000")).
+				Background(lipgloss.Color("#FFFF00")).
+				Padding(0, 1).
+				Width(25)
 
 	buttonStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#000000")).
-		Background(lipgloss.Color("#00FF00")).
-		Bold(true).
-		Padding(0, 2)
+			Foreground(lipgloss.Color("#000000")).
+			Background(lipgloss.Color("#00FF00")).
+			Bold(true).
+			Padding(0, 2)
 
 	activeButtonStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#FFFFFF")).
-		Background(lipgloss.Color("#FF0000")).
-		Bold(true).
-		Padding(0, 2)
+				Foreground(lipgloss.Color("#FFFFFF")).
+				Background(lipgloss.Color("#FF0000")).
+				Bold(true).
+				Padding(0, 2)
 
 	statusStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#FFFF00")).
-		Background(lipgloss.Color("#000080")).
-		Padding(0, 1)
+			Foreground(lipgloss.Color("#FFFF00")).
+			Background(lipgloss.Color("#000080")).
+			Padding(0, 1)
 
 	errorStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#FFFFFF")).
-		Background(lipgloss.Color("#FF0000")).
-		Bold(true).
-		Padding(0, 1)
+			Foreground(lipgloss.Color("#FFFFFF")).
+			Background(lipgloss.Color("#FF0000")).
+			Bold(true).
+			Padding(0, 1)
 
 	successStyle = lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#000000")).
-		Background(lipgloss.Color("#00FF00")).
-		Bold(true).
-		Padding(0, 1)
+			Foreground(lipgloss.Color("#000000")).
+			Background(lipgloss.Color("#00FF00")).
+			Bold(true).
+			Padding(0, 1)
 )
 
 func initialModel(cfg *config.Config) Model {
@@ -162,14 +162,14 @@ func initialModel(cfg *config.Config) Model {
 		activeField:  0,
 		messageStyle: statusStyle,
 	}
-	
+
 	// If input file was provided, try to get video info
 	if model.fileInput != "" {
 		if info, err := video.GetVideoInfo(model.fileInput); err == nil {
 			model.videoInfo = info
 		}
 	}
-	
+
 	return model
 }
 
@@ -234,7 +234,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
-	
+
 	return m, nil
 }
 
@@ -357,13 +357,11 @@ func (m Model) handleFieldDecrement() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-
-
 func (m Model) startProcessing() tea.Cmd {
 	m.processing = true
 	m.message = "Processing..."
 	m.messageStyle = statusStyle
-	
+
 	return func() tea.Msg {
 		// Create config for processing
 		cfg := &config.Config{
@@ -372,9 +370,9 @@ func (m Model) startProcessing() tea.Cmd {
 			ExtractAudio: m.extractAudio,
 			AudioFormat:  m.audioFormat,
 		}
-		
+
 		var err error
-		
+
 		switch m.splitMode {
 		case config.SplitModeEqual:
 			cfg.Segments = m.segments
@@ -393,7 +391,7 @@ func (m Model) startProcessing() tea.Cmd {
 			cfg.Overlap = m.overlap
 			err = video.SplitByDuration(cfg)
 		}
-		
+
 		return processMsg{err: err}
 	}
 }
@@ -404,27 +402,27 @@ type processMsg struct {
 
 func (m Model) View() string {
 	var content strings.Builder
-	
+
 	// Title bar
 	title := titleStyle.Render(" SPLIT-VIDEO v1.0 - Professional Video Splitting Tool ")
 	content.WriteString(title + "\n\n")
-	
+
 	// Video info section
 	if m.videoInfo != nil {
 		duration := m.videoInfo.Duration.Truncate(time.Second)
-		videoInfoText := fmt.Sprintf("Video: %dx%d @ %d kbps | Duration: %v", 
+		videoInfoText := fmt.Sprintf("Video: %dx%d @ %d kbps | Duration: %v",
 			m.videoInfo.Width, m.videoInfo.Height, m.videoInfo.Bitrate/1000, duration)
 		content.WriteString(statusStyle.Render(videoInfoText) + "\n\n")
 	}
-	
+
 	// Main form layout
 	leftColumn := m.renderLeftColumn()
 	rightColumn := m.renderRightColumn()
-	
+
 	// Create two-column layout
 	leftBox := boxStyle.Render(leftColumn)
 	rightBox := boxStyle.Render(rightColumn)
-	
+
 	if m.activeField >= FieldFileInput && m.activeField <= FieldAudioFormat {
 		if m.activeField <= FieldIntervals {
 			leftBox = activeBoxStyle.Render(leftColumn)
@@ -432,33 +430,33 @@ func (m Model) View() string {
 			rightBox = activeBoxStyle.Render(rightColumn)
 		}
 	}
-	
+
 	columns := lipgloss.JoinHorizontal(lipgloss.Top, leftBox, "  ", rightBox)
 	content.WriteString(columns + "\n\n")
-	
+
 	// Action buttons
 	content.WriteString(m.renderButtons() + "\n\n")
-	
+
 	// Function keys help
 	help := "F1:File F2:Mode F3:Process F4:Quit | ↑↓:Navigate ←→:Change ⏎:Edit/Action"
 	content.WriteString(statusStyle.Render(help) + "\n")
-	
+
 	// Status/message line
 	if m.message != "" {
 		content.WriteString("\n" + m.messageStyle.Render(m.message))
 	}
-	
+
 	if m.processing {
 		content.WriteString("\n" + statusStyle.Render("█ Processing video... Please wait █"))
 	}
-	
+
 	return content.String()
 }
 
 func (m Model) renderLeftColumn() string {
 	var content strings.Builder
 	content.WriteString(headerStyle.Render(" INPUT & OUTPUT ") + "\n\n")
-	
+
 	// File input
 	fileValue := m.fileInput
 	if m.inputMode && m.activeField == FieldFileInput {
@@ -467,35 +465,35 @@ func (m Model) renderLeftColumn() string {
 	if fileValue == "" {
 		fileValue = "<none selected>"
 	}
-	
+
 	style := fieldValueStyle
 	if m.activeField == FieldFileInput {
 		style = activeFieldStyle
 	}
 	content.WriteString(fieldLabelStyle.Render("Input File:") + " " + style.Render(fileValue) + "\n")
-	
+
 	// Output directory
 	outputValue := m.outputDir
 	if m.inputMode && m.activeField == FieldOutputDir {
 		outputValue = m.inputBuffer + "█"
 	}
-	
+
 	style = fieldValueStyle
 	if m.activeField == FieldOutputDir {
 		style = activeFieldStyle
 	}
 	content.WriteString(fieldLabelStyle.Render("Output Dir:") + " " + style.Render(outputValue) + "\n\n")
-	
+
 	// Split mode
 	modes := []string{"Equal Segments", "Time Intervals", "Duration Based"}
 	modeValue := modes[m.splitMode]
-	
+
 	style = fieldValueStyle
 	if m.activeField == FieldSplitMode {
 		style = activeFieldStyle
 	}
 	content.WriteString(fieldLabelStyle.Render("Split Mode:") + " " + style.Render(modeValue) + "\n")
-	
+
 	// Mode-specific fields
 	switch m.splitMode {
 	case config.SplitModeEqual:
@@ -505,7 +503,7 @@ func (m Model) renderLeftColumn() string {
 			style = activeFieldStyle
 		}
 		content.WriteString(fieldLabelStyle.Render("Segments:") + " " + style.Render(segmentValue) + "\n")
-		
+
 	case config.SplitModeTime:
 		intervalValue := m.intervals
 		if m.inputMode && m.activeField == FieldIntervals {
@@ -516,7 +514,7 @@ func (m Model) renderLeftColumn() string {
 			style = activeFieldStyle
 		}
 		content.WriteString(fieldLabelStyle.Render("Intervals:") + " " + style.Render(intervalValue) + "\n")
-		
+
 	case config.SplitModeDuration:
 		durationValue := m.duration.String()
 		style = fieldValueStyle
@@ -525,7 +523,7 @@ func (m Model) renderLeftColumn() string {
 		}
 		content.WriteString(fieldLabelStyle.Render("Duration:") + " " + style.Render(durationValue) + "\n")
 	}
-	
+
 	// Overlap (for equal and duration modes)
 	if m.splitMode != config.SplitModeTime {
 		overlapValue := m.overlap.String()
@@ -535,26 +533,26 @@ func (m Model) renderLeftColumn() string {
 		}
 		content.WriteString(fieldLabelStyle.Render("Overlap:") + " " + style.Render(overlapValue) + "\n")
 	}
-	
+
 	return content.String()
 }
 
 func (m Model) renderRightColumn() string {
 	var content strings.Builder
 	content.WriteString(headerStyle.Render(" AUDIO OPTIONS ") + "\n\n")
-	
+
 	// Extract audio
 	audioValue := "No"
 	if m.extractAudio {
 		audioValue = "Yes"
 	}
-	
+
 	style := fieldValueStyle
 	if m.activeField == FieldExtractAudio {
 		style = activeFieldStyle
 	}
 	content.WriteString(fieldLabelStyle.Render("Extract Audio:") + " " + style.Render(audioValue) + "\n")
-	
+
 	// Audio format (only if extracting)
 	if m.extractAudio {
 		formatValue := strings.ToUpper(m.audioFormat)
@@ -564,10 +562,10 @@ func (m Model) renderRightColumn() string {
 		}
 		content.WriteString(fieldLabelStyle.Render("Audio Format:") + " " + style.Render(formatValue) + "\n")
 	}
-	
+
 	content.WriteString("\n")
 	content.WriteString(headerStyle.Render(" PREVIEW ") + "\n\n")
-	
+
 	// Show preview of what will be created
 	if m.fileInput != "" {
 		switch m.splitMode {
@@ -587,35 +585,33 @@ func (m Model) renderRightColumn() string {
 				content.WriteString(fmt.Sprintf("of %v each\n", m.duration))
 			}
 		}
-		
+
 		if m.extractAudio {
 			content.WriteString(fmt.Sprintf("+ Audio files (%s)\n", m.audioFormat))
 		}
 	} else {
 		content.WriteString("Select input file to preview\n")
 	}
-	
+
 	return content.String()
 }
 
 func (m Model) renderButtons() string {
 	var buttons []string
-	
+
 	// Process button
 	processStyle := buttonStyle
 	if m.activeField == FieldProcess {
 		processStyle = activeButtonStyle
 	}
 	buttons = append(buttons, processStyle.Render("▶ PROCESS"))
-	
-	// Quit button  
+
+	// Quit button
 	quitStyle := buttonStyle
 	if m.activeField == FieldQuit {
 		quitStyle = activeButtonStyle
 	}
 	buttons = append(buttons, quitStyle.Render("✖ QUIT"))
-	
+
 	return lipgloss.JoinHorizontal(lipgloss.Center, buttons...)
 }
-
-

@@ -14,12 +14,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/coder/hnsw"
 	"github.com/mattn/go-sqlite3"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
-	"github.com/coder/hnsw"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 type OllamaEmbeddingRequest struct {
@@ -47,7 +47,7 @@ func NewOllamaClient(baseURL, model string, logger zerolog.Logger) *OllamaClient
 
 func (c *OllamaClient) GetEmbedding(ctx context.Context, text string) ([]float64, error) {
 	c.logger.Debug().Str("text", text).Msg("getting embedding")
-	
+
 	reqData := OllamaEmbeddingRequest{
 		Model:  c.Model,
 		Prompt: text,
@@ -109,8 +109,8 @@ func cosineSimilarity(a, b []float64) float64 {
 
 // Global references for auto-registration on each connection
 var (
-	hnswModule    *HNSWModule
-	globalOllama  *OllamaClient
+	hnswModule   *HNSWModule
+	globalOllama *OllamaClient
 )
 
 // Custom SQLite driver that registers functions on every connection
@@ -169,7 +169,7 @@ func registerFunctionsOnConnection(conn *sqlite3.SQLiteConn) error {
 	// Register cosine similarity function
 	conn.RegisterFunc("cosine_similarity", func(a, b string) float64 {
 		var vecA, vecB []float64
-		
+
 		if err := json.Unmarshal([]byte(a), &vecA); err != nil {
 			return 0
 		}
@@ -216,19 +216,19 @@ func mustVec(blob []byte, dim int) []float32 {
 		// Return zero vector for empty input
 		return make([]float32, dim)
 	}
-	
+
 	var f64 []float64
 	err := json.Unmarshal(blob, &f64)
 	if err != nil {
 		// Return zero vector for invalid JSON
 		return make([]float32, dim)
 	}
-	
+
 	if len(f64) != dim {
 		// Return zero vector for dimension mismatch
 		return make([]float32, dim)
 	}
-	
+
 	v := make([]float32, dim)
 	for i, x := range f64 {
 		v[i] = float32(x)
@@ -266,7 +266,7 @@ func (m *HNSWModule) Create(c *sqlite3.SQLiteConn, args []string) (sqlite3.VTab,
 	mInt, _ := strconv.Atoi(cfg["m"])
 	ef, _ := strconv.Atoi(cfg["ef"])
 	idx := hnsw.NewGraph[int]()
-	
+
 	// Configure the graph with parameters
 	idx.M = mInt
 	idx.EfSearch = ef
@@ -290,7 +290,7 @@ func (m *HNSWModule) Connect(c *sqlite3.SQLiteConn, args []string) (sqlite3.VTab
 func (m *HNSWModule) DestroyModule() {}
 
 // Module interface requires these methods
-func (m *HNSWModule) SaveModule() error { 
+func (m *HNSWModule) SaveModule() error {
 	m.Save()
 	return nil
 }
@@ -366,10 +366,10 @@ func (c *HNSWCursor) Column(ctx *sqlite3.SQLiteContext, col int) error {
 	return nil
 }
 
-func (c *HNSWCursor) Next() error                { c.pos++; return nil }
-func (c *HNSWCursor) EOF() bool                  { return c.pos >= len(c.rowids) }
-func (c *HNSWCursor) Rowid() (int64, error)     { return int64(c.rowids[c.pos]), nil }
-func (c *HNSWCursor) Close() error              { return nil }
+func (c *HNSWCursor) Next() error           { c.pos++; return nil }
+func (c *HNSWCursor) EOF() bool             { return c.pos >= len(c.rowids) }
+func (c *HNSWCursor) Rowid() (int64, error) { return int64(c.rowids[c.pos]), nil }
+func (c *HNSWCursor) Close() error          { return nil }
 
 func (t *HNSWTable) add(id int, blob []byte) {
 	node := hnsw.MakeNode(id, mustVec(blob, t.dim))
@@ -507,17 +507,17 @@ func jsonToVec32(jsonStr string) []float32 {
 	if jsonStr == "" || jsonStr == "[]" {
 		return make([]float32, 384) // Return zero vector for empty input
 	}
-	
+
 	var f64 []float64
 	err := json.Unmarshal([]byte(jsonStr), &f64)
 	if err != nil {
 		return make([]float32, 384) // Return zero vector for invalid JSON
 	}
-	
+
 	if len(f64) == 0 {
 		return make([]float32, 384) // Return zero vector for empty array
 	}
-	
+
 	v := make([]float32, len(f64))
 	for i, x := range f64 {
 		v[i] = float32(x)
@@ -528,18 +528,18 @@ func jsonToVec32(jsonStr string) []float32 {
 // bootstrapIndex loads persisted HNSW graph and performs catch-up scan
 func bootstrapIndex(db *sql.DB, logger zerolog.Logger) error {
 	logger.Info().Msg("bootstrapping HNSW index")
-	
+
 	// Force virtual table creation by accessing it once
 	_, err := db.Query("SELECT rowid, distance FROM vss WHERE 0=1 LIMIT 1")
 	if err != nil {
 		logger.Debug().Err(err).Msg("virtual table access failed, will try direct initialization")
 	}
-	
+
 	if hnswModule == nil || hnswModule.table == nil {
 		logger.Warn().Msg("HNSW module not initialized, skipping bootstrap (index will sync via triggers)")
 		return nil
 	}
-	
+
 	// 1. Try to load persisted graph
 	path := hnswModule.table.path
 	if path != "" {
@@ -596,7 +596,7 @@ func bootstrapIndex(db *sql.DB, logger zerolog.Logger) error {
 			logger.Error().Err(err).Msg("failed to scan document row")
 			continue
 		}
-		
+
 		// Add to HNSW index
 		node := hnsw.MakeNode(id, jsonToVec32(embJSON))
 		hnswModule.table.idx.Add(node)

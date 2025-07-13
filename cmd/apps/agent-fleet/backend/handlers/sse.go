@@ -37,10 +37,10 @@ type SSEEvent struct {
 // NewSSEManager creates a new SSE manager
 func NewSSEManager() *SSEManager {
 	manager := &SSEManager{}
-	
+
 	// Start cleanup routine for dead connections
 	go manager.cleanupRoutine()
-	
+
 	return manager
 }
 
@@ -48,7 +48,7 @@ func NewSSEManager() *SSEManager {
 func (m *SSEManager) cleanupRoutine() {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
-	
+
 	for range ticker.C {
 		now := time.Now()
 		m.clients.Range(func(key, value interface{}) bool {

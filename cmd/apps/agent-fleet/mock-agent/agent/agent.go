@@ -43,57 +43,57 @@ type Agent struct {
 	client   *client.Client
 	state    AgentState
 	scenario *scenarios.Scenario
-	
+
 	// Agent metrics
-	filesChanged  int
-	linesAdded    int
-	linesRemoved  int
-	progress      int
-	currentTask   string
-	
+	filesChanged int
+	linesAdded   int
+	linesRemoved int
+	progress     int
+	currentTask  string
+
 	// Internal state
-	workStartTime    time.Time
-	lastCommitTime   time.Time
-	questionPosted   bool
-	pendingQuestion  string
-	registered       bool
-	todos            []models.TodoItem
-	
+	workStartTime   time.Time
+	lastCommitTime  time.Time
+	questionPosted  bool
+	pendingQuestion string
+	registered      bool
+	todos           []models.TodoItem
+
 	// Timing
 	lastTick         time.Time
 	lastCommandCheck time.Time
-	
+
 	// Randomization state
-	nextStateChange  time.Time
+	nextStateChange        time.Time
 	stateChangeProbability float64
 }
 
 // New creates a new mock agent
 func New(apiClient *client.Client, config Config) *Agent {
 	return &Agent{
-		config:               config,
-		client:               apiClient,
-		state:                StateStarting,
+		config:                 config,
+		client:                 apiClient,
+		state:                  StateStarting,
 		stateChangeProbability: 0.3, // 30% chance of random state change per tick
-		nextStateChange:      time.Now().Add(time.Duration(rand.Intn(60)) * time.Second),
+		nextStateChange:        time.Now().Add(time.Duration(rand.Intn(60)) * time.Second),
 	}
 }
 
 // Run starts the agent main loop
 func (a *Agent) Run(ctx context.Context) error {
 	log.Info().Str("name", a.config.Name).Msg("Agent starting up")
-	
+
 	// Register agent with the backend
 	if err := a.register(); err != nil {
 		return fmt.Errorf("failed to register agent: %w", err)
 	}
-	
+
 	// Start main loop
 	tickTicker := time.NewTicker(a.config.TickInterval)
 	commandTicker := time.NewTicker(a.config.CommandCheckInterval)
 	defer tickTicker.Stop()
 	defer commandTicker.Stop()
-	
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -118,31 +118,31 @@ func (a *Agent) register() error {
 		Name:     a.config.Name,
 		Worktree: a.config.Worktree,
 	}
-	
+
 	agent, err := a.client.CreateAgent(req)
 	if err != nil {
 		return err
 	}
-	
+
 	a.id = agent.ID
 	a.registered = true
-	
+
 	log.Info().Str("agent", a.id).Str("name", a.config.Name).Msg("Agent registered successfully")
-	
+
 	// Log startup event
 	_, err = a.client.CreateEvent(a.id, models.CreateEventRequest{
 		Type:    string(models.EventTypeStart),
 		Message: fmt.Sprintf("Agent %s started up", a.config.Name),
 		Metadata: map[string]interface{}{
-			"worktree": a.config.Worktree,
+			"worktree":   a.config.Worktree,
 			"randomized": a.config.Randomized,
 		},
 	})
-	
+
 	if err != nil {
 		log.Warn().Err(err).Msg("Failed to log startup event")
 	}
-	
+
 	// Initialize with a scenario if randomized mode is enabled
 	if a.config.Randomized {
 		a.selectNewScenario()
@@ -151,7 +151,7 @@ func (a *Agent) register() error {
 			return a.startScenario()
 		}
 	}
-	
+
 	a.state = StateIdle
 	return a.updateStatus()
 }
@@ -159,12 +159,12 @@ func (a *Agent) register() error {
 // tick performs one agent tick (main logic loop)
 func (a *Agent) tick() error {
 	a.lastTick = time.Now()
-	
+
 	// Handle randomized behavior
 	if a.config.Randomized {
 		a.handleRandomizedBehavior()
 	}
-	
+
 	// Execute current state logic
 	switch a.state {
 	case StateIdle:
@@ -189,26 +189,26 @@ func (a *Agent) handleIdleState() error {
 		Bool("randomized", a.config.Randomized).
 		Bool("has_scenario", a.scenario != nil).
 		Msg("Agent is idle")
-	
+
 	// Check for available tasks
 	tasks, err := a.client.ListTasks("pending", "", 10, 0)
 	if err != nil {
 		return fmt.Errorf("failed to list tasks: %w", err)
 	}
-	
+
 	// Pick up a task if available
 	taskRoll := rand.Float64()
 	log.Info().Str("agent", a.id).
 		Int("available_tasks", len(tasks)).
 		Float64("task_roll", taskRoll).
 		Msg("Checking for available tasks")
-	
+
 	if len(tasks) > 0 && taskRoll < 0.3 { // 30% chance to pick up task
 		task := tasks[rand.Intn(len(tasks))]
 		log.Info().Str("agent", a.id).Str("task", task.Title).Msg("Picking up assigned task")
 		return a.startTask(&task)
 	}
-	
+
 	// Start a random scenario if in randomized mode
 	scenarioRoll := rand.Float64()
 	log.Info().Str("agent", a.id).
@@ -216,7 +216,7 @@ func (a *Agent) handleIdleState() error {
 		Bool("no_scenario", a.scenario == nil).
 		Float64("scenario_roll", scenarioRoll).
 		Msg("Checking scenario conditions")
-	
+
 	if a.config.Randomized && scenarioRoll < 0.7 {
 		log.Info().Str("agent", a.id).Msg("Starting random scenario selection")
 		a.selectNewScenario()
@@ -229,7 +229,7 @@ func (a *Agent) handleIdleState() error {
 	} else {
 		log.Info().Str("agent", a.id).Msg("Scenario conditions not met - staying idle")
 	}
-	
+
 	return nil
 }
 
@@ -238,46 +238,46 @@ func (a *Agent) handleActiveState() error {
 	if a.scenario != nil {
 		return a.executeScenario()
 	}
-	
+
 	// Default active behavior - simulate work progress
 	elapsed := time.Since(a.workStartTime)
-	
+
 	// Update progress based on elapsed time
 	totalDuration := 5 * time.Minute // Assume 5 minute tasks
 	a.progress = int((elapsed.Seconds() / totalDuration.Seconds()) * 100)
 	if a.progress > 100 {
 		a.progress = 100
 	}
-	
+
 	// Simulate file changes
 	if rand.Float64() < 0.3 { // 30% chance per tick
 		a.filesChanged += rand.Intn(3) + 1
 		a.linesAdded += rand.Intn(50) + 5
 		a.linesRemoved += rand.Intn(20) + 1
 	}
-	
+
 	// Complete task if progress reaches 100%
 	if a.progress >= 100 {
 		return a.completeCurrentWork()
 	}
-	
+
 	// Random chance to ask question
 	if !a.questionPosted && rand.Float64() < 0.05 { // 5% chance per tick
 		return a.askQuestion()
 	}
-	
+
 	// Commit periodically
 	if time.Since(a.lastCommitTime) > 2*time.Minute && rand.Float64() < 0.2 {
 		return a.makeCommit()
 	}
-	
+
 	return a.updateStatus()
 }
 
 // handleWaitingFeedbackState handles logic when agent is waiting for feedback
 func (a *Agent) handleWaitingFeedbackState() error {
 	log.Info().Str("agent", a.id).Msg("Agent waiting for feedback")
-	
+
 	// If we've been waiting too long, assume no response and continue
 	if a.questionPosted && time.Since(a.workStartTime) > 10*time.Minute {
 		log.Info().Str("agent", a.id).Msg("No response received, continuing work")
@@ -286,39 +286,39 @@ func (a *Agent) handleWaitingFeedbackState() error {
 		a.state = StateActive
 		return a.updateStatus()
 	}
-	
+
 	return nil
 }
 
 // handleErrorState handles logic when agent is in error state
 func (a *Agent) handleErrorState() error {
 	log.Info().Str("agent", a.id).Msg("Agent in error state, attempting recovery")
-	
+
 	// Random recovery after some time
 	if rand.Float64() < 0.9 { // 10% chance per tick
 		log.Info().Str("agent", a.id).Msg("Agent recovered from error")
 		a.state = StateIdle
 		a.progress = 0
-		
+
 		_, err := a.client.CreateEvent(a.id, models.CreateEventRequest{
 			Type:    string(models.EventTypeInfo),
 			Message: "Agent recovered from error state",
 		})
-		
+
 		if err != nil {
 			log.Warn().Err(err).Msg("Failed to log recovery event")
 		}
-		
+
 		return a.updateStatus()
 	}
-	
+
 	return nil
 }
 
 // startTask starts working on a task
 func (a *Agent) startTask(task *models.Task) error {
 	log.Info().Str("agent", a.id).Str("task", task.Title).Msg("Starting task")
-	
+
 	// Update task to assigned status
 	status := string(models.TaskStatusInProgress)
 	_, err := a.client.UpdateTask(task.ID, models.UpdateTaskRequest{
@@ -328,12 +328,12 @@ func (a *Agent) startTask(task *models.Task) error {
 	if err != nil {
 		return fmt.Errorf("failed to update task status: %w", err)
 	}
-	
+
 	a.currentTask = task.Title
 	a.workStartTime = time.Now()
 	a.progress = 0
 	a.state = StateActive
-	
+
 	// Create todos for this task
 	todos := generateTodosForTask(task)
 	for i, todoText := range todos {
@@ -345,29 +345,29 @@ func (a *Agent) startTask(task *models.Task) error {
 			log.Warn().Err(err).Str("todo", todoText).Msg("Failed to create todo")
 		}
 	}
-	
+
 	// Log task start event
 	_, err = a.client.CreateEvent(a.id, models.CreateEventRequest{
 		Type:    string(models.EventTypeInfo),
 		Message: fmt.Sprintf("Started working on task: %s", task.Title),
 		Metadata: map[string]interface{}{
-			"task_id":     task.ID,
-			"task_title":  task.Title,
-			"priority":    task.Priority,
+			"task_id":    task.ID,
+			"task_title": task.Title,
+			"priority":   task.Priority,
 		},
 	})
-	
+
 	if err != nil {
 		log.Warn().Err(err).Msg("Failed to log task start event")
 	}
-	
+
 	return a.updateStatus()
 }
 
 // completeCurrentWork completes the current work
 func (a *Agent) completeCurrentWork() error {
 	log.Info().Str("agent", a.id).Str("task", a.currentTask).Msg("Completing current work")
-	
+
 	// Mark all todos as completed
 	todos, err := a.client.ListTodos(a.id)
 	if err == nil {
@@ -383,23 +383,23 @@ func (a *Agent) completeCurrentWork() error {
 			}
 		}
 	}
-	
+
 	// Log completion event
 	_, err = a.client.CreateEvent(a.id, models.CreateEventRequest{
 		Type:    string(models.EventTypeSuccess),
 		Message: fmt.Sprintf("Completed work: %s", a.currentTask),
 		Metadata: map[string]interface{}{
-			"task":         a.currentTask,
+			"task":          a.currentTask,
 			"files_changed": a.filesChanged,
 			"lines_added":   a.linesAdded,
 			"lines_removed": a.linesRemoved,
 		},
 	})
-	
+
 	if err != nil {
 		log.Warn().Err(err).Msg("Failed to log completion event")
 	}
-	
+
 	// Reset state
 	a.currentTask = ""
 	a.progress = 0
@@ -407,7 +407,7 @@ func (a *Agent) completeCurrentWork() error {
 	a.pendingQuestion = ""
 	a.state = StateIdle
 	a.scenario = nil
-	
+
 	return a.updateStatus()
 }
 
@@ -423,28 +423,28 @@ func (a *Agent) askQuestion() error {
 		"I found some deprecated dependencies. Should I upgrade them now?",
 		"The test coverage is low in this area. Should I add more tests before proceeding?",
 	}
-	
+
 	question := questions[rand.Intn(len(questions))]
 	a.pendingQuestion = question
 	a.questionPosted = true
 	a.state = StateWaitingFeedback
-	
+
 	log.Info().Str("agent", a.id).Str("question", question).Msg("Agent asking question")
-	
+
 	// Log question event
 	_, err := a.client.CreateEvent(a.id, models.CreateEventRequest{
 		Type:    string(models.EventTypeQuestion),
 		Message: question,
 		Metadata: map[string]interface{}{
-			"context": a.currentTask,
+			"context":  a.currentTask,
 			"progress": a.progress,
 		},
 	})
-	
+
 	if err != nil {
 		log.Warn().Err(err).Msg("Failed to log question event")
 	}
-	
+
 	return a.updateStatus()
 }
 
@@ -462,12 +462,12 @@ func (a *Agent) makeCommit() error {
 		"Update dependencies",
 		"Improve logging",
 	}
-	
+
 	message := commitMessages[rand.Intn(len(commitMessages))]
 	a.lastCommitTime = time.Now()
-	
+
 	log.Info().Str("agent", a.id).Str("message", message).Msg("Making commit")
-	
+
 	// Log commit event
 	_, err := a.client.CreateEvent(a.id, models.CreateEventRequest{
 		Type:    string(models.EventTypeCommit),
@@ -479,7 +479,7 @@ func (a *Agent) makeCommit() error {
 			"lines_removed":  rand.Intn(50) + 1,
 		},
 	})
-	
+
 	return err
 }
 
@@ -514,14 +514,14 @@ func generateTodosForTask(task *models.Task) []string {
 			"Deploy fix to production",
 		},
 	}
-	
+
 	template := baseTemplates[rand.Intn(len(baseTemplates))]
-	
+
 	// Customize todos based on task priority
 	if strings.Contains(strings.ToLower(task.Priority), "urgent") {
 		template = append([]string{"URGENT: Prioritize immediate fix"}, template...)
 	}
-	
+
 	// Add task-specific context
 	for i, todo := range template {
 		if strings.Contains(strings.ToLower(task.Title), "security") {
@@ -530,6 +530,6 @@ func generateTodosForTask(task *models.Task) []string {
 			template[i] = strings.Replace(todo, "functionality", "performance optimizations", 1)
 		}
 	}
-	
+
 	return template
 }

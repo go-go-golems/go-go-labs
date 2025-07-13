@@ -17,8 +17,8 @@ type StreamInfo struct {
 
 // Step represents a task step in the stream
 type Step struct {
-	ID        int    `json:"id"`
-	Content   string `json:"content"`
-	Status    string `json:"status"` // "completed", "active", or "upcoming"
+	ID        int       `json:"id"`
+	Content   string    `json:"content"`
+	Status    string    `json:"status"` // "completed", "active", or "upcoming"
 	CreatedAt time.Time `json:"createdAt"`
 }

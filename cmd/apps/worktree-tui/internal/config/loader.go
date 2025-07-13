@@ -14,26 +14,26 @@ import (
 // Load reads and validates the configuration
 func Load() (*Config, error) {
 	log.Debug().Msg("Starting configuration load")
-	
+
 	// Get the config file path from viper
 	configFile := viper.ConfigFileUsed()
 	if configFile == "" {
 		return nil, fmt.Errorf("no config file found")
 	}
-	
+
 	log.Debug().Str("config_file", configFile).Msg("Loading config file directly")
-	
+
 	// Read the file directly
 	data, err := os.ReadFile(configFile)
 	if err != nil {
 		log.Error().Err(err).Str("file", configFile).Msg("Failed to read config file")
 		return nil, fmt.Errorf("failed to read config file %s: %w", configFile, err)
 	}
-	
+
 	log.Debug().Str("raw_yaml", string(data)).Msg("Raw YAML content")
-	
+
 	var cfg Config
-	
+
 	// Parse YAML directly
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		log.Error().Err(err).Msg("Failed to unmarshal YAML config")
@@ -41,7 +41,7 @@ func Load() (*Config, error) {
 	}
 
 	log.Debug().Int("repositories", len(cfg.Repositories)).Msg("Config unmarshaled")
-	
+
 	// Debug: Print the parsed config structure
 	log.Debug().Interface("parsed_config", cfg).Msg("Parsed configuration structure")
 
@@ -59,11 +59,11 @@ func Load() (*Config, error) {
 	originalBasePath := cfg.Workspaces.DefaultBasePath
 	cfg.Workspaces.DefaultBasePath = expandPath(cfg.Workspaces.DefaultBasePath)
 	log.Debug().Str("original", originalBasePath).Str("expanded", cfg.Workspaces.DefaultBasePath).Msg("Expanded workspace base path")
-	
+
 	for i := range cfg.Repositories {
 		repo := &cfg.Repositories[i]
 		log.Debug().Str("name", repo.Name).Str("local_path", repo.LocalPath).Str("url", repo.URL).Msg("Processing repository")
-		
+
 		if repo.LocalPath != "" {
 			originalPath := repo.LocalPath
 			repo.LocalPath = expandPath(repo.LocalPath)
@@ -89,22 +89,22 @@ func expandPath(path string) string {
 	if !strings.HasPrefix(path, "~") {
 		return path
 	}
-	
+
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return path
 	}
-	
+
 	// Handle ~/path correctly by removing ~/ and joining with home
 	if strings.HasPrefix(path, "~/") {
 		return filepath.Join(home, path[2:])
 	}
-	
+
 	// Handle ~ alone
 	if path == "~" {
 		return home
 	}
-	
+
 	// Handle ~path (without slash)
 	return filepath.Join(home, path[1:])
 }
@@ -112,7 +112,7 @@ func expandPath(path string) string {
 // validateConfig performs basic validation on the configuration
 func validateConfig(cfg *Config) error {
 	log.Debug().Int("repositories", len(cfg.Repositories)).Msg("Validating configuration")
-	
+
 	if len(cfg.Repositories) == 0 {
 		return fmt.Errorf("no repositories configured")
 	}
@@ -125,7 +125,7 @@ func validateConfig(cfg *Config) error {
 			Str("local_path", repo.LocalPath).
 			Str("url", repo.URL).
 			Msg("Validating repository")
-			
+
 		if repo.Name == "" {
 			return fmt.Errorf("repository name cannot be empty")
 		}

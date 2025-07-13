@@ -24,14 +24,14 @@ type TimerState struct {
 // NewTimerState creates a new timer state from dilution calculations
 func NewTimerState(calculations []DilutionCalculation) *TimerState {
 	var steps []TimerStep
-	
+
 	for _, calc := range calculations {
 		duration, err := ParseDuration(calc.Time)
 		if err != nil {
 			// Default to 30 seconds if parsing fails
 			duration = 30 * time.Second
 		}
-		
+
 		steps = append(steps, TimerStep{
 			Name:     calc.Chemical,
 			Duration: duration,
@@ -39,7 +39,7 @@ func NewTimerState(calculations []DilutionCalculation) *TimerState {
 			Finished: false,
 		})
 	}
-	
+
 	return &TimerState{
 		CurrentStep: 0,
 		Steps:       steps,
@@ -57,7 +57,7 @@ func (ts *TimerState) StartTimer() {
 		ts.StartTime = time.Now()
 		ts.IsRunning = true
 		ts.IsPaused = false
-		
+
 		if ts.CurrentStep < len(ts.Steps) {
 			ts.Steps[ts.CurrentStep].Started = true
 		}
@@ -94,7 +94,7 @@ func (ts *TimerState) CompleteCurrentStep() {
 		ts.CurrentStep++
 		ts.ElapsedTime = 0
 		ts.StartTime = time.Now()
-		
+
 		if ts.CurrentStep >= len(ts.Steps) {
 			ts.IsComplete = true
 			ts.IsRunning = false
@@ -120,7 +120,7 @@ func (ts *TimerState) GetRemainingTime() time.Duration {
 	if ts.CurrentStep >= len(ts.Steps) {
 		return 0
 	}
-	
+
 	elapsed := ts.GetCurrentElapsed()
 	remaining := ts.Steps[ts.CurrentStep].Duration - elapsed
 	if remaining < 0 {
@@ -134,7 +134,7 @@ func (ts *TimerState) IsCurrentStepOvertime() bool {
 	if ts.CurrentStep >= len(ts.Steps) {
 		return false
 	}
-	
+
 	elapsed := ts.GetCurrentElapsed()
 	return elapsed > ts.Steps[ts.CurrentStep].Duration
 }
@@ -155,9 +155,9 @@ func (ts *TimerState) Reset() {
 	ts.IsRunning = false
 	ts.IsPaused = false
 	ts.IsComplete = false
-	
+
 	for i := range ts.Steps {
 		ts.Steps[i].Started = false
 		ts.Steps[i].Finished = false
 	}
-} 
+}

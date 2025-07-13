@@ -121,19 +121,19 @@ func TestReadModifyWritePattern(t *testing.T) {
 	cache := NewFileCache(1024, 4096, time.Hour, RealTimeProvider{})
 
 	pathHash := uint32(1)
-	
+
 	// Initial state: empty file
 	// Read 1: Add content at offset 0
 	cache.AddRead(pathHash, 0, []byte("Line 1\n"))
-	
+
 	// Read 2: Add content at offset 7
 	cache.AddRead(pathHash, 7, []byte("Line 2\n"))
-	
+
 	// Read 3: Add content at offset 14
 	cache.AddRead(pathHash, 14, []byte("Line 3\n"))
 
 	// Now we have a file with three lines: "Line 1\nLine 2\nLine 3\n"
-	
+
 	// Simulate editing line 2 (offset 7-13)
 	cache.UpdateWithWrite(pathHash, 7, []byte("EDITED\n"))
 
@@ -156,9 +156,9 @@ func TestGapFilling(t *testing.T) {
 	pathHash := uint32(1)
 
 	// Create sparse content with gaps
-	cache.AddRead(pathHash, 0, []byte("START"))     // [0-5)
-	cache.AddRead(pathHash, 20, []byte("MIDDLE"))   // [20-26)
-	cache.AddRead(pathHash, 50, []byte("END"))      // [50-53)
+	cache.AddRead(pathHash, 0, []byte("START"))   // [0-5)
+	cache.AddRead(pathHash, 20, []byte("MIDDLE")) // [20-26)
+	cache.AddRead(pathHash, 50, []byte("END"))    // [50-53)
 
 	// Request content that spans gaps
 	content, exists := cache.GetOldContent(pathHash, 0, 53)
@@ -236,7 +236,7 @@ func TestCacheStateConsistency(t *testing.T) {
 		for j, seg := range sf.Segments {
 			expectedLen := seg.End - seg.Start
 			if uint64(len(seg.Data)) != expectedLen {
-				t.Errorf("operation %d, segment %d: data length %d doesn't match range length %d", 
+				t.Errorf("operation %d, segment %d: data length %d doesn't match range length %d",
 					i, j, len(seg.Data), expectedLen)
 			}
 		}

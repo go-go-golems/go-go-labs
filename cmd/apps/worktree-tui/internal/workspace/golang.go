@@ -41,7 +41,7 @@ func (g *GoWorkspaceOperations) findGoModules(workspacePath string, repositories
 
 	for _, repo := range repositories {
 		repoPath := filepath.Join(workspacePath, repo.Name)
-		
+
 		// Check if repository path exists
 		if _, err := os.Stat(repoPath); os.IsNotExist(err) {
 			continue // Skip if repository wasn't set up
@@ -84,7 +84,7 @@ func (g *GoWorkspaceOperations) findGoModulesInPath(searchPath, workspacePath st
 			// Convert to Unix-style path for go.work
 			relPath = filepath.ToSlash(relPath)
 			modules = append(modules, relPath)
-			
+
 			// Don't recurse into subdirectories of a Go module
 			return filepath.SkipDir
 		}
@@ -98,7 +98,7 @@ func (g *GoWorkspaceOperations) findGoModulesInPath(searchPath, workspacePath st
 // createGoWorkFile creates the go.work file with the specified modules
 func (g *GoWorkspaceOperations) createGoWorkFile(goWorkPath string, modules []string) error {
 	content := g.generateGoWorkContent(modules)
-	
+
 	file, err := os.Create(goWorkPath)
 	if err != nil {
 		return fmt.Errorf("failed to create go.work file: %w", err)
@@ -115,10 +115,10 @@ func (g *GoWorkspaceOperations) createGoWorkFile(goWorkPath string, modules []st
 // generateGoWorkContent generates the content for the go.work file
 func (g *GoWorkspaceOperations) generateGoWorkContent(modules []string) string {
 	var content strings.Builder
-	
+
 	// Write go.work header
 	content.WriteString("go 1.21\n\n")
-	
+
 	if len(modules) > 0 {
 		content.WriteString("use (\n")
 		for _, module := range modules {
@@ -133,7 +133,7 @@ func (g *GoWorkspaceOperations) generateGoWorkContent(modules []string) string {
 // ValidateGoWorkspace validates that the Go workspace is properly set up
 func (g *GoWorkspaceOperations) ValidateGoWorkspace(workspacePath string) error {
 	goWorkPath := filepath.Join(workspacePath, "go.work")
-	
+
 	// Check if go.work exists
 	if _, err := os.Stat(goWorkPath); os.IsNotExist(err) {
 		return fmt.Errorf("go.work file not found")
@@ -156,7 +156,7 @@ func (g *GoWorkspaceOperations) ValidateGoWorkspace(workspacePath string) error 
 // GetGoVersion returns the Go version from go.mod or a default
 func (g *GoWorkspaceOperations) GetGoVersion(modulePath string) string {
 	goModPath := filepath.Join(modulePath, "go.mod")
-	
+
 	content, err := os.ReadFile(goModPath)
 	if err != nil {
 		return "1.21" // Default version

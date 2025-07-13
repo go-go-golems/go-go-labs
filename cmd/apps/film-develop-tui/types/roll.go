@@ -24,4 +24,4 @@ func (rs *RollSetup) String() string {
 // TotalRolls returns the total number of rolls
 func (rs *RollSetup) TotalRolls() int {
 	return rs.Format35mm + rs.Format120mm
-} 
+}

@@ -25,14 +25,14 @@ type CableModem struct {
 
 // Channel represents a downstream or upstream channel
 type Channel struct {
-	ChannelID    string `json:"channel_id"`
-	LockStatus   string `json:"lock_status"`
-	Frequency    string `json:"frequency"`
-	SNR          string `json:"snr,omitempty"`          // Only for downstream
-	PowerLevel   string `json:"power_level"`
-	Modulation   string `json:"modulation"`
-	SymbolRate   string `json:"symbol_rate,omitempty"`  // Only for upstream
-	ChannelType  string `json:"channel_type,omitempty"` // Only for upstream
+	ChannelID   string `json:"channel_id"`
+	LockStatus  string `json:"lock_status"`
+	Frequency   string `json:"frequency"`
+	SNR         string `json:"snr,omitempty"` // Only for downstream
+	PowerLevel  string `json:"power_level"`
+	Modulation  string `json:"modulation"`
+	SymbolRate  string `json:"symbol_rate,omitempty"`  // Only for upstream
+	ChannelType string `json:"channel_type,omitempty"` // Only for upstream
 }
 
 // ErrorChannel represents error codeword information for a channel
@@ -41,4 +41,4 @@ type ErrorChannel struct {
 	UnerroredCodewords     string `json:"unerrored_codewords"`
 	CorrectableCodewords   string `json:"correctable_codewords"`
 	UncorrectableCodewords string `json:"uncorrectable_codewords"`
-} 
+}

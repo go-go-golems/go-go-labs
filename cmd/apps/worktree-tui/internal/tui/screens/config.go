@@ -20,14 +20,14 @@ type ConfigModel struct {
 	selectedRepos []config.RepositorySelection
 	width         int
 	height        int
-	
+
 	// UI components
 	nameInput textinput.Model
 	pathInput textinput.Model
-	
+
 	// State
 	focused int // 0: name, 1: path
-	
+
 	// Key bindings
 	keys configKeyMap
 }
@@ -66,7 +66,7 @@ func NewConfigModel(cfg *config.Config, selectedRepos []config.RepositorySelecti
 	// Generate default workspace name from selected repos
 	defaultName := generateWorkspaceName(selectedRepos)
 	nameInput.SetValue(defaultName)
-	
+
 	// Set default path
 	defaultPath := filepath.Join(cfg.Workspaces.DefaultBasePath, defaultName)
 	pathInput.SetValue(defaultPath)
@@ -126,7 +126,7 @@ func (m *ConfigModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.focused == 0 {
 		m.nameInput, cmd = m.nameInput.Update(msg)
 		cmds = append(cmds, cmd)
-		
+
 		// Update path when name changes
 		if m.nameInput.Value() != "" {
 			basePath := m.config.Workspaces.DefaultBasePath
@@ -181,14 +181,14 @@ func (m *ConfigModel) renderSelectedRepos() string {
 
 	repoList := make([]string, len(m.selectedRepos))
 	for i, repo := range m.selectedRepos {
-		repoList[i] = fmt.Sprintf("  • %s (%s) - %s", 
+		repoList[i] = fmt.Sprintf("  • %s (%s) - %s",
 			repo.Repository.Name,
 			repo.Branch,
 			repo.Repository.Description)
 	}
 
 	content := header + "\n" + strings.Join(repoList, "\n")
-	
+
 	return sectionStyle.Render(content)
 }
 
@@ -236,7 +236,7 @@ func (m *ConfigModel) renderStatus() string {
 		BorderForeground(lipgloss.Color("240"))
 
 	var status strings.Builder
-	
+
 	// Validation messages
 	if !m.isValid() {
 		status.WriteString(lipgloss.NewStyle().
@@ -269,11 +269,11 @@ func (m *ConfigModel) SetSize(width, height int) {
 
 func (m *ConfigModel) SetSelectedRepos(repos []config.RepositorySelection) {
 	m.selectedRepos = repos
-	
+
 	// Update default name and path
 	defaultName := generateWorkspaceName(repos)
 	m.nameInput.SetValue(defaultName)
-	
+
 	defaultPath := filepath.Join(m.config.Workspaces.DefaultBasePath, defaultName)
 	m.pathInput.SetValue(defaultPath)
 }
@@ -304,17 +304,17 @@ func generateWorkspaceName(repos []config.RepositorySelection) string {
 	if len(repos) == 0 {
 		return "workspace"
 	}
-	
+
 	if len(repos) == 1 {
 		return repos[0].Repository.Name
 	}
-	
+
 	// For multiple repos, try to find common tags or create a descriptive name
 	names := make([]string, len(repos))
 	for i, repo := range repos {
 		names[i] = repo.Repository.Name
 	}
-	
+
 	// If all names are short, join them
 	if len(names) <= 3 {
 		joined := strings.Join(names, "-")
@@ -322,7 +322,7 @@ func generateWorkspaceName(repos []config.RepositorySelection) string {
 			return joined
 		}
 	}
-	
+
 	// Otherwise, use a generic name with count
 	return fmt.Sprintf("workspace-%d-repos", len(repos))
 }

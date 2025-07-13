@@ -167,7 +167,7 @@ func TestVeryLargeDiffs(t *testing.T) {
 	// Modify large portion of content
 	modifiedLargeContent := make([]byte, 64*1024)
 	copy(modifiedLargeContent, largeContent)
-	
+
 	// Change middle 32KB to different pattern
 	start := 16 * 1024
 	end := 48 * 1024
@@ -369,7 +369,7 @@ func TestDiffPerformanceCharacteristics(t *testing.T) {
 	pathHash := uint32(99999)
 
 	// Test diff generation performance with various content sizes
-	sizes := []int{1024, 4*1024, 16*1024, 64*1024}
+	sizes := []int{1024, 4 * 1024, 16 * 1024, 64 * 1024}
 
 	for _, size := range sizes {
 		content := make([]byte, size)
@@ -401,7 +401,7 @@ func TestDiffPerformanceCharacteristics(t *testing.T) {
 			continue
 		}
 
-		t.Logf("Size: %d bytes, Diff time: %v, Diff size: %d bytes", 
+		t.Logf("Size: %d bytes, Diff time: %v, Diff size: %d bytes",
 			size, duration, len(diff))
 
 		// Diff generation should be reasonable fast (< 100ms for 64KB)

@@ -94,4 +94,4 @@ func (s *TimerScreen) HandleInput(key string, sm *state.StateMachine) bool {
 		return false
 	}
 	return true
-} 
+}

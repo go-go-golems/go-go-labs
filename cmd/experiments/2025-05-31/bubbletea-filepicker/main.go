@@ -29,7 +29,7 @@ func main() {
 
 	// Get the result
 	fp := model.(*FilePicker)
-	
+
 	// Check for errors
 	if err := fp.GetError(); err != nil {
 		fmt.Printf("Error: %v\n", err)

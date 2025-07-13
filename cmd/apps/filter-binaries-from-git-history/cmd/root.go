@@ -9,8 +9,8 @@ import (
 )
 
 var (
-	baseRef     string
-	compareRef  string
+	baseRef       string
+	compareRef    string
 	sizeThreshold int64
 )
 

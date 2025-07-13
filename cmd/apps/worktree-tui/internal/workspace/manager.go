@@ -33,9 +33,9 @@ func (m *Manager) CreateWorkspace(ctx context.Context, req *config.WorkspaceRequ
 
 	// Step 1: Create workspace directory
 	currentStep++
-	progress(currentStep, totalSteps, "Creating workspace directory", 
+	progress(currentStep, totalSteps, "Creating workspace directory",
 		fmt.Sprintf("Creating workspace directory: %s", req.Path))
-	
+
 	if err := m.createWorkspaceDirectory(req.Path); err != nil {
 		return fmt.Errorf("failed to create workspace directory: %w", err)
 	}
@@ -44,14 +44,14 @@ func (m *Manager) CreateWorkspace(ctx context.Context, req *config.WorkspaceRequ
 	for _, repo := range req.Repositories {
 		currentStep++
 		taskDesc := fmt.Sprintf("Setting up %s worktree", repo.Name)
-		
+
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
 		}
 
-		progress(currentStep, totalSteps, taskDesc, 
+		progress(currentStep, totalSteps, taskDesc,
 			fmt.Sprintf("Setting up worktree for repository: %s", repo.Name))
 
 		if err := m.setupRepositoryWorktree(ctx, req.Path, repo, progress); err != nil {
@@ -61,14 +61,14 @@ func (m *Manager) CreateWorkspace(ctx context.Context, req *config.WorkspaceRequ
 
 	// Final step: Initialize go.work
 	currentStep++
-	progress(currentStep, totalSteps, "Initializing go.work", 
+	progress(currentStep, totalSteps, "Initializing go.work",
 		"Creating go.work file with selected modules")
 
 	if err := m.goWorkOps.InitializeGoWork(req.Path, req.Repositories); err != nil {
 		return fmt.Errorf("failed to initialize go.work: %w", err)
 	}
 
-	progress(currentStep, totalSteps, "Completed", 
+	progress(currentStep, totalSteps, "Completed",
 		"Workspace creation completed successfully")
 
 	return nil
@@ -116,10 +116,10 @@ func (m *Manager) setupMonorepoWorktree(ctx context.Context, workspacePath strin
 	// For monorepos with subdirectories, we need to:
 	// 1. Create a worktree of the main repo
 	// 2. Symlink or copy the subdirectory to the expected location
-	
+
 	// This is a simplified implementation
 	// In a real implementation, you might want to use sparse-checkout or other Git features
-	
+
 	if repo.LocalPath == "" {
 		return fmt.Errorf("monorepo subdirectories require a local_path")
 	}

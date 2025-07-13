@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"time"
 
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 // Database represents the SQLite database for storing modem history
@@ -52,12 +52,12 @@ func getDatabasePath() (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get user home directory")
 	}
-	
+
 	configDir := filepath.Join(homeDir, ".config", "poll-modem")
 	if err := os.MkdirAll(configDir, 0755); err != nil {
 		return "", errors.Wrap(err, "failed to create config directory")
 	}
-	
+
 	return filepath.Join(configDir, "history.db"), nil
 }
 
@@ -289,14 +289,14 @@ type ExportResult struct {
 }
 
 type DownstreamExport struct {
-	Timestamp   time.Time
-	SessionID   int64
-	ChannelID   string
-	LockStatus  string
-	Frequency   string
-	SNR         string
-	PowerLevel  string
-	Modulation  string
+	Timestamp  time.Time
+	SessionID  int64
+	ChannelID  string
+	LockStatus string
+	Frequency  string
+	SNR        string
+	PowerLevel string
+	Modulation string
 }
 
 type UpstreamExport struct {
@@ -393,4 +393,4 @@ func (d *Database) exportErrorChannels(whereClause string, args ...interface{}) 
 	}
 
 	return results, nil
-} 
+}

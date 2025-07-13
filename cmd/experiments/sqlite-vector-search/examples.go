@@ -29,7 +29,7 @@ func ExampleBasicFunction() {
 
 	err = conn.Raw(func(driverConn interface{}) error {
 		sqliteConn := driverConn.(*sqlite3.SQLiteConn)
-		
+
 		// Register a function that squares a number
 		return sqliteConn.RegisterFunc("square", func(x float64) float64 {
 			return x * x
@@ -45,7 +45,7 @@ func ExampleBasicFunction() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	
+
 	fmt.Printf("square(5) = %.1f\n", result) // Output: square(5) = 25.0
 }
 
@@ -66,13 +66,13 @@ func ExampleJSONFunction() {
 
 	err = conn.Raw(func(driverConn interface{}) error {
 		sqliteConn := driverConn.(*sqlite3.SQLiteConn)
-		
+
 		return sqliteConn.RegisterFunc("json_sum", func(jsonStr string) float64 {
 			var numbers []float64
 			if err := json.Unmarshal([]byte(jsonStr), &numbers); err != nil {
 				return 0 // Return 0 for invalid JSON
 			}
-			
+
 			sum := 0.0
 			for _, num := range numbers {
 				sum += num
@@ -90,7 +90,7 @@ func ExampleJSONFunction() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	
+
 	fmt.Printf("json_sum([1,2,3,4,5]) = %.1f\n", result) // Output: json_sum([1,2,3,4,5]) = 15.0
 }
 
@@ -111,21 +111,21 @@ func ExampleDotProduct() {
 
 	err = conn.Raw(func(driverConn interface{}) error {
 		sqliteConn := driverConn.(*sqlite3.SQLiteConn)
-		
+
 		return sqliteConn.RegisterFunc("dot_product", func(aStr, bStr string) float64 {
 			var a, b []float64
-			
+
 			if err := json.Unmarshal([]byte(aStr), &a); err != nil {
 				return 0
 			}
 			if err := json.Unmarshal([]byte(bStr), &b); err != nil {
 				return 0
 			}
-			
+
 			if len(a) != len(b) {
 				return 0
 			}
-			
+
 			var product float64
 			for i := 0; i < len(a); i++ {
 				product += a[i] * b[i]
@@ -143,7 +143,7 @@ func ExampleDotProduct() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	
+
 	fmt.Printf("dot_product([1,2,3], [4,5,6]) = %.1f\n", result) // Output: dot_product([1,2,3], [4,5,6]) = 32.0
 }
 
@@ -176,32 +176,32 @@ func ExampleVectorSimilarityTable() {
 
 	err = conn.Raw(func(driverConn interface{}) error {
 		sqliteConn := driverConn.(*sqlite3.SQLiteConn)
-		
+
 		return sqliteConn.RegisterFunc("cosine_similarity", func(aStr, bStr string) float64 {
 			var a, b []float64
-			
+
 			if err := json.Unmarshal([]byte(aStr), &a); err != nil {
 				return 0
 			}
 			if err := json.Unmarshal([]byte(bStr), &b); err != nil {
 				return 0
 			}
-			
+
 			if len(a) != len(b) {
 				return 0
 			}
-			
+
 			var dotProduct, normA, normB float64
 			for i := 0; i < len(a); i++ {
 				dotProduct += a[i] * b[i]
 				normA += a[i] * a[i]
 				normB += b[i] * b[i]
 			}
-			
+
 			if normA == 0 || normB == 0 {
 				return 0
 			}
-			
+
 			return dotProduct / (math.Sqrt(normA) * math.Sqrt(normB))
 		}, true)
 	})
@@ -236,7 +236,7 @@ func ExampleVectorSimilarityTable() {
 		ORDER BY similarity DESC
 		LIMIT 3
 	`
-	
+
 	catVector, _ := json.Marshal([]float64{1, 0, 0})
 	rows, err := db.Query(query, string(catVector), "cat")
 	if err != nil {
@@ -277,30 +277,30 @@ func ExampleErrorHandling() {
 
 	err = conn.Raw(func(driverConn interface{}) error {
 		sqliteConn := driverConn.(*sqlite3.SQLiteConn)
-		
+
 		// Function that validates and processes vector input
 		return sqliteConn.RegisterFunc("safe_vector_length", func(vectorStr string) float64 {
 			var vector []float64
-			
+
 			// Validate JSON
 			if err := json.Unmarshal([]byte(vectorStr), &vector); err != nil {
 				// Log error in real application
 				fmt.Printf("Invalid JSON: %s\n", vectorStr)
 				return -1 // Return -1 to indicate error
 			}
-			
+
 			// Validate vector is not empty
 			if len(vector) == 0 {
 				fmt.Printf("Empty vector: %s\n", vectorStr)
 				return -1
 			}
-			
+
 			// Calculate vector length (magnitude)
 			var sum float64
 			for _, val := range vector {
 				sum += val * val
 			}
-			
+
 			return math.Sqrt(sum)
 		}, true)
 	})
@@ -341,20 +341,20 @@ func ExampleMultipleParameters() {
 
 	err = conn.Raw(func(driverConn interface{}) error {
 		sqliteConn := driverConn.(*sqlite3.SQLiteConn)
-		
+
 		// Function that scales a vector by a scalar
 		return sqliteConn.RegisterFunc("scale_vector", func(vectorStr string, scale float64) string {
 			var vector []float64
-			
+
 			if err := json.Unmarshal([]byte(vectorStr), &vector); err != nil {
 				return "[]" // Return empty array for invalid input
 			}
-			
+
 			// Scale each component
 			for i := range vector {
 				vector[i] *= scale
 			}
-			
+
 			// Return as JSON string
 			result, _ := json.Marshal(vector)
 			return string(result)
@@ -370,7 +370,7 @@ func ExampleMultipleParameters() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	
+
 	fmt.Printf("Scaled vector: %s\n", result) // Output: Scaled vector: [2.5,5,7.5]
 }
 
@@ -378,19 +378,19 @@ func ExampleMultipleParameters() {
 func RunAllExamples() {
 	fmt.Println("=== Example 1: Basic Function ===")
 	ExampleBasicFunction()
-	
+
 	fmt.Println("\n=== Example 2: JSON Function ===")
 	ExampleJSONFunction()
-	
+
 	fmt.Println("\n=== Example 3: Dot Product ===")
 	ExampleDotProduct()
-	
+
 	fmt.Println("\n=== Example 4: Vector Similarity Table ===")
 	ExampleVectorSimilarityTable()
-	
+
 	fmt.Println("\n=== Example 5: Error Handling ===")
 	ExampleErrorHandling()
-	
+
 	fmt.Println("\n=== Example 6: Multiple Parameters ===")
 	ExampleMultipleParameters()
 }

@@ -20,20 +20,20 @@ type Resource struct {
 
 // Job represents a job report entry with its details.
 type Job struct {
-	ID            string
-	User          string
-	Account       string
-	Partition     string
-	Status        JobStatus
-	StartTime     time.Time
-	WallTime      time.Duration
-	RunTime       time.Duration
-	CPUs          int
-	RAM           float64 // in GB
-	GPUs          int
-	PendingTime   time.Duration
-	CPUEfficiency float64 // in percentage
-	RAMEfficiency float64 // in percentage
+	ID                 string
+	User               string
+	Account            string
+	Partition          string
+	Status             JobStatus
+	StartTime          time.Time
+	WallTime           time.Duration
+	RunTime            time.Duration
+	CPUs               int
+	RAM                float64 // in GB
+	GPUs               int
+	PendingTime        time.Duration
+	CPUEfficiency      float64 // in percentage
+	RAMEfficiency      float64 // in percentage
 	WallTimeEfficiency float64 // in percentage
 }
 

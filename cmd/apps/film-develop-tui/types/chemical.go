@@ -102,15 +102,15 @@ type ChemicalComponent struct {
 // Render renders the chemical component as a styled string
 func (c *ChemicalComponent) Render() string {
 	var b strings.Builder
-	
+
 	// Name
 	b.WriteString(fmt.Sprintf("%-14s", c.Name))
 	b.WriteString("\n")
-	
+
 	// Dilution
 	b.WriteString(fmt.Sprintf("%-14s", c.Dilution+" dilution"))
 	b.WriteString("\n")
-	
+
 	// Concentrate
 	concStr := "--ml conc"
 	if c.IsCalculated {
@@ -118,7 +118,7 @@ func (c *ChemicalComponent) Render() string {
 	}
 	b.WriteString(fmt.Sprintf("%-14s", concStr))
 	b.WriteString("\n")
-	
+
 	// Water
 	waterStr := "--ml water"
 	if c.IsCalculated {
@@ -126,25 +126,25 @@ func (c *ChemicalComponent) Render() string {
 	}
 	b.WriteString(fmt.Sprintf("%-14s", waterStr))
 	b.WriteString("\n")
-	
+
 	// Time
 	b.WriteString(fmt.Sprintf("%-14s", fmt.Sprintf("Time: %s", c.Time)))
-	
+
 	return b.String()
 }
 
 // RenderWithHighlight renders the chemical component with highlighting for calculated values
 func (c *ChemicalComponent) RenderWithHighlight(highlightStyle lipgloss.Style) string {
 	var b strings.Builder
-	
+
 	// Name
 	b.WriteString(fmt.Sprintf("%-14s", c.Name))
 	b.WriteString("\n")
-	
+
 	// Dilution
 	b.WriteString(fmt.Sprintf("%-14s", c.Dilution+" dilution"))
 	b.WriteString("\n")
-	
+
 	// Concentrate
 	concStr := "--ml conc"
 	if c.IsCalculated {
@@ -153,7 +153,7 @@ func (c *ChemicalComponent) RenderWithHighlight(highlightStyle lipgloss.Style) s
 	}
 	b.WriteString(fmt.Sprintf("%-14s", concStr))
 	b.WriteString("\n")
-	
+
 	// Water
 	waterStr := "--ml water"
 	if c.IsCalculated {
@@ -161,14 +161,14 @@ func (c *ChemicalComponent) RenderWithHighlight(highlightStyle lipgloss.Style) s
 	}
 	b.WriteString(fmt.Sprintf("%-14s", waterStr))
 	b.WriteString("\n")
-	
+
 	// Time
 	timeStr := fmt.Sprintf("Time: %s", c.Time)
 	if c.IsCalculated {
 		timeStr = highlightStyle.Render(timeStr)
 	}
 	b.WriteString(fmt.Sprintf("%-14s", timeStr))
-	
+
 	return b.String()
 }
 
@@ -198,4 +198,4 @@ func ChemicalModelsToComponents(models []ChemicalModel) []ChemicalComponent {
 		)
 	}
 	return components
-} 
+}

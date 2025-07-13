@@ -114,16 +114,16 @@ func TestLRUEviction(t *testing.T) {
 	// Add files in sequence
 	cache.AddRead(1, 0, []byte("file 1 - this is content that will be 50+ bytes long for testing"))
 	time.Sleep(1 * time.Millisecond) // Ensure different timestamps
-	
+
 	cache.AddRead(2, 0, []byte("file 2 - this is content that will be 50+ bytes long for testing"))
 	time.Sleep(1 * time.Millisecond)
-	
+
 	cache.AddRead(3, 0, []byte("file 3 - this is content that will be 50+ bytes long for testing"))
 	time.Sleep(1 * time.Millisecond)
 
 	// Access file 1 to make it most recently used
 	cache.GetOldContent(1, 0, 10)
-	
+
 	// Add another file to trigger eviction
 	cache.AddRead(4, 0, []byte("file 4 - this is content that will be 50+ bytes long for testing"))
 
@@ -158,24 +158,24 @@ func TestCacheCleanupEdgeCases(t *testing.T) {
 
 		// Add some data
 		cache.AddRead(1, 0, []byte("old data"))
-		
+
 		// Advance time partially
 		mockTime.Advance(3 * time.Minute)
-		
+
 		// Add more data
 		cache.AddRead(2, 0, []byte("new data"))
-		
+
 		// Advance time to expire only the old data
 		mockTime.Advance(3 * time.Minute)
-		
+
 		cache.Cleanup()
-		
+
 		// New data should still exist
 		_, exists2 := cache.GetOldContent(2, 0, 8)
 		if !exists2 {
 			t.Error("new data should not be expired")
 		}
-		
+
 		// Old data should be expired
 		_, exists1 := cache.GetOldContent(1, 0, 8)
 		if exists1 {

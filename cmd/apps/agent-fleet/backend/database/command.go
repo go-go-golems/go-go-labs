@@ -14,12 +14,12 @@ import (
 
 func (db *DB) CreateCommand(agentID string, req models.CreateCommandRequest) (*models.Command, error) {
 	command := &models.Command{
-		ID      : uuid.New().String(),
-		AgentID : agentID,
-		Content : req.Content,
-		Type    : req.Type,
-		Status  : string(models.CommandStatusSent),
-		SentAt  : time.Now(),
+		ID:      uuid.New().String(),
+		AgentID: agentID,
+		Content: req.Content,
+		Type:    req.Type,
+		Status:  string(models.CommandStatusSent),
+		SentAt:  time.Now(),
 	}
 
 	query := `
@@ -36,7 +36,7 @@ func (db *DB) CreateCommand(agentID string, req models.CreateCommandRequest) (*m
 
 func (db *DB) ListCommands(agentID, status string, limit int) ([]models.Command, error) {
 	var commands []models.Command
-	
+
 	// Build WHERE clause
 	whereClauses := []string{}
 	args := []interface{}{}
@@ -91,7 +91,7 @@ func (db *DB) UpdateCommand(agentID, commandID string, req models.UpdateCommandR
 	if req.Status != nil {
 		setParts = append(setParts, "status = ?")
 		args = append(args, *req.Status)
-		
+
 		// Set responded_at if status is acknowledged or completed
 		if *req.Status == string(models.CommandStatusAcknowledged) || *req.Status == string(models.CommandStatusCompleted) {
 			setParts = append(setParts, "responded_at = ?")

@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 
-	
 	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/api"
 	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/database"
 	"github.com/go-go-golems/go-go-labs/cmd/experiments/sniff-writes/pkg/models"
@@ -135,7 +134,7 @@ func StartServer(port int, styleCSS, appJS []byte, indexHandler http.HandlerFunc
 
 	// Create API server for endpoints
 	apiServer := api.NewServer(db, config, port)
-	
+
 	// Serve embedded static files
 	http.HandleFunc("/static/style.css", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/css")
@@ -145,11 +144,11 @@ func StartServer(port int, styleCSS, appJS []byte, indexHandler http.HandlerFunc
 		w.Header().Set("Content-Type", "application/javascript")
 		w.Write(appJS)
 	})
-	
+
 	// Web UI routes
 	http.HandleFunc("/", indexHandler)
 	http.HandleFunc("/ws", HandleWebSocket(hub))
-	
+
 	// API routes
 	http.HandleFunc("/api/events", apiServer.HandleEvents)
 	http.HandleFunc("/api/events/export", apiServer.HandleExport)

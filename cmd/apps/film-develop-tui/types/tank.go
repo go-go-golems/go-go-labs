@@ -20,4 +20,4 @@ func (td *TankDatabase) GetTankSize(format string, rolls int) (int, bool) {
 	}
 	size, ok := formatSizes[rolls]
 	return size, ok
-} 
+}

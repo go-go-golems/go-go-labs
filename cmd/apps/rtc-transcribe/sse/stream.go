@@ -14,16 +14,16 @@ import (
 
 // Subscriber represents a connected SSE client
 type Subscriber struct {
-	ID           string
-	Writer       http.ResponseWriter
-	Flusher      http.Flusher
-	Closed       bool
-	LastText     string
-	ConnectedAt  time.Time
-	LastEventAt  time.Time
-	EventsSent   int
-	RemoteAddr   string
-	UserAgent    string
+	ID          string
+	Writer      http.ResponseWriter
+	Flusher     http.Flusher
+	Closed      bool
+	LastText    string
+	ConnectedAt time.Time
+	LastEventAt time.Time
+	EventsSent  int
+	RemoteAddr  string
+	UserAgent   string
 }
 
 var (
@@ -42,23 +42,23 @@ func NewSubscriber(w http.ResponseWriter, r *http.Request) (*Subscriber, error) 
 
 	// Generate a random ID for this subscriber
 	id := uuid.New().String()
-	
+
 	// Get client info
 	remoteAddr := r.RemoteAddr
 	userAgent := r.UserAgent()
-	
+
 	// Create new subscriber
 	now := time.Now()
 	return &Subscriber{
-		ID:           id,
-		Writer:       w,
-		Flusher:      flusher,
-		Closed:       false,
-		ConnectedAt:  now,
-		LastEventAt:  now,
-		EventsSent:   0,
-		RemoteAddr:   remoteAddr,
-		UserAgent:    userAgent,
+		ID:          id,
+		Writer:      w,
+		Flusher:     flusher,
+		Closed:      false,
+		ConnectedAt: now,
+		LastEventAt: now,
+		EventsSent:  0,
+		RemoteAddr:  remoteAddr,
+		UserAgent:   userAgent,
 	}, nil
 }
 
@@ -67,7 +67,7 @@ func (s *Subscriber) SendEvent(eventType, data string) error {
 	if s.Closed {
 		return errors.New("subscriber is closed")
 	}
-	
+
 	logger := log.With().
 		Str("component", "SSE").
 		Str("action", "SendEvent").
@@ -76,7 +76,7 @@ func (s *Subscriber) SendEvent(eventType, data string) error {
 		Str("remoteAddr", s.RemoteAddr).
 		Int("dataLength", len(data)).
 		Logger()
-		
+
 	logger.Debug().Msg("Sending SSE event to subscriber")
 
 	// Format the SSE event
@@ -97,7 +97,7 @@ func (s *Subscriber) SendEvent(eventType, data string) error {
 	s.LastText = data
 	s.LastEventAt = time.Now()
 	s.EventsSent++
-	
+
 	connectionDuration := time.Since(s.ConnectedAt)
 	logger.Debug().
 		Int("totalEventsSent", s.EventsSent).
@@ -118,13 +118,13 @@ func RegisterSubscriber(s *Subscriber) {
 		Str("remoteAddr", s.RemoteAddr).
 		Str("userAgent", s.UserAgent).
 		Logger()
-	
+
 	subscriberMutex.Lock()
 	defer subscriberMutex.Unlock()
-	
+
 	// Add to subscribers map
 	subscribers[s.ID] = s
-	
+
 	// Log subscriber count
 	subscriberCount := len(subscribers)
 	logger.Info().
@@ -136,7 +136,7 @@ func RegisterSubscriber(s *Subscriber) {
 func UnregisterSubscriber(id string) {
 	subscriberMutex.Lock()
 	defer subscriberMutex.Unlock()
-	
+
 	if subscriber, exists := subscribers[id]; exists {
 		logger := log.With().
 			Str("component", "SSE").
@@ -146,9 +146,9 @@ func UnregisterSubscriber(id string) {
 			Int("eventsSent", subscriber.EventsSent).
 			Dur("connectionDuration", time.Since(subscriber.ConnectedAt)).
 			Logger()
-		
+
 		delete(subscribers, id)
-		
+
 		subscriberCount := len(subscribers)
 		logger.Info().
 			Int("totalSubscribers", subscriberCount).
@@ -164,41 +164,41 @@ func BroadcastEvent(eventType, data string) {
 		Str("eventType", eventType).
 		Int("dataLength", len(data)).
 		Logger()
-	
+
 	subscriberMutex.RLock()
 	subscriberCount := len(subscribers)
 	logger.Debug().
 		Int("subscriberCount", subscriberCount).
 		Msg("Broadcasting event to all subscribers")
-	
+
 	// If no subscribers, return early
 	if subscriberCount == 0 {
 		subscriberMutex.RUnlock()
 		logger.Debug().Msg("No subscribers to broadcast to")
 		return
 	}
-	
+
 	var failedCount int
 	var successCount int
-	
+
 	// Copy subscriber IDs to avoid holding the lock during sends
 	subscriberIDs := make([]string, 0, subscriberCount)
 	for id := range subscribers {
 		subscriberIDs = append(subscriberIDs, id)
 	}
 	subscriberMutex.RUnlock()
-	
+
 	// Send to each subscriber without holding the lock
 	for _, id := range subscriberIDs {
 		// Re-acquire lock to get the subscriber
 		subscriberMutex.RLock()
 		subscriber, exists := subscribers[id]
 		subscriberMutex.RUnlock()
-		
+
 		if !exists {
 			continue
 		}
-		
+
 		err := subscriber.SendEvent(eventType, data)
 		if err != nil {
 			logger.Warn().
@@ -206,7 +206,7 @@ func BroadcastEvent(eventType, data string) {
 				Str("subscriberID", id).
 				Str("remoteAddr", subscriber.RemoteAddr).
 				Msg("Failed to send event to subscriber")
-				
+
 			// Mark as closed for cleanup
 			subscriber.Closed = true
 			failedCount++
@@ -214,14 +214,14 @@ func BroadcastEvent(eventType, data string) {
 			successCount++
 		}
 	}
-	
+
 	// Log broadcast results
 	logger.Info().
 		Int("totalSubscribers", subscriberCount).
 		Int("succeededCount", successCount).
 		Int("failedCount", failedCount).
 		Msg("Broadcast complete")
-		
+
 	// Cleanup closed subscribers
 	if failedCount > 0 {
 		go cleanupClosedSubscribers()
@@ -232,7 +232,7 @@ func BroadcastEvent(eventType, data string) {
 func cleanupClosedSubscribers() {
 	subscriberMutex.Lock()
 	defer subscriberMutex.Unlock()
-	
+
 	closedCount := 0
 	for id, subscriber := range subscribers {
 		if subscriber.Closed {
@@ -240,7 +240,7 @@ func cleanupClosedSubscribers() {
 			closedCount++
 		}
 	}
-	
+
 	if closedCount > 0 {
 		log.Info().
 			Str("component", "SSE").
@@ -260,9 +260,9 @@ func HandleSSE(w http.ResponseWriter, r *http.Request) {
 		Str("method", r.Method).
 		Str("url", r.URL.String()).
 		Logger()
-		
+
 	logger.Debug().Msg("Received SSE connection request")
-	
+
 	// Set SSE headers
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -280,11 +280,11 @@ func HandleSSE(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
 		return
 	}
-	
+
 	subscriberLogger := logger.With().
 		Str("subscriberID", subscriber.ID).
 		Logger()
-		
+
 	subscriberLogger.Info().Msg("Created new SSE subscriber")
 
 	// Register the subscriber
@@ -298,16 +298,16 @@ func HandleSSE(w http.ResponseWriter, r *http.Request) {
 		UnregisterSubscriber(subscriber.ID)
 		return
 	}
-	
+
 	subscriberLogger.Info().Msg("SSE connection established successfully")
 
 	// Wait for the client to disconnect
 	notify := r.Context().Done()
-	
+
 	// Create a heartbeat ticker to keep the connection alive
 	heartbeatTicker := time.NewTicker(30 * time.Second)
 	defer heartbeatTicker.Stop()
-	
+
 	// Handle disconnection or heartbeat in a separate goroutine
 	disconnected := make(chan bool, 1)
 	go func() {
@@ -319,7 +319,7 @@ func HandleSSE(w http.ResponseWriter, r *http.Request) {
 				Int("eventsSent", subscriber.EventsSent).
 				Msg("Client disconnected")
 			disconnected <- true
-			
+
 		case <-heartbeatTicker.C:
 			// Send a heartbeat to keep the connection alive
 			if err := subscriber.SendEvent("heartbeat", fmt.Sprintf("%d", time.Now().UnixNano())); err != nil {
@@ -331,7 +331,7 @@ func HandleSSE(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}()
-	
+
 	// Wait for disconnection
 	<-disconnected
 
@@ -346,19 +346,19 @@ func SendTranscription(text string) {
 		Str("action", "SendTranscription").
 		Int("textLength", len(text)).
 		Logger()
-		
+
 	if text == "" {
 		logger.Warn().Msg("Empty transcription text, not broadcasting")
 		return
 	}
-	
+
 	// Count words in the transcription
 	wordCount := len(bytes.Fields([]byte(text)))
-	
+
 	logger.Info().
 		Int("wordCount", wordCount).
 		Str("text", text).
 		Msg("Broadcasting transcription")
-		
+
 	BroadcastEvent("transcription", text)
 }

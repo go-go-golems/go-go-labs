@@ -16,21 +16,21 @@ import (
 var _ tea.Model = (*SelectionModel)(nil)
 
 type SelectionModel struct {
-	config     *config.Config
-	width      int
-	height     int
-	
+	config *config.Config
+	width  int
+	height int
+
 	// UI components
 	searchInput    textinput.Model
 	repoList       list.Model
 	presetButtons  []presetButton
 	selectedPreset int
-	
+
 	// State
-	repositories   []repositoryItem
-	filteredRepos  []repositoryItem
-	selectedRepos  map[string]bool
-	
+	repositories  []repositoryItem
+	filteredRepos []repositoryItem
+	selectedRepos map[string]bool
+
 	// Key bindings
 	keys selectionKeyMap
 }
@@ -167,7 +167,7 @@ func (m *SelectionModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.updateFilter()
 				return m, nil
 			}
-			
+
 			var cmd tea.Cmd
 			m.searchInput, cmd = m.searchInput.Update(msg)
 			cmds = append(cmds, cmd)
@@ -319,7 +319,7 @@ func (m *SelectionModel) Reset() {
 
 func (m *SelectionModel) updateFilter() {
 	query := strings.ToLower(strings.TrimSpace(m.searchInput.Value()))
-	
+
 	if query == "" {
 		m.filteredRepos = m.repositories
 	} else {
@@ -330,7 +330,7 @@ func (m *SelectionModel) updateFilter() {
 			}
 		}
 	}
-	
+
 	m.updateRepositoryList()
 }
 
@@ -352,15 +352,15 @@ func (m *SelectionModel) toggleCurrentRepo() *SelectionModel {
 	if m.repoList.SelectedItem() == nil {
 		return m
 	}
-	
+
 	item := m.repoList.SelectedItem().(repositoryItem)
 	repoName := item.repo.Name
-	
+
 	m.selectedRepos[repoName] = !m.selectedRepos[repoName]
 	if !m.selectedRepos[repoName] {
 		delete(m.selectedRepos, repoName)
 	}
-	
+
 	m.updateRepositoryList()
 	return m
 }
@@ -401,7 +401,7 @@ func (m *SelectionModel) cyclePreset() *SelectionModel {
 		// Select new preset
 		m.presetButtons[m.selectedPreset].selected = true
 		preset := m.presetButtons[m.selectedPreset].preset
-		
+
 		// Clear current selections and apply preset
 		m.selectedRepos = make(map[string]bool)
 		for _, repoName := range preset.Repositories {
@@ -418,7 +418,7 @@ func (m *SelectionModel) cyclePreset() *SelectionModel {
 
 func (m *SelectionModel) getSelectedRepositories() []config.RepositorySelection {
 	var selected []config.RepositorySelection
-	
+
 	for repoName := range m.selectedRepos {
 		if repo, exists := m.config.GetRepositoryByName(repoName); exists {
 			selected = append(selected, config.RepositorySelection{
@@ -428,21 +428,21 @@ func (m *SelectionModel) getSelectedRepositories() []config.RepositorySelection 
 			})
 		}
 	}
-	
+
 	return selected
 }
 
 // Custom list delegate for repository items
 func newRepositoryDelegate() list.DefaultDelegate {
 	d := list.NewDefaultDelegate()
-	
+
 	d.Styles.SelectedTitle = d.Styles.SelectedTitle.
 		Foreground(lipgloss.Color("62")).
 		BorderLeftForeground(lipgloss.Color("62"))
-	
+
 	d.Styles.SelectedDesc = d.Styles.SelectedDesc.
 		Foreground(lipgloss.Color("240")).
 		BorderLeftForeground(lipgloss.Color("62"))
-	
+
 	return d
 }

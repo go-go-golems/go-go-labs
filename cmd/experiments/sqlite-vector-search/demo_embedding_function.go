@@ -6,8 +6,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/rs/zerolog"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/rs/zerolog"
 )
 
 // runEmbeddingDemo shows practical usage of the get_embedding SQL function
@@ -40,7 +40,7 @@ func runEmbeddingDemo() {
 
 	// Demo 1: Insert documents with computed embeddings
 	fmt.Println("\n📝 Demo 1: Inserting documents with computed embeddings")
-	
+
 	documents := []string{
 		"Machine learning is revolutionizing technology",
 		"SQLite is a lightweight database engine",
@@ -54,21 +54,21 @@ func runEmbeddingDemo() {
 			INSERT INTO documents (content, embedding) 
 			VALUES (?, get_embedding(?))
 		`, doc, doc)
-		
+
 		if err != nil {
 			fmt.Printf("❌ Failed to insert document %d: %v\n", i+1, err)
 			continue
 		}
-		
+
 		fmt.Printf("✅ Inserted: %s\n", doc)
 	}
 
 	// Demo 2: Real-time similarity search
 	fmt.Println("\n🔍 Demo 2: Real-time similarity search using get_embedding")
-	
+
 	query := "artificial intelligence and neural networks"
 	fmt.Printf("Searching for: %s\n", query)
-	
+
 	rows, err := db.Query(`
 		SELECT 
 			content,
@@ -78,7 +78,7 @@ func runEmbeddingDemo() {
 		ORDER BY similarity DESC
 		LIMIT 3
 	`, query, query)
-	
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -96,7 +96,7 @@ func runEmbeddingDemo() {
 
 	// Demo 3: Compare similarity between arbitrary texts
 	fmt.Println("\n🔗 Demo 3: Compare similarity between any two texts")
-	
+
 	comparisons := []struct {
 		text1, text2 string
 	}{
@@ -114,20 +114,20 @@ func runEmbeddingDemo() {
 				get_embedding(?)
 			)
 		`, comp.text1, comp.text2).Scan(&similarity)
-		
+
 		if err != nil {
 			fmt.Printf("❌ Failed to compare: %v\n", err)
 			continue
 		}
-		
+
 		fmt.Printf("%.3f | '%s' vs '%s'\n", similarity, comp.text1, comp.text2)
 	}
 
 	// Demo 4: Update existing documents with embeddings
 	fmt.Println("\n🔄 Demo 4: Update existing documents")
-	
+
 	// First, insert a document without embedding
-	_, err = db.Exec("INSERT INTO documents (content, embedding) VALUES (?, '')", 
+	_, err = db.Exec("INSERT INTO documents (content, embedding) VALUES (?, '')",
 		"This document needs an embedding")
 	if err != nil {
 		log.Fatal(err)
@@ -148,13 +148,13 @@ func runEmbeddingDemo() {
 
 	// Demo 5: Batch processing with subqueries
 	fmt.Println("\n📊 Demo 5: Batch analysis")
-	
+
 	var totalDocs, docsWithEmbeddings int
 	err = db.QueryRow("SELECT COUNT(*) FROM documents").Scan(&totalDocs)
 	if err != nil {
 		log.Fatal(err)
 	}
-	
+
 	err = db.QueryRow(`
 		SELECT COUNT(*) FROM documents 
 		WHERE embedding != '' AND embedding != '[]'
@@ -169,7 +169,7 @@ func runEmbeddingDemo() {
 
 	// Demo 6: Find documents most similar to the entire collection
 	fmt.Println("\n🎯 Demo 6: Find documents most similar to collection average")
-	
+
 	// This is a complex query that finds documents similar to the "average" concept
 	rows, err = db.Query(`
 		WITH collection_query AS (
@@ -185,7 +185,7 @@ func runEmbeddingDemo() {
 		ORDER BY centrality_score DESC
 		LIMIT 3
 	`)
-	
+
 	if err != nil {
 		log.Fatal(err)
 	}

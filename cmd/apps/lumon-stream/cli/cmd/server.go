@@ -25,14 +25,14 @@ var statusCmd = &cobra.Command{
 	Long:  `Check if the LumonStream server is running.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		url := fmt.Sprintf("%s/api/stream-info", serverURL)
-		
+
 		resp, err := http.Get(url)
 		if err != nil {
 			fmt.Printf("Server is not running or not accessible at %s\n", serverURL)
 			return
 		}
 		defer resp.Body.Close()
-		
+
 		fmt.Printf("Server is running at %s\n", serverURL)
 	},
 }
@@ -54,7 +54,7 @@ func init() {
 	rootCmd.AddCommand(serverCmd)
 	serverCmd.AddCommand(statusCmd)
 	serverCmd.AddCommand(startCmd)
-	
+
 	// Add flags for server commands
 	startCmd.Flags().IntVar(&serverPort, "port", 8080, "Port to run the server on")
 }

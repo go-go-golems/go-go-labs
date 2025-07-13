@@ -20,4 +20,4 @@ func (fs *FixerState) CanProcess(rolls int) bool {
 // UseFixer uses the fixer for the given number of rolls
 func (fs *FixerState) UseFixer(rolls int) {
 	fs.UsedRolls += rolls
-} 
+}

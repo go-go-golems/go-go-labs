@@ -6,9 +6,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/spf13/cobra"
 	"github.com/pkg/errors"
-	
+	"github.com/spf13/cobra"
+
 	"github.com/go-go-golems/go-go-labs/pkg/audio"
 )
 
@@ -45,9 +45,9 @@ var generateCmd = &cobra.Command{
 		if outputFile == "" {
 			return errors.New("output file is required (-o flag)")
 		}
-		
+
 		ns := audio.NewNotificationSound()
-		
+
 		// Apply custom parameters if provided
 		if frequency > 0 {
 			ns.Frequency = frequency
@@ -58,18 +58,18 @@ var generateCmd = &cobra.Command{
 		if volume > 0 {
 			ns.Volume = volume
 		}
-		
+
 		fmt.Printf("Generating notification sound:\n")
 		fmt.Printf("  Frequency: %.1f Hz\n", ns.Frequency)
 		fmt.Printf("  Duration: %v\n", ns.Duration)
 		fmt.Printf("  Volume: %.1f\n", ns.Volume)
 		fmt.Printf("  Output: %s\n", outputFile)
-		
+
 		err := ns.SaveToFile(outputFile)
 		if err != nil {
 			return errors.Wrap(err, "failed to save notification sound")
 		}
-		
+
 		fmt.Printf("✅ Notification sound saved to %s\n", outputFile)
 		return nil
 	},
@@ -83,9 +83,9 @@ var downloadCmd = &cobra.Command{
 		if outputFile == "" {
 			return errors.New("output file is required (-o flag)")
 		}
-		
+
 		sounds := audio.GetFreeNotificationSounds()
-		
+
 		if soundType == "" {
 			fmt.Println("Available sound types:")
 			for name := range sounds {
@@ -93,7 +93,7 @@ var downloadCmd = &cobra.Command{
 			}
 			return errors.New("sound type is required (-t flag)")
 		}
-		
+
 		url, exists := sounds[soundType]
 		if !exists {
 			fmt.Println("Available sound types:")
@@ -102,17 +102,17 @@ var downloadCmd = &cobra.Command{
 			}
 			return fmt.Errorf("unknown sound type: %s", soundType)
 		}
-		
+
 		fmt.Printf("Downloading %s from %s...\n", soundType, url)
-		
+
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		
+
 		err := audio.DownloadNotificationSound(ctx, url, outputFile)
 		if err != nil {
 			return errors.Wrap(err, "failed to download notification sound")
 		}
-		
+
 		fmt.Printf("✅ Notification sound downloaded to %s\n", outputFile)
 		return nil
 	},
@@ -124,7 +124,7 @@ var listCmd = &cobra.Command{
 	Long:  "List all available notification sounds that can be downloaded",
 	Run: func(cmd *cobra.Command, args []string) {
 		sounds := audio.GetFreeNotificationSounds()
-		
+
 		fmt.Println("Available notification sounds for download:")
 		for name, url := range sounds {
 			fmt.Printf("  %-15s %s\n", name, url)
@@ -138,11 +138,11 @@ func init() {
 	generateCmd.Flags().Float64VarP(&frequency, "frequency", "f", 0, "Sound frequency in Hz (default: 800)")
 	generateCmd.Flags().DurationVarP(&duration, "duration", "d", 0, "Sound duration (default: 500ms)")
 	generateCmd.Flags().Float64VarP(&volume, "volume", "v", 0, "Sound volume 0.0-1.0 (default: 0.3)")
-	
+
 	// Download command flags
 	downloadCmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output file path (required)")
 	downloadCmd.Flags().StringVarP(&soundType, "type", "t", "", "Sound type to download (required)")
-	
+
 	// Add subcommands
 	rootCmd.AddCommand(generateCmd)
 	rootCmd.AddCommand(downloadCmd)
@@ -154,4 +154,4 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
-} 
+}

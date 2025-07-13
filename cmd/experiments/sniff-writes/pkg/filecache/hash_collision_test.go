@@ -84,12 +84,12 @@ func TestCrossProcessHashCollisions(t *testing.T) {
 	for i, proc := range processes {
 		offset := uint64(i * 1000)
 		retrieved, exists := fc.GetOldContent(pathHash, offset, uint64(len(proc.data)))
-		
+
 		if !exists {
 			t.Errorf("Content from process %d not found", proc.pid)
 			continue
 		}
-		
+
 		if !bytes.Equal(proc.data, retrieved) {
 			t.Errorf("Content from process %d corrupted", proc.pid)
 		}

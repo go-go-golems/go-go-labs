@@ -21,10 +21,10 @@ type AuthorizationProxy struct {
 
 // StateMapping maps authorization state between dynamic clients and static Auth0 client
 type StateMapping struct {
-	OriginalState     string
-	DynamicClientID   string
+	OriginalState       string
+	DynamicClientID     string
 	OriginalRedirectURI string
-	CreatedAt         time.Time
+	CreatedAt           time.Time
 }
 
 // NewAuthorizationProxy creates a new authorization proxy
@@ -82,7 +82,7 @@ func (p *AuthorizationProxy) HandleAuthorizationRequest(w http.ResponseWriter, r
 
 	// Generate a new state for the Auth0 request
 	proxyState := p.generateState()
-	
+
 	// Store the state mapping
 	p.stateMappings[proxyState] = StateMapping{
 		OriginalState:       originalState,

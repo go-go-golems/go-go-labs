@@ -611,7 +611,7 @@ This should be the execution ID from an execution record, typically obtained fro
 func createN8NClientFromContext(ctx context.Context) (*n8n.N8NClient, error) {
 	// Configure logging to stderr when in MCP mode (only once)
 	configureMCPLogging()
-	
+
 	// For MCP tools, we'll use environment variables for configuration
 	// This could be enhanced to use session-based configuration
 	settings := &n8n.N8NAPISettings{

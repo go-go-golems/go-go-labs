@@ -278,12 +278,12 @@ func (db *DB) DeleteAgent(id string) error {
 
 func (db *DB) CreateEvent(agentID string, req models.CreateEventRequest) (*models.Event, error) {
 	event := &models.Event{
-		ID        : uuid.New().String(),
-		AgentID   : agentID,
-		Type      : req.Type,
-		Message   : req.Message,
-		Metadata  : req.Metadata,
-		Timestamp : time.Now(),
+		ID:        uuid.New().String(),
+		AgentID:   agentID,
+		Type:      req.Type,
+		Message:   req.Message,
+		Metadata:  req.Metadata,
+		Timestamp: time.Now(),
 	}
 
 	var metadataJSON []byte
@@ -353,7 +353,7 @@ func (db *DB) ListEvents(agentID, eventType string, since *time.Time, limit, off
 	for rows.Next() {
 		var event models.Event
 		var metadataJSON *string
-		
+
 		err := rows.Scan(&event.ID, &event.AgentID, &event.Type, &event.Message, &metadataJSON, &event.Timestamp)
 		if err != nil {
 			return nil, 0, errors.Wrap(err, "failed to scan event")
@@ -380,7 +380,7 @@ func joinStrings(strs []string, sep string) string {
 	if len(strs) == 1 {
 		return strs[0]
 	}
-	
+
 	result := strs[0]
 	for _, s := range strs[1:] {
 		result += sep + s

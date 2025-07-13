@@ -448,7 +448,7 @@ func (s *Server) HandleStatus(w http.ResponseWriter, r *http.Request) {
 		Status:    "ok",
 		Timestamp: time.Now().Format(time.RFC3339),
 	}
-	
+
 	// Include configuration information
 	if s.config != nil {
 		response.Operations = s.config.Operations
