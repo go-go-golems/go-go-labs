@@ -14,6 +14,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/types"
 	"github.com/pkg/errors"
 	"github.com/redis/go-redis/v9"
+	"github.com/rs/zerolog/log"
 )
 
 type SatisfyCommand struct {
@@ -80,35 +81,51 @@ func (c *SatisfyCommand) RunIntoGlazeProcessor(
 	s := &SatisfySettings{}
 	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to initialize satisfy settings")
 		return err
 	}
 
+	log.Info().
+		Str("flag", s.Flag).
+		Msg("Starting satisfy operation")
+
 	client, err := getRedisClient()
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to get Redis client")
 		return err
 	}
 	defer client.Close()
 
 	flagKey := client.FlagKey(s.Flag)
 
+	log.Debug().Str("flag", s.Flag).Msg("Getting flag value before deleting")
+
 	// Get flag value before deleting (for output)
 	flagValue, err := client.Get(ctx, flagKey).Result()
 	if err == redis.Nil {
+		log.Warn().Str("flag", s.Flag).Msg("Flag does not exist")
 		return errors.Errorf("flag '%s' does not exist", s.Flag)
 	}
 	if err != nil {
+		log.Error().Err(err).Str("flag", s.Flag).Msg("Failed to get flag value")
 		return errors.Wrap(err, "failed to get flag value")
 	}
+
+	log.Debug().Str("flag", s.Flag).Str("flag_value", flagValue).Msg("Retrieved flag value, proceeding to delete")
 
 	// Delete the flag
 	deleted, err := client.Del(ctx, flagKey).Result()
 	if err != nil {
+		log.Error().Err(err).Str("flag", s.Flag).Msg("Failed to delete flag")
 		return errors.Wrap(err, "failed to delete flag")
 	}
 
 	if deleted == 0 {
+		log.Warn().Str("flag", s.Flag).Msg("Flag was not deleted (may have been removed by another agent)")
 		return errors.Errorf("flag '%s' was not deleted (may have been removed by another agent)", s.Flag)
 	}
+
+	log.Debug().Str("flag", s.Flag).Msg("Successfully deleted flag")
 
 	// Parse flag value for output
 	parts := strings.SplitN(flagValue, " @ ", 2)
@@ -121,10 +138,26 @@ func (c *SatisfyCommand) RunIntoGlazeProcessor(
 		announcedAt = "unknown"
 	}
 
+	log.Debug().
+		Str("flag", s.Flag).
+		Str("announced_by", announcedBy).
+		Str("announced_at", announcedAt).
+		Msg("Parsed flag details")
+
 	// Publish to communication channel (non-blocking)
 	agentID, _ := getAgentID()
 	message := fmt.Sprintf("✅ Satisfied '%s'", s.Flag)
-	_ = publishToChannel(ctx, client, agentID, message, "coordination")
+	log.Debug().Str("message", message).Str("flag", s.Flag).Msg("Publishing to communication channel")
+	err = publishToChannel(ctx, client, agentID, message, "coordination")
+	if err != nil {
+		log.Warn().Err(err).Str("flag", s.Flag).Msg("Failed to publish to communication channel")
+	}
+
+	log.Info().
+		Str("flag", s.Flag).
+		Str("announced_by", announcedBy).
+		Str("announced_at", announcedAt).
+		Msg("Successfully satisfied flag")
 
 	// Output the result
 	row := types.NewRow(

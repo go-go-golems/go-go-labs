@@ -14,6 +14,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/types"
 	"github.com/pkg/errors"
 	"github.com/redis/go-redis/v9"
+	"github.com/rs/zerolog/log"
 )
 
 type AwaitCommand struct {
@@ -92,11 +93,19 @@ func (c *AwaitCommand) RunIntoGlazeProcessor(
 	s := &AwaitSettings{}
 	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to initialize await settings")
 		return err
 	}
 
+	log.Info().
+		Str("flag", s.Flag).
+		Int("timeout", s.Timeout).
+		Bool("delete", s.Delete).
+		Msg("Starting await operation")
+
 	client, err := getRedisClient()
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to get Redis client")
 		return err
 	}
 	defer client.Close()
@@ -106,6 +115,10 @@ func (c *AwaitCommand) RunIntoGlazeProcessor(
 	// Set up timeout context if specified
 	waitCtx := ctx
 	if s.Timeout > 0 {
+		log.Debug().
+			Str("flag", s.Flag).
+			Int("timeout_seconds", s.Timeout).
+			Msg("Setting up timeout context")
 		var cancel context.CancelFunc
 		waitCtx, cancel = context.WithTimeout(ctx, time.Duration(s.Timeout)*time.Second)
 		defer cancel()
@@ -113,6 +126,7 @@ func (c *AwaitCommand) RunIntoGlazeProcessor(
 
 	// Poll for the flag
 	start := time.Now()
+	log.Debug().Str("flag", s.Flag).Msg("Starting to poll for flag")
 	ticker := time.NewTicker(100 * time.Millisecond) // Poll every 100ms
 	defer ticker.Stop()
 
@@ -120,21 +134,29 @@ func (c *AwaitCommand) RunIntoGlazeProcessor(
 		select {
 		case <-waitCtx.Done():
 			if s.Timeout > 0 && waitCtx.Err() == context.DeadlineExceeded {
+				log.Warn().
+					Str("flag", s.Flag).
+					Int("timeout_seconds", s.Timeout).
+					Msg("Timeout waiting for flag")
 				return errors.Errorf("timeout waiting for flag '%s' after %d seconds", s.Flag, s.Timeout)
 			}
+			log.Debug().Err(waitCtx.Err()).Str("flag", s.Flag).Msg("Context cancelled while waiting")
 			return waitCtx.Err()
 		case <-ticker.C:
 			// Check if flag exists
 			flagValue, err := client.Get(waitCtx, flagKey).Result()
 			if err == redis.Nil {
 				// Flag doesn't exist yet, continue waiting
+				log.Debug().Str("flag", s.Flag).Msg("Flag not found, continuing to wait")
 				continue
 			}
 			if err != nil {
+				log.Error().Err(err).Str("flag", s.Flag).Msg("Failed to check flag")
 				return errors.Wrap(err, "failed to check flag")
 			}
 
 			// Flag exists! Parse the value
+			log.Debug().Str("flag", s.Flag).Str("flag_value", flagValue).Msg("Flag found, parsing value")
 			parts := strings.SplitN(flagValue, " @ ", 2)
 			var agentID, timestamp string
 			if len(parts) == 2 {
@@ -147,10 +169,13 @@ func (c *AwaitCommand) RunIntoGlazeProcessor(
 
 			// Delete flag if requested
 			if s.Delete {
+				log.Debug().Str("flag", s.Flag).Msg("Deleting flag as requested")
 				err = client.Del(waitCtx, flagKey).Err()
 				if err != nil {
+					log.Error().Err(err).Str("flag", s.Flag).Msg("Failed to delete flag")
 					return errors.Wrap(err, "failed to delete flag")
 				}
+				log.Debug().Str("flag", s.Flag).Msg("Successfully deleted flag")
 			}
 
 			waitDuration := time.Since(start)
@@ -158,7 +183,18 @@ func (c *AwaitCommand) RunIntoGlazeProcessor(
 			// Publish to communication channel (non-blocking)
 			currentAgentID, _ := getAgentID()
 			message := fmt.Sprintf("⏳ Waiting for '%s' completed", s.Flag)
-			_ = publishToChannel(waitCtx, client, currentAgentID, message, "coordination")
+			log.Debug().Str("message", message).Str("flag", s.Flag).Msg("Publishing completion to communication channel")
+			err = publishToChannel(waitCtx, client, currentAgentID, message, "coordination")
+			if err != nil {
+				log.Warn().Err(err).Str("flag", s.Flag).Msg("Failed to publish to communication channel")
+			}
+
+			log.Info().
+				Str("flag", s.Flag).
+				Str("satisfied_by", agentID).
+				Int64("wait_duration_ms", waitDuration.Milliseconds()).
+				Bool("deleted", s.Delete).
+				Msg("Successfully awaited flag")
 
 			// Output the result
 			row := types.NewRow(

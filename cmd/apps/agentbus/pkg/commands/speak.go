@@ -12,6 +12,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/types"
 	"github.com/pkg/errors"
 	"github.com/redis/go-redis/v9"
+	"github.com/rs/zerolog/log"
 )
 
 type SpeakCommand struct {
@@ -86,6 +87,8 @@ func (c *SpeakCommand) RunIntoGlazeProcessor(
 	if err != nil {
 		return err
 	}
+
+	log.Info().Str("agent_id", agentID).Str("message", s.Message).Str("topic", s.Topic).Msg("Sending message")
 
 	client, err := getRedisClient()
 	if err != nil {

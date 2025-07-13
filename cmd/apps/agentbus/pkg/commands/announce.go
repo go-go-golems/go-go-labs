@@ -12,6 +12,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 )
 
 type AnnounceCommand struct {
@@ -82,16 +83,26 @@ func (c *AnnounceCommand) RunIntoGlazeProcessor(
 	s := &AnnounceSettings{}
 	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to initialize announce settings")
 		return err
 	}
+
+	log.Info().
+		Str("flag", s.Flag).
+		Bool("force", s.Force).
+		Msg("Starting announce operation")
 
 	agentID, err := getAgentID()
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to get agent ID")
 		return err
 	}
 
+	log.Debug().Str("agent_id", agentID).Str("flag", s.Flag).Msg("Retrieved agent ID")
+
 	client, err := getRedisClient()
 	if err != nil {
+		log.Error().Err(err).Msg("Failed to get Redis client")
 		return err
 	}
 	defer client.Close()
@@ -101,27 +112,47 @@ func (c *AnnounceCommand) RunIntoGlazeProcessor(
 	flagValue := fmt.Sprintf("%s @ %s", agentID, now.Format(time.RFC3339))
 
 	if s.Force {
+		log.Debug().Str("flag", s.Flag).Str("agent_id", agentID).Msg("Force setting flag")
 		// Force set the flag
 		err = client.Set(ctx, flagKey, flagValue, 0).Err()
 		if err != nil {
+			log.Error().Err(err).Str("flag", s.Flag).Msg("Failed to force set flag")
 			return errors.Wrap(err, "failed to set flag")
 		}
+		log.Debug().Str("flag", s.Flag).Str("agent_id", agentID).Msg("Successfully force set flag")
 	} else {
+		log.Debug().Str("flag", s.Flag).Str("agent_id", agentID).Msg("Setting flag if not exists")
 		// Set only if not exists (SETNX)
 		success, err := client.SetNX(ctx, flagKey, flagValue, 0).Result()
 		if err != nil {
+			log.Error().Err(err).Str("flag", s.Flag).Msg("Failed to set flag")
 			return errors.Wrap(err, "failed to set flag")
 		}
 		if !success {
 			// Flag already exists, get current value for error message
 			currentValue, _ := client.Get(ctx, flagKey).Result()
+			log.Warn().
+				Str("flag", s.Flag).
+				Str("current_value", currentValue).
+				Msg("Flag already exists and force not specified")
 			return errors.Errorf("flag '%s' already exists (current: %s). Use --force to override", s.Flag, currentValue)
 		}
+		log.Debug().Str("flag", s.Flag).Str("agent_id", agentID).Msg("Successfully set flag")
 	}
 
 	// Publish to communication channel (non-blocking)
 	message := fmt.Sprintf("🚩 Announced working on '%s'", s.Flag)
-	_ = publishToChannel(ctx, client, agentID, message, "coordination")
+	log.Debug().Str("message", message).Str("flag", s.Flag).Msg("Publishing to communication channel")
+	err = publishToChannel(ctx, client, agentID, message, "coordination")
+	if err != nil {
+		log.Warn().Err(err).Str("flag", s.Flag).Msg("Failed to publish to communication channel")
+	}
+
+	log.Info().
+		Str("flag", s.Flag).
+		Str("agent_id", agentID).
+		Bool("forced", s.Force).
+		Msg("Successfully announced flag")
 
 	// Output the result
 	row := types.NewRow(

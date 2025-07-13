@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"io"
 	"os"
 
 	"github.com/go-go-golems/glazed/pkg/cli"
@@ -35,7 +36,18 @@ All state is namespaced by agent ID to prevent conflicts.`,
 			logLevel = zerolog.InfoLevel
 		}
 		zerolog.SetGlobalLevel(logLevel)
-		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+		
+		// Set up dual logging: console + file
+		logFile, err := os.OpenFile("/tmp/agentbus.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+		if err != nil {
+			log.Warn().Err(err).Msg("Failed to open log file, using console only")
+			log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+		} else {
+			consoleWriter := zerolog.ConsoleWriter{Out: os.Stderr}
+			multiWriter := io.MultiWriter(consoleWriter, logFile)
+			log.Logger = log.Output(multiWriter)
+			log.Info().Str("log_file", "/tmp/agentbus.log").Msg("Logging to file and console")
+		}
 	},
 }
 
@@ -104,6 +116,11 @@ func main() {
 		log.Fatal().Err(err).Msg("Failed to create satisfy command")
 	}
 
+	monitorCmd, err := commands.NewMonitorCommand()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to create monitor command")
+	}
+
 	// Convert to cobra commands
 	speakCobraCmd, err := cli.BuildCobraCommandFromGlazeCommand(speakCmd)
 	if err != nil {
@@ -145,6 +162,11 @@ func main() {
 		log.Fatal().Err(err).Msg("Failed to build satisfy cobra command")
 	}
 
+	monitorCobraCmd, err := cli.BuildCobraCommandFromWriterCommand(monitorCmd)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to build monitor cobra command")
+	}
+
 	// Add commands to root
 	rootCmd.AddCommand(speakCobraCmd)
 	rootCmd.AddCommand(overhearCobraCmd)
@@ -154,6 +176,7 @@ func main() {
 	rootCmd.AddCommand(announceCobraCmd)
 	rootCmd.AddCommand(awaitCobraCmd)
 	rootCmd.AddCommand(satisfyCobraCmd)
+	rootCmd.AddCommand(monitorCobraCmd)
 
 	// Execute
 	ctx := context.Background()
