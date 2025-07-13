@@ -43,11 +43,11 @@ func TestAPICompatibility(t *testing.T) {
 
 func TestNewFileCacheParameters(t *testing.T) {
 	tests := []struct {
-		name           string
-		perFileLimit   uint64
-		globalLimit    uint64
-		maxAge         time.Duration
-		shouldPanic    bool
+		name         string
+		perFileLimit uint64
+		globalLimit  uint64
+		maxAge       time.Duration
+		shouldPanic  bool
 	}{
 		{
 			name:         "valid parameters",
@@ -92,11 +92,11 @@ func TestNewFileCacheParameters(t *testing.T) {
 
 func TestRealTimeProvider(t *testing.T) {
 	provider := RealTimeProvider{}
-	
+
 	start := provider.Now()
 	time.Sleep(1 * time.Millisecond)
 	end := provider.Now()
-	
+
 	if !end.After(start) {
 		t.Error("RealTimeProvider should return increasing time")
 	}

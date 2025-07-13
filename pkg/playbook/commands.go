@@ -94,7 +94,7 @@ func NewRegisterCommand(storage *Storage) (*RegisterCommand, error) {
 
 	return &RegisterCommand{
 		CommandDescription: cmdDesc,
-		storage:           storage,
+		storage:            storage,
 	}, nil
 }
 
@@ -227,7 +227,7 @@ func NewCreateCollectionCommand(storage *Storage) (*CreateCollectionCommand, err
 
 	return &CreateCollectionCommand{
 		CommandDescription: cmdDesc,
-		storage:           storage,
+		storage:            storage,
 	}, nil
 }
 
@@ -310,7 +310,7 @@ func NewListCommand(storage *Storage) (*ListCommand, error) {
 
 	return &ListCommand{
 		CommandDescription: cmdDesc,
-		storage:           storage,
+		storage:            storage,
 	}, nil
 }
 
@@ -408,7 +408,7 @@ func NewSearchCommand(storage *Storage) (*SearchCommand, error) {
 
 	return &SearchCommand{
 		CommandDescription: cmdDesc,
-		storage:           storage,
+		storage:            storage,
 	}, nil
 }
 
@@ -491,7 +491,7 @@ func NewShowCommand(storage *Storage) (*ShowCommand, error) {
 
 	return &ShowCommand{
 		CommandDescription: cmdDesc,
-		storage:           storage,
+		storage:            storage,
 	}, nil
 }
 
@@ -615,7 +615,7 @@ func NewDeployCommand(storage *Storage) (*DeployCommand, error) {
 
 	return &DeployCommand{
 		CommandDescription: cmdDesc,
-		storage:           storage,
+		storage:            storage,
 	}, nil
 }
 
@@ -697,7 +697,7 @@ func (c *DeployCommand) RunIntoWriter(ctx context.Context, parsedLayers *layers.
 				}
 
 				filePath := filepath.Join(collectionDir, filename)
-				
+
 				// Create parent directory if needed
 				if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
 					log.Warn().Err(err).Str("path", filepath.Dir(filePath)).Msg("Failed to create directory")
@@ -832,7 +832,7 @@ func NewAddToCollectionCommand(storage *Storage) (*AddToCollectionCommand, error
 
 	return &AddToCollectionCommand{
 		CommandDescription: cmdDesc,
-		storage:           storage,
+		storage:            storage,
 	}, nil
 }
 
@@ -902,7 +902,7 @@ func NewRemoveCommand(storage *Storage) (*RemoveCommand, error) {
 
 	return &RemoveCommand{
 		CommandDescription: cmdDesc,
-		storage:           storage,
+		storage:            storage,
 	}, nil
 }
 
@@ -995,7 +995,7 @@ func NewSetMetadataCommand(storage *Storage) (*SetMetadataCommand, error) {
 
 	return &SetMetadataCommand{
 		CommandDescription: cmdDesc,
-		storage:           storage,
+		storage:            storage,
 	}, nil
 }
 
@@ -1060,7 +1060,7 @@ func NewGetMetadataCommand(storage *Storage) (*GetMetadataCommand, error) {
 
 	return &GetMetadataCommand{
 		CommandDescription: cmdDesc,
-		storage:           storage,
+		storage:            storage,
 	}, nil
 }
 
@@ -1142,7 +1142,7 @@ func NewRefreshCommand(storage *Storage) (*RefreshCommand, error) {
 
 	return &RefreshCommand{
 		CommandDescription: cmdDesc,
-		storage:           storage,
+		storage:            storage,
 	}, nil
 }
 
@@ -1199,7 +1199,7 @@ func (c *RefreshCommand) RunIntoWriter(ctx context.Context, parsedLayers *layers
 				}
 
 				filePath := filepath.Join(collectionDir, filename)
-				
+
 				// Create parent directory if needed
 				if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
 					log.Warn().Err(err).Str("path", filepath.Dir(filePath)).Msg("Failed to create directory")

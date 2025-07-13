@@ -158,7 +158,7 @@ func TestContentReconstructionComplexGaps(t *testing.T) {
 		{
 			name: "overlapping reconstruction window",
 			segments: []*Segment{
-				{Start: 0, End: 50, Data: make([]byte, 50)}, // All zeros
+				{Start: 0, End: 50, Data: make([]byte, 50)},    // All zeros
 				{Start: 100, End: 150, Data: make([]byte, 50)}, // All zeros
 			},
 			offset:   25,

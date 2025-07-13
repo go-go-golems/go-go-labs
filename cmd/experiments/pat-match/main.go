@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"reflect"
 	"log"
+	"reflect"
 	"strings"
 )
 
@@ -60,7 +60,7 @@ type ListPattern struct {
 
 func (p *ListPattern) Match(input interface{}, bindings Bindings) (Bindings, error) {
 	log.Printf("ListPattern.Match input type: %T, value: %v", input, input)
-	
+
 	var inputList []interface{}
 	switch v := input.(type) {
 	case []interface{}:
@@ -81,7 +81,7 @@ func (p *ListPattern) Match(input interface{}, bindings Bindings) (Bindings, err
 			return nil, fmt.Errorf("input is not a list: %T %v", input, input)
 		}
 	}
-	
+
 	log.Printf("ListPattern.Match converted input: %v", inputList)
 	return matchList(p.Patterns, inputList, bindings)
 }
@@ -91,10 +91,10 @@ func matchList(patterns []Pattern, inputs []interface{}, bindings Bindings) (Bin
 	for i, p := range patterns {
 		patternStrs[i] = patternToString(p)
 	}
-	log.Printf("matchList patterns: [%s], inputs: %v", 
-		strings.Join(patternStrs, ", "), 
+	log.Printf("matchList patterns: [%s], inputs: %v",
+		strings.Join(patternStrs, ", "),
 		inputs)
-	
+
 	if len(patterns) == 0 && len(inputs) == 0 {
 		return bindings, nil
 	}
@@ -122,7 +122,7 @@ func matchList(patterns []Pattern, inputs []interface{}, bindings Bindings) (Bin
 
 	firstInput := inputs[0]
 	restInputs := inputs[1:]
-	
+
 	b1, err1 := firstPattern.Match(firstInput, bindings)
 	if err1 != nil {
 		return nil, err1
@@ -147,7 +147,7 @@ type SegmentPattern struct {
 
 func (p *SegmentPattern) Match(input interface{}, bindings Bindings) (Bindings, error) {
 	log.Printf("SegmentPattern.Match input type: %T, value: %v", input, input)
-	
+
 	var inputList []interface{}
 	switch v := input.(type) {
 	case []interface{}:
@@ -168,9 +168,9 @@ func (p *SegmentPattern) Match(input interface{}, bindings Bindings) (Bindings, 
 			return nil, fmt.Errorf("input is not a list: %T %v", input, input)
 		}
 	}
-	
+
 	log.Printf("SegmentPattern.Match converted input: %v", inputList)
-	
+
 	if p.Rest == nil {
 		if len(inputList) < p.Min {
 			return nil, fmt.Errorf("input list too short")
@@ -186,7 +186,7 @@ func (p *SegmentPattern) Match(input interface{}, bindings Bindings) (Bindings, 
 		segment := inputList[:i]
 		restInput := inputList[i:]
 		log.Printf("SegmentPattern trying split at %d: segment=%v, rest=%v", i, segment, restInput)
-		
+
 		newBindings := copyBindings(bindings)
 		newBindings[p.VarName] = segment
 

@@ -15,13 +15,13 @@ import (
 
 func (db *DB) CreateTask(req models.CreateTaskRequest) (*models.Task, error) {
 	task := &models.Task{
-		ID               : uuid.New().String(),
-		Title            : req.Title,
-		Description      : req.Description,
-		AssignedAgentID  : req.AssignedAgentID,
-		Status           : string(models.TaskStatusPending),
-		Priority         : req.Priority,
-		CreatedAt        : time.Now(),
+		ID:              uuid.New().String(),
+		Title:           req.Title,
+		Description:     req.Description,
+		AssignedAgentID: req.AssignedAgentID,
+		Status:          string(models.TaskStatusPending),
+		Priority:        req.Priority,
+		CreatedAt:       time.Now(),
 	}
 
 	// If assigned to an agent, set assigned_at and status
@@ -117,7 +117,7 @@ func (db *DB) UpdateTask(id string, req models.UpdateTaskRequest) (*models.Task,
 	if req.Status != nil {
 		setParts = append(setParts, "status = :status")
 		args["status"] = *req.Status
-		
+
 		// Set completed_at if status is completed
 		if *req.Status == string(models.TaskStatusCompleted) {
 			setParts = append(setParts, "completed_at = :completed_at")
@@ -131,7 +131,7 @@ func (db *DB) UpdateTask(id string, req models.UpdateTaskRequest) (*models.Task,
 	if req.AssignedAgentID != nil {
 		setParts = append(setParts, "assigned_agent_id = :assigned_agent_id")
 		args["assigned_agent_id"] = *req.AssignedAgentID
-		
+
 		// Set assigned_at if assigning to an agent
 		if *req.AssignedAgentID != "" {
 			setParts = append(setParts, "assigned_at = :assigned_at")

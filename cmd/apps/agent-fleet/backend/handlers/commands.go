@@ -91,7 +91,7 @@ func (h *Handlers) CreateAgentCommand(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) UpdateAgentCommand(w http.ResponseWriter, r *http.Request) {
 	agentID := chi.URLParam(r, "agentID")
 	commandID := chi.URLParam(r, "commandID")
-	
+
 	if agentID == "" {
 		writeErrorResponse(w, http.StatusBadRequest, "MISSING_AGENT_ID", "Agent ID is required")
 		return

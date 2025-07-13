@@ -113,7 +113,7 @@ func (e *Exporter) exportMarkdown(events []models.EventOutput) error {
 		}
 		// Escape markdown characters
 		content = strings.ReplaceAll(content, "|", "\\|")
-		
+
 		row := fmt.Sprintf("| %s | %d | %s | %s | %s | %d | %d | %s | %t |\n",
 			event.Timestamp,
 			event.Pid,

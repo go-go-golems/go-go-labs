@@ -102,7 +102,7 @@ func runCommand(cmd *cobra.Command, args []string) error {
 	}
 
 	vaultPath := filepath.Join(os.Getenv("HOME"), "code", "wesen", "obsidian-vault", noteType)
-	
+
 	if exportMode {
 		return note.ExportNotes(note.ExportConfig{
 			VaultPath:  vaultPath,
@@ -111,14 +111,14 @@ func runCommand(cmd *cobra.Command, args []string) error {
 			ToDate:     exportTo,
 		})
 	}
-	
+
 	if searchMode {
 		return note.SearchNotes(vaultPath)
 	}
-	
+
 	// Determine if we should ask for links
 	shouldAskForLinks := determineLinkBehavior()
-	
+
 	// Get content from user for create/append operations
 	contentConfig := content.Config{
 		Message:      message,
@@ -127,12 +127,12 @@ func runCommand(cmd *cobra.Command, args []string) error {
 		AskForLinks:  shouldAskForLinks,
 		Links:        linksSlice,
 	}
-	
+
 	noteContent, err := content.GetContentFromUser(contentConfig)
 	if err != nil {
 		return errors.Wrap(err, "failed to get content")
 	}
-	
+
 	noteConfig := note.Config{
 		VaultPath:    vaultPath,
 		Title:        title,
@@ -141,11 +141,11 @@ func runCommand(cmd *cobra.Command, args []string) error {
 		AppendMode:   appendMode,
 		WithMetadata: withMetadata,
 	}
-	
+
 	if appendMode {
 		return note.AppendToNote(noteConfig, noteContent)
 	}
-	
+
 	return note.CreateNewNote(noteConfig, noteContent)
 }
 
@@ -159,10 +159,10 @@ func setupLogging() {
 }
 
 type AppConfig struct {
-	VaultBasePath    string `yaml:"vault_base_path"`
-	DefaultNoteType  string `yaml:"default_note_type"`
-	WithMetadata     bool   `yaml:"with_metadata"`
-	AskForLinks      bool   `yaml:"ask_for_links"`
+	VaultBasePath   string `yaml:"vault_base_path"`
+	DefaultNoteType string `yaml:"default_note_type"`
+	WithMetadata    bool   `yaml:"with_metadata"`
+	AskForLinks     bool   `yaml:"ask_for_links"`
 }
 
 func loadConfig() (*AppConfig, error) {
@@ -171,12 +171,12 @@ func loadConfig() (*AppConfig, error) {
 		home := os.Getenv("HOME")
 		configFile = filepath.Join(home, ".add-research.yaml")
 	}
-	
+
 	_, err := os.ReadFile(configFile)
 	if err != nil {
 		return &AppConfig{}, err
 	}
-	
+
 	var config AppConfig
 	// Note: We'd need to import gopkg.in/yaml.v3 for this to work
 	// For now, return empty config
@@ -196,12 +196,12 @@ func determineLinkBehavior() bool {
 		log.Debug().Msg("Links disabled via --no-links flag")
 		return false
 	}
-	
+
 	if len(linksSlice) > 0 {
 		log.Debug().Strs("links", linksSlice).Msg("Using provided links, skipping interactive input")
 		return false
 	}
-	
+
 	// Default behavior: ask for links
 	log.Debug().Msg("Using default behavior: asking for links interactively")
 	return true

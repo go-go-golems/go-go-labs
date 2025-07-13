@@ -13,8 +13,8 @@ func TestLargeDataHandling(t *testing.T) {
 
 	mockTime := NewMockTimeProvider(time.Now())
 	fc := NewFileCache(
-		200*1024,     // 200KB per file limit
-		1024*1024,    // 1MB global limit
+		200*1024,  // 200KB per file limit
+		1024*1024, // 1MB global limit
 		time.Hour,
 		mockTime,
 	)
@@ -101,13 +101,13 @@ func TestLargeOffsetRanges(t *testing.T) {
 
 	// Test segments at various large offsets
 	offsets := []uint64{
-		1 << 20,                              // 1MB
-		1 << 30,                              // 1GB
-		1 << 40,                              // 1TB
-		uint64(math.MaxUint32),               // 4GB boundary
-		uint64(math.MaxUint32) + 1000,        // Just over 4GB
-		uint64(math.MaxUint64/2),             // Half of max
-		uint64(math.MaxUint64 - 10000),       // Near max
+		1 << 20,                        // 1MB
+		1 << 30,                        // 1GB
+		1 << 40,                        // 1TB
+		uint64(math.MaxUint32),         // 4GB boundary
+		uint64(math.MaxUint32) + 1000,  // Just over 4GB
+		uint64(math.MaxUint64 / 2),     // Half of max
+		uint64(math.MaxUint64 - 10000), // Near max
 	}
 
 	dataMap := make(map[uint64][]byte)
@@ -126,7 +126,7 @@ func TestLargeOffsetRanges(t *testing.T) {
 	for _, offset := range offsets {
 		expected := dataMap[offset]
 		retrieved, exists := fc.GetOldContent(pathHash, offset, uint64(len(expected)))
-		
+
 		if !exists {
 			t.Errorf("Expected data at offset %d to exist", offset)
 			continue
@@ -154,8 +154,8 @@ func TestLargeContentReconstruction(t *testing.T) {
 	}{
 		{0, make([]byte, segmentSize)},
 		{uint64(segmentSize + gapSize), make([]byte, segmentSize)},
-		{uint64(2*(segmentSize+gapSize)), make([]byte, segmentSize)},
-		{uint64(3*(segmentSize+gapSize)), make([]byte, segmentSize)},
+		{uint64(2 * (segmentSize + gapSize)), make([]byte, segmentSize)},
+		{uint64(3 * (segmentSize + gapSize)), make([]byte, segmentSize)},
 	}
 
 	// Fill each segment with unique data
@@ -169,7 +169,7 @@ func TestLargeContentReconstruction(t *testing.T) {
 	// Reconstruct large range spanning all segments and gaps
 	totalRange := uint64(4 * (segmentSize + gapSize))
 	reconstructed, exists := fc.GetOldContent(pathHash, 0, totalRange)
-	
+
 	if !exists {
 		t.Fatal("Expected reconstruction to succeed")
 	}
@@ -182,7 +182,7 @@ func TestLargeContentReconstruction(t *testing.T) {
 	for i, seg := range segments {
 		segmentStart := int(seg.offset)
 		segmentEnd := segmentStart + len(seg.data)
-		
+
 		if !bytes.Equal(reconstructed[segmentStart:segmentEnd], seg.data) {
 			t.Errorf("Segment %d data corrupted during reconstruction", i)
 		}
@@ -192,7 +192,7 @@ func TestLargeContentReconstruction(t *testing.T) {
 			gapStart := segmentEnd
 			nextSegmentStart := int(segments[i+1].offset)
 			gap := reconstructed[gapStart:nextSegmentStart]
-			
+
 			// All gap bytes should be zero
 			for j, b := range gap {
 				if b != 0 {

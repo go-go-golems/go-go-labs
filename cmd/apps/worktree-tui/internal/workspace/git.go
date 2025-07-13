@@ -42,7 +42,7 @@ func (g *GitOperations) CreateWorktreeFromLocal(localPath, targetPath, branch st
 	// Create worktree
 	cmd := exec.Command("git", "worktree", "add", absTargetPath, branch)
 	cmd.Dir = absLocalPath
-	
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to create worktree: %w\nOutput: %s", err, string(output))
@@ -55,7 +55,7 @@ func (g *GitOperations) CreateWorktreeFromLocal(localPath, targetPath, branch st
 func (g *GitOperations) CreateWorktreeFromRemote(url, targetPath, branch string) error {
 	// For remote repositories, we need to first clone to a bare repository
 	// then create a worktree from it
-	
+
 	// Create a temporary bare repository directory
 	parentDir := filepath.Dir(targetPath)
 	repoName := filepath.Base(targetPath)
@@ -71,7 +71,7 @@ func (g *GitOperations) CreateWorktreeFromRemote(url, targetPath, branch string)
 	// Create worktree from bare repository
 	cmd = exec.Command("git", "worktree", "add", targetPath, branch)
 	cmd.Dir = bareRepoPath
-	
+
 	output, err = cmd.CombinedOutput()
 	if err != nil {
 		// Clean up bare repository on failure
@@ -105,14 +105,14 @@ func (g *GitOperations) GetBranches(repoPath string) ([]string, error) {
 
 	cmd := exec.Command("git", "branch", "-r", "--format=%(refname:short)")
 	cmd.Dir = repoPath
-	
+
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get branches: %w", err)
 	}
 
 	branches := strings.Split(strings.TrimSpace(string(output)), "\n")
-	
+
 	// Clean up branch names (remove origin/ prefix)
 	var cleanBranches []string
 	for _, branch := range branches {
@@ -149,7 +149,7 @@ func (g *GitOperations) CleanupWorktree(worktreePath string) error {
 	// Get the parent repository path
 	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
 	cmd.Dir = worktreePath
-	
+
 	output, err := cmd.Output()
 	if err != nil {
 		// If we can't find the repository, just remove the directory
@@ -160,7 +160,7 @@ func (g *GitOperations) CleanupWorktree(worktreePath string) error {
 	parentRepo := strings.TrimSpace(string(output))
 	cmd = exec.Command("git", "worktree", "remove", worktreePath)
 	cmd.Dir = parentRepo
-	
+
 	if err := cmd.Run(); err != nil {
 		// Fallback to force removal
 		cmd = exec.Command("git", "worktree", "remove", "--force", worktreePath)

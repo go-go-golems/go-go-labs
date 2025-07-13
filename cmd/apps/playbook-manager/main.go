@@ -13,9 +13,9 @@ import (
 )
 
 var (
-	storage   *playbook.Storage
-	logLevel  string
-	dbPath    string
+	storage  *playbook.Storage
+	logLevel string
+	dbPath   string
 )
 
 func main() {

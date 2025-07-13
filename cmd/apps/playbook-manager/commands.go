@@ -599,7 +599,7 @@ func deployCmd() *cobra.Command {
 						}
 
 						filePath := filepath.Join(targetDir, filename)
-						
+
 						// Create parent directory if needed
 						if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
 							log.Warn().Err(err).Str("path", filepath.Dir(filePath)).Msg("Failed to create directory")

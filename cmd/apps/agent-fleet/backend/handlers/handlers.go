@@ -51,12 +51,12 @@ func parseQueryInt(r *http.Request, key string, defaultValue int) int {
 	if val == "" {
 		return defaultValue
 	}
-	
+
 	parsed, err := strconv.Atoi(val)
 	if err != nil {
 		return defaultValue
 	}
-	
+
 	return parsed
 }
 
@@ -65,12 +65,12 @@ func parseQueryTime(r *http.Request, key string) *time.Time {
 	if val == "" {
 		return nil
 	}
-	
+
 	parsed, err := time.Parse(time.RFC3339, val)
 	if err != nil {
 		return nil
 	}
-	
+
 	return &parsed
 }
 
@@ -80,7 +80,7 @@ func (h *Handlers) ListAgents(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
 	limit := parseQueryInt(r, "limit", 50)
 	offset := parseQueryInt(r, "offset", 0)
-	
+
 	// Enforce maximum limit
 	if limit > 100 {
 		limit = 100
@@ -212,7 +212,7 @@ func (h *Handlers) UpdateAgent(w http.ResponseWriter, r *http.Request) {
 	if req.Progress != nil && *req.Progress != currentAgent.Progress {
 		changes = append(changes, fmt.Sprintf("progress: %d%%->%d%%", currentAgent.Progress, *req.Progress))
 	}
-	
+
 	if len(changes) > 0 {
 		log.Info().
 			Str("agent_id", agentID).

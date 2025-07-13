@@ -42,7 +42,7 @@ It provides both CLI commands and a web server with APIs for:
 - Web UI for comparing up to three texts`,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			return logging.InitLoggerFromViper()
-		},	
+		},
 	}
 
 	// Initialize Viper for config file support

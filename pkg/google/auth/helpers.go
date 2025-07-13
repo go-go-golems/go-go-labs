@@ -6,8 +6,8 @@ import (
 
 	clay_sql "github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
-	"github.com/pkg/errors"
 	"github.com/go-go-golems/go-go-labs/pkg/google/auth/store"
+	"github.com/pkg/errors"
 )
 
 // GetOAuthTokenStoreLayers returns all layers required for OAuth token store configuration

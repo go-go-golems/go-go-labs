@@ -40,7 +40,7 @@ func initLogging() {
 	// Set up console logging with debug level and caller info
 	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr}).With().Caller().Logger()
-	
+
 	log.Debug().Msg("Debug logging initialized")
 }
 

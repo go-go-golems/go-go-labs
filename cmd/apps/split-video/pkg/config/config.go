@@ -12,17 +12,17 @@ type Config struct {
 
 	// Output settings
 	OutputDir string
-	
+
 	// Splitting settings
 	Segments        int           // Number of segments for equal split
 	Overlap         time.Duration // Overlap between segments
 	SegmentDuration time.Duration // Duration of each segment
 	Intervals       []string      // Time intervals for splitting
-	
+
 	// Audio settings
 	ExtractAudio bool
 	AudioFormat  string
-	
+
 	// Logging settings
 	Verbose  bool
 	LogLevel string
@@ -52,14 +52,14 @@ func (c *Config) Validate() error {
 	if c.InputFile == "" {
 		return fmt.Errorf("input file is required")
 	}
-	
+
 	if c.OutputDir == "" {
 		c.OutputDir = "."
 	}
-	
+
 	if c.AudioFormat == "" {
 		c.AudioFormat = "mp3"
 	}
-	
+
 	return nil
 }

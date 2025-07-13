@@ -78,7 +78,7 @@ func (s *MainScreen) renderMainContent(appState *state.ApplicationState) string 
 func (s *MainScreen) renderChemicalModels(appState *state.ApplicationState) string {
 	chemicals := types.GetCalculatedChemicals(appState.Calculations)
 	components := types.ChemicalModelsToComponents(chemicals)
-	
+
 	return s.renderChemicalComponents(components, false)
 }
 
@@ -87,7 +87,7 @@ func (s *MainScreen) renderChemicalComponents(components []types.ChemicalCompone
 	if len(components) == 0 {
 		return ""
 	}
-	
+
 	// Get component lines
 	var componentLines [][]string
 	for _, component := range components {
@@ -99,11 +99,11 @@ func (s *MainScreen) renderChemicalComponents(components []types.ChemicalCompone
 		}
 		componentLines = append(componentLines, strings.Split(rendered, "\n"))
 	}
-	
+
 	// Build output by joining lines horizontally
 	var result strings.Builder
 	maxLines := 5 // Name, Dilution, Concentrate, Water, Time
-	
+
 	for line := 0; line < maxLines; line++ {
 		for i, componentLine := range componentLines {
 			if i > 0 {
@@ -117,7 +117,7 @@ func (s *MainScreen) renderChemicalComponents(components []types.ChemicalCompone
 			result.WriteString("\n")
 		}
 	}
-	
+
 	return result.String()
 }
 
@@ -140,4 +140,4 @@ func (s *MainScreen) HandleInput(key string, sm *state.StateMachine) bool {
 		return false
 	}
 	return true
-} 
+}

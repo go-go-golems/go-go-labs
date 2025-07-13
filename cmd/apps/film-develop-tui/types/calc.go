@@ -13,17 +13,17 @@ func ParseDuration(timeStr string) (time.Duration, error) {
 	if len(parts) != 2 {
 		return 0, fmt.Errorf("invalid time format: %s", timeStr)
 	}
-	
+
 	minutes, err := strconv.Atoi(parts[0])
 	if err != nil {
 		return 0, fmt.Errorf("invalid minutes: %s", parts[0])
 	}
-	
+
 	seconds, err := strconv.Atoi(parts[1])
 	if err != nil {
 		return 0, fmt.Errorf("invalid seconds: %s", parts[1])
 	}
-	
+
 	return time.Duration(minutes)*time.Minute + time.Duration(seconds)*time.Second, nil
 }
 
@@ -48,10 +48,10 @@ func CalculateDilution(chemical, dilution string, totalVolume int, time string) 
 			Time:        time,
 		}
 	}
-	
+
 	concentrateParts, err1 := strconv.Atoi(parts[0])
 	waterParts, err2 := strconv.Atoi(parts[1])
-	
+
 	if err1 != nil || err2 != nil {
 		return DilutionCalculation{
 			Chemical:    chemical,
@@ -62,11 +62,11 @@ func CalculateDilution(chemical, dilution string, totalVolume int, time string) 
 			Time:        time,
 		}
 	}
-	
+
 	totalParts := concentrateParts + waterParts
 	concentrate := (totalVolume * concentrateParts) / totalParts
 	water := totalVolume - concentrate
-	
+
 	return DilutionCalculation{
 		Chemical:    chemical,
 		Dilution:    dilution,
@@ -100,4 +100,4 @@ func CalculateMixedTankSize(format35mm, format120mm int, tankDB *TankDatabase) i
 		return size35mm
 	}
 	return size120mm
-} 
+}

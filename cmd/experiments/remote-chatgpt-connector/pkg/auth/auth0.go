@@ -69,7 +69,7 @@ func (v *Auth0AuthValidator) ValidateToken(ctx context.Context, token string) (*
 
 	// Call Auth0 userinfo endpoint to validate token and get user info
 	userinfoURL := fmt.Sprintf("%s/userinfo", v.issuer)
-	
+
 	req, err := http.NewRequestWithContext(ctx, "GET", userinfoURL, nil)
 	if err != nil {
 		logger.Error().
@@ -117,7 +117,7 @@ func (v *Auth0AuthValidator) ValidateToken(ctx context.Context, token string) (*
 			Dur("api_call_duration", apiCallDuration).
 			Dur("total_validation_duration", time.Since(start)).
 			Msg("Auth0 userinfo API returned non-200 status - token likely invalid")
-		
+
 		return nil, fmt.Errorf("invalid token: Auth0 returned status %d", resp.StatusCode)
 	}
 
@@ -143,7 +143,7 @@ func (v *Auth0AuthValidator) ValidateToken(ctx context.Context, token string) (*
 	parseDuration := time.Since(parseStart)
 
 	totalDuration := time.Since(start)
-	
+
 	result := &types.UserInfo{
 		ID:       userInfo.Sub,
 		Login:    userInfo.Nickname,

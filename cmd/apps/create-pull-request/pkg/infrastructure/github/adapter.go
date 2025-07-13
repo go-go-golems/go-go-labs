@@ -14,10 +14,10 @@ type Adapter interface {
 
 // MockAdapter provides a mock implementation for testing
 type MockAdapter struct {
-	MockPRURL     string
+	MockPRURL      string
 	MockIssueTitle string
-	MockIssueBody string
-	MockError     error
+	MockIssueBody  string
+	MockError      error
 }
 
 // CreatePullRequest implements the Adapter interface with mock data
@@ -39,7 +39,7 @@ func (m *MockAdapter) GetIssueDetails(ctx context.Context, issueID string) (stri
 // NewMockAdapter creates a new mock adapter with sample data
 func NewMockAdapter() *MockAdapter {
 	return &MockAdapter{
-		MockPRURL:     "https://github.com/example/repo/pull/123",
+		MockPRURL:      "https://github.com/example/repo/pull/123",
 		MockIssueTitle: "Example Issue Title",
 		MockIssueBody:  "This is an example issue description with details about the problem.",
 	}

@@ -186,7 +186,7 @@ func (m *Model) View() string {
 }
 
 func (m *Model) loadingView() string {
-	return fmt.Sprintf("🔍 Analyzing git history between %s and %s...\n\nPlease wait...", 
+	return fmt.Sprintf("🔍 Analyzing git history between %s and %s...\n\nPlease wait...",
 		m.baseRef, m.compareRef)
 }
 
@@ -214,7 +214,7 @@ func (m *Model) statsView() string {
 			if analyzer.IsLikelyBinary(file.Path) {
 				binary = " 📦"
 			}
-			sb.WriteString(fmt.Sprintf("  %d. %s (%s)%s\n", 
+			sb.WriteString(fmt.Sprintf("  %d. %s (%s)%s\n",
 				i+1, file.Path, analyzer.FormatSize(file.Size), binary))
 		}
 	}
@@ -265,7 +265,7 @@ func (m *Model) fileSelectionView() string {
 			binary = " 📦"
 		}
 
-		line := fmt.Sprintf("%s%s %s (%s)%s", 
+		line := fmt.Sprintf("%s%s %s (%s)%s",
 			prefix, checkbox, file.Path, analyzer.FormatSize(file.Size), binary)
 
 		if i == m.cursor {
@@ -375,7 +375,7 @@ func (m *Model) selectAll(selected bool) {
 func (m *Model) getSelectedFiles() []analyzer.FileInfo {
 	var selected []analyzer.FileInfo
 	largeFiles := m.stats.GetLargeFiles(m.sizeThreshold)
-	
+
 	for i, file := range largeFiles {
 		if m.selected[i] {
 			selected = append(selected, file)

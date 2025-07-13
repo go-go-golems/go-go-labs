@@ -27,10 +27,10 @@ type Task struct {
 type GitHubProjectService struct {
 	client        *github.Client
 	projectID     string
-	owner         string // Store owner for reference
-	projectNumber int    // Store project number for reference
-	repository    string // Repository name for creating issues
-	repositoryID  string // Repository node ID for GraphQL operations
+	owner         string                       // Store owner for reference
+	projectNumber int                          // Store project number for reference
+	repository    string                       // Repository name for creating issues
+	repositoryID  string                       // Repository node ID for GraphQL operations
 	fields        map[string]string            // field name -> field ID mapping
 	fieldOptions  map[string]map[string]string // field name -> option name -> option ID mapping
 }

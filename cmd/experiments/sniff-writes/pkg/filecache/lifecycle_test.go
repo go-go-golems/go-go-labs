@@ -89,7 +89,7 @@ func TestFileDeletedAndRecreated(t *testing.T) {
 
 	// File gets recreated with different content (same pathHash)
 	newContent := []byte("Recreated file with completely different content")
-	
+
 	// Write to recreated file (this should invalidate old cache)
 	fc.UpdateWithWrite(pathHash, 0, newContent)
 
@@ -120,7 +120,7 @@ func TestFileDeletedAndRecreated(t *testing.T) {
 
 func TestCacheEvictionDuringActiveOperations(t *testing.T) {
 	mockTime := NewMockTimeProvider(time.Now())
-	
+
 	// Small cache to force evictions
 	fc := NewFileCache(16*1024, 32*1024, time.Hour, mockTime)
 
@@ -129,10 +129,10 @@ func TestCacheEvictionDuringActiveOperations(t *testing.T) {
 		pathHash uint32
 		content  []byte
 	}{
-		{1001, make([]byte, 8*1024)},  // 8KB
-		{1002, make([]byte, 8*1024)},  // 8KB  
-		{1003, make([]byte, 8*1024)},  // 8KB
-		{1004, make([]byte, 8*1024)},  // 8KB - This should trigger eviction
+		{1001, make([]byte, 8*1024)}, // 8KB
+		{1002, make([]byte, 8*1024)}, // 8KB
+		{1003, make([]byte, 8*1024)}, // 8KB
+		{1004, make([]byte, 8*1024)}, // 8KB - This should trigger eviction
 	}
 
 	// Fill each file with unique data
@@ -222,12 +222,12 @@ func TestCacheCorruptionRecovery(t *testing.T) {
 		if len(oversizeRetrieve) != len(validContent)*2 {
 			t.Error("Oversize retrieve returned wrong length")
 		}
-		
+
 		// First part should match valid content
 		if !bytes.Equal(oversizeRetrieve[:len(validContent)], validContent) {
 			t.Error("Valid content portion corrupted in oversize retrieve")
 		}
-		
+
 		// Padding should be zeros
 		for i := len(validContent); i < len(oversizeRetrieve); i++ {
 			if oversizeRetrieve[i] != 0 {

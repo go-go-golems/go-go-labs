@@ -123,7 +123,7 @@ func (t *tableImpl) processTableStructure() error {
 		}
 	}
 
-	log.Info().Int("cells", len(	t.cells)).Msg("cells")
+	log.Info().Int("cells", len(t.cells)).Msg("cells")
 
 	// Process merged cells
 	if err := t.processMergedCells(); err != nil {

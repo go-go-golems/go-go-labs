@@ -88,12 +88,12 @@ func (c *Client) getCookieFilePath() (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get user home directory")
 	}
-	
+
 	configDir := filepath.Join(homeDir, ".config", "poll-modem")
 	if err := os.MkdirAll(configDir, 0755); err != nil {
 		return "", errors.Wrap(err, "failed to create config directory")
 	}
-	
+
 	return filepath.Join(configDir, "cookies.json"), nil
 }
 
@@ -103,7 +103,7 @@ func (c *Client) saveCookies() error {
 	if err != nil {
 		return err
 	}
-	
+
 	var storedCookies []StoredCookie
 	for _, cookie := range c.cookies {
 		storedCookies = append(storedCookies, StoredCookie{
@@ -116,16 +116,16 @@ func (c *Client) saveCookies() error {
 			HttpOnly: cookie.HttpOnly,
 		})
 	}
-	
+
 	data, err := json.MarshalIndent(storedCookies, "", "  ")
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal cookies")
 	}
-	
+
 	if err := os.WriteFile(cookieFile, data, 0600); err != nil {
 		return errors.Wrap(err, "failed to write cookie file")
 	}
-	
+
 	log.Debug().Str("file", cookieFile).Int("cookies", len(storedCookies)).Msg("Saved cookies to file")
 	return nil
 }
@@ -136,23 +136,23 @@ func (c *Client) loadCookies() error {
 	if err != nil {
 		return err
 	}
-	
+
 	// If file doesn't exist, that's okay - no cookies to load
 	if _, err := os.Stat(cookieFile); os.IsNotExist(err) {
 		log.Debug().Str("file", cookieFile).Msg("Cookie file does not exist, starting with no cookies")
 		return nil
 	}
-	
+
 	data, err := os.ReadFile(cookieFile)
 	if err != nil {
 		return errors.Wrap(err, "failed to read cookie file")
 	}
-	
+
 	var storedCookies []StoredCookie
 	if err := json.Unmarshal(data, &storedCookies); err != nil {
 		return errors.Wrap(err, "failed to unmarshal cookies")
 	}
-	
+
 	// Convert stored cookies back to http.Cookie and filter out expired ones
 	c.cookies = nil
 	now := time.Now()
@@ -162,7 +162,7 @@ func (c *Client) loadCookies() error {
 			log.Debug().Str("cookie", stored.Name).Time("expired", stored.Expires).Msg("Skipping expired cookie")
 			continue
 		}
-		
+
 		cookie := &http.Cookie{
 			Name:     stored.Name,
 			Value:    stored.Value,
@@ -174,7 +174,7 @@ func (c *Client) loadCookies() error {
 		}
 		c.cookies = append(c.cookies, cookie)
 	}
-	
+
 	log.Debug().Str("file", cookieFile).Int("cookies", len(c.cookies)).Msg("Loaded cookies from file")
 	return nil
 }
@@ -201,20 +201,20 @@ func (c *Client) mergeCookies(newCookies []*http.Cookie) {
 func (c *Client) clearCookies(deleteFile bool) error {
 	c.cookies = nil
 	log.Debug().Msg("Cleared all cookies from memory")
-	
+
 	if deleteFile {
 		cookieFile, err := c.getCookieFilePath()
 		if err != nil {
 			return err
 		}
-		
+
 		if err := os.Remove(cookieFile); err != nil && !os.IsNotExist(err) {
 			return errors.Wrap(err, "failed to delete cookie file")
 		}
-		
+
 		log.Debug().Str("file", cookieFile).Msg("Deleted cookie file")
 	}
-	
+
 	return nil
 }
 
@@ -256,7 +256,7 @@ func (c *Client) Login(ctx context.Context) error {
 	req.Header.Set("Upgrade-Insecure-Requests", "1")
 	req.Header.Set("Priority", "u=0, i")
 	req.Header.Set("Origin", c.baseURL)
-	
+
 	// Set the standard headers
 	for key, value := range c.headers {
 		req.Header.Set(key, value)
@@ -341,13 +341,13 @@ func (c *Client) Login(ctx context.Context) error {
 
 	// Store cookies from login response
 	c.mergeCookies(resp.Cookies())
-	
+
 	// If we got a 302 redirect, follow it manually to get additional cookies
 	if resp.StatusCode == http.StatusFound {
 		location := resp.Header.Get("Location")
 		if location != "" {
 			log.Debug().Str("location", location).Msg("Following 302 redirect manually")
-			
+
 			// Build full URL for redirect
 			var redirectURL string
 			if strings.HasPrefix(location, "http") {
@@ -355,25 +355,25 @@ func (c *Client) Login(ctx context.Context) error {
 			} else {
 				redirectURL = c.baseURL + "/" + strings.TrimPrefix(location, "/")
 			}
-			
+
 			// Create redirect request
 			redirectReq, err := http.NewRequestWithContext(ctx, "GET", redirectURL, nil)
 			if err != nil {
 				log.Debug().Err(err).Msg("Failed to create redirect request")
 				return errors.Wrap(err, "failed to create redirect request")
 			}
-			
+
 			// Set headers for redirect request
 			for key, value := range c.headers {
 				redirectReq.Header.Set(key, value)
 			}
 			redirectReq.Header.Set("Referer", loginURL)
-			
+
 			// Add cookies from login response to redirect request
 			for _, cookie := range c.cookies {
 				redirectReq.AddCookie(cookie)
 			}
-			
+
 			// Perform redirect request
 			redirectResp, err := c.httpClient.Do(redirectReq)
 			if err != nil {
@@ -381,11 +381,11 @@ func (c *Client) Login(ctx context.Context) error {
 				return errors.Wrap(err, "failed to perform redirect request")
 			}
 			defer redirectResp.Body.Close()
-			
+
 			// Read redirect response body
 			redirectBodyBytes, _ := io.ReadAll(redirectResp.Body)
 			redirectBodyString := string(redirectBodyBytes)
-			
+
 			log.Debug().
 				Int("redirect_status_code", redirectResp.StatusCode).
 				Str("redirect_status", redirectResp.Status).
@@ -407,12 +407,12 @@ func (c *Client) Login(ctx context.Context) error {
 					return cookies
 				}()).
 				Msg("Received redirect response")
-			
+
 			// Merge cookies from redirect response
 			c.mergeCookies(redirectResp.Cookies())
 		}
 	}
-	
+
 	log.Debug().
 		Int("cookies_stored", len(c.cookies)).
 		Interface("stored_cookies", func() []map[string]interface{} {
@@ -446,12 +446,12 @@ func (c *Client) LoginAndFetch(ctx context.Context) (*ModemInfo, error) {
 	if c.username == "" || c.password == "" {
 		return nil, errors.New("username and password must be set before login")
 	}
-	
+
 	log.Debug().Msg("Performing login before fetching data")
 	if err := c.Login(ctx); err != nil {
 		return nil, errors.Wrap(err, "authentication failed")
 	}
-	
+
 	log.Debug().Msg("Login successful, fetching data")
 	return c.fetchModemInfoInternal(ctx)
 }
@@ -462,7 +462,7 @@ func (c *Client) FetchModemInfo(ctx context.Context) (*ModemInfo, error) {
 	if err := c.loadCookies(); err != nil {
 		log.Debug().Err(err).Msg("Failed to load cookies from file, will proceed without them")
 	}
-	
+
 	// Try to fetch data
 	info, err := c.fetchModemInfoInternal(ctx)
 	if err != nil {
@@ -471,8 +471,8 @@ func (c *Client) FetchModemInfo(ctx context.Context) (*ModemInfo, error) {
 			return nil, err
 		}
 		// Check if it's other forbidden errors that might indicate logout
-		if strings.Contains(err.Error(), "403") || 
-		   strings.Contains(err.Error(), "forbidden") {
+		if strings.Contains(err.Error(), "403") ||
+			strings.Contains(err.Error(), "forbidden") {
 			return nil, LogoutError{Message: "access forbidden - authentication required"}
 		}
 		return nil, err
@@ -492,7 +492,7 @@ func (c *Client) fetchModemInfoInternal(ctx context.Context) (*ModemInfo, error)
 	for key, value := range c.headers {
 		req.Header.Set(key, value)
 	}
-	
+
 	// Set referer for connection status page
 	req.Header.Set("Referer", c.baseURL+"/connection_status.jst")
 
@@ -586,7 +586,7 @@ func (c *Client) fetchModemInfoInternal(ctx context.Context) (*ModemInfo, error)
 			Msg("Access forbidden - authentication may be required")
 		return nil, fmt.Errorf("access forbidden (403) - authentication may be required")
 	}
-	
+
 	if resp.StatusCode != http.StatusOK {
 		log.Debug().
 			Int("status_code", resp.StatusCode).
@@ -741,7 +741,7 @@ func (c *Client) parseChannelTable(table *goquery.Selection, isDownstream bool) 
 	// Parse each row
 	table.Find("tbody tr").Each(func(i int, row *goquery.Selection) {
 		rowLabel := strings.TrimSpace(row.Find("th.row-label").Text())
-		
+
 		var values []string
 		row.Find("td").Each(func(j int, cell *goquery.Selection) {
 			value := strings.TrimSpace(cell.Find("div.netWidth").Text())
@@ -805,7 +805,7 @@ func (c *Client) parseErrorCodewords(doc *goquery.Document) ([]ErrorChannel, err
 
 			s.Find("tbody tr").Each(func(j int, row *goquery.Selection) {
 				rowLabel := strings.TrimSpace(row.Find("th.row-label").Text())
-				
+
 				var values []string
 				row.Find("td").Each(func(k int, cell *goquery.Selection) {
 					value := strings.TrimSpace(cell.Find("div.netWidth").Text())
@@ -846,4 +846,4 @@ func getValue(slice []string, index int) string {
 		return slice[index]
 	}
 	return ""
-} 
+}

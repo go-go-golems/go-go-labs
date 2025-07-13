@@ -15,32 +15,32 @@ import (
 
 // CreatePullRequestConfig holds all configuration options for PR creation
 type CreatePullRequestConfig struct {
-	Description           string
-	Branch                string
-	IssueID               string
-	Title                 string
-	OutputFile            string
-	NonInteractive        bool
-	TUI                   bool
+	Description    string
+	Branch         string
+	IssueID        string
+	Title          string
+	OutputFile     string
+	NonInteractive bool
+	TUI            bool
 
-	DiffFile              string
-	FromClipboard         bool
-	DiffExclusions        []string
-	DiffContextSize       int
-	DiffOnlyPaths         []string
-	DiffNoTests           bool
-	DiffNoPackage         bool
+	DiffFile        string
+	FromClipboard   bool
+	DiffExclusions  []string
+	DiffContextSize int
+	DiffOnlyPaths   []string
+	DiffNoTests     bool
+	DiffNoPackage   bool
 
-	CommitsFile           string
-	NoCommits             bool
+	CommitsFile string
+	NoCommits   bool
 
-	LlmCommand            string
-	LlmStyle              string
-	LlmParams             map[string]string
-	CodeContextFiles      []string
+	LlmCommand             string
+	LlmStyle               string
+	LlmParams              map[string]string
+	CodeContextFiles       []string
 	AdditionalSystemPrompt string
-	AdditionalUserPrompts []string
-	ContextFiles          []string
+	AdditionalUserPrompts  []string
+	ContextFiles           []string
 }
 
 // PullRequestService orchestrates the creation of pull requests
@@ -148,10 +148,10 @@ func (s *PullRequestService) CreatePullRequest(
 
 	// 5. Prepare LLM prompt parameters
 	llmPromptParams := map[string]interface{}{
-		"description":           config.Description,
-		"user_title_suggestion": config.Title,
-		"llm_style":            config.LlmStyle,
-		"raw_params":           config.LlmParams,
+		"description":              config.Description,
+		"user_title_suggestion":    config.Title,
+		"llm_style":                config.LlmStyle,
+		"raw_params":               config.LlmParams,
 		"additional_system_prompt": config.AdditionalSystemPrompt,
 		"additional_user_prompts":  config.AdditionalUserPrompts,
 	}

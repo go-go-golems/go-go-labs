@@ -77,7 +77,7 @@ func (h *Handlers) CreateAgentTodo(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) UpdateAgentTodo(w http.ResponseWriter, r *http.Request) {
 	agentID := chi.URLParam(r, "agentID")
 	todoID := chi.URLParam(r, "todoID")
-	
+
 	if agentID == "" {
 		writeErrorResponse(w, http.StatusBadRequest, "MISSING_AGENT_ID", "Agent ID is required")
 		return
@@ -131,7 +131,7 @@ func (h *Handlers) UpdateAgentTodo(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) DeleteAgentTodo(w http.ResponseWriter, r *http.Request) {
 	agentID := chi.URLParam(r, "agentID")
 	todoID := chi.URLParam(r, "todoID")
-	
+
 	if agentID == "" {
 		writeErrorResponse(w, http.StatusBadRequest, "MISSING_AGENT_ID", "Agent ID is required")
 		return

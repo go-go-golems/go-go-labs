@@ -26,7 +26,7 @@ type Config struct {
 	Duration           time.Duration
 	Verbose            bool
 	ShowFd             bool
-	ShowSizes          bool     // Show read/write sizes in output
+	ShowSizes          bool // Show read/write sizes in output
 	OutputFile         string
 	Debug              bool
 	ShowAllFiles       bool     // Show pipes, sockets, etc. (default: false)

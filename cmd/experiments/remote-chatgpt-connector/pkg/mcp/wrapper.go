@@ -171,7 +171,7 @@ func (w *MCPWrapper) GetHTTPHandler() http.Handler {
 
 	// Register SSE endpoints with authentication middleware
 	w.logger.Debug().Msg("Registering SSE endpoints")
-	
+
 	if w.authMiddleware != nil {
 		// Protected endpoints
 		mux.HandleFunc("/sse", w.authMiddleware.RequireAuth(handlers.SSEHandler))
@@ -572,7 +572,7 @@ func DemoSearchHandler(ctx context.Context, req types.SearchRequest) (<-chan typ
 				URL:   "https://modelcontextprotocol.io/introduction",
 			},
 			{
-				ID:    "doc-002", 
+				ID:    "doc-002",
 				Title: "OAuth 2.1 and Dynamic Client Registration",
 				Text:  "OAuth 2.0 Dynamic Client Registration Protocol allows clients to register with authorization servers automatically. This specification defines how clients can obtain registration information and credentials without manual intervention, enabling scalable OAuth deployments.",
 				URL:   "https://datatracker.ietf.org/doc/html/rfc7591",
@@ -648,7 +648,7 @@ func DemoFetchHandler(ctx context.Context, req types.FetchRequest) (types.FetchR
 
 	// Generate realistic content based on document ID
 	var result types.FetchResult
-	
+
 	switch req.ID {
 	case "doc-001":
 		result = types.FetchResult{
@@ -683,9 +683,9 @@ func DemoFetchHandler(ctx context.Context, req types.FetchRequest) (types.FetchR
 			Text:  "# Building Remote MCP Servers with Go\n\n## Overview\n\nThis guide demonstrates building production-ready MCP servers using Go and the go-go-mcp SDK.\n\n## Prerequisites\n\n- Go 1.21 or later\n- Basic understanding of HTTP servers\n- Familiarity with OAuth 2.0\n\n## Implementation Steps\n\n### 1. Server Setup\n\n```go\npackage main\n\nimport (\n    \"github.com/go-go-golems/go-go-mcp\"\n)\n\nfunc main() {\n    server := mcp.NewServer()\n    // Configure server...\n}\n```\n\n### 2. Transport Configuration\n\n- **HTTP**: Standard REST API\n- **SSE**: Server-Sent Events for streaming\n- **WebSocket**: Bidirectional communication\n\n### 3. Authentication\n\n- JWT validation\n- OAuth 2.0 flows\n- Custom auth schemes\n\n### 4. Resource Handlers\n\nImplement search and fetch handlers:\n\n```go\nfunc searchHandler(ctx context.Context, req SearchRequest) (<-chan SearchResult, error) {\n    // Implementation\n}\n\nfunc fetchHandler(ctx context.Context, req FetchRequest) (FetchResult, error) {\n    // Implementation\n}\n```\n\n### 5. Deployment\n\n- Docker containers\n- Cloud platforms\n- Load balancing\n- Monitoring\n\n## Best Practices\n\n- Use structured logging\n- Implement health checks\n- Handle graceful shutdown\n- Monitor performance metrics",
 			URL:   "https://github.com/go-go-golems/go-go-mcp/examples",
 			Metadata: map[string]interface{}{
-				"document_type": "tutorial",
-				"difficulty":    "intermediate",
-				"language":      "go",
+				"document_type":  "tutorial",
+				"difficulty":     "intermediate",
+				"language":       "go",
 				"estimated_time": "30 minutes",
 			},
 		}

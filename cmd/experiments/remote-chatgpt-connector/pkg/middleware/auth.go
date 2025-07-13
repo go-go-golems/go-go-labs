@@ -36,7 +36,7 @@ func (m *AuthMiddleware) RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 		// Extract bearer token
 		authHeader := r.Header.Get("Authorization")
 		token := auth.ExtractBearerToken(authHeader)
-		
+
 		if token == "" {
 			logger.Warn().Msg("missing bearer token")
 			w.Header().Set("WWW-Authenticate", `Bearer realm="MCP", error="invalid_request"`)
@@ -83,7 +83,7 @@ func (m *AuthMiddleware) RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 		ctx = context.WithValue(ctx, "user", username)
 		ctx = context.WithValue(ctx, "client_id", requester.GetClient().GetID())
 		ctx = context.WithValue(ctx, "scopes", requester.GetGrantedScopes())
-		
+
 		// Call next handler with enriched context
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}

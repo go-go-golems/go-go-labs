@@ -49,16 +49,16 @@ type DropdownOption struct {
 }
 
 type UIWidget struct {
-	Type    string      `json:"type"`
-	ID      string      `json:"id"`
-	Title   string      `json:"title"`
-	Data    interface{} `json:"data"`
+	Type  string      `json:"type"`
+	ID    string      `json:"id"`
+	Title string      `json:"title"`
+	Data  interface{} `json:"data"`
 }
 
 func main() {
 	var logLevel string
 	var port int
-	
+
 	rootCmd := &cobra.Command{
 		Use:   "assistant-ui-demo",
 		Short: "Demo application with streaming chat and generative UI",
@@ -69,51 +69,51 @@ func main() {
 			}
 			zerolog.SetGlobalLevel(level)
 			logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
-			
+
 			logger.Info().Msg("Starting assistant UI demo server")
-			
+
 			r := mux.NewRouter()
-			
+
 			// Serve static files
 			r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
-			
+
 			// API routes
 			r.HandleFunc("/ws", handleWebSocket).Methods("GET")
 			r.HandleFunc("/", handleIndex).Methods("GET")
-			
+
 			addr := fmt.Sprintf(":%d", port)
 			srv := &http.Server{
 				Addr:    addr,
 				Handler: r,
 			}
-			
+
 			go func() {
 				logger.Info().Str("addr", srv.Addr).Msg("Server starting")
 				if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 					logger.Fatal().Err(err).Msg("Server failed to start")
 				}
 			}()
-			
+
 			// Wait for interrupt signal
 			quit := make(chan os.Signal, 1)
 			signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 			<-quit
-			
+
 			logger.Info().Msg("Shutting down server...")
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
-			
+
 			if err := srv.Shutdown(ctx); err != nil {
 				logger.Fatal().Err(err).Msg("Server forced to shutdown")
 			}
-			
+
 			logger.Info().Msg("Server exited")
 		},
 	}
-	
+
 	rootCmd.Flags().StringVar(&logLevel, "log-level", "info", "Log level (debug, info, warn, error)")
 	rootCmd.Flags().IntVar(&port, "port", 8080, "Port to listen on")
-	
+
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatal(err)
 	}
@@ -140,16 +140,16 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 
 func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	logger := zerolog.Ctx(r.Context())
-	
+
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		logger.Error().Err(err).Msg("Failed to upgrade connection")
 		return
 	}
 	defer conn.Close()
-	
+
 	logger.Info().Msg("WebSocket connection established")
-	
+
 	for {
 		var msg Message
 		err := conn.ReadJSON(&msg)
@@ -157,9 +157,9 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			logger.Error().Err(err).Msg("Failed to read message")
 			break
 		}
-		
+
 		logger.Info().Str("type", msg.Type).Msg("Received message")
-		
+
 		switch msg.Type {
 		case "chat":
 			handleChatMessage(conn, msg.Content)
@@ -173,19 +173,19 @@ func handleChatMessage(conn *websocket.Conn, content interface{}) {
 	contentBytes, _ := json.Marshal(content)
 	var chatMsg ChatMessage
 	json.Unmarshal(contentBytes, &chatMsg)
-	
+
 	// Echo user message
 	conn.WriteJSON(Message{
 		Type:    "message",
 		Content: chatMsg,
 	})
-	
+
 	// Simulate thinking time
 	time.Sleep(500 * time.Millisecond)
-	
+
 	// Generate response with potential UI widgets
 	response := generateResponse(chatMsg.Content)
-	
+
 	// Stream response
 	for _, chunk := range strings.Split(response.Content, " ") {
 		conn.WriteJSON(Message{
@@ -197,13 +197,13 @@ func handleChatMessage(conn *websocket.Conn, content interface{}) {
 		})
 		time.Sleep(50 * time.Millisecond)
 	}
-	
+
 	// Send complete message
 	conn.WriteJSON(Message{
 		Type:    "message",
 		Content: response,
 	})
-	
+
 	// Maybe generate UI widgets
 	if shouldGenerateWidget(chatMsg.Content) {
 		widget := generateWidget(chatMsg.Content)
@@ -225,9 +225,9 @@ func generateResponse(userMessage string) ChatMessage {
 		"Let me break that down for you:",
 		"I understand what you're asking. Here's my take:",
 	}
-	
+
 	response := responses[rand.Intn(len(responses))]
-	
+
 	// Add more context based on user message
 	if strings.Contains(strings.ToLower(userMessage), "todo") {
 		response += " It sounds like you need help organizing tasks."
@@ -236,7 +236,7 @@ func generateResponse(userMessage string) ChatMessage {
 	} else {
 		response += " That's quite a thoughtful question that deserves a detailed answer."
 	}
-	
+
 	return ChatMessage{
 		ID:        fmt.Sprintf("msg_%d", time.Now().UnixNano()),
 		Role:      "assistant",
@@ -248,19 +248,19 @@ func generateResponse(userMessage string) ChatMessage {
 func shouldGenerateWidget(userMessage string) bool {
 	keywords := []string{"todo", "list", "tasks", "organize", "dropdown", "options", "choose"}
 	msg := strings.ToLower(userMessage)
-	
+
 	for _, keyword := range keywords {
 		if strings.Contains(msg, keyword) {
 			return true
 		}
 	}
-	
+
 	return rand.Float32() < 0.3 // 30% chance for demo purposes
 }
 
 func generateWidget(userMessage string) UIWidget {
 	msg := strings.ToLower(userMessage)
-	
+
 	if strings.Contains(msg, "todo") || strings.Contains(msg, "task") {
 		return UIWidget{
 			Type:  "todo",
@@ -273,7 +273,7 @@ func generateWidget(userMessage string) UIWidget {
 			},
 		}
 	}
-	
+
 	// Default to dropdown
 	return UIWidget{
 		Type:  "dropdown",

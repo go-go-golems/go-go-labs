@@ -85,4 +85,4 @@ func (s *FilmSelectionScreen) HandleInput(key string, sm *state.StateMachine) bo
 		return false
 	}
 	return true
-} 
+}

@@ -192,4 +192,4 @@ func (sm *StateMachine) CanTransitionTo(state AppState) bool {
 		}
 	}
 	return false
-} 
+}

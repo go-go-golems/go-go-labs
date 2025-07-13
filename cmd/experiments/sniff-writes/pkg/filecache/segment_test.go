@@ -230,7 +230,7 @@ func TestInsertionOrder(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sf := &SparseFile{}
-			
+
 			// Insert segments in order
 			for _, seg := range tt.segments {
 				newSeg := &Segment{
@@ -249,7 +249,7 @@ func TestInsertionOrder(t *testing.T) {
 			// Verify segments are sorted by start offset
 			for i := 1; i < len(sf.Segments); i++ {
 				if sf.Segments[i-1].Start >= sf.Segments[i].Start {
-					t.Errorf("segments not sorted: segment[%d].Start=%d >= segment[%d].Start=%d", 
+					t.Errorf("segments not sorted: segment[%d].Start=%d >= segment[%d].Start=%d",
 						i-1, sf.Segments[i-1].Start, i, sf.Segments[i].Start)
 				}
 			}

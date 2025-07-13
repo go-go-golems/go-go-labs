@@ -16,20 +16,20 @@ const (
 
 // Entity represents both playbooks and collections
 type Entity struct {
-	ID           int64     `json:"id" db:"id"`
-	Slug         string    `json:"slug" db:"slug"`
-	Type         EntityType `json:"type" db:"type"`
-	Title        string    `json:"title" db:"title"`
-	Description  string    `json:"description" db:"description"`
-	Summary      string    `json:"summary" db:"summary"`
-	CanonicalURL *string   `json:"canonical_url,omitempty" db:"canonical_url"`
-	Content      *string   `json:"content,omitempty" db:"content"`
-	Command      *string   `json:"command,omitempty" db:"command"`
-	ContentHash  *string   `json:"content_hash,omitempty" db:"content_hash"`
-	Filename     *string   `json:"filename,omitempty" db:"filename"`
-	Tags         []string  `json:"tags" db:"tags"`
-	LastFetched  *time.Time `json:"last_fetched,omitempty" db:"last_fetched"`
-	CreatedAt    time.Time `json:"created_at" db:"created_at"`
+	ID           int64             `json:"id" db:"id"`
+	Slug         string            `json:"slug" db:"slug"`
+	Type         EntityType        `json:"type" db:"type"`
+	Title        string            `json:"title" db:"title"`
+	Description  string            `json:"description" db:"description"`
+	Summary      string            `json:"summary" db:"summary"`
+	CanonicalURL *string           `json:"canonical_url,omitempty" db:"canonical_url"`
+	Content      *string           `json:"content,omitempty" db:"content"`
+	Command      *string           `json:"command,omitempty" db:"command"`
+	ContentHash  *string           `json:"content_hash,omitempty" db:"content_hash"`
+	Filename     *string           `json:"filename,omitempty" db:"filename"`
+	Tags         []string          `json:"tags" db:"tags"`
+	LastFetched  *time.Time        `json:"last_fetched,omitempty" db:"last_fetched"`
+	CreatedAt    time.Time         `json:"created_at" db:"created_at"`
 	Metadata     map[string]string `json:"metadata,omitempty"`
 }
 

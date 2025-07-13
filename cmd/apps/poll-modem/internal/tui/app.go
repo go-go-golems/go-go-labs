@@ -68,55 +68,55 @@ type exportModeSelectMsg struct{}
 
 // App represents the main TUI application
 type App struct {
-	client            *modem.Client
-	database          *modem.Database
-	sessionID         int64
-	modemInfo         *modem.ModemInfo
-	lastError         error
-	pollInterval      time.Duration
-	
+	client       *modem.Client
+	database     *modem.Database
+	sessionID    int64
+	modemInfo    *modem.ModemInfo
+	lastError    error
+	pollInterval time.Duration
+
 	// UI components
-	spinner      spinner.Model
-	downTable    table.Model
-	upTable      table.Model
-	errorTable   table.Model
-	
+	spinner    spinner.Model
+	downTable  table.Model
+	upTable    table.Model
+	errorTable table.Model
+
 	// History tables
 	downHistoryTable  table.Model
 	upHistoryTable    table.Model
 	errorHistoryTable table.Model
-	
+
 	// History data
 	history           []modem.ModemInfo
 	maxHistoryEntries int
-	
+
 	// State
-	width        int
-	height       int
-	loading      bool
-	loggingIn    bool // New field to track login state
-	currentView  int // 0: overview, 1: downstream, 2: upstream, 3: errors
-	showHistory  bool // Toggle between current and history view
-	lastExport   string // Status of last CSV export
-	selectedChannelID string // Track selected channel for history filtering
-	showExportMenu bool // Show export mode selection
-	exportMode   modem.ExportMode // Current export mode selection
-	
+	width             int
+	height            int
+	loading           bool
+	loggingIn         bool             // New field to track login state
+	currentView       int              // 0: overview, 1: downstream, 2: upstream, 3: errors
+	showHistory       bool             // Toggle between current and history view
+	lastExport        string           // Status of last CSV export
+	selectedChannelID string           // Track selected channel for history filtering
+	showExportMenu    bool             // Show export mode selection
+	exportMode        modem.ExportMode // Current export mode selection
+
 	// Key bindings
 	keys keyMap
 }
 
 type keyMap struct {
-	Quit        key.Binding
-	Refresh     key.Binding
-	NextView    key.Binding
-	PrevView    key.Binding
-	Help        key.Binding
+	Quit          key.Binding
+	Refresh       key.Binding
+	NextView      key.Binding
+	PrevView      key.Binding
+	Help          key.Binding
 	ToggleHistory key.Binding
-	ExportCSV   key.Binding
-	ExportMode1 key.Binding
-	ExportMode2 key.Binding
-	ExportMode3 key.Binding
+	ExportCSV     key.Binding
+	ExportMode1   key.Binding
+	ExportMode2   key.Binding
+	ExportMode3   key.Binding
 }
 
 var defaultKeys = keyMap{
@@ -459,7 +459,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.addToHistory(*msg.info)
 			a.updateTables()
 			a.updateHistoryTables()
-			
+
 			// Store in database
 			if a.database != nil && a.sessionID > 0 {
 				if err := a.database.StoreModemInfo(a.sessionID, msg.info); err != nil {
@@ -483,7 +483,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.addToHistory(*msg.info)
 			a.updateTables()
 			a.updateHistoryTables()
-			
+
 			// Store in database
 			if a.database != nil && a.sessionID > 0 {
 				if err := a.database.StoreModemInfo(a.sessionID, msg.info); err != nil {
@@ -497,7 +497,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		a.spinner, cmd = a.spinner.Update(msg)
 		return a, cmd
-		
+
 	case csvExportMsg:
 		if msg.success {
 			a.lastExport = msg.message
@@ -646,7 +646,7 @@ func (a *App) renderOverview() string {
 
 func (a *App) renderDownstream() string {
 	var content strings.Builder
-	
+
 	if a.showHistory && len(a.history) > 0 {
 		// Show history view with descriptive header
 		if a.selectedChannelID != "" {
@@ -662,13 +662,13 @@ func (a *App) renderDownstream() string {
 		content.WriteString("\n\n")
 		content.WriteString(tableStyle.Render(a.downTable.View()))
 	}
-	
+
 	return content.String()
 }
 
 func (a *App) renderUpstream() string {
 	var content strings.Builder
-	
+
 	if a.showHistory && len(a.history) > 0 {
 		// Show history view with descriptive header
 		if a.selectedChannelID != "" {
@@ -684,13 +684,13 @@ func (a *App) renderUpstream() string {
 		content.WriteString("\n\n")
 		content.WriteString(tableStyle.Render(a.upTable.View()))
 	}
-	
+
 	return content.String()
 }
 
 func (a *App) renderErrors() string {
 	var content strings.Builder
-	
+
 	if a.showHistory && len(a.history) > 0 {
 		// Show history view with descriptive header
 		if a.selectedChannelID != "" {
@@ -706,7 +706,7 @@ func (a *App) renderErrors() string {
 		content.WriteString("\n\n")
 		content.WriteString(tableStyle.Render(a.errorTable.View()))
 	}
-	
+
 	return content.String()
 }
 
@@ -798,7 +798,7 @@ func (a *App) updateTableHeights() {
 
 	// Calculate available height for the table
 	availableHeight := a.height - fixedHeight
-	
+
 	// Ensure minimum height of 3 for usability
 	if availableHeight < 3 {
 		availableHeight = 3
@@ -808,7 +808,7 @@ func (a *App) updateTableHeights() {
 	a.downTable.SetHeight(availableHeight)
 	a.upTable.SetHeight(availableHeight)
 	a.errorTable.SetHeight(availableHeight)
-	
+
 	// History tables get the same full height since they're shown exclusively
 	a.downHistoryTable.SetHeight(availableHeight)
 	a.upHistoryTable.SetHeight(availableHeight)
@@ -823,28 +823,28 @@ func (a *App) exportCSV() tea.Cmd {
 
 		timestamp := time.Now().Format("2006-01-02_15-04-05")
 		var files []string
-		
+
 		// Export downstream data
 		downFile := fmt.Sprintf("modem_downstream_%s.csv", timestamp)
 		if err := a.exportDownstreamCSV(timestamp); err != nil {
 			return fetchResultMsg{err: err}
 		}
 		files = append(files, downFile)
-		
+
 		// Export upstream data
 		upFile := fmt.Sprintf("modem_upstream_%s.csv", timestamp)
 		if err := a.exportUpstreamCSV(timestamp); err != nil {
 			return fetchResultMsg{err: err}
 		}
 		files = append(files, upFile)
-		
+
 		// Export error data
 		errorFile := fmt.Sprintf("modem_errors_%s.csv", timestamp)
 		if err := a.exportErrorCSV(timestamp); err != nil {
 			return fetchResultMsg{err: err}
 		}
 		files = append(files, errorFile)
-		
+
 		return csvExportMsg{success: true, files: files, message: "CSV export completed successfully"}
 	}
 }
@@ -976,7 +976,7 @@ func (a *App) updateHistoryTables() {
 
 	// If we have a selected channel and we're showing history, filter by that channel
 	// Otherwise show all channels (for when history mode is first enabled)
-	
+
 	// Update downstream history table
 	var downHistoryRows []table.Row
 	for _, info := range a.history {
@@ -1237,4 +1237,4 @@ func (a *App) Cleanup() {
 			log.Error().Err(err).Msg("Failed to close database")
 		}
 	}
-} 
+}

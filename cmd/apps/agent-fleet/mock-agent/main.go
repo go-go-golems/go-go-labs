@@ -30,7 +30,7 @@ var (
 
 func init() {
 	cobra.OnInitialize(initConfig)
-	
+
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file")
 	rootCmd.PersistentFlags().StringP("server", "s", "http://localhost:8080", "Fleet backend server URL")
 	rootCmd.PersistentFlags().StringP("token", "t", "fleet-agent-token-123", "Authentication token")
@@ -40,7 +40,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolP("randomized", "r", false, "Enable randomized behavior mode")
 	rootCmd.PersistentFlags().IntP("tick-interval", "", 5, "Agent tick interval in seconds")
 	rootCmd.PersistentFlags().IntP("command-check-interval", "", 2, "Command check interval in seconds")
-	
+
 	viper.BindPFlag("server", rootCmd.PersistentFlags().Lookup("server"))
 	viper.BindPFlag("token", rootCmd.PersistentFlags().Lookup("token"))
 	viper.BindPFlag("name", rootCmd.PersistentFlags().Lookup("name"))
@@ -57,14 +57,14 @@ func initConfig() {
 	} else {
 		home, err := os.UserHomeDir()
 		cobra.CheckErr(err)
-		
+
 		viper.AddConfigPath(home)
 		viper.SetConfigType("yaml")
 		viper.SetConfigName(".mock-agent")
 	}
-	
+
 	viper.AutomaticEnv()
-	
+
 	if err := viper.ReadInConfig(); err == nil {
 		log.Info().Str("config", viper.ConfigFileUsed()).Msg("Using config file")
 	}
@@ -76,7 +76,7 @@ func setupLogger() {
 	if err != nil {
 		logLevel = zerolog.InfoLevel
 	}
-	
+
 	zerolog.SetGlobalLevel(logLevel)
 	zerolog.CallerMarshalFunc = func(pc uintptr, file string, line int) string {
 		short := file
@@ -88,7 +88,7 @@ func setupLogger() {
 		}
 		return fmt.Sprintf("%s:%d", short, line)
 	}
-	
+
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: "15:04:05"}).With().Caller().Logger()
 }
 
@@ -97,24 +97,24 @@ func generateAgentName() string {
 		"Swift", "Clever", "Diligent", "Sharp", "Focused", "Precise", "Agile", "Smart",
 		"Efficient", "Dedicated", "Reliable", "Adaptive", "Creative", "Innovative",
 	}
-	
+
 	roles := []string{
 		"Coder", "Reviewer", "Tester", "Debugger", "Architect", "Analyst", "Builder",
 		"Scanner", "Optimizer", "Validator", "Developer", "Assistant", "Helper",
 	}
-	
+
 	adj := adjectives[rand.Intn(len(adjectives))]
 	role := roles[rand.Intn(len(roles))]
-	
+
 	return fmt.Sprintf("%s %s", adj, role)
 }
 
 func runAgent(cmd *cobra.Command, args []string) {
 	setupLogger()
-	
+
 	// Seed random number generator
 	rand.Seed(time.Now().UnixNano())
-	
+
 	// Get configuration
 	serverURL := viper.GetString("server")
 	token := viper.GetString("token")
@@ -123,21 +123,21 @@ func runAgent(cmd *cobra.Command, args []string) {
 	randomized := viper.GetBool("randomized")
 	tickInterval := viper.GetInt("tick-interval")
 	commandCheckInterval := viper.GetInt("command-check-interval")
-	
+
 	if name == "" {
 		name = generateAgentName()
 	}
-	
+
 	log.Info().
 		Str("name", name).
 		Str("server", serverURL).
 		Str("worktree", worktree).
 		Bool("randomized", randomized).
 		Msg("Starting mock agent")
-	
+
 	// Create API client
 	apiClient := client.New(serverURL, token)
-	
+
 	// Create agent configuration
 	config := agent.Config{
 		Name:                 name,
@@ -146,14 +146,14 @@ func runAgent(cmd *cobra.Command, args []string) {
 		TickInterval:         time.Duration(tickInterval) * time.Second,
 		CommandCheckInterval: time.Duration(commandCheckInterval) * time.Second,
 	}
-	
+
 	// Create and start agent
 	mockAgent := agent.New(apiClient, config)
-	
+
 	// Create context for graceful shutdown
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	
+
 	// Start agent in goroutine
 	go func() {
 		if err := mockAgent.Run(ctx); err != nil {
@@ -161,25 +161,25 @@ func runAgent(cmd *cobra.Command, args []string) {
 			cancel()
 		}
 	}()
-	
+
 	// Wait for interrupt signal
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	
+
 	select {
 	case <-quit:
 		log.Info().Msg("Received shutdown signal")
 	case <-ctx.Done():
 		log.Info().Msg("Agent context cancelled")
 	}
-	
+
 	// Graceful shutdown
 	log.Info().Msg("Shutting down agent...")
 	cancel()
-	
+
 	// Give the agent time to clean up
 	time.Sleep(2 * time.Second)
-	
+
 	log.Info().Msg("Agent stopped")
 }
 

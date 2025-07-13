@@ -31,4 +31,3 @@ func findFirstElement(node *html.Node, tag string) *html.Node {
 
 	return nil
 }
-

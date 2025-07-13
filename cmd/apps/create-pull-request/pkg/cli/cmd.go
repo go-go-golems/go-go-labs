@@ -37,13 +37,13 @@ var (
 	noCommits   bool
 
 	// LLM customization flags
-	llmCommand            string
-	llmStyle              string
-	llmParams             []string
-	codeContextFiles      []string
+	llmCommand             string
+	llmStyle               string
+	llmParams              []string
+	codeContextFiles       []string
 	additionalSystemPrompt string
-	additionalUserPrompts []string
-	contextFiles          []string
+	additionalUserPrompts  []string
+	contextFiles           []string
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -93,9 +93,9 @@ var createCmd = &cobra.Command{
 
 		// Initialize the service with adapters
 		service := application.NewPullRequestService(
-			git.NewMockAdapter(),       // Use mock for prototype
+			git.NewMockAdapter(),      // Use mock for prototype
 			llm.NewPinocchioAdapter(), // Use real LLM adapter
-			github.NewMockAdapter(),    // Use mock for prototype
+			github.NewMockAdapter(),   // Use mock for prototype
 			filesystem.NewRealAdapter(),
 		)
 

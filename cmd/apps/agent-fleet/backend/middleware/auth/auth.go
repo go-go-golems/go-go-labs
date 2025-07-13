@@ -53,7 +53,7 @@ func BearerTokenMiddleware(next http.Handler) http.Handler {
 func writeErrorResponse(w http.ResponseWriter, statusCode int, code, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	
+
 	errorResp := models.ErrorResponse{
 		Error: models.ErrorDetail{
 			Code:    code,

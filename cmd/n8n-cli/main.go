@@ -67,7 +67,7 @@ Settings → n8n API → "Create an API key".
 		embeddable.WithServerDescription("MCP server for n8n workflow management"),
 	}
 	mcpOptions = append(mcpOptions, registerMCPTools()...)
-	
+
 	err = embeddable.AddMCPCommand(rootCmd, mcpOptions...)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error adding MCP command: %v\n", err)

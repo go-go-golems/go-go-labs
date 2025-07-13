@@ -32,7 +32,7 @@ var (
 func main() {
 	startTime := time.Now()
 	pid := os.Getpid()
-	
+
 	// Initialize basic logging first
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	log.Info().
@@ -115,8 +115,8 @@ func runServer(cmd *cobra.Command, args []string) error {
 
 	logger.Info().
 		Interface("config", map[string]interface{}{
-			"host": cfg.Host,
-			"port": cfg.Port,
+			"host":   cfg.Host,
+			"port":   cfg.Port,
 			"issuer": cfg.OIDCIssuer,
 		}).
 		Msg("Configuration loaded successfully")
@@ -224,7 +224,7 @@ func runServer(cmd *cobra.Command, args []string) error {
 		logger.Info().
 			Str("address", server.Addr).
 			Msg("Starting HTTP server")
-		
+
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			serverErrors <- err
 		}
@@ -240,7 +240,7 @@ func runServer(cmd *cobra.Command, args []string) error {
 	logger.Info().
 		Strs("endpoints", []string{
 			"POST /register - Dynamic client registration",
-			"GET /authorize - OAuth authorization endpoint", 
+			"GET /authorize - OAuth authorization endpoint",
 			"POST /token - Token exchange endpoint",
 			"GET /.well-known/ai-plugin.json - Plugin manifest",
 			"GET /.well-known/oauth-authorization-server - OIDC discovery",
@@ -299,7 +299,7 @@ func runServer(cmd *cobra.Command, args []string) error {
 func setupLogging(level string) {
 	// Configure zerolog
 	zerolog.TimeFieldFormat = time.RFC3339
-	
+
 	// Set log level
 	switch strings.ToLower(level) {
 	case "debug":

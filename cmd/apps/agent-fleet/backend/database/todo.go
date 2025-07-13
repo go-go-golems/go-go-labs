@@ -14,13 +14,13 @@ import (
 
 func (db *DB) CreateTodo(agentID string, req models.CreateTodoRequest) (*models.TodoItem, error) {
 	todo := &models.TodoItem{
-		ID        : uuid.New().String(),
-		AgentID   : agentID,
-		Text      : req.Text,
-		Completed : false,
-		Current   : false,
-		Order     : req.Order,
-		CreatedAt : time.Now(),
+		ID:        uuid.New().String(),
+		AgentID:   agentID,
+		Text:      req.Text,
+		Completed: false,
+		Current:   false,
+		Order:     req.Order,
+		CreatedAt: time.Now(),
 	}
 
 	query := `

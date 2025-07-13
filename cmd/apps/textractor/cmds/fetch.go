@@ -115,7 +115,7 @@ func NewFetchCommand() *cobra.Command {
 				case "json":
 					output := map[string]interface{}{
 						"DocumentMetadata": documentMetadata,
-						"Blocks":          allBlocks,
+						"Blocks":           allBlocks,
 					}
 
 					if outputFile == "" {
@@ -197,7 +197,7 @@ func NewFetchCommand() *cobra.Command {
 				for _, data := range allData {
 					var parsed struct {
 						DocumentMetadata interface{}   `json:"DocumentMetadata"`
-						Blocks          []interface{} `json:"Blocks"`
+						Blocks           []interface{} `json:"Blocks"`
 					}
 					if err := json.Unmarshal(data, &parsed); err != nil {
 						return fmt.Errorf("failed to parse JSON results: %w", err)
@@ -212,7 +212,7 @@ func NewFetchCommand() *cobra.Command {
 
 				output := map[string]interface{}{
 					"DocumentMetadata": documentMetadata,
-					"Blocks":          allBlocks,
+					"Blocks":           allBlocks,
 				}
 
 				// Pretty print if no output file specified

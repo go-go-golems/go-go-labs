@@ -30,75 +30,75 @@ func TestDiffLineType_Constants(t *testing.T) {
 
 func TestParseLineWithNumber(t *testing.T) {
 	tests := []struct {
-		name           string
-		line           string
-		isAddOrContext bool
-		expectedOld    int
-		expectedNew    int
+		name            string
+		line            string
+		isAddOrContext  bool
+		expectedOld     int
+		expectedNew     int
 		expectedContent string
 	}{
 		{
-			name:           "add line with number",
-			line:           "42:hello world",
-			isAddOrContext: true,
-			expectedOld:    0,
-			expectedNew:    42,
+			name:            "add line with number",
+			line:            "42:hello world",
+			isAddOrContext:  true,
+			expectedOld:     0,
+			expectedNew:     42,
 			expectedContent: "hello world",
 		},
 		{
-			name:           "remove line with number",
-			line:           "15:goodbye world",
-			isAddOrContext: false,
-			expectedOld:    15,
-			expectedNew:    0,
+			name:            "remove line with number",
+			line:            "15:goodbye world",
+			isAddOrContext:  false,
+			expectedOld:     15,
+			expectedNew:     0,
 			expectedContent: "goodbye world",
 		},
 		{
-			name:           "context line with number",
-			line:           "100:unchanged line",
-			isAddOrContext: true,
-			expectedOld:    0,
-			expectedNew:    100,
+			name:            "context line with number",
+			line:            "100:unchanged line",
+			isAddOrContext:  true,
+			expectedOld:     0,
+			expectedNew:     100,
 			expectedContent: "unchanged line",
 		},
 		{
-			name:           "line without colon",
-			line:           "no colon here",
-			isAddOrContext: true,
-			expectedOld:    0,
-			expectedNew:    0,
+			name:            "line without colon",
+			line:            "no colon here",
+			isAddOrContext:  true,
+			expectedOld:     0,
+			expectedNew:     0,
 			expectedContent: "no colon here",
 		},
 		{
-			name:           "line with invalid number",
-			line:           "abc:invalid number",
-			isAddOrContext: true,
-			expectedOld:    0,
-			expectedNew:    0,
+			name:            "line with invalid number",
+			line:            "abc:invalid number",
+			isAddOrContext:  true,
+			expectedOld:     0,
+			expectedNew:     0,
 			expectedContent: "abc:invalid number",
 		},
 		{
-			name:           "line with empty content",
-			line:           "5:",
-			isAddOrContext: true,
-			expectedOld:    0,
-			expectedNew:    5,
+			name:            "line with empty content",
+			line:            "5:",
+			isAddOrContext:  true,
+			expectedOld:     0,
+			expectedNew:     5,
 			expectedContent: "",
 		},
 		{
-			name:           "line with multiple colons",
-			line:           "10:hello:world:test",
-			isAddOrContext: true,
-			expectedOld:    0,
-			expectedNew:    10,
+			name:            "line with multiple colons",
+			line:            "10:hello:world:test",
+			isAddOrContext:  true,
+			expectedOld:     0,
+			expectedNew:     10,
 			expectedContent: "hello:world:test",
 		},
 		{
-			name:           "zero line number",
-			line:           "0:zero line",
-			isAddOrContext: true,
-			expectedOld:    0,
-			expectedNew:    0,
+			name:            "zero line number",
+			line:            "0:zero line",
+			isAddOrContext:  true,
+			expectedOld:     0,
+			expectedNew:     0,
 			expectedContent: "zero line",
 		},
 	}
@@ -106,7 +106,7 @@ func TestParseLineWithNumber(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			oldLine, newLine, content := parseLineWithNumber(tt.line, tt.isAddOrContext)
-			
+
 			if oldLine != tt.expectedOld {
 				t.Errorf("Expected oldLine %d, got %d", tt.expectedOld, oldLine)
 			}
@@ -142,8 +142,8 @@ func TestParseUnifiedDiff(t *testing.T) {
 			},
 		},
 		{
-			name: "empty diff",
-			diff: "",
+			name:     "empty diff",
+			diff:     "",
 			expected: []DiffLine{},
 		},
 		{
@@ -186,11 +186,11 @@ random line without prefix`,
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := ParseUnifiedDiff(tt.diff)
-			
+
 			if len(result) != len(tt.expected) {
 				t.Fatalf("Expected %d lines, got %d", len(tt.expected), len(result))
 			}
-			
+
 			for i, expected := range tt.expected {
 				if result[i].Type != expected.Type {
 					t.Errorf("Line %d: expected type %d, got %d", i, expected.Type, result[i].Type)
@@ -289,7 +289,7 @@ func TestGenerateBasicUnifiedDiff(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := generateBasicUnifiedDiff(tt.oldLines, tt.newLines, tt.filename)
-			
+
 			if result != tt.expected {
 				t.Errorf("Expected:\n%s\nGot:\n%s", tt.expected, result)
 			}
@@ -374,10 +374,10 @@ func TestElideUnifiedDiff(t *testing.T) {
 +3:new line`,
 		},
 		{
-			name: "empty diff",
-			diff: "",
+			name:         "empty diff",
+			diff:         "",
 			contextLines: 1,
-			expected: "",
+			expected:     "",
 		},
 		{
 			name: "diff with no changes",
@@ -426,7 +426,7 @@ func TestElideUnifiedDiff(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := ElideUnifiedDiff(tt.diff, tt.contextLines)
-			
+
 			if result != tt.expected {
 				t.Errorf("Expected:\n%s\nGot:\n%s", tt.expected, result)
 			}
@@ -480,7 +480,7 @@ func TestGenerateElidedUnifiedDiff(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := GenerateElidedUnifiedDiff(tt.oldContent, tt.newContent, tt.filename, tt.contextLines)
-			
+
 			for _, substring := range tt.contains {
 				if !strings.Contains(result, substring) {
 					t.Errorf("Expected result to contain %q, but it didn't. Result:\n%s", substring, result)
@@ -494,11 +494,11 @@ func TestElideUnifiedDiff_EdgeCases(t *testing.T) {
 	t.Run("diff with only headers", func(t *testing.T) {
 		diff := `--- file.txt (cached)
 +++ file.txt (new write)`
-		
+
 		result := ElideUnifiedDiff(diff, 1)
 		expected := `--- file.txt (cached)
 +++ file.txt (new write)`
-		
+
 		if result != expected {
 			t.Errorf("Expected:\n%s\nGot:\n%s", expected, result)
 		}
@@ -512,7 +512,7 @@ func TestElideUnifiedDiff_EdgeCases(t *testing.T) {
  3:line3
  4:line4
  5:line5`
-		
+
 		result := ElideUnifiedDiff(diff, 1)
 		expected := `--- file.txt (cached)
 +++ file.txt (new write)
@@ -520,7 +520,7 @@ func TestElideUnifiedDiff_EdgeCases(t *testing.T) {
 +2:new line
  3:line3
 `
-		
+
 		if result != expected {
 			t.Errorf("Expected:\n%s\nGot:\n%s", expected, result)
 		}
@@ -534,7 +534,7 @@ func TestElideUnifiedDiff_EdgeCases(t *testing.T) {
  3:line3
 -4:old line
 +5:new line`
-		
+
 		result := ElideUnifiedDiff(diff, 1)
 		expected := `--- file.txt (cached)
 +++ file.txt (new write)
@@ -542,7 +542,7 @@ func TestElideUnifiedDiff_EdgeCases(t *testing.T) {
 -4:old line
 +5:new line
 `
-		
+
 		if result != expected {
 			t.Errorf("Expected:\n%s\nGot:\n%s", expected, result)
 		}
@@ -572,7 +572,7 @@ func TestParseUnifiedDiff_Integration(t *testing.T) {
 
 	// Parse the diff
 	parsed := ParseUnifiedDiff(diff)
-	
+
 	// Verify we have the expected structure
 	if len(parsed) != 18 {
 		for i, line := range parsed {
@@ -580,7 +580,7 @@ func TestParseUnifiedDiff_Integration(t *testing.T) {
 		}
 		t.Fatalf("Expected 18 parsed lines, got %d", len(parsed))
 	}
-	
+
 	// Check headers
 	if parsed[0].Type != DiffLineHeader || !strings.Contains(parsed[0].Content, "---") {
 		t.Errorf("First line should be header with ---, got %s", parsed[0].Content)
@@ -588,7 +588,7 @@ func TestParseUnifiedDiff_Integration(t *testing.T) {
 	if parsed[1].Type != DiffLineHeader || !strings.Contains(parsed[1].Content, "+++") {
 		t.Errorf("Second line should be header with +++, got %s", parsed[1].Content)
 	}
-	
+
 	// Check content lines
 	if parsed[2].Type != DiffLineContext || parsed[2].NewLine != 1 {
 		t.Errorf("Third line should be context with line 1, got type %d, line %d", parsed[2].Type, parsed[2].NewLine)
@@ -599,7 +599,7 @@ func TestParseUnifiedDiff_Integration(t *testing.T) {
 	if parsed[12].Type != DiffLineAdd || parsed[12].NewLine != 11 {
 		t.Errorf("Thirteenth line should be add with new line 11, got type %d, line %d", parsed[12].Type, parsed[12].NewLine)
 	}
-	
+
 	// Test elision works with the parsed content
 	elided := ElideUnifiedDiff(diff, 0)
 	// With context=0, only changed lines are shown
@@ -633,7 +633,7 @@ func BenchmarkElideUnifiedDiff(b *testing.B) {
 	var lines []string
 	lines = append(lines, "--- file.txt (cached)")
 	lines = append(lines, "+++ file.txt (new write)")
-	
+
 	for i := 1; i <= 100; i++ {
 		if i == 50 {
 			lines = append(lines, "-50:old line")
@@ -642,9 +642,9 @@ func BenchmarkElideUnifiedDiff(b *testing.B) {
 			lines = append(lines, fmt.Sprintf(" %d:line%d", i, i))
 		}
 	}
-	
+
 	diff := strings.Join(lines, "\n")
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		ElideUnifiedDiff(diff, 3)
@@ -653,7 +653,7 @@ func BenchmarkElideUnifiedDiff(b *testing.B) {
 
 func BenchmarkParseLineWithNumber(b *testing.B) {
 	line := "42:this is a test line with some content"
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		parseLineWithNumber(line, true)
