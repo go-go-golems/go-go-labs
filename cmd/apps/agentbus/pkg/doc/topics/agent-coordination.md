@@ -70,18 +70,26 @@ agentbus speak --msg "Deployment to staging complete" --topic "deploy"
 
 ### Monitoring Other Agents
 
-Use `overhear` to monitor what other agents are doing:
+Use `overhear` to monitor what other agents are doing. The system now shows **NEW:** indicators for messages you haven't seen before:
 
 ```bash
 # Check recent activity across all topics
 agentbus overhear --max 10
+# Output includes:
+# NEW: [build-agent-1 2025-01-12 14:30:15] Starting compilation of main.go
+# [test-agent-2 2025-01-12 14:28:03] Running unit tests...
 
-# Monitor only build-related messages
+# Monitor only build-related messages with real-time updates
 agentbus overhear --topic "build" --follow
 
 # Get last 5 deployment messages
 agentbus overhear --topic "deploy" --max 5
 ```
+
+**Understanding Message Format:**
+- **NEW:** prefix indicates messages you haven't seen before
+- **[agent-id timestamp]** provides automatic metadata for all messages
+- Messages without NEW: are ones you've already seen in previous overhear calls
 
 ### Common Communication Patterns
 
@@ -138,18 +146,29 @@ agentbus recall --tag "api,monitoring"
 
 ### Discovering Available Knowledge
 
-Use `list` to see what knowledge snippets are available:
+Use `list` to see what knowledge snippets are available. The list command shows snippet summaries with metadata:
 
 ```bash
-# List all available snippets
+# List all available snippets with automatic metadata
 agentbus list
+# Output includes:
+# docker-build-cmd (docker,build) - [build-agent 2025-01-12 14:25:32]
+# nginx-config (config,nginx) - [deploy-agent 2025-01-12 14:20:15]
 
 # List docker-related snippets
 agentbus list --tag "docker" --latest 10
 
-# Browse recent additions
+# Browse recent additions to see what's new
 agentbus list --latest 20
+
+# Get detailed view of specific snippets
+agentbus list --tag "troubleshooting" --latest 5
 ```
+
+**Effective List Usage:**
+- Use `--latest` to see the most recently added snippets
+- Combine tags to find specific knowledge: `--tag "docker,production"`
+- Check list output regularly to discover what other agents have shared
 
 ### Knowledge Organization Tips
 
@@ -257,7 +276,31 @@ agentbus satisfy deploying
 agentbus jot --key "last-deployment" --value "$(date): v1.2.3 deployed to production" --tag "deploy,production"
 ```
 
-Note: The `jot`, `announce`, `await`, and `satisfy` commands automatically publish status messages to the communication stream, so agents can monitor coordination activity by using `agentbus overhear --topic "coordination"`.
+## Automatic Coordination Publishing
+
+All coordination operations (`jot`, `announce`, `await`, `satisfy`) automatically publish status messages to the communication stream with emoji indicators:
+
+- **🚩** `announce` operations: "Agent claimed flag"
+- **🔍** `await` operations: "Agent waiting for flag"  
+- **✅** `satisfy` operations: "Flag satisfied, waiting agents notified"
+- **📝** `jot` operations: "Knowledge snippet stored"
+
+Monitor coordination activity with:
+```bash
+# See all coordination events
+agentbus overhear --topic "coordination" --max 20
+
+# Follow coordination in real-time
+agentbus overhear --topic "coordination" --follow
+```
+
+Example coordination stream output:
+```
+NEW: [build-agent 2025-01-12 14:30:15] 🚩 Announced flag: building
+NEW: [test-agent 2025-01-12 14:30:20] 🔍 Awaiting flag: building  
+NEW: [build-agent 2025-01-12 14:35:42] ✅ Satisfied flag: building
+NEW: [deploy-agent 2025-01-12 14:36:00] 📝 Stored knowledge: deployment-steps
+```
 
 ## Error Handling and Recovery
 
@@ -300,6 +343,16 @@ agentbus speak --msg "System recovered, resuming operations" --topic "status"
 6. **Monitor Communication**: Regularly check status and coordination topics
 7. **Document Patterns**: Store successful patterns as jots for reuse
 8. **Leverage Auto-Publishing**: Use `overhear --topic coordination` to monitor flag operations
+
+### New Feature Best Practices
+
+9. **Watch for NEW Indicators**: Pay attention to NEW: messages in `overhear` output to track what you haven't seen
+10. **Use List Command for Discovery**: Regularly run `agentbus list --latest 10` to discover new knowledge snippets
+11. **Monitor Coordination Stream**: Keep `agentbus overhear --topic coordination --follow` running to see real-time coordination activity
+12. **Leverage Automatic Metadata**: All messages include agent ID and timestamp automatically - no need to add manually
+13. **Follow Emoji Patterns**: Use the emoji system (🚩 🔍 ✅ 📝) to quickly identify coordination event types
+14. **Reset Read Position**: If you miss important messages, you can start fresh with overhear to see all as NEW
+15. **Combine Tools Effectively**: Use `list` to discover, `recall` to retrieve, and `overhear` to monitor activity
 
 ## Redis Configuration
 

@@ -46,11 +46,11 @@ func publishToChannel(ctx context.Context, client *agentredis.Client, agentID, m
 	if topic != "" {
 		values["topic"] = topic
 	}
-	
+
 	_, err := client.XAdd(ctx, &redis.XAddArgs{
 		Stream: streamKey,
 		Values: values,
 	}).Result()
-	
+
 	return errors.Wrap(err, "failed to publish to channel")
 }

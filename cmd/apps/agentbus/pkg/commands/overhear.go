@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -12,8 +13,8 @@ import (
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
-	"github.com/redis/go-redis/v9"
 	"github.com/pkg/errors"
+	"github.com/redis/go-redis/v9"
 )
 
 type OverhearCommand struct {
@@ -116,8 +117,9 @@ func (c *OverhearCommand) RunIntoGlazeProcessor(
 	streamKey := client.ChannelKey()
 	lastKey := client.LastKey(agentID)
 
-	// Determine starting position
+	// Determine starting position and track what's new
 	startID := s.Since
+	lastReadPosition := ""
 	if startID == "" {
 		// Get last read position for this agent
 		lastID, err := client.Get(ctx, lastKey).Result()
@@ -126,6 +128,7 @@ func (c *OverhearCommand) RunIntoGlazeProcessor(
 		} else if err != nil {
 			return errors.Wrap(err, "failed to get last read position")
 		} else {
+			lastReadPosition = lastID
 			startID = lastID
 		}
 	}
@@ -150,51 +153,83 @@ func (c *OverhearCommand) RunIntoGlazeProcessor(
 		if err != nil {
 			return errors.Wrap(err, "failed to read messages")
 		}
-		
+
 		// Skip the first message if it's exactly the startID (already read)
 		if len(result) > 0 && result[0].ID == startID {
 			result = result[1:]
 		}
-		
+
 		// Limit results
 		if len(result) > s.Max {
 			result = result[:s.Max]
 		}
-		
+
 		messages = result
 	}
 
-	// Process and output messages
-	var lastReadID string
+	// Count total messages and new messages
+	newMessageCount := 0
+	filteredMessages := make([]redis.XMessage, 0, len(messages))
+
+	// Pre-filter and count
 	for _, msg := range messages {
 		// Filter by topic if specified
 		if s.Topic != "" {
 			msgTopic, _ := msg.Values["topic"].(string)
 			if msgTopic != s.Topic {
-				lastReadID = msg.ID // Still update position even for filtered messages
 				continue
 			}
 		}
-		
+		filteredMessages = append(filteredMessages, msg)
+
+		// Count as new if after last read position
+		if lastReadPosition == "" || msg.ID > lastReadPosition {
+			newMessageCount++
+		}
+	}
+
+	// Add summary header as first row
+	summaryRow := types.NewRow(
+		types.MRP("stream_id", "SUMMARY"),
+		types.MRP("agent_id", "system"),
+		types.MRP("topic", "info"),
+		types.MRP("message", fmt.Sprintf("Found %d total messages, %d new since last read", len(filteredMessages), newMessageCount)),
+		types.MRP("timestamp", time.Now().Format(time.RFC3339)),
+	)
+	err = gp.AddRow(ctx, summaryRow)
+	if err != nil {
+		return err
+	}
+
+	// Process and output messages
+	var lastReadID string
+	for _, msg := range filteredMessages {
 		// Parse timestamp from stream ID
 		timestampStr := msg.ID[:strings.Index(msg.ID, "-")]
 		timestamp, _ := strconv.ParseInt(timestampStr, 10, 64)
-		
+
 		topic, _ := msg.Values["topic"].(string)
-		
+
+		// Determine if this message is new
+		isNew := lastReadPosition == "" || msg.ID > lastReadPosition
+		messageText := msg.Values["message"].(string)
+		if isNew {
+			messageText = "NEW: " + messageText
+		}
+
 		row := types.NewRow(
 			types.MRP("stream_id", msg.ID),
 			types.MRP("agent_id", msg.Values["agent_id"]),
 			types.MRP("topic", topic),
-			types.MRP("message", msg.Values["message"]),
+			types.MRP("message", messageText),
 			types.MRP("timestamp", time.Unix(timestamp/1000, 0).Format(time.RFC3339)),
 		)
-		
+
 		err = gp.AddRow(ctx, row)
 		if err != nil {
 			return err
 		}
-		
+
 		lastReadID = msg.ID
 	}
 

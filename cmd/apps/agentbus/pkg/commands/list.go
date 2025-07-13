@@ -102,7 +102,7 @@ func (c *ListCommand) RunIntoGlazeProcessor(
 			if tag == "" {
 				continue
 			}
-			
+
 			tagKey := client.JotsByTagKey(tag)
 			tagKeys, err := client.ZRevRange(ctx, tagKey, 0, int64(s.Latest-1)).Result()
 			if err != nil {
@@ -147,7 +147,7 @@ func (c *ListCommand) RunIntoGlazeProcessor(
 	// Get metadata for each key
 	for _, key := range keys {
 		jotKey := client.JotKey(key)
-		
+
 		result, err := client.HGetAll(ctx, jotKey).Result()
 		if err != nil || len(result) == 0 {
 			continue // Skip missing jots
@@ -155,7 +155,7 @@ func (c *ListCommand) RunIntoGlazeProcessor(
 
 		// Parse timestamp
 		timestamp, _ := strconv.ParseInt(result["timestamp"], 10, 64)
-		
+
 		// Parse tags
 		var jotTags []string
 		if result["tags"] != "" {

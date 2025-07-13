@@ -102,7 +102,7 @@ func (c *SpeakCommand) RunIntoGlazeProcessor(
 	if s.Topic != "" {
 		values["topic"] = s.Topic
 	}
-	
+
 	result, err := client.XAdd(ctx, &redis.XAddArgs{
 		Stream: streamKey,
 		Values: values,

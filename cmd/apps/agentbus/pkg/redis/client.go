@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/redis/go-redis/v9"
 	"github.com/pkg/errors"
+	"github.com/redis/go-redis/v9"
 )
 
 // Client wraps redis.Client with agentbus-specific functionality
@@ -22,11 +22,11 @@ func NewClient(redisURL string) (*Client, error) {
 	}
 
 	client := redis.NewClient(opts)
-	
+
 	// Test connection
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	_, err = client.Ping(ctx).Result()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to connect to redis")

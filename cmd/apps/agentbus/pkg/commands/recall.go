@@ -124,19 +124,19 @@ func (c *RecallCommand) retrieveByKey(
 	gp middlewares.Processor,
 ) error {
 	jotKey := client.JotKey(key)
-	
+
 	result, err := client.HGetAll(ctx, jotKey).Result()
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve jot")
 	}
-	
+
 	if len(result) == 0 {
 		return errors.New("jot not found")
 	}
 
 	// Parse timestamp
 	timestamp, _ := strconv.ParseInt(result["timestamp"], 10, 64)
-	
+
 	// Parse tags
 	var tags []string
 	if result["tags"] != "" {
@@ -163,22 +163,22 @@ func (c *RecallCommand) retrieveByTag(
 ) error {
 	tags := strings.Split(tagStr, ",")
 	var allKeys []string
-	
+
 	// Get keys from all specified tags
 	for _, tag := range tags {
 		tag = strings.TrimSpace(tag)
 		if tag == "" {
 			continue
 		}
-		
+
 		tagKey := client.JotsByTagKey(tag)
-		
+
 		// Get keys in reverse chronological order (highest scores first)
 		keys, err := client.ZRevRange(ctx, tagKey, 0, int64(latest-1)).Result()
 		if err != nil {
 			return errors.Wrapf(err, "failed to get keys for tag '%s'", tag)
 		}
-		
+
 		allKeys = append(allKeys, keys...)
 	}
 
@@ -200,19 +200,19 @@ func (c *RecallCommand) retrieveByTag(
 	// Retrieve each jot
 	for _, key := range uniqueKeys {
 		jotKey := client.JotKey(key)
-		
+
 		result, err := client.HGetAll(ctx, jotKey).Result()
 		if err != nil {
 			continue // Skip missing jots
 		}
-		
+
 		if len(result) == 0 {
 			continue
 		}
 
 		// Parse timestamp
 		timestamp, _ := strconv.ParseInt(result["timestamp"], 10, 64)
-		
+
 		// Parse tags
 		var jotTags []string
 		if result["tags"] != "" {
