@@ -2,6 +2,8 @@ package commands
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -26,6 +28,7 @@ type ListSettings struct {
 }
 
 var _ cmds.GlazeCommand = (*ListCommand)(nil)
+var _ cmds.WriterCommand = (*ListCommand)(nil)
 
 func NewListCommand() (*ListCommand, error) {
 	glazedParameterLayer, err := settings.NewGlazedParameterLayers()
@@ -174,6 +177,82 @@ func (c *ListCommand) RunIntoGlazeProcessor(
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (c *ListCommand) RunIntoWriter(
+	ctx context.Context,
+	parsedLayers *layers.ParsedLayers,
+	w io.Writer,
+) error {
+	s := &ListSettings{}
+	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
+	if err != nil {
+		return err
+	}
+
+	client, err := getRedisClient()
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+
+	var keys []string
+
+	if s.Tag != "" {
+		// List keys with specific tag
+		tagKey := fmt.Sprintf("tag:%s", s.Tag)
+		keys, err = client.SMembers(ctx, tagKey).Result()
+		if err != nil {
+			return errors.Wrapf(err, "failed to retrieve keys for tag %s", s.Tag)
+		}
+
+		if len(keys) == 0 {
+			fmt.Fprintf(w, "🏷️  No knowledge snippets found with tag '%s'\n", s.Tag)
+			return nil
+		}
+
+		fmt.Fprintf(w, "🏷️  Knowledge snippets with tag '%s':\n", s.Tag)
+	} else {
+		// List all tags (simplified approach)
+		fmt.Fprintf(w, "📋 Available knowledge snippets:\n")
+		fmt.Fprintf(w, "Use --tag to filter by specific tags\n")
+		return nil
+	}
+
+	// Sort and limit keys
+	if s.Latest > 0 && len(keys) > s.Latest {
+		keys = keys[:s.Latest]
+	}
+
+	// Output key information
+	for i, key := range keys {
+		result, err := client.HGetAll(ctx, key).Result()
+		if err != nil {
+			continue
+		}
+
+		if len(result) == 0 {
+			continue
+		}
+
+		fmt.Fprintf(w, "%d. %s", i+1, key)
+
+		if author, ok := result["author"]; ok {
+			fmt.Fprintf(w, " (by %s)", author)
+		}
+
+		if timestamp, ok := result["timestamp"]; ok {
+			fmt.Fprintf(w, " - %s", timestamp)
+		}
+
+		fmt.Fprintf(w, "\n")
+	}
+
+	if len(keys) == 0 {
+		fmt.Fprintf(w, "   No snippets found\n")
 	}
 
 	return nil

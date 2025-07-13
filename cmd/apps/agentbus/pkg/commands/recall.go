@@ -2,6 +2,8 @@ package commands
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -27,6 +29,7 @@ type RecallSettings struct {
 }
 
 var _ cmds.GlazeCommand = (*RecallCommand)(nil)
+var _ cmds.WriterCommand = (*RecallCommand)(nil)
 
 func NewRecallCommand() (*RecallCommand, error) {
 	glazedParameterLayer, err := settings.NewGlazedParameterLayers()
@@ -232,6 +235,151 @@ func (c *RecallCommand) retrieveByTag(
 			return err
 		}
 	}
+
+	return nil
+}
+
+func (c *RecallCommand) RunIntoWriter(
+	ctx context.Context,
+	parsedLayers *layers.ParsedLayers,
+	w io.Writer,
+) error {
+	s := &RecallSettings{}
+	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
+	if err != nil {
+		return err
+	}
+
+	client, err := getRedisClient()
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+
+	if s.Key != "" {
+		return c.retrieveByKeyWriter(ctx, client, s.Key, w)
+	} else if s.Tag != "" {
+		return c.retrieveByTagWriter(ctx, client, s.Tag, s.Latest, w)
+	} else {
+		return c.retrieveAllWriter(ctx, client, s.Latest, w)
+	}
+}
+
+func (c *RecallCommand) retrieveByKeyWriter(
+	ctx context.Context,
+	client *agentredis.Client,
+	key string,
+	w io.Writer,
+) error {
+	result, err := client.HGetAll(ctx, key).Result()
+	if err != nil {
+		return errors.Wrapf(err, "failed to retrieve knowledge snippet for key %s", key)
+	}
+
+	if len(result) == 0 {
+		fmt.Fprintf(w, "🔍 No knowledge snippet found for key '%s'\n", key)
+		return nil
+	}
+
+	// Output human-readable format
+	fmt.Fprintf(w, "📚 Knowledge snippet: %s\n", key)
+
+	if author, ok := result["author"]; ok {
+		fmt.Fprintf(w, "   Author: %s\n", author)
+	}
+
+	if tags, ok := result["tags"]; ok && tags != "" {
+		fmt.Fprintf(w, "   Tags: %s\n", tags)
+	}
+
+	if timestamp, ok := result["timestamp"]; ok {
+		fmt.Fprintf(w, "   Created: %s\n", timestamp)
+	}
+
+	if value, ok := result["value"]; ok {
+		fmt.Fprintf(w, "   Content:\n")
+		// Indent the content
+		lines := strings.Split(value, "\n")
+		for _, line := range lines {
+			fmt.Fprintf(w, "     %s\n", line)
+		}
+	}
+
+	return nil
+}
+
+func (c *RecallCommand) retrieveByTagWriter(
+	ctx context.Context,
+	client *agentredis.Client,
+	tagStr string,
+	latest int,
+	w io.Writer,
+) error {
+	tagKey := fmt.Sprintf("tag:%s", tagStr)
+	keys, err := client.SMembers(ctx, tagKey).Result()
+	if err != nil {
+		return errors.Wrapf(err, "failed to retrieve keys for tag %s", tagStr)
+	}
+
+	if len(keys) == 0 {
+		fmt.Fprintf(w, "🏷️  No knowledge snippets found with tag '%s'\n", tagStr)
+		return nil
+	}
+
+	fmt.Fprintf(w, "🏷️  Knowledge snippets with tag '%s':\n\n", tagStr)
+
+	count := 0
+	for _, key := range keys {
+		if latest > 0 && count >= latest {
+			break
+		}
+
+		result, err := client.HGetAll(ctx, key).Result()
+		if err != nil {
+			continue
+		}
+
+		if len(result) == 0 {
+			continue
+		}
+
+		fmt.Fprintf(w, "📚 %s\n", key)
+
+		if author, ok := result["author"]; ok {
+			fmt.Fprintf(w, "   Author: %s\n", author)
+		}
+
+		if timestamp, ok := result["timestamp"]; ok {
+			fmt.Fprintf(w, "   Created: %s\n", timestamp)
+		}
+
+		if value, ok := result["value"]; ok {
+			valuePreview := value
+			if len(valuePreview) > 100 {
+				valuePreview = valuePreview[:97] + "..."
+			}
+			valuePreview = strings.ReplaceAll(valuePreview, "\n", " ")
+			fmt.Fprintf(w, "   Content: %s\n", valuePreview)
+		}
+
+		fmt.Fprintf(w, "\n")
+		count++
+	}
+
+	return nil
+}
+
+func (c *RecallCommand) retrieveAllWriter(
+	ctx context.Context,
+	client *agentredis.Client,
+	latest int,
+	w io.Writer,
+) error {
+	fmt.Fprintf(w, "📚 All knowledge snippets:\n\n")
+
+	// This is a simplified implementation
+	// In a real scenario, you'd want to implement proper pagination
+	fmt.Fprintf(w, "Use --tag to filter by specific tags or --key to retrieve specific snippets\n")
 
 	return nil
 }

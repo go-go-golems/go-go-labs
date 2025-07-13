@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -28,6 +29,7 @@ type AwaitSettings struct {
 }
 
 var _ cmds.GlazeCommand = (*AwaitCommand)(nil)
+var _ cmds.WriterCommand = (*AwaitCommand)(nil)
 
 func NewAwaitCommand() (*AwaitCommand, error) {
 	glazedParameterLayer, err := settings.NewGlazedParameterLayers()
@@ -48,6 +50,9 @@ between agent tasks and ensuring proper ordering.
 The command returns information about the flag when it becomes available,
 including which agent set it and when.
 
+By default, await times out after 30 minutes (1800 seconds) to prevent
+indefinite blocking. Use --timeout 0 to wait indefinitely.
+
 Use this for:
 - Waiting for builds to complete before deploying
 - Ensuring tests pass before merging
@@ -55,10 +60,15 @@ Use this for:
 - Waiting for resource locks to be released
 - Synchronizing multi-agent workflows
 
+Best practices for timeouts:
+- Use longer timeouts than expected task duration
+- Consider downstream effects when flags expire
+- Use --delete to clean up consumed flags
+
 Example usage in agent tool calling:
-  agentbus await building --timeout 900
-  agentbus await integration-tests --timeout 1800 --delete
-  agentbus await deployment-ready
+  agentbus await building (default 30min timeout)
+  agentbus await integration-tests --timeout 900 --delete
+  agentbus await deployment-ready --timeout 0
   agentbus await database-migration-complete --timeout 3600`),
 			cmds.WithFlags(
 				parameters.NewParameterDefinition(
@@ -71,7 +81,7 @@ Example usage in agent tool calling:
 					"timeout",
 					parameters.ParameterTypeInteger,
 					parameters.WithHelp("Maximum time to wait in seconds (0 = no timeout)"),
-					parameters.WithDefault(0),
+					parameters.WithDefault(1800),
 				),
 				parameters.NewParameterDefinition(
 					"delete",
@@ -206,6 +216,107 @@ func (c *AwaitCommand) RunIntoGlazeProcessor(
 			)
 
 			return gp.AddRow(waitCtx, row)
+		}
+	}
+}
+
+func (c *AwaitCommand) RunIntoWriter(
+	ctx context.Context,
+	parsedLayers *layers.ParsedLayers,
+	w io.Writer,
+) error {
+	s := &AwaitSettings{}
+	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
+	if err != nil {
+		return err
+	}
+
+	agentID, err := getAgentID()
+	if err != nil {
+		return err
+	}
+
+	log.Info().
+		Str("agent_id", agentID).
+		Str("flag", s.Flag).
+		Int("timeout", s.Timeout).
+		Bool("delete", s.Delete).
+		Msg("Waiting for coordination flag")
+
+	client, err := getRedisClient()
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+
+	flagKey := fmt.Sprintf("flag:%s", s.Flag)
+
+	fmt.Fprintf(w, "⏳ Waiting for flag '%s'", s.Flag)
+	if s.Timeout > 0 {
+		fmt.Fprintf(w, " (timeout: %ds)", s.Timeout)
+	}
+	fmt.Fprintf(w, "...\n")
+
+	// Set up timeout context
+	var waitCtx context.Context
+	var cancel context.CancelFunc
+
+	if s.Timeout > 0 {
+		waitCtx, cancel = context.WithTimeout(ctx, time.Duration(s.Timeout)*time.Second)
+		defer cancel()
+	} else {
+		waitCtx = ctx
+	}
+
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-waitCtx.Done():
+			if waitCtx.Err() == context.DeadlineExceeded {
+				fmt.Fprintf(w, "❌ Timeout waiting for flag '%s'\n", s.Flag)
+				return nil
+			}
+			return waitCtx.Err()
+		case <-ticker.C:
+			result, err := client.HGetAll(ctx, flagKey).Result()
+			if err != nil && err != redis.Nil {
+				return errors.Wrap(err, "failed to check flag")
+			}
+
+			if len(result) > 0 {
+				agentIDValue := ""
+				if v, ok := result["agent_id"]; ok {
+					agentIDValue = fmt.Sprintf("%v", v)
+				}
+
+				timestamp := ""
+				if v, ok := result["timestamp"]; ok {
+					timestamp = fmt.Sprintf("%v", v)
+				}
+
+				fmt.Fprintf(w, "✅ Flag '%s' found! Set by %s at %s\n", s.Flag, agentIDValue, timestamp)
+
+				// Delete the flag if requested
+				if s.Delete {
+					err = client.Del(ctx, flagKey).Err()
+					if err != nil {
+						log.Warn().Err(err).Str("flag", s.Flag).Msg("Failed to delete flag")
+						fmt.Fprintf(w, "⚠️  Warning: Failed to delete flag '%s'\n", s.Flag)
+					} else {
+						fmt.Fprintf(w, "🗑️  Flag '%s' deleted\n", s.Flag)
+					}
+				}
+
+				// Show latest messages after flag satisfied
+				err = showLatestMessages(ctx, client, w, agentID, 3)
+				if err != nil {
+					log.Warn().Err(err).Msg("Failed to show latest messages")
+				}
+
+				return nil
+			}
 		}
 	}
 }

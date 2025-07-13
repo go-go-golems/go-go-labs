@@ -15,15 +15,26 @@ type Client struct {
 }
 
 // NewClient creates a new Redis client for agentbus
-func NewClient(redisURL string) (*Client, error) {
+func NewClient(redisURL, projectPrefix string) (*Client, error) {
 	opts, err := redis.ParseURL(redisURL)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse redis URL")
 	}
 
+	// Configure timeouts to prevent hanging
+	if opts.DialTimeout == 0 {
+		opts.DialTimeout = 5 * time.Second
+	}
+	if opts.ReadTimeout == 0 {
+		opts.ReadTimeout = 10 * time.Second
+	}
+	if opts.WriteTimeout == 0 {
+		opts.WriteTimeout = 10 * time.Second
+	}
+
 	client := redis.NewClient(opts)
 
-	// Test connection
+	// Test connection with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -34,7 +45,7 @@ func NewClient(redisURL string) (*Client, error) {
 
 	return &Client{
 		Client: client,
-		prefix: "agentbus:",
+		prefix: "agentbus:" + projectPrefix + ":",
 	}, nil
 }
 

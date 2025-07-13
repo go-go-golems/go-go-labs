@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -30,6 +31,7 @@ type OverhearSettings struct {
 }
 
 var _ cmds.GlazeCommand = (*OverhearCommand)(nil)
+var _ cmds.WriterCommand = (*OverhearCommand)(nil)
 
 func NewOverhearCommand() (*OverhearCommand, error) {
 	glazedParameterLayer, err := settings.NewGlazedParameterLayers()
@@ -314,6 +316,150 @@ func (c *OverhearCommand) RunIntoGlazeProcessor(
 		Str("topic_filter", s.Topic).
 		Bool("follow_mode", s.Follow).
 		Msg("Successfully completed overhear operation")
+
+	return nil
+}
+
+func (c *OverhearCommand) RunIntoWriter(
+	ctx context.Context,
+	parsedLayers *layers.ParsedLayers,
+	w io.Writer,
+) error {
+	s := &OverhearSettings{}
+	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
+	if err != nil {
+		return err
+	}
+
+	agentID, err := getAgentID()
+	if err != nil {
+		return err
+	}
+
+	client, err := getRedisClient()
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+
+	streamKey := client.ChannelKey()
+
+	// Determine starting position
+	startPosition := "0"
+	if s.Since != "" {
+		startPosition = s.Since
+	} else {
+		lastPos, err := client.Get(ctx, fmt.Sprintf("last_read:%s", agentID)).Result()
+		if err == nil && lastPos != "" {
+			startPosition = lastPos
+		}
+	}
+
+	log.Info().
+		Str("agent_id", agentID).
+		Str("start_position", startPosition).
+		Int("max_messages", s.Max).
+		Str("topic_filter", s.Topic).
+		Bool("follow_mode", s.Follow).
+		Msg("Starting to overhear messages")
+
+	newMessageCount := 0
+	var lastMessageID string
+
+	for {
+		args := &redis.XReadArgs{
+			Streams: []string{streamKey, startPosition},
+			Count:   int64(s.Max),
+			Block:   time.Duration(0),
+		}
+
+		if s.Follow {
+			args.Block = 5 * time.Second
+		}
+
+		result, err := client.XRead(ctx, args).Result()
+		if err != nil {
+			if err == redis.Nil && s.Follow {
+				continue
+			}
+			return errors.Wrap(err, "failed to read from stream")
+		}
+
+		if len(result) == 0 || len(result[0].Messages) == 0 {
+			if s.Follow {
+				continue
+			}
+			break
+		}
+
+		messages := result[0].Messages
+		filteredMessages := make([]redis.XMessage, 0, len(messages))
+
+		for _, msg := range messages {
+			if s.Topic != "" {
+				if topic, ok := msg.Values["topic"].(string); !ok || topic != s.Topic {
+					continue
+				}
+			}
+			filteredMessages = append(filteredMessages, msg)
+		}
+
+		// Output messages in human-readable format
+		for _, msg := range filteredMessages {
+			agentIDValue := ""
+			if v, ok := msg.Values["agent_id"]; ok {
+				agentIDValue = fmt.Sprintf("%v", v)
+			}
+
+			message := ""
+			if v, ok := msg.Values["message"]; ok {
+				message = fmt.Sprintf("%v", v)
+			}
+
+			topic := ""
+			if v, ok := msg.Values["topic"]; ok {
+				topic = fmt.Sprintf("%v", v)
+			}
+
+			// Parse timestamp from stream ID
+			parts := strings.Split(msg.ID, "-")
+			if len(parts) >= 1 {
+				if timestampMs, err := strconv.ParseInt(parts[0], 10, 64); err == nil {
+					timestamp := time.Unix(timestampMs/1000, (timestampMs%1000)*1000000)
+					timeStr := timestamp.Format("15:04:05")
+
+					if topic != "" {
+						fmt.Fprintf(w, "👂 [%s] %s in #%s: %s\n", timeStr, agentIDValue, topic, message)
+					} else {
+						fmt.Fprintf(w, "👂 [%s] %s: %s\n", timeStr, agentIDValue, message)
+					}
+				}
+			}
+
+			lastMessageID = msg.ID
+			newMessageCount++
+		}
+
+		if len(filteredMessages) > 0 {
+			startPosition = lastMessageID
+		}
+
+		if !s.Follow {
+			break
+		}
+	}
+
+	// Update last read position if we read any new messages
+	if newMessageCount > 0 && lastMessageID != "" {
+		err = client.Set(ctx, fmt.Sprintf("last_read:%s", agentID), lastMessageID, 0).Err()
+		if err != nil {
+			log.Warn().Err(err).Msg("Failed to update last read position")
+		}
+	}
+
+	if newMessageCount == 0 && !s.Follow {
+		fmt.Fprintf(w, "🔇 No new messages to hear\n")
+	}
 
 	return nil
 }

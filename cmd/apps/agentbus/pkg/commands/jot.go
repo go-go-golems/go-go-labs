@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -30,6 +31,7 @@ type JotSettings struct {
 }
 
 var _ cmds.GlazeCommand = (*JotCommand)(nil)
+var _ cmds.WriterCommand = (*JotCommand)(nil)
 
 func NewJotCommand() (*JotCommand, error) {
 	glazedParameterLayer, err := settings.NewGlazedParameterLayers()
@@ -222,4 +224,121 @@ func (c *JotCommand) RunIntoGlazeProcessor(
 	)
 
 	return gp.AddRow(ctx, row)
+}
+
+func (c *JotCommand) RunIntoWriter(
+	ctx context.Context,
+	parsedLayers *layers.ParsedLayers,
+	w io.Writer,
+) error {
+	startTime := time.Now()
+	log.Debug().Msg("JOT: Starting RunIntoWriter")
+
+	// Add timeout to context to prevent hanging
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	s := &JotSettings{}
+	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
+	if err != nil {
+		log.Error().Err(err).Msg("JOT: Failed to initialize jot settings")
+		return err
+	}
+
+	agentID, err := getAgentID()
+	if err != nil {
+		log.Error().Err(err).Msg("JOT: Failed to get agent ID")
+		return err
+	}
+
+	log.Info().
+		Str("agent_id", agentID).
+		Str("key", s.Key).
+		Str("tag", s.Tag).
+		Bool("if_absent", s.IfAbsent).
+		Int("value_length", len(s.Value)).
+		Msg("JOT: Storing knowledge snippet")
+
+	log.Debug().Msg("JOT: Creating Redis client")
+	client, err := getRedisClient()
+	if err != nil {
+		log.Error().Err(err).Msg("JOT: Failed to get Redis client")
+		return err
+	}
+	defer func() {
+		log.Debug().Msg("JOT: Closing Redis client")
+		client.Close()
+	}()
+
+	// Check if key exists when if-absent is true
+	if s.IfAbsent {
+		exists, err := client.Exists(ctx, s.Key).Result()
+		if err != nil {
+			return errors.Wrap(err, "failed to check if key exists")
+		}
+		if exists > 0 {
+			fmt.Fprintf(w, "💾 Key '%s' already exists (skipped due to --if-absent)\n", s.Key)
+			return nil
+		}
+	}
+
+	now := time.Now()
+	tags := ""
+	if s.Tag != "" {
+		tags = s.Tag
+	}
+
+	// Store the knowledge snippet
+	knowledgeData := map[string]interface{}{
+		"value":     s.Value,
+		"author":    agentID,
+		"tags":      tags,
+		"timestamp": now.Format(time.RFC3339),
+	}
+
+	for key, value := range knowledgeData {
+		err = client.HSet(ctx, s.Key, key, value).Err()
+		if err != nil {
+			return errors.Wrapf(err, "failed to store knowledge snippet field %s", key)
+		}
+	}
+
+	// Add to search index by tag if tag is provided
+	if s.Tag != "" {
+		tagKey := fmt.Sprintf("tag:%s", s.Tag)
+		err = client.SAdd(ctx, tagKey, s.Key).Err()
+		if err != nil {
+			log.Warn().Err(err).Str("tag", s.Tag).Msg("Failed to add to tag index")
+		}
+	}
+
+	// Output success message
+	timestamp := now.Format("15:04:05")
+	if s.Tag != "" {
+		fmt.Fprintf(w, "📝 [%s] Stored knowledge snippet '%s' with tag '%s'\n", timestamp, s.Key, s.Tag)
+	} else {
+		fmt.Fprintf(w, "📝 [%s] Stored knowledge snippet '%s'\n", timestamp, s.Key)
+	}
+
+	valuePreview := s.Value
+	if len(valuePreview) > 100 {
+		valuePreview = valuePreview[:97] + "..."
+	}
+
+	// Replace newlines with spaces for preview
+	valuePreview = strings.ReplaceAll(valuePreview, "\n", " ")
+	fmt.Fprintf(w, "   Content: %s\n", valuePreview)
+
+	// Show latest messages after storing knowledge
+	log.Debug().Msg("JOT: Showing latest messages")
+	messageStart := time.Now()
+	err = showLatestMessages(ctx, client, w, agentID, 3)
+	if err != nil {
+		log.Warn().Err(err).Dur("duration", time.Since(messageStart)).Msg("JOT: Failed to show latest messages")
+	} else {
+		log.Debug().Dur("duration", time.Since(messageStart)).Msg("JOT: Successfully showed latest messages")
+	}
+
+	log.Debug().Dur("total_duration", time.Since(startTime)).Msg("JOT: Completed RunIntoWriter")
+	return nil
 }

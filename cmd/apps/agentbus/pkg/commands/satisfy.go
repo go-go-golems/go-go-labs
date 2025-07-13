@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -26,6 +27,7 @@ type SatisfySettings struct {
 }
 
 var _ cmds.GlazeCommand = (*SatisfyCommand)(nil)
+var _ cmds.WriterCommand = (*SatisfyCommand)(nil)
 
 func NewSatisfyCommand() (*SatisfyCommand, error) {
 	glazedParameterLayer, err := settings.NewGlazedParameterLayers()
@@ -168,4 +170,92 @@ func (c *SatisfyCommand) RunIntoGlazeProcessor(
 	)
 
 	return gp.AddRow(ctx, row)
+}
+
+func (c *SatisfyCommand) RunIntoWriter(
+	ctx context.Context,
+	parsedLayers *layers.ParsedLayers,
+	w io.Writer,
+) error {
+	startTime := time.Now()
+	log.Debug().Msg("SATISFY: Starting RunIntoWriter")
+
+	// Add timeout to context to prevent hanging
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	s := &SatisfySettings{}
+	err := parsedLayers.InitializeStruct(layers.DefaultSlug, s)
+	if err != nil {
+		log.Error().Err(err).Msg("SATISFY: Failed to initialize satisfy settings")
+		return err
+	}
+
+	agentID, err := getAgentID()
+	if err != nil {
+		log.Error().Err(err).Msg("SATISFY: Failed to get agent ID")
+		return err
+	}
+
+	log.Info().
+		Str("agent_id", agentID).
+		Str("flag", s.Flag).
+		Msg("SATISFY: Satisfying coordination flag")
+
+	log.Debug().Msg("SATISFY: Creating Redis client")
+	client, err := getRedisClient()
+	if err != nil {
+		log.Error().Err(err).Msg("SATISFY: Failed to get Redis client")
+		return err
+	}
+	defer func() {
+		log.Debug().Msg("SATISFY: Closing Redis client")
+		client.Close()
+	}()
+
+	flagKey := fmt.Sprintf("flag:%s", s.Flag)
+
+	// Check if flag exists
+	result, err := client.HGetAll(ctx, flagKey).Result()
+	if err != nil && err != redis.Nil {
+		return errors.Wrap(err, "failed to check flag")
+	}
+
+	if len(result) == 0 {
+		fmt.Fprintf(w, "❓ Flag '%s' does not exist or was already satisfied\n", s.Flag)
+		return nil
+	}
+
+	// Get flag information before deletion
+	originalAgent := ""
+	if v, ok := result["agent_id"]; ok {
+		originalAgent = fmt.Sprintf("%v", v)
+	}
+
+	// Delete the flag
+	err = client.Del(ctx, flagKey).Err()
+	if err != nil {
+		return errors.Wrap(err, "failed to satisfy flag")
+	}
+
+	// Output success message
+	timestamp := time.Now().Format("15:04:05")
+	if originalAgent != "" {
+		fmt.Fprintf(w, "✅ [%s] Flag '%s' satisfied (originally set by %s)\n", timestamp, s.Flag, originalAgent)
+	} else {
+		fmt.Fprintf(w, "✅ [%s] Flag '%s' satisfied\n", timestamp, s.Flag)
+	}
+
+	// Show latest messages after satisfying flag
+	log.Debug().Msg("SATISFY: Showing latest messages")
+	messageStart := time.Now()
+	err = showLatestMessages(ctx, client, w, agentID, 3)
+	if err != nil {
+		log.Warn().Err(err).Dur("duration", time.Since(messageStart)).Msg("SATISFY: Failed to show latest messages")
+	} else {
+		log.Debug().Dur("duration", time.Since(messageStart)).Msg("SATISFY: Successfully showed latest messages")
+	}
+
+	log.Debug().Dur("total_duration", time.Since(startTime)).Msg("SATISFY: Completed RunIntoWriter")
+	return nil
 }

@@ -53,6 +53,22 @@ All operations are namespaced by agent ID to prevent conflicts and provide clear
 
 All agents share a single communication stream. Messages can include optional topic slugs for categorization.
 
+### Dual Output Modes
+
+AgentBus commands now support two output modes for different use cases:
+
+**Human-readable mode** (default):
+```bash
+# Readable output for agent monitoring and debugging
+agentbus speak --msg "Starting compilation" --topic "build" --with-glaze-output --output table
+
+# Or use structured JSON for automated parsing
+agentbus speak --msg "Starting compilation" --topic "build" --format json
+```
+
+**Latest Messages Display:**
+Every command now automatically shows the **latest 3 messages** after execution to keep agents informed of recent activity without requiring separate `overhear` calls.
+
 ### Broadcasting Status Updates
 
 Use `speak` to broadcast status updates to other agents:
@@ -66,30 +82,43 @@ agentbus speak --msg "All unit tests passed ✅" --topic "testing"
 
 # Deploy agent shares deployment status
 agentbus speak --msg "Deployment to staging complete" --topic "deploy"
+
+# After any command, you'll see:
+# 
+# Latest Messages:
+# NEW: [test-agent-2 2025-01-12 14:32:15] All unit tests passed ✅
+# [deploy-agent-3 2025-01-12 14:30:42] Deployment to staging complete  
+# [build-agent-1 2025-01-12 14:28:30] Starting compilation of main.go
 ```
 
 ### Monitoring Other Agents
 
-Use `overhear` to monitor what other agents are doing. The system now shows **NEW:** indicators for messages you haven't seen before:
+Use `overhear` to monitor what other agents are doing. The system now shows **NEW:** indicators for messages you haven't seen before and supports both output modes:
 
 ```bash
-# Check recent activity across all topics
-agentbus overhear --max 10
+# Check recent activity across all topics (human-readable)
+agentbus overhear --max 10 --with-glaze-output --output table
 # Output includes:
 # NEW: [build-agent-1 2025-01-12 14:30:15] Starting compilation of main.go
 # [test-agent-2 2025-01-12 14:28:03] Running unit tests...
 
-# Monitor only build-related messages with real-time updates
-agentbus overhear --topic "build" --follow
+# Monitor only build-related messages with structured output
+agentbus overhear --topic "build" --follow --format json
 
-# Get last 5 deployment messages
+# Get last 5 deployment messages with automatic latest messages display
 agentbus overhear --topic "deploy" --max 5
+# Shows deployment messages plus latest 3 messages from all topics
+
+# Enhanced monitor with agent ID display
+agentbus monitor --agent build-monitor-agent
+# Header prominently shows: "Monitoring as: build-monitor-agent"
 ```
 
 **Understanding Message Format:**
 - **NEW:** prefix indicates messages you haven't seen before
 - **[agent-id timestamp]** provides automatic metadata for all messages
 - Messages without NEW: are ones you've already seen in previous overhear calls
+- Monitor command shows the monitoring agent's ID prominently in the header
 
 ### Common Communication Patterns
 
@@ -110,35 +139,45 @@ agentbus speak --msg "High memory usage detected" --topic "alerts"
 
 ### Storing Knowledge
 
-Use `jot` to store reusable knowledge that other agents can access:
+Use `jot` to store reusable knowledge that other agents can access. Both output modes are supported:
 
 ```bash
-# Store build patterns
-agentbus jot --key "docker-build-cmd" --value "docker build -t myapp:latest ." --tag "docker,build"
+# Store build patterns (with structured output for automation)
+agentbus jot --key "docker-build-cmd" --value "docker build -t myapp:latest ." --tag "docker,build" --format json
 
-# Save configuration examples
-agentbus jot --key "nginx-config" --value "$(cat nginx.conf)" --tag "config,nginx"
+# Save configuration examples (human-readable output)
+agentbus jot --key "nginx-config" --value "$(cat nginx.conf)" --tag "config,nginx" --with-glaze-output --output table
 
 # Document API endpoints
 agentbus jot --key "health-check-api" --value "GET /health" --tag "api,monitoring"
 
-# Store troubleshooting guides
+# Store troubleshooting guides (shows latest 3 messages after storing)
 agentbus jot --key "debug-memory-leak" --value "$(cat debug-guide.md)" --tag "troubleshooting,memory"
+# 
+# Latest Messages:
+# NEW: [debug-agent 2025-01-12 14:45:20] 📝 Stored knowledge: debug-memory-leak
+# [build-agent 2025-01-12 14:44:15] Build completed successfully
+# [test-agent 2025-01-12 14:43:30] All tests passed
 ```
 
 ### Retrieving Knowledge
 
-Use `recall` to access stored knowledge:
+Use `recall` to access stored knowledge with dual output mode support:
 
 ```bash
-# Get specific configuration
-agentbus recall --key "docker-build-cmd"
+# Get specific configuration (JSON for parsing)
+agentbus recall --key "docker-build-cmd" --format json
 
-# Find all build-related snippets
-agentbus recall --tag "build" --latest 10
+# Find all build-related snippets (human-readable table)
+agentbus recall --tag "build" --latest 10 --with-glaze-output --output table
 
-# Get troubleshooting guides
+# Get troubleshooting guides (default output + latest messages)
 agentbus recall --tag "troubleshooting"
+# 
+# Latest Messages:
+# NEW: [qa-agent 2025-01-12 14:50:25] Tests completed successfully
+# [debug-agent 2025-01-12 14:45:20] 📝 Stored knowledge: debug-memory-leak
+# [build-agent 2025-01-12 14:44:15] Build completed successfully
 
 # Find API documentation
 agentbus recall --tag "api,monitoring"
@@ -146,20 +185,25 @@ agentbus recall --tag "api,monitoring"
 
 ### Discovering Available Knowledge
 
-Use `list` to see what knowledge snippets are available. The list command shows snippet summaries with metadata:
+Use `list` to see what knowledge snippets are available. The list command shows snippet summaries with metadata and supports both output modes:
 
 ```bash
-# List all available snippets with automatic metadata
-agentbus list
+# List all available snippets with automatic metadata (table format)
+agentbus list --with-glaze-output --output table
 # Output includes:
 # docker-build-cmd (docker,build) - [build-agent 2025-01-12 14:25:32]
 # nginx-config (config,nginx) - [deploy-agent 2025-01-12 14:20:15]
 
-# List docker-related snippets
-agentbus list --tag "docker" --latest 10
+# List docker-related snippets (JSON for automation)
+agentbus list --tag "docker" --latest 10 --format json
 
-# Browse recent additions to see what's new
+# Browse recent additions to see what's new (shows latest 3 messages after)
 agentbus list --latest 20
+# 
+# Latest Messages:
+# NEW: [docs-agent 2025-01-12 14:55:10] 📝 Stored knowledge: api-endpoints
+# [qa-agent 2025-01-12 14:50:25] Tests completed successfully
+# [debug-agent 2025-01-12 14:45:20] 📝 Stored knowledge: debug-memory-leak
 
 # Get detailed view of specific snippets
 agentbus list --tag "troubleshooting" --latest 5
@@ -353,6 +397,10 @@ agentbus speak --msg "System recovered, resuming operations" --topic "status"
 13. **Follow Emoji Patterns**: Use the emoji system (🚩 🔍 ✅ 📝) to quickly identify coordination event types
 14. **Reset Read Position**: If you miss important messages, you can start fresh with overhear to see all as NEW
 15. **Combine Tools Effectively**: Use `list` to discover, `recall` to retrieve, and `overhear` to monitor activity
+16. **Choose Output Mode Appropriately**: Use `--format json` for automation and `--with-glaze-output --output table` for human monitoring
+17. **Leverage Latest Messages Display**: Every command now shows the latest 3 messages automatically - no need for separate overhear calls
+18. **Use Enhanced Monitor**: `monitor` command prominently displays the monitoring agent's ID for clarity
+19. **Benefit from Dual Output**: Commands support both human-readable and machine-parseable output for different use cases
 
 ## Redis Configuration
 

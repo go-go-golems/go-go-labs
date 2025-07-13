@@ -44,7 +44,10 @@ For each project we will:
 - **Auto-published coordination events**: `announce` and `satisfy` automatically publish coordination updates with 🚩 and ✅ emojis
 - **Enhanced metadata**: Agent ID and timestamp are automatically included in all messages
 - **Knowledge discovery**: Use `list` command to discover existing knowledge snippets by tag
-- **Improved overhear**: Tracks read position per agent, shows new vs. seen messages
+- **Improved overhear**: Tracks read position per agent, shows new vs. seen messages with clear indicators
+- **Dual output modes**: All commands support both `--format json` for automation and `--with-glaze-output --output table` for human-readable monitoring
+- **Latest messages display**: Every command automatically shows the latest 3 messages to keep agents informed
+- **Enhanced monitor**: Shows the monitoring agent's ID prominently in the header for clarity
 
 **Storing large knowledge snippets:** If your knowledge data is sizable or non-transient—think diagrams, lengthy specs, protocol files—commit the data to a file and set the jot's `--value` to that **file path**. Agents can later do `cat $(agentbus recall --key <snippet-key>)` to retrieve the content without bloating Redis.
 
@@ -87,15 +90,21 @@ All agents use the single shared channel with these topic categories:
 
 ### Knowledge Management
 ```bash
-# Architecture diagrams (stored as file reference)
-agentbus jot --key "pos-service-diagram" --value "diagrams/services.puml" --tag "pos,design"
+# Architecture diagrams (stored as file reference with JSON output for automation)
+agentbus jot --key "pos-service-diagram" --value "diagrams/services.puml" --tag "pos,design" --format json
 
-# Coding conventions
-agentbus jot --key "pos-go-style" --value "https://github.com/uber-go/guide" --tag "pos,backend,style"
+# Coding conventions (human-readable output for manual review)
+agentbus jot --key "pos-go-style" --value "https://github.com/uber-go/guide" --tag "pos,backend,style" --with-glaze-output --output table
 
-# Discover available docs by tag
+# Discover available docs by tag (automatically shows latest 3 messages)
 agentbus list --tag "pos,design" --latest 10
-agentbus list --tag "backend" --latest 5
+# 
+# Latest Messages:
+# NEW: [pos-arch 2025-01-12 15:05:30] 📝 Stored knowledge: pos-service-diagram
+# [pos-backend 2025-01-12 15:04:15] Implementation completed for inventory service
+# [pos-qa 2025-01-12 15:03:00] Test suite created for backend services
+
+agentbus list --tag "backend" --latest 5 --format json  # For automated processing
 ```
 
 ### End-to-End Workflow
@@ -120,24 +129,31 @@ agentbus speak --topic code --msg "Building HTMX cash-drawer UI"
 
 # 4. QA monitors all build activity and waits for completion
 AGENT_ID=pos-qa \
-agentbus overhear --topic coordination --follow &  # Monitor coordination events
+agentbus monitor --agent pos-qa-monitor &  # Enhanced monitor shows agent ID in header
 AGENT_ID=pos-qa \
-agentbus await --flag pos-backend-build && \
-agentbus await --flag pos-frontend-build && \
+agentbus await --flag pos-backend-build --format json && \  # JSON for automation
+agentbus await --flag pos-frontend-build --format json && \
 agentbus announce --flag pos-tests && \
 agentbus speak --topic test --msg "Running playwright suite"
+# Automatically shows latest 3 messages after speak command
 
 # 5. Ops waits for green tests before deploying
 AGENT_ID=pos-ops \
-agentbus await --flag pos-tests --timeout 1200 && \
+agentbus await --flag pos-tests --timeout 1200 --with-glaze-output --output table && \
 agentbus announce --flag pos-release && \
 agentbus speak --topic deploy --msg "Deploying v1.3.0 to staging"
 
 # 6. Release flag satisfied after deploy (auto-publishes ✅ coordination event)
 AGENT_ID=pos-ops agentbus satisfy --flag pos-release
+# 
+# Latest Messages:
+# NEW: [pos-ops 2025-01-12 15:15:45] ✅ Satisfied flag: pos-release
+# [pos-ops 2025-01-12 15:15:20] Deploying v1.3.0 to staging
+# [pos-qa 2025-01-12 15:14:30] Running playwright suite
 
-# 7. Check what knowledge was created during this workflow
-agentbus list --tag "pos" --latest 20
+# 7. Check what knowledge was created during this workflow (both output modes)
+agentbus list --tag "pos" --latest 20 --with-glaze-output --output table
+agentbus list --tag "pos" --latest 20 --format json  # For automation
 ```
 
 ---
@@ -172,19 +188,26 @@ A research lab is updating the firmware of its pipetting robot to support new ge
 5. Firmware is flashed only when `robot-safety-signoff` is satisfied.
 
 ```bash
-# Example safety-officer workflow with enhanced discovery
+# Example safety-officer workflow with enhanced discovery and dual output modes
 AGENT_ID=robot-safe \
-agentbus await --flag robot-assay-tests && \
+agentbus await --flag robot-assay-tests --format json && \  # JSON for automation
 agentbus speak --topic safety --msg "Reviewing HIL simulation logs" && \
-agentbus list --tag "robot,simulation" --latest 5 && \  # Discover recent simulation data
+agentbus list --tag "robot,simulation" --latest 5 --with-glaze-output --output table && \  # Human-readable for review
 agentbus jot --key "robot-safety-report-$(date +%F)" --value "$(cat safety-report.md)" --tag "robot,safety" && \
 agentbus satisfy --flag robot-safety-signoff
+# 
+# Latest Messages:
+# NEW: [robot-safe 2025-01-12 15:25:40] ✅ Satisfied flag: robot-safety-signoff
+# [robot-hil 2025-01-12 15:24:15] HIL simulation completed successfully
+# [robot-assay 2025-01-12 15:23:30] Assay protocol validation passed
 
-# Monitor all robot coordination in real-time
-AGENT_ID=robot-monitor agentbus overhear --topic coordination --follow
+# Monitor all robot coordination in real-time with enhanced monitor
+AGENT_ID=robot-monitor agentbus monitor --agent robot-coordination-monitor
+# Header prominently displays: "Monitoring as: robot-coordination-monitor"
 
-# Check recent robot documentation
-agentbus list --tag "robot,docs" --latest 10
+# Check recent robot documentation (both output modes)
+agentbus list --tag "robot,docs" --latest 10 --with-glaze-output --output table
+agentbus list --tag "robot,docs" --latest 10 --format json  # For automated processing
 ```
 
 ---
@@ -244,24 +267,30 @@ AGENT_ID=research-sum ./process_research_batch.sh "${ROOT_ID}"
 # 4. Task Splitter spawns follow-up topics based on summaries
 AGENT_ID=research-split ./spawn_new_topics.sh "${ROOT_ID}"
 
-# 5. Monitor entire research pipeline in real-time
-AGENT_ID=research-monitor agentbus overhear --topic coordination --follow
+# 5. Monitor entire research pipeline in real-time with enhanced monitor
+AGENT_ID=research-monitor agentbus monitor --agent research-pipeline-monitor
+# Header prominently displays: "Monitoring as: research-pipeline-monitor"
 ```
 
-`jot` and `list` examples for knowledge management:
+`jot` and `list` examples for knowledge management with dual output modes:
 ```bash
-# Store an evergreen insight with proper tagging
-agentbus jot --key "recycling-milestone-2025" --value "docs/milestones/2025.md" --tag "research,battery,forecast,milestone"
+# Store an evergreen insight with proper tagging (JSON for automation)
+agentbus jot --key "recycling-milestone-2025" --value "docs/milestones/2025.md" --tag "research,battery,forecast,milestone" --format json
 
-# Discover all battery-related research
-agentbus list --tag "research,battery" --latest 50
+# Discover all battery-related research (human-readable table)
+agentbus list --tag "research,battery" --latest 50 --with-glaze-output --output table
+# 
+# Latest Messages:
+# NEW: [research-lib 2025-01-12 15:35:20] 📝 Stored knowledge: recycling-milestone-2025
+# [research-sum 2025-01-12 15:34:15] Summary completed for battery research batch
+# [researcher-42 2025-01-12 15:33:30] Data collection finished for lithium sources
 
-# Find recent forecasting data
-agentbus list --tag "forecast" --latest 10
+# Find recent forecasting data (JSON for processing)
+agentbus list --tag "forecast" --latest 10 --format json
 
-# Recall specific insights
-agentbus recall --tag "research,battery,forecast"
-agentbus recall --key "recycling-milestone-2025"
+# Recall specific insights (both modes supported)
+agentbus recall --tag "research,battery,forecast" --with-glaze-output --output table
+agentbus recall --key "recycling-milestone-2025" --format json
 ```
 
 ---
@@ -273,10 +302,12 @@ agentbus recall --key "recycling-milestone-2025"
 * **Always set reasonable `--timeout`** on `await`.
 * **Release flags** with `satisfy` even on failure (use traps or CI post-steps).
 * **Tag your jots** consistently for easy discovery with `list`.
-* **Monitor coordination events** with `overhear --topic coordination --follow`.
+* **Monitor coordination events** with `monitor --agent agent-id` for enhanced monitoring.
 * **Use the auto-published coordination messages** to track workflow progress.
 * **Leverage agent ID and timestamp** metadata that's automatically included.
 * **Check existing knowledge** with `list` before creating duplicate jots.
+* **Choose appropriate output mode**: `--format json` for automation, `--with-glaze-output --output table` for human monitoring.
+* **Benefit from latest messages display**: Every command shows the latest 3 messages automatically.
 * **Automate clean-up** of expired flags and old chat streams via cron.
 
 ---
@@ -286,12 +317,27 @@ agentbus recall --key "recycling-milestone-2025"
 ## Single Communication Channel
 - All agents share one Redis stream instead of multiple channels
 - Use `--topic` for categorization and filtering
-- `overhear --topic coordination` to monitor workflow events
+- `monitor --agent agent-id` for enhanced real-time monitoring
+
+## Dual Output Modes
+- All commands support `--format json` for automation and machine parsing
+- Human-readable mode with `--with-glaze-output --output table` for monitoring
+- Choose appropriate mode based on use case (automation vs. human review)
+
+## Latest Messages Display
+- Every command automatically shows the latest 3 messages after execution
+- Keeps agents informed of recent activity without separate `overhear` calls
+- Reduces need for manual status checking
+
+## Enhanced Monitor
+- `monitor` command prominently displays the monitoring agent's ID in header
+- Clear identification of which agent is doing the monitoring
+- Better organization for multi-agent debugging
 
 ## Auto-Published Coordination Events
 - `announce` automatically publishes 🚩 "Announced working on 'flag'" 
 - `satisfy` automatically publishes ✅ "Satisfied 'flag'"
-- Monitor these with `overhear --topic coordination`
+- Monitor these with enhanced `monitor` command
 
 ## Enhanced Metadata
 - Agent ID automatically included in all messages
@@ -299,14 +345,15 @@ agentbus recall --key "recycling-milestone-2025"
 - Read position tracking per agent in `overhear`
 
 ## Knowledge Discovery
-- `list` command to browse available knowledge snippets
-- Filter by tag: `list --tag "docker,api"`
-- Limit results: `list --latest 10`
+- `list` command to browse available knowledge snippets with dual output modes
+- Filter by tag: `list --tag "docker,api" --format json`
+- Limit results: `list --latest 10 --with-glaze-output --output table`
 
 ## Improved overhear
-- Shows "NEW:" prefix for unread messages
+- Shows "NEW:" prefix for unread messages with clear indicators
 - Tracks read position per agent to avoid re-reading
 - Summary header shows total vs. new message counts
+- Supports both output modes for different use cases
 
 ---
 
@@ -314,5 +361,7 @@ agentbus recall --key "recycling-milestone-2025"
 1. Copy one of the examples and run it locally with `docker compose up redis && agentbus ...`.
 2. Expand agent lists or split further (e.g., reviewer agents, security scanning bots).
 3. Integrate with CI systems by wrapping `agentbus` calls inside your build pipelines.
-4. Use `overhear --topic coordination --follow` to monitor your workflows in real-time.
-5. Share your own patterns back via PR to this documentation!
+4. Use `monitor --agent your-monitor-agent` to monitor your workflows in real-time with enhanced visibility.
+5. Leverage dual output modes: `--format json` for automation, `--with-glaze-output --output table` for human monitoring.
+6. Take advantage of automatic latest messages display to reduce manual status checking.
+7. Share your own patterns back via PR to this documentation!

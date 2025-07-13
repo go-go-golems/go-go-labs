@@ -96,8 +96,13 @@ func (c *MonitorCommand) RunIntoWriter(
 	}
 	defer client.Close()
 
-	log.Info().Msg("Starting AgentBus monitor")
-	fmt.Fprintln(w, "🔍 AgentBus Monitor Started")
+	agentID, err := getAgentID()
+	if err != nil {
+		return err
+	}
+
+	log.Info().Str("agent_id", agentID).Msg("Starting AgentBus monitor")
+	fmt.Fprintf(w, "🔍 AgentBus Monitor Started (Agent: %s)\n", agentID)
 	fmt.Fprintln(w, "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
 	// Initialize monitoring state
@@ -180,11 +185,11 @@ func (c *MonitorCommand) checkNewMessages(ctx context.Context, client *agentredi
 			topicStr = fmt.Sprintf(" [%s]", topic)
 		}
 
-		fmt.Fprintf(w, "💬 %s | %s%s: %s\n", 
-		timestamp.Format("15:04:05"), 
-		agentID, 
-		topicStr, 
-		message)
+		fmt.Fprintf(w, "💬 %s | %s%s: %s\n",
+			timestamp.Format("15:04:05"),
+			agentID,
+			topicStr,
+			message)
 
 		*lastStreamID = msg.ID
 		log.Debug().
@@ -215,32 +220,32 @@ func (c *MonitorCommand) checkFlagChanges(ctx context.Context, client *agentredi
 		currentFlagMap[flagName] = flagValue
 
 		if oldValue, exists := knownFlags[flagName]; !exists {
-		// New flag
-		fmt.Fprintf(w, "🚩 %s | NEW FLAG: %s = %s\n", 
-		time.Now().Format("15:04:05"), 
-		flagName, 
-		flagValue)
-		log.Info().Str("flag", flagName).Str("value", flagValue).Msg("New flag announced")
+			// New flag
+			fmt.Fprintf(w, "🚩 %s | NEW FLAG: %s = %s\n",
+				time.Now().Format("15:04:05"),
+				flagName,
+				flagValue)
+			log.Info().Str("flag", flagName).Str("value", flagValue).Msg("New flag announced")
 		} else if oldValue != flagValue {
-		// Changed flag
-		fmt.Fprintf(w, "🔄 %s | CHANGED FLAG: %s = %s (was: %s)\n", 
-		time.Now().Format("15:04:05"), 
-		flagName, 
-		flagValue, 
-		oldValue)
-		log.Info().Str("flag", flagName).Str("old_value", oldValue).Str("new_value", flagValue).Msg("Flag changed")
+			// Changed flag
+			fmt.Fprintf(w, "🔄 %s | CHANGED FLAG: %s = %s (was: %s)\n",
+				time.Now().Format("15:04:05"),
+				flagName,
+				flagValue,
+				oldValue)
+			log.Info().Str("flag", flagName).Str("old_value", oldValue).Str("new_value", flagValue).Msg("Flag changed")
 		}
 	}
 
 	// Check for satisfied (deleted) flags
 	for flagName, flagValue := range knownFlags {
-	if _, exists := currentFlagMap[flagName]; !exists {
-	fmt.Fprintf(w, "✅ %s | SATISFIED FLAG: %s (was: %s)\n", 
-	time.Now().Format("15:04:05"), 
-	flagName, 
-	flagValue)
-	log.Info().Str("flag", flagName).Str("value", flagValue).Msg("Flag satisfied")
-	}
+		if _, exists := currentFlagMap[flagName]; !exists {
+			fmt.Fprintf(w, "✅ %s | SATISFIED FLAG: %s (was: %s)\n",
+				time.Now().Format("15:04:05"),
+				flagName,
+				flagValue)
+			log.Info().Str("flag", flagName).Str("value", flagValue).Msg("Flag satisfied")
+		}
 	}
 
 	// Update known flags

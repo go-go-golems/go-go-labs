@@ -23,7 +23,7 @@ AgentBus is built on top of Redis, leveraging its data structures to provide a r
 
 ### 1. Redis Streams (Communication Channel)
 
-**Key Pattern:** `agentbus:ch:main`
+**Key Pattern:** `<PROJECT_PREFIX>:ch:main`
 
 AgentBus uses a single Redis Stream to handle all agent communication. This provides:
 - **Ordering**: Messages are automatically ordered by timestamp
@@ -48,7 +48,7 @@ AgentBus uses a single Redis Stream to handle all agent communication. This prov
 
 ### 2. Redis Hashes (Knowledge Snippets)
 
-**Key Pattern:** `agentbus:jot:<title>`
+**Key Pattern:** `<PROJECT_PREFIX>:jot:<title>`
 
 Each knowledge snippet is stored as a Redis Hash containing:
 ```json
@@ -68,7 +68,7 @@ Each knowledge snippet is stored as a Redis Hash containing:
 
 ### 3. Redis Sorted Sets (Tag Indices)
 
-**Key Pattern:** `agentbus:jots_by_tag:<tag>`
+**Key Pattern:** `<PROJECT_PREFIX>:jots_by_tag:<tag>`
 
 For each tag, a sorted set maps jot keys to timestamps:
 ```
@@ -87,11 +87,11 @@ build  -> {"docker-build-cmd": 1642694400, "gradle-build": 1642694300}
 
 ### 4. Redis Strings (Coordination Flags)
 
-**Key Pattern:** `agentbus:flag:<name>`
+**Key Pattern:** `<PROJECT_PREFIX>:flag:<name>`
 
 Simple string values containing agent ID and timestamp:
 ```
-agentbus:flag:building -> "build-agent-1 @ 2024-01-20T15:30:00Z"
+<PROJECT_PREFIX>:flag:building -> "build-agent-1 @ 2024-01-20T15:30:00Z"
 ```
 
 **Why Strings:**
@@ -102,11 +102,11 @@ agentbus:flag:building -> "build-agent-1 @ 2024-01-20T15:30:00Z"
 
 ### 5. Redis Strings (Read Position Tracking)
 
-**Key Pattern:** `agentbus:last:<agent_id>`
+**Key Pattern:** `<PROJECT_PREFIX>:last:<agent_id>`
 
 Stores the last stream ID read by each agent:
 ```
-agentbus:last:build-agent-1 -> "1642694400123-0"
+<PROJECT_PREFIX>:last:build-agent-1 -> "1642694400123-0"
 ```
 
 **Benefits:**
@@ -151,14 +151,15 @@ agentbus:last:build-agent-1 -> "1642694400123-0"
 
 ### Hierarchical Key Naming
 
-**Decision:** Use prefixed, structured key names (`agentbus:type:identifier`).
+**Decision:** Use prefixed, structured key names (`<PROJECT_PREFIX>:type:identifier`).
 
 **Rationale:**
 - Clear ownership and purpose
 - Easy to scan/debug keys
-- Supports multiple AgentBus instances in same Redis
+- Supports multiple AgentBus projects in same Redis instance
 - Natural data organization
 - Simplified backup/restore
+- Project isolation through PROJECT_PREFIX environment variable
 
 ### Auto-Publishing Coordination Events
 
@@ -169,6 +170,27 @@ agentbus:last:build-agent-1 -> "1642694400123-0"
 - Helps with debugging coordination issues
 - Provides audit trail of operations
 - No additional agent implementation required
+
+### Comprehensive Debug Logging
+
+**Decision:** Log all operations to `/tmp/agentbus.log` with structured logging.
+
+**Rationale:**
+- Essential for troubleshooting hanging `announce` operations
+- Provides audit trail of Redis operations
+- Helps debug timeout issues with `await` commands
+- Structured format (JSON) for easy parsing
+- Centralized logging location for all agents
+
+### Safe Data Cleanup
+
+**Decision:** Provide `clear` command for complete project data removal.
+
+**Rationale:**
+- Safe cleanup of all project data using PROJECT_PREFIX
+- Requires explicit `--force` flag to prevent accidental deletion
+- Essential for resetting coordination state between test runs
+- Removes all streams, flags, jots, and tracking data
 
 ## Performance Characteristics
 
@@ -241,26 +263,29 @@ tcp-nodelay yes
 
 ### Key Metrics to Monitor
 
-1. **Stream Length**: `XLEN agentbus:ch:main`
+1. **Stream Length**: `XLEN <PROJECT_PREFIX>:ch:main`
 2. **Memory Usage**: `INFO memory`
 3. **Connected Agents**: `CLIENT LIST`
-4. **Coordination Flags**: `KEYS agentbus:flag:*`
-5. **Knowledge Base Size**: `KEYS agentbus:jot:*`
+4. **Coordination Flags**: `KEYS <PROJECT_PREFIX>:flag:*`
+5. **Knowledge Base Size**: `KEYS <PROJECT_PREFIX>:jot:*`
 
 ### Debug Commands
 
 ```bash
 # Check stream contents
-redis-cli XRANGE agentbus:ch:main - + COUNT 10
+redis-cli XRANGE <PROJECT_PREFIX>:ch:main - + COUNT 10
 
 # List all coordination flags
-redis-cli KEYS "agentbus:flag:*"
+redis-cli KEYS "<PROJECT_PREFIX>:flag:*"
 
 # Check agent read positions
-redis-cli KEYS "agentbus:last:*"
+redis-cli KEYS "<PROJECT_PREFIX>:last:*"
 
 # Monitor real-time activity
 redis-cli MONITOR
+
+# Debug logging (check for hanging operations)
+tail -f /tmp/agentbus.log
 ```
 
 ## Error Handling and Recovery
