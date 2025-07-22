@@ -18,24 +18,27 @@ type NavigationView struct {
 
 // keyMap defines the key bindings
 type keyMap struct {
-	Refresh key.Binding
-	Groups  key.Binding
-	Streams key.Binding
-	Metrics key.Binding
-	Up      key.Binding
-	Down    key.Binding
-	Quit    key.Binding
-	Help    key.Binding
+	Refresh     key.Binding
+	Groups      key.Binding
+	Streams     key.Binding
+	Metrics     key.Binding
+	Up          key.Binding
+	Down        key.Binding
+	SpeedUp     key.Binding
+	SpeedDown   key.Binding
+	Quit        key.Binding
+	Help        key.Binding
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Refresh, k.Groups, k.Streams, k.Quit}
+	return []key.Binding{k.Refresh, k.Groups, k.Streams, k.SpeedUp, k.SpeedDown, k.Quit}
 }
 
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Refresh, k.Groups, k.Streams, k.Metrics},
-		{k.Up, k.Down, k.Quit, k.Help},
+		{k.Up, k.Down, k.SpeedUp, k.SpeedDown},
+		{k.Quit, k.Help},
 	}
 }
 
@@ -72,6 +75,14 @@ func NewNavigationView(styles styles.Styles) *NavigationView {
 		Quit: key.NewBinding(
 			key.WithKeys("q", "ctrl+c"),
 			key.WithHelp("q", "quit"),
+		),
+		SpeedUp: key.NewBinding(
+			key.WithKeys(">", "."),
+			key.WithHelp(">", "speed up"),
+		),
+		SpeedDown: key.NewBinding(
+			key.WithKeys("<", ","),
+			key.WithHelp("<", "speed down"),
 		),
 		Help: key.NewBinding(
 			key.WithKeys("?"),

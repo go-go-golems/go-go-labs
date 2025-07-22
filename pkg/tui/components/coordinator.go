@@ -2,10 +2,15 @@ package components
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/go-go-golems/go-go-labs/pkg/sparkline"
 	"github.com/go-go-golems/go-go-labs/pkg/tui/models"
 	"github.com/go-go-golems/go-go-labs/pkg/tui/styles"
 )
@@ -76,8 +81,30 @@ type Coordinator struct {
 	headerView     *HeaderView
 	navigationView *NavigationView
 
+	// Progress bars and sparklines for the comprehensive view
+	memoryProgress     progress.Model
+	globalSparkline    *sparkline.Sparkline
+	streamSparklines   map[string]*sparkline.Sparkline
+	throughputHistory  []float64
+	
 	// Styles
 	styles styles.Styles
+	
+	// Refresh rate control
+	refreshRateIndex int // Current index in refreshRates array
+}
+
+// Available refresh rates in seconds (0.1s to 10s)
+var refreshRates = []time.Duration{
+	100 * time.Millisecond,  // 0.1s
+	200 * time.Millisecond,  // 0.2s
+	500 * time.Millisecond,  // 0.5s
+	1 * time.Second,         // 1s
+	1500 * time.Millisecond, // 1.5s
+	2 * time.Second,         // 2s
+	3 * time.Second,         // 3s
+	5 * time.Second,         // 5s
+	10 * time.Second,        // 10s
 }
 
 // tickMsg represents a refresh tick
@@ -96,16 +123,38 @@ type dataMsg struct {
 func NewCoordinator(client RedisClient, demoMode bool, refreshRate time.Duration) *Coordinator {
 	styles := styles.NewStyles()
 
+	// Find the closest refresh rate index
+	refreshRateIndex := findClosestRefreshRateIndex(refreshRate)
+
+	// Initialize progress bar for memory usage
+	memoryProgress := progress.New(progress.WithDefaultGradient())
+	memoryProgress.Width = 40
+
+	// Initialize global throughput sparkline
+	globalSparkline := sparkline.New(sparkline.Config{
+		Width:     30,
+		Height:    1,
+		MaxPoints: 30,
+		Style:     sparkline.StyleBars,
+	})
+
 	return &Coordinator{
-		client:      client,
-		demoMode:    demoMode,
-		refreshRate: refreshRate,
-		currentView: "streams",
-		styles:      styles,
+		client:           client,
+		demoMode:         demoMode,
+		refreshRate:      refreshRates[refreshRateIndex], // Use the actual rate from our list
+		refreshRateIndex: refreshRateIndex,
+		currentView:      "streams",
+		styles:           styles,
 
 		// Initialize message rate tracking
 		streamLengthHistory: make(map[string][]int64),
 		lengthHistorySize:   20, // Keep last 20 data points
+
+		// Initialize progress bars and sparklines
+		memoryProgress:     memoryProgress,
+		globalSparkline:    globalSparkline,
+		streamSparklines:   make(map[string]*sparkline.Sparkline),
+		throughputHistory:  make([]float64, 0, 30),
 
 		// Initialize submodels
 		streamsView:    NewStreamsView(styles),
@@ -174,6 +223,10 @@ func (c *Coordinator) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keys.Metrics):
 			c.currentView = "metrics"
 			return c, c.updateHeaderView()
+		case key.Matches(msg, keys.SpeedUp):
+			return c, c.speedUp()
+		case key.Matches(msg, keys.SpeedDown):
+			return c, c.speedDown()
 		}
 
 		// Pass key events to the current view
@@ -214,30 +267,39 @@ func (c *Coordinator) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return c, tea.Batch(cmds...)
 }
 
-// View implements tea.Model
+// View implements tea.Model - comprehensive layout matching design specification
 func (c *Coordinator) View() string {
 	if c.width == 0 {
 		return "Loading..."
 	}
 
-	// Header
-	header := c.headerView.View()
+	var sections []string
 
-	// Main content based on current view
-	var content string
-	switch c.currentView {
-	case "streams":
-		content = c.streamsView.View()
-	case "groups":
-		content = c.groupsView.View()
-	case "metrics":
-		content = c.metricsView.View()
-	}
+	// Header section with uptime and refresh rate
+	header := c.renderHeader()
+	sections = append(sections, header)
 
-	// Footer with help
+	// Main streams table with sparklines  
+	streamsTable := c.renderStreamsTable()
+	sections = append(sections, streamsTable)
+
+	// Groups detail section
+	groupsDetail := c.renderGroupsDetail()
+	sections = append(sections, groupsDetail)
+
+	// Memory alerts and trim warnings
+	memoryAlerts := c.renderMemoryAlerts()
+	sections = append(sections, memoryAlerts)
+
+	// Global metrics section
+	globalMetrics := c.renderGlobalMetrics()
+	sections = append(sections, globalMetrics)
+
+	// Footer with commands
 	footer := c.navigationView.View()
+	sections = append(sections, footer)
 
-	return header + "\n\n" + content + "\n" + footer
+	return strings.Join(sections, "\n\n")
 }
 
 // updateHeaderView sends updated header data to header view
@@ -258,6 +320,11 @@ func (c *Coordinator) fetchData() tea.Cmd {
 	}
 
 	return func() tea.Msg {
+		// Skip Redis operations in demo mode or if client is nil
+		if c.demoMode || c.client == nil {
+			return c.fetchDemoData()()
+		}
+
 		ctx := context.Background()
 
 		// Fetch server data
@@ -458,4 +525,55 @@ func generateSparklineData(length int) []float64 {
 		data[i] = float64(i) / float64(length)
 	}
 	return data
+}
+
+// findClosestRefreshRateIndex finds the index of the closest refresh rate
+func findClosestRefreshRateIndex(target time.Duration) int {
+	minDiff := time.Duration(1<<63 - 1) // Max duration
+	bestIndex := 3 // Default to 1 second (index 3)
+	
+	for i, rate := range refreshRates {
+		diff := target - rate
+		if diff < 0 {
+			diff = -diff
+		}
+		if diff < minDiff {
+			minDiff = diff
+			bestIndex = i
+		}
+	}
+	
+	return bestIndex
+}
+
+// speedUp increases the refresh rate (makes it faster)
+func (c *Coordinator) speedUp() tea.Cmd {
+	if c.refreshRateIndex > 0 {
+		c.refreshRateIndex--
+		c.refreshRate = refreshRates[c.refreshRateIndex]
+		return tea.Batch(
+			c.updateHeaderView(),
+			// Start new ticker with faster rate
+			tea.Tick(c.refreshRate, func(t time.Time) tea.Msg {
+				return tickMsg{time: t}
+			}),
+		)
+	}
+	return nil
+}
+
+// speedDown decreases the refresh rate (makes it slower)
+func (c *Coordinator) speedDown() tea.Cmd {
+	if c.refreshRateIndex < len(refreshRates)-1 {
+		c.refreshRateIndex++
+		c.refreshRate = refreshRates[c.refreshRateIndex]
+		return tea.Batch(
+			c.updateHeaderView(),
+			// Start new ticker with slower rate
+			tea.Tick(c.refreshRate, func(t time.Time) tea.Msg {
+				return tickMsg{time: t}
+			}),
+		)
+	}
+	return nil
 }

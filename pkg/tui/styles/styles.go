@@ -1,67 +1,123 @@
-// Package styles contains all lipgloss styling definitions for the TUI components
 package styles
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"github.com/charmbracelet/lipgloss"
+	"github.com/go-go-golems/go-go-labs/pkg/tui/widgets"
+)
 
-// Styles contains all the lipgloss styles used throughout the TUI
+// Styles contains all the styles for the TUI widgets
 type Styles struct {
-	Header      lipgloss.Style
-	Title       lipgloss.Style
-	Status      lipgloss.Style
-	StreamTable lipgloss.Style
-	GroupTable  lipgloss.Style
-	Sparkline   lipgloss.Style
-	Border      lipgloss.Style
-	Selected    lipgloss.Style
-	Unselected  lipgloss.Style
-	Memory      lipgloss.Style
-	Throughput  lipgloss.Style
+	Header       widgets.HeaderStyles
+	StreamsTable widgets.StreamsTableStyles
+	GroupsTable  widgets.GroupsTableStyles
+	Alerts       widgets.AlertsStyles
+	Metrics      widgets.MetricsStyles
+	Footer       widgets.FooterStyles
 }
 
-// NewStyles creates the default styles for the TUI
+// NewStyles creates a new Styles instance with default styling
 func NewStyles() Styles {
+	// Define common colors
+	primaryColor := lipgloss.Color("57")   // Blue
+	accentColor := lipgloss.Color("69")    // Cyan
+	borderColor := lipgloss.Color("240")   // Gray
+	textColor := lipgloss.Color("15")      // White
+	mutedColor := lipgloss.Color("246")    // Light gray
+	errorColor := lipgloss.Color("196")    // Red
+	warningColor := lipgloss.Color("214")  // Orange
+	infoColor := lipgloss.Color("39")      // Light blue
+
 	return Styles{
-		Header: lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#FAFAFA")).
-			Background(lipgloss.Color("#7D56F4")).
-			Padding(0, 1),
+		Header: widgets.HeaderStyles{
+			Container: lipgloss.NewStyle().
+				Background(primaryColor).
+				Foreground(textColor).
+				Bold(true).
+				Padding(0, 1),
+			Title: lipgloss.NewStyle().
+				Foreground(textColor).
+				Bold(true),
+			Info: lipgloss.NewStyle().
+				Foreground(textColor),
+		},
 
-		Title: lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#7D56F4")),
+		StreamsTable: widgets.StreamsTableStyles{
+			Container: lipgloss.NewStyle().
+				Border(lipgloss.RoundedBorder()).
+				BorderForeground(borderColor).
+				Padding(1),
+			Table: lipgloss.NewStyle(),
+			HeaderRow: lipgloss.NewStyle().
+				Background(primaryColor).
+				Foreground(textColor).
+				Bold(true),
+			Row: lipgloss.NewStyle().
+				Foreground(textColor),
+			SelectedRow: lipgloss.NewStyle().
+				Background(accentColor).
+				Foreground(textColor).
+				Bold(true),
+			SparklineRow: lipgloss.NewStyle().
+				Foreground(mutedColor),
+		},
 
-		Status: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#626262")),
+		GroupsTable: widgets.GroupsTableStyles{
+			Container: lipgloss.NewStyle().
+				Border(lipgloss.RoundedBorder()).
+				BorderForeground(borderColor).
+				Padding(1),
+			Table: lipgloss.NewStyle(),
+			HeaderRow: lipgloss.NewStyle().
+				Background(primaryColor).
+				Foreground(textColor).
+				Bold(true),
+			Row: lipgloss.NewStyle().
+				Foreground(textColor),
+			SelectedRow: lipgloss.NewStyle().
+				Background(accentColor).
+				Foreground(textColor).
+				Bold(true),
+			Title: lipgloss.NewStyle().
+				Foreground(textColor).
+				Bold(true),
+		},
 
-		StreamTable: lipgloss.NewStyle().
-			BorderStyle(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#7D56F4")).
-			Padding(1),
+		Alerts: widgets.AlertsStyles{
+			Container: lipgloss.NewStyle().
+				Border(lipgloss.RoundedBorder()).
+				BorderForeground(borderColor).
+				Padding(1),
+			Title: lipgloss.NewStyle().
+				Foreground(textColor).
+				Bold(true),
+			Alert: lipgloss.NewStyle().
+				Foreground(errorColor),
+			Warning: lipgloss.NewStyle().
+				Foreground(warningColor),
+			Info: lipgloss.NewStyle().
+				Foreground(infoColor),
+		},
 
-		GroupTable: lipgloss.NewStyle().
-			BorderStyle(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#F25D94")).
-			Padding(1),
+		Metrics: widgets.MetricsStyles{
+			Container: lipgloss.NewStyle().
+				Border(lipgloss.RoundedBorder()).
+				BorderForeground(borderColor).
+				Padding(1),
+			Label: lipgloss.NewStyle().
+				Foreground(textColor).
+				Bold(true),
+			Value: lipgloss.NewStyle().
+				Foreground(accentColor).
+				Bold(true),
+		},
 
-		Sparkline: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#04B575")),
-
-		Border: lipgloss.NewStyle().
-			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(lipgloss.Color("#7D56F4")),
-
-		Selected: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#7D56F4")).
-			Bold(true),
-
-		Unselected: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#626262")),
-
-		Memory: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#F25D94")),
-
-		Throughput: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#04B575")),
+		Footer: widgets.FooterStyles{
+			Container: lipgloss.NewStyle().
+				Background(borderColor).
+				Foreground(textColor).
+				Padding(0, 1),
+			Commands: lipgloss.NewStyle().
+				Foreground(textColor),
+		},
 	}
 }
