@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/go-go-golems/go-go-labs/pkg/tui/components"
+	"github.com/go-go-golems/go-go-labs/pkg/sparkline"
 )
 
 // DemoSparkline demonstrates the sparkline component without TUI
@@ -22,7 +22,7 @@ func DemoSparkline() {
 	highStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("1"))    // Red
 	defaultStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("7")) // White
 
-	colorRanges := []components.ColorRange{
+	colorRanges := []sparkline.ColorRange{
 		{Min: -math.Inf(1), Max: 30, Style: lowStyle},
 		{Min: 30, Max: 70, Style: medStyle},
 		{Min: 70, Max: math.Inf(1), Style: highStyle},
@@ -31,12 +31,12 @@ func DemoSparkline() {
 	// Demo different styles
 	styles := []struct {
 		name  string
-		style components.SparklineStyle
+		style sparkline.Style
 	}{
-		{"Bars", components.StyleBars},
-		{"Dots", components.StyleDots},
-		{"Line", components.StyleLine},
-		{"Filled", components.StyleFilled},
+		{"Bars", sparkline.StyleBars},
+		{"Dots", sparkline.StyleDots},
+		{"Line", sparkline.StyleLine},
+		{"Filled", sparkline.StyleFilled},
 	}
 
 	// Generate sample data patterns
@@ -68,7 +68,7 @@ func DemoSparkline() {
 		fmt.Println(strings.Repeat("-", 30))
 
 		for _, styleInfo := range styles {
-			config := components.SparklineConfig{
+			config := sparkline.Config{
 				Width:        50,
 				Height:       6,
 				MaxPoints:    50,
@@ -80,11 +80,11 @@ func DemoSparkline() {
 				DefaultStyle: defaultStyle,
 			}
 
-			sparkline := components.NewSparkline(config)
-			sparkline.SetData(pattern.data)
+			s := sparkline.New(config)
+			s.SetData(pattern.data)
 
 			fmt.Printf("\n%s:\n", styleInfo.name)
-			fmt.Println(sparkline.View())
+			fmt.Println(s.View())
 		}
 	}
 
@@ -92,11 +92,11 @@ func DemoSparkline() {
 	fmt.Println("\n🔄 Real-time Update Demo")
 	fmt.Println(strings.Repeat("-", 30))
 
-	config := components.SparklineConfig{
+	config := sparkline.Config{
 		Width:        30,
 		Height:       5,
 		MaxPoints:    30,
-		Style:        components.StyleBars,
+		Style:        sparkline.StyleBars,
 		Title:        "Live CPU Usage",
 		ShowValue:    true,
 		ShowMinMax:   true,
@@ -104,16 +104,16 @@ func DemoSparkline() {
 		DefaultStyle: defaultStyle,
 	}
 
-	sparkline := components.NewSparkline(config)
+	s := sparkline.New(config)
 
 	// Simulate adding data points over time
 	fmt.Println("Adding data points (simulated real-time):")
 	for i := 0; i < 15; i++ {
 		value := 20 + 50*math.Sin(float64(i)*0.3) + rand.Float64()*10
-		sparkline.AddPoint(value)
+		s.AddPoint(value)
 
 		fmt.Printf("\nStep %d (Value: %.1f):\n", i+1, value)
-		fmt.Println(sparkline.View())
+		fmt.Println(s.View())
 
 		// In real app, this would be time.Sleep
 		if i%5 == 4 {
@@ -129,15 +129,15 @@ func DemoSparkline() {
 
 	configurations := []struct {
 		name   string
-		config components.SparklineConfig
+		config sparkline.Config
 	}{
 		{
 			name: "Compact (20x3)",
-			config: components.SparklineConfig{
+			config: sparkline.Config{
 				Width:        20,
 				Height:       3,
 				MaxPoints:    20,
-				Style:        components.StyleBars,
+				Style:        sparkline.StyleBars,
 				Title:        "Compact View",
 				ShowValue:    false,
 				ShowMinMax:   false,
@@ -146,11 +146,11 @@ func DemoSparkline() {
 		},
 		{
 			name: "Detailed (60x8)",
-			config: components.SparklineConfig{
+			config: sparkline.Config{
 				Width:        60,
 				Height:       8,
 				MaxPoints:    60,
-				Style:        components.StyleLine,
+				Style:        sparkline.StyleLine,
 				Title:        "Detailed View",
 				ShowValue:    true,
 				ShowMinMax:   true,
@@ -160,11 +160,11 @@ func DemoSparkline() {
 		},
 		{
 			name: "No Title/Values",
-			config: components.SparklineConfig{
+			config: sparkline.Config{
 				Width:        40,
 				Height:       4,
 				MaxPoints:    40,
-				Style:        components.StyleFilled,
+				Style:        sparkline.StyleFilled,
 				Title:        "",
 				ShowValue:    false,
 				ShowMinMax:   false,
@@ -175,9 +175,9 @@ func DemoSparkline() {
 
 	for _, cfg := range configurations {
 		fmt.Printf("\n%s:\n", cfg.name)
-		sparkline := components.NewSparkline(cfg.config)
-		sparkline.SetData(testData)
-		fmt.Println(sparkline.View())
+		s := sparkline.New(cfg.config)
+		s.SetData(testData)
+		fmt.Println(s.View())
 	}
 
 	fmt.Println("\n✅ Demo completed!")

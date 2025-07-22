@@ -10,7 +10,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/go-go-golems/go-go-labs/pkg/tui/components"
+	"github.com/go-go-golems/go-go-labs/pkg/sparkline"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 )
@@ -108,7 +108,7 @@ func (s *SpikeGenerator) Name() string {
 
 // SparklineDemo holds a sparkline and its data generator
 type SparklineDemo struct {
-	sparkline *components.Sparkline
+	sparkline *sparkline.Sparkline
 	generator DataGenerator
 	id        string
 }
@@ -116,7 +116,7 @@ type SparklineDemo struct {
 // Model represents the main application model
 type Model struct {
 	sparklines    []SparklineDemo
-	currentStyle  components.SparklineStyle
+	currentStyle  sparkline.Style
 	styleNames    []string
 	paused        bool
 	speed         time.Duration
@@ -138,7 +138,7 @@ func initialModel() Model {
 	height := 8
 
 	// Color ranges for different values
-	colorRanges := []components.ColorRange{
+	colorRanges := []sparkline.ColorRange{
 		{Min: -math.Inf(1), Max: -0.5, Style: lowStyle},
 		{Min: -0.5, Max: 0.5, Style: medStyle},
 		{Min: 0.5, Max: math.Inf(1), Style: highStyle},
@@ -148,33 +148,33 @@ func initialModel() Model {
 	configs := []struct {
 		title     string
 		generator DataGenerator
-		style     components.SparklineStyle
+		style     sparkline.Style
 	}{
 		{
 			title:     "CPU Usage (%)",
 			generator: &RandomGenerator{min: 0, max: 100},
-			style:     components.StyleBars,
+			style:     sparkline.StyleBars,
 		},
 		{
 			title:     "Memory Usage (GB)",
 			generator: &SineWaveGenerator{amplitude: 4, frequency: 0.05, phase: 0},
-			style:     components.StyleDots,
+			style:     sparkline.StyleDots,
 		},
 		{
 			title:     "Network I/O (MB/s)",
 			generator: &TrendGenerator{base: 10, trend: 0.1, noise: 2},
-			style:     components.StyleLine,
+			style:     sparkline.StyleLine,
 		},
 		{
 			title:     "Disk Activity",
 			generator: &SpikeGenerator{base: 20, spikeProb: 0.1, spikeHeight: 50},
-			style:     components.StyleFilled,
+			style:     sparkline.StyleFilled,
 		},
 	}
 
 	sparklines := make([]SparklineDemo, len(configs))
 	for i, config := range configs {
-		sparklineConfig := components.SparklineConfig{
+		sparklineConfig := sparkline.Config{
 			Width:        width,
 			Height:       height,
 			MaxPoints:    width * 2, // Keep more history than display width
@@ -187,7 +187,7 @@ func initialModel() Model {
 		}
 
 		sparklines[i] = SparklineDemo{
-			sparkline: components.NewSparkline(sparklineConfig),
+			sparkline: sparkline.New(sparklineConfig),
 			generator: config.generator,
 			id:        fmt.Sprintf("sparkline_%d", i),
 		}
@@ -200,7 +200,7 @@ func initialModel() Model {
 
 	return Model{
 		sparklines:   sparklines,
-		currentStyle: components.StyleBars,
+		currentStyle: sparkline.StyleBars,
 		styleNames:   []string{"Bars", "Dots", "Line", "Filled"},
 		paused:       false,
 		speed:        200 * time.Millisecond,
@@ -235,7 +235,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			for i := range m.sparklines {
 				// Create new sparkline with different style
-				config := components.SparklineConfig{
+				config := sparkline.Config{
 					Width:      m.width,
 					Height:     m.height,
 					MaxPoints:  m.width * 2,
@@ -243,7 +243,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					Title:      titles[i],
 					ShowValue:  true,
 					ShowMinMax: true,
-					ColorRanges: []components.ColorRange{
+					ColorRanges: []sparkline.ColorRange{
 						{Min: -math.Inf(1), Max: -0.5, Style: lowStyle},
 						{Min: -0.5, Max: 0.5, Style: medStyle},
 						{Min: 0.5, Max: math.Inf(1), Style: highStyle},
@@ -253,7 +253,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				// Preserve data
 				oldData := m.sparklines[i].sparkline.GetData()
-				m.sparklines[i].sparkline = components.NewSparkline(config)
+				m.sparklines[i].sparkline = sparkline.New(config)
 				m.sparklines[i].sparkline.SetData(oldData)
 			}
 		case "r":
