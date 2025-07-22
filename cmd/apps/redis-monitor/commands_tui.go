@@ -107,7 +107,7 @@ func (c *TUICommand) Run(ctx context.Context, parsedLayers *layers.ParsedLayers)
 	// Start the bubbletea TUI
 	model := NewModel(client, s.Demo, refreshRate)
 	p := tea.NewProgram(model, tea.WithAltScreen())
-	
+
 	if _, err := p.Run(); err != nil {
 		return fmt.Errorf("failed to start TUI: %w", err)
 	}

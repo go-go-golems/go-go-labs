@@ -38,32 +38,32 @@ func (r *RedisClient) Ping(ctx context.Context) error {
 
 // StreamInfo contains information about a Redis stream
 type StreamInfo struct {
-	Name             string
-	Length           int64
-	RadixTreeKeys    int64
-	RadixTreeNodes   int64
-	Groups           int64
-	FirstEntryID     string
-	LastGeneratedID  string
-	MemoryUsage      int64
+	Name            string
+	Length          int64
+	RadixTreeKeys   int64
+	RadixTreeNodes  int64
+	Groups          int64
+	FirstEntryID    string
+	LastGeneratedID string
+	MemoryUsage     int64
 }
 
 // GroupInfo contains information about a consumer group
 type GroupInfo struct {
-	Name      string
-	Stream    string
-	Consumers int64
-	Pending   int64
+	Name            string
+	Stream          string
+	Consumers       int64
+	Pending         int64
 	LastDeliveredID string
 }
 
 // ConsumerInfo contains information about a consumer
 type ConsumerInfo struct {
-	Name     string
-	Group    string
-	Stream   string
-	Pending  int64
-	Idle     time.Duration
+	Name    string
+	Group   string
+	Stream  string
+	Pending int64
+	Idle    time.Duration
 }
 
 // ServerInfo contains Redis server information
@@ -86,7 +86,7 @@ type ThroughputInfo struct {
 func (r *RedisClient) DiscoverStreams(ctx context.Context) ([]string, error) {
 	var streams []string
 	iter := r.client.Scan(ctx, 0, "*", 0).Iterator()
-	
+
 	for iter.Next(ctx) {
 		key := iter.Val()
 		keyType := r.client.Type(ctx, key).Val()
@@ -94,11 +94,11 @@ func (r *RedisClient) DiscoverStreams(ctx context.Context) ([]string, error) {
 			streams = append(streams, key)
 		}
 	}
-	
+
 	if err := iter.Err(); err != nil {
 		return nil, fmt.Errorf("error scanning for streams: %w", err)
 	}
-	
+
 	return streams, nil
 }
 
@@ -106,31 +106,31 @@ func (r *RedisClient) DiscoverStreams(ctx context.Context) ([]string, error) {
 func (r *RedisClient) GetStreamInfo(ctx context.Context, stream string) (*StreamInfo, error) {
 	// Get basic stream info
 	streamInfo := r.client.XInfoStream(ctx, stream).Val()
-	
+
 	// Get memory usage
 	memUsage := r.client.MemoryUsage(ctx, stream).Val()
-	
+
 	info := &StreamInfo{
-		Name:             stream,
-		Length:           streamInfo.Length,
-		RadixTreeKeys:    streamInfo.RadixTreeKeys,
-		RadixTreeNodes:   streamInfo.RadixTreeNodes,
-		Groups:           streamInfo.Groups,
-		LastGeneratedID:  streamInfo.LastGeneratedID,
-		MemoryUsage:      memUsage,
+		Name:            stream,
+		Length:          streamInfo.Length,
+		RadixTreeKeys:   streamInfo.RadixTreeKeys,
+		RadixTreeNodes:  streamInfo.RadixTreeNodes,
+		Groups:          streamInfo.Groups,
+		LastGeneratedID: streamInfo.LastGeneratedID,
+		MemoryUsage:     memUsage,
 	}
-	
+
 	if len(streamInfo.FirstEntry.Values) > 0 {
 		info.FirstEntryID = streamInfo.FirstEntry.ID
 	}
-	
+
 	return info, nil
 }
 
 // GetStreamGroups lists all consumer groups for a stream
 func (r *RedisClient) GetStreamGroups(ctx context.Context, stream string) ([]GroupInfo, error) {
 	groups := r.client.XInfoGroups(ctx, stream).Val()
-	
+
 	var result []GroupInfo
 	for _, group := range groups {
 		result = append(result, GroupInfo{
@@ -141,14 +141,14 @@ func (r *RedisClient) GetStreamGroups(ctx context.Context, stream string) ([]Gro
 			LastDeliveredID: group.LastDeliveredID,
 		})
 	}
-	
+
 	return result, nil
 }
 
 // GetGroupConsumers lists all consumers in a group
 func (r *RedisClient) GetGroupConsumers(ctx context.Context, stream, group string) ([]ConsumerInfo, error) {
 	consumers := r.client.XInfoConsumers(ctx, stream, group).Val()
-	
+
 	var result []ConsumerInfo
 	for _, consumer := range consumers {
 		result = append(result, ConsumerInfo{
@@ -159,22 +159,22 @@ func (r *RedisClient) GetGroupConsumers(ctx context.Context, stream, group strin
 			Idle:    time.Duration(consumer.Idle) * time.Millisecond,
 		})
 	}
-	
+
 	return result, nil
 }
 
 // GetServerInfo retrieves Redis server information
 func (r *RedisClient) GetServerInfo(ctx context.Context) (*ServerInfo, error) {
 	info := r.client.Info(ctx, "server", "memory").Val()
-	
+
 	serverInfo := &ServerInfo{}
-	
+
 	lines := strings.Split(info, "\r\n")
 	for _, line := range lines {
 		if strings.Contains(line, ":") {
 			parts := strings.SplitN(line, ":", 2)
 			key, value := parts[0], parts[1]
-			
+
 			switch key {
 			case "uptime_in_seconds":
 				if val, err := strconv.ParseInt(value, 10, 64); err == nil {
@@ -197,18 +197,18 @@ func (r *RedisClient) GetServerInfo(ctx context.Context) (*ServerInfo, error) {
 			}
 		}
 	}
-	
+
 	return serverInfo, nil
 }
 
 // GetThroughputInfo retrieves command statistics for throughput calculation
 func (r *RedisClient) GetThroughputInfo(ctx context.Context) (*ThroughputInfo, error) {
 	info := r.client.Info(ctx, "commandstats").Val()
-	
+
 	throughputInfo := &ThroughputInfo{
 		Timestamp: time.Now(),
 	}
-	
+
 	lines := strings.Split(info, "\r\n")
 	for _, line := range lines {
 		if strings.Contains(line, "cmdstat_xadd:") {
@@ -238,7 +238,7 @@ func (r *RedisClient) GetThroughputInfo(ctx context.Context) (*ThroughputInfo, e
 			}
 		}
 	}
-	
+
 	return throughputInfo, nil
 }
 

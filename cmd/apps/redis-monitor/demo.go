@@ -123,8 +123,8 @@ func (c *DemoCommand) generateStreamsData(ctx context.Context, gp middlewares.Pr
 
 func (c *DemoCommand) generateGroupsData(ctx context.Context, gp middlewares.Processor) error {
 	groups := []struct {
-		name     string
-		stream   string
+		name      string
+		stream    string
 		consumers int64
 		pending   int64
 	}{
@@ -220,12 +220,12 @@ func (c *DemoCommand) generateMemoryData(ctx context.Context, gp middlewares.Pro
 func (c *DemoCommand) generateThroughputData(ctx context.Context, gp middlewares.Processor) error {
 	// Generate 5 measurements over time
 	baseTime := time.Now().Add(-4 * time.Minute)
-	
+
 	measurements := []struct {
-		xaddRate      float64
-		xreadRate     float64
-		xaddTotal     int64
-		xreadTotal    int64
+		xaddRate   float64
+		xreadRate  float64
+		xaddTotal  int64
+		xreadTotal int64
 	}{
 		{145.2, 156.8, 12456789, 13567890},
 		{152.1, 164.3, 12457245, 13568384},
@@ -236,7 +236,7 @@ func (c *DemoCommand) generateThroughputData(ctx context.Context, gp middlewares
 
 	for i, m := range measurements {
 		timestamp := baseTime.Add(time.Duration(i) * time.Minute)
-		
+
 		row := types.NewRow(
 			types.MRP("timestamp", timestamp.Format(time.RFC3339)),
 			types.MRP("xadd_calls_total", m.xaddTotal),

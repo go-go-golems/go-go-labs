@@ -63,7 +63,6 @@ The output can be sorted by different metrics and formatted in various ways.`),
 					parameters.WithDefault(0),
 					parameters.WithHelp("Redis database number"),
 				),
-
 			),
 			cmds.WithLayersList(glazedLayer),
 		),
