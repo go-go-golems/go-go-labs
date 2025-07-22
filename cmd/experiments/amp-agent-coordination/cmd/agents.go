@@ -39,7 +39,20 @@ Examples:
 		}
 
 		output, _ := cmd.Flags().GetString("output")
-		return outputAgents(agents, output)
+
+		// Show project context in dual mode (default table output)
+		if output == "table" {
+			showProjectTitle(tm)
+		}
+
+		err = outputAgents(agents, output)
+
+		// Show TIL/notes reminders in table mode
+		if output == "table" {
+			showTILNotesReminders()
+		}
+
+		return err
 	},
 }
 
@@ -109,7 +122,7 @@ Shows how many tasks are assigned to each agent by status.`,
 		workload := make(map[string]map[TaskStatus]int)
 		for _, agent := range agents {
 			workload[agent.ID] = make(map[TaskStatus]int)
-			
+
 			// Count tasks by status for this agent
 			for _, status := range []TaskStatus{TaskStatusPending, TaskStatusInProgress, TaskStatusCompleted, TaskStatusFailed} {
 				tasks, err := tm.ListTasks(nil, &status, &agent.ID, nil)
@@ -121,7 +134,20 @@ Shows how many tasks are assigned to each agent by status.`,
 		}
 
 		output, _ := cmd.Flags().GetString("output")
-		return outputWorkload(agents, workload, output)
+
+		// Show project context in dual mode (default table output)
+		if output == "table" {
+			showProjectTitle(tm)
+		}
+
+		err = outputWorkload(agents, workload, output)
+
+		// Show TIL/notes reminders in table mode
+		if output == "table" {
+			showTILNotesReminders()
+		}
+
+		return err
 	},
 }
 
@@ -150,11 +176,11 @@ Shows metrics like total tasks completed, success rate, etc.`,
 
 			// Count tasks by status
 			for _, status := range []TaskStatus{TaskStatusPending, TaskStatusInProgress, TaskStatusCompleted, TaskStatusFailed} {
-			tasks, err := tm.ListTasks(nil, &status, &agent.ID, nil)
-			if err != nil {
-			return fmt.Errorf("failed to get tasks for agent %s: %w", agent.ID, err)
-			}
-				
+				tasks, err := tm.ListTasks(nil, &status, &agent.ID, nil)
+				if err != nil {
+					return fmt.Errorf("failed to get tasks for agent %s: %w", agent.ID, err)
+				}
+
 				count := len(tasks)
 				switch status {
 				case TaskStatusPending:
@@ -169,15 +195,28 @@ Shows metrics like total tasks completed, success rate, etc.`,
 			}
 
 			stat.Total = stat.Pending + stat.InProgress + stat.Completed + stat.Failed
-			if stat.Completed + stat.Failed > 0 {
-				stat.SuccessRate = float64(stat.Completed) / float64(stat.Completed + stat.Failed) * 100
+			if stat.Completed+stat.Failed > 0 {
+				stat.SuccessRate = float64(stat.Completed) / float64(stat.Completed+stat.Failed) * 100
 			}
 
 			stats = append(stats, stat)
 		}
 
 		output, _ := cmd.Flags().GetString("output")
-		return outputAgentStats(stats, output)
+
+		// Show project context in dual mode (default table output)
+		if output == "table" {
+			showProjectTitle(tm)
+		}
+
+		err = outputAgentStats(stats, output)
+
+		// Show TIL/notes reminders in table mode
+		if output == "table" {
+			showTILNotesReminders()
+		}
+
+		return err
 	},
 }
 
@@ -234,7 +273,7 @@ func outputWorkload(agents []Agent, workload map[string]map[TaskStatus]int, form
 		result := make(map[string]interface{})
 		for _, agent := range agents {
 			result[agent.ID] = map[string]interface{}{
-				"agent": agent,
+				"agent":    agent,
 				"workload": workload[agent.ID],
 			}
 		}
@@ -243,7 +282,7 @@ func outputWorkload(agents []Agent, workload map[string]map[TaskStatus]int, form
 		result := make(map[string]interface{})
 		for _, agent := range agents {
 			result[agent.ID] = map[string]interface{}{
-				"agent": agent,
+				"agent":    agent,
 				"workload": workload[agent.ID],
 			}
 		}
@@ -265,7 +304,7 @@ func outputWorkloadTable(agents []Agent, workload map[string]map[TaskStatus]int)
 	for _, agent := range agents {
 		id := truncateString(agent.ID, 8)
 		name := truncateString(agent.Name, 20)
-		
+
 		pending := workload[agent.ID][TaskStatusPending]
 		inProgress := workload[agent.ID][TaskStatusInProgress]
 		completed := workload[agent.ID][TaskStatusCompleted]

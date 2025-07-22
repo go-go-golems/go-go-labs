@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/spf13/cobra"
 )
 
 var (
@@ -21,11 +21,18 @@ var rootCmd = &cobra.Command{
 	Long: `A hierarchical task management system for coding agents with DAG dependencies.
 	
 Features:
+- Project management with guidelines and context
 - Hierarchical task organization (parent-child relationships)
 - DAG-based task dependencies 
-- Agent assignment with UUIDs
+- Agent types and smart assignment
 - Multiple output formats (table, JSON, YAML, CSV)
-- Intelligent task scheduling based on dependencies`,
+- Intelligent task scheduling based on dependencies
+
+Quick Start:
+- amp-tasks demo                    # Set up sample data
+- amp-tasks docs quick-start        # Essential commands
+- amp-tasks docs agent-guide        # Work reference
+- amp-tasks docs workflow           # Detailed workflow`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		// Setup logging
 		level, err := zerolog.ParseLevel(logLevel)
@@ -35,7 +42,7 @@ Features:
 		}
 		zerolog.SetGlobalLevel(level)
 		logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr}).With().Timestamp().Logger()
-		
+
 		// Make logger globally available
 		log.Logger = logger
 	},

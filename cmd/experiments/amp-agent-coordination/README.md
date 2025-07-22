@@ -167,6 +167,16 @@ amp-tasks projects list --output yaml
 - **Comprehensive CLI**: Full CRUD operations with consistent patterns
 - **Multiple Output Formats**: JSON/YAML/CSV for programmatic integration
 
-## Agent Work Guide
+## Built-in Documentation
 
-See [AGENT_GUIDE.md](AGENT_GUIDE.md) for a concise reference focused on agent workflow and essential commands.
+All documentation is embedded in the CLI for easy agent access:
+
+```bash
+amp-tasks docs quick-start    # Essential getting started commands
+amp-tasks docs agent-guide    # Concise work reference for agents  
+amp-tasks docs workflow       # Detailed agent workflow
+amp-tasks docs commands       # Complete command reference
+amp-tasks docs readme         # Full system documentation
+```
+
+Use `--raw` flag for markdown output suitable for external processing.

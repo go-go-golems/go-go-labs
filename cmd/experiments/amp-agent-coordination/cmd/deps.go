@@ -24,6 +24,13 @@ var addDepCmd = &cobra.Command{
 	Long: `Add a dependency relationship between two tasks.
 
 The first task will depend on the second task being completed.
+Before adding the dependency, this command will show detailed information
+about the parent task (the task being depended on) including:
+- Task title, description, and current status
+- All notes from agents who have worked on the task
+- Agent information and timestamps
+
+This helps you make informed decisions about task dependencies.
 
 Examples:
   amp-tasks deps add <task-id> <depends-on-id>  # task-id depends on depends-on-id`,
@@ -37,12 +44,19 @@ Examples:
 		}
 		defer tm.Close()
 
+		// Show parent task information before adding dependency
+		err = displayParentTaskInfo(tm, dependsOnID)
+		if err != nil {
+			return fmt.Errorf("failed to display parent task info: %w", err)
+		}
+
+		// Add the dependency
 		err = tm.AddDependency(taskID, dependsOnID)
 		if err != nil {
 			return fmt.Errorf("failed to add dependency: %w", err)
 		}
 
-		fmt.Printf("Added dependency: %s depends on %s\n", taskID, dependsOnID)
+		fmt.Printf("\n✓ Added dependency: %s depends on %s\n", taskID, dependsOnID)
 		return nil
 	},
 }
@@ -72,7 +86,20 @@ Examples:
 		}
 
 		output, _ := cmd.Flags().GetString("output")
-		return outputDependencies(deps, output)
+
+		// Show project context in dual mode (default table output)
+		if output == "table" {
+			showProjectTitle(tm)
+		}
+
+		err = outputDependencies(deps, output)
+
+		// Show TIL/notes reminders in table mode
+		if output == "table" {
+			showTILNotesReminders()
+		}
+
+		return err
 	},
 }
 
@@ -114,7 +141,19 @@ Examples:
 		format, _ := cmd.Flags().GetString("format")
 		output, _ := cmd.Flags().GetString("output")
 
-		return outputGraph(tasks, depMap, format, output)
+		// Show project context in dual mode (default table output)
+		if output == "table" {
+			showProjectTitle(tm)
+		}
+
+		err = outputGraph(tasks, depMap, format, output)
+
+		// Show TIL/notes reminders in table mode
+		if output == "table" {
+			showTILNotesReminders()
+		}
+
+		return err
 	},
 }
 
@@ -281,6 +320,85 @@ func printTaskHierarchy(task Task, taskMap map[string]Task, depMap map[string][]
 			newPrefix += "  ├─ "
 		}
 		printTaskHierarchy(dependent, taskMap, depMap, visited, newPrefix)
+	}
+}
+
+// displayParentTaskInfo retrieves and displays detailed information about a parent task
+// including all notes from agents who have worked on it
+func displayParentTaskInfo(tm *TaskManager, parentTaskID string) error {
+	fmt.Printf("═══════════════════════════════════════════════════════════════════════════════\n")
+	fmt.Printf("📋 PARENT TASK INFORMATION\n")
+	fmt.Printf("═══════════════════════════════════════════════════════════════════════════════\n")
+
+	// Get parent task details
+	parentTask, err := tm.GetTask(parentTaskID)
+	if err != nil {
+		return fmt.Errorf("parent task not found: %w", err)
+	}
+
+	// Display task information
+	statusSymbol := getTaskStatusSymbol(parentTask.Status)
+	fmt.Printf("\n🔹 Task ID: %s\n", parentTask.ID)
+	fmt.Printf("🔹 Title: %s\n", parentTask.Title)
+	if parentTask.Description != "" {
+		fmt.Printf("🔹 Description: %s\n", parentTask.Description)
+	}
+	fmt.Printf("🔹 Status: %s %s\n", statusSymbol, parentTask.Status)
+	if parentTask.AgentID != nil {
+		fmt.Printf("🔹 Assigned Agent: %s\n", *parentTask.AgentID)
+	}
+	fmt.Printf("🔹 Created: %s\n", parentTask.CreatedAt.Format("2006-01-02 15:04:05"))
+	fmt.Printf("🔹 Updated: %s\n", parentTask.UpdatedAt.Format("2006-01-02 15:04:05"))
+
+	// Get and display notes
+	notes, err := tm.ListNotes(&parentTaskID, nil)
+	if err != nil {
+		return fmt.Errorf("failed to get notes for parent task: %w", err)
+	}
+
+	fmt.Printf("\n📝 AGENT NOTES (%d total)\n", len(notes))
+	fmt.Printf("───────────────────────────────────────────────────────────────────────────────\n")
+
+	if len(notes) == 0 {
+		fmt.Printf("💭 No notes found for this task.\n")
+	} else {
+		// Group notes by agent
+		agentNotes := make(map[string][]Note)
+		for _, note := range notes {
+			agentNotes[note.AgentID] = append(agentNotes[note.AgentID], note)
+		}
+
+		// Display notes grouped by agent
+		for agentID, agentNoteList := range agentNotes {
+			fmt.Printf("\n👤 Agent: %s (%d notes)\n", agentID, len(agentNoteList))
+
+			for i, note := range agentNoteList {
+				timeStr := note.CreatedAt.Format("2006-01-02 15:04")
+				fmt.Printf("   %d. [%s] %s\n", i+1, timeStr, note.Content)
+				if i < len(agentNoteList)-1 {
+					fmt.Printf("      ┆\n")
+				}
+			}
+		}
+	}
+
+	fmt.Printf("\n═══════════════════════════════════════════════════════════════════════════════\n")
+	return nil
+}
+
+// getTaskStatusSymbol returns a visual symbol for the task status
+func getTaskStatusSymbol(status TaskStatus) string {
+	switch status {
+	case TaskStatusCompleted:
+		return "✅"
+	case TaskStatusInProgress:
+		return "🔄"
+	case TaskStatusFailed:
+		return "❌"
+	case TaskStatusPending:
+		return "⏳"
+	default:
+		return "❓"
 	}
 }
 

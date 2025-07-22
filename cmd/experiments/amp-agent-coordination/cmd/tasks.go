@@ -56,27 +56,26 @@ Examples:
 			agentID = &agent
 		}
 
-		tasks, err := tm.ListTasks(parentID, status, agentID, nil)
+		tasks, err := tm.ListTasksWithAgentInfo(parentID, status, agentID, nil)
 		if err != nil {
 			return fmt.Errorf("failed to list tasks: %w", err)
 		}
 
 		output, _ := cmd.Flags().GetString("output")
-		
+
 		// Show project context in dual mode (default table output)
 		if output == "table" {
-			project, err := tm.GetDefaultProject()
-			if err == nil {
-				fmt.Printf("Project: %s\n", project.Name)
-				if project.Guidelines != "" {
-					fmt.Printf("Guidelines: %s\n\n", project.Guidelines)
-				} else {
-					fmt.Println()
-				}
-			}
+			showProjectTitle(tm)
 		}
-		
-		return outputTasks(tasks, output)
+
+		err = outputTasksWithAgentInfo(tasks, output)
+
+		// Show TIL/notes reminders in table mode
+		if output == "table" {
+			showTILNotesReminders()
+		}
+
+		return err
 	},
 }
 
@@ -105,7 +104,20 @@ var showTaskCmd = &cobra.Command{
 		}
 
 		output, _ := cmd.Flags().GetString("output")
-		return outputTaskDetail(task, deps, output)
+
+		// Show project context in dual mode (default table output)
+		if output == "table" {
+			showProjectTitle(tm)
+		}
+
+		err = outputTaskDetail(task, deps, output)
+
+		// Show TIL/notes reminders in table mode
+		if output == "table" {
+			showTILNotesReminders()
+		}
+
+		return err
 	},
 }
 
@@ -170,7 +182,8 @@ var availableTasksCmd = &cobra.Command{
 	Short: "List tasks available for assignment (dependencies satisfied)",
 	Long: `List tasks that are ready for assignment to agents.
 	
-These are tasks with status 'pending' that have all their dependencies completed.`,
+These are tasks with status 'pending' that have all their dependencies completed.
+Shows assignment status and agent type information where available.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		tm, err := NewTaskManager(dbPath, logger)
 		if err != nil {
@@ -178,27 +191,26 @@ These are tasks with status 'pending' that have all their dependencies completed
 		}
 		defer tm.Close()
 
-		tasks, err := tm.GetAvailableTasks()
+		tasks, err := tm.GetAvailableTasksWithAgentInfo()
 		if err != nil {
 			return fmt.Errorf("failed to get available tasks: %w", err)
 		}
 
 		output, _ := cmd.Flags().GetString("output")
-		
+
 		// Show project context in dual mode (default table output)
 		if output == "table" {
-			project, err := tm.GetDefaultProject()
-			if err == nil {
-				fmt.Printf("Project: %s\n", project.Name)
-				if project.Guidelines != "" {
-					fmt.Printf("Guidelines: %s\n\n", project.Guidelines)
-				} else {
-					fmt.Println()
-				}
-			}
+			showProjectTitle(tm)
 		}
-		
-		return outputTasks(tasks, output)
+
+		err = outputTasksWithAgentInfo(tasks, output)
+
+		// Show TIL/notes reminders in table mode
+		if output == "table" {
+			showTILNotesReminders()
+		}
+
+		return err
 	},
 }
 
@@ -372,7 +384,7 @@ func outputTaskDetail(task *Task, deps []TaskDependency, format string) error {
 			fmt.Printf("Description: %s\n", task.Description)
 		}
 		fmt.Printf("Status: %s\n", task.Status)
-		
+
 		if task.AgentID != nil {
 			fmt.Printf("Agent: %s\n", *task.AgentID)
 		} else {
@@ -437,4 +449,95 @@ func init() {
 	createTaskCmd.Flags().StringP("description", "d", "", "Task description")
 	createTaskCmd.Flags().StringP("parent", "p", "", "Parent task ID")
 	createTaskCmd.Flags().StringP("output", "o", "table", "Output format (table, json)")
+}
+
+func outputTasksWithAgentInfo(tasks []TaskWithAgentInfo, format string) error {
+	switch format {
+	case "json":
+		return json.NewEncoder(os.Stdout).Encode(tasks)
+	case "yaml":
+		return yaml.NewEncoder(os.Stdout).Encode(tasks)
+	case "csv":
+		return outputTasksWithAgentInfoCSV(tasks)
+	default: // table
+		return outputTasksWithAgentInfoTable(tasks)
+	}
+}
+
+func outputTasksWithAgentInfoTable(tasks []TaskWithAgentInfo) error {
+	if len(tasks) == 0 {
+		fmt.Println("No tasks found.")
+		return nil
+	}
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "ID\tTITLE\tSTATUS\tASSIGNED\tAGENT_TYPE\tPARENT\tCREATED")
+
+	for _, task := range tasks {
+		id := truncateString(task.ID, 8)
+		title := truncateString(task.Title, 30)
+
+		assigned := "none"
+		agentType := "none"
+		if task.AgentID != nil {
+			assigned = "yes"
+			if task.AgentTypeName != nil {
+				agentType = truncateString(*task.AgentTypeName, 12)
+			} else {
+				agentType = "untyped"
+			}
+		}
+
+		parent := "none"
+		if task.ParentID != nil {
+			parent = truncateString(*task.ParentID, 8)
+		}
+		created := task.CreatedAt.Format("2006-01-02 15:04")
+
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+			id, title, task.Status, assigned, agentType, parent, created)
+	}
+
+	return w.Flush()
+}
+
+func outputTasksWithAgentInfoCSV(tasks []TaskWithAgentInfo) error {
+	fmt.Println("id,title,description,status,assigned,agent_id,agent_name,agent_type_name,parent_id,created_at,updated_at")
+	for _, task := range tasks {
+		agentID := ""
+		agentName := ""
+		agentTypeName := ""
+		assigned := "no"
+
+		if task.AgentID != nil {
+			agentID = *task.AgentID
+			assigned = "yes"
+		}
+		if task.AgentName != nil {
+			agentName = *task.AgentName
+		}
+		if task.AgentTypeName != nil {
+			agentTypeName = *task.AgentTypeName
+		}
+
+		parentID := ""
+		if task.ParentID != nil {
+			parentID = *task.ParentID
+		}
+
+		fmt.Printf("%s,%q,%q,%s,%s,%s,%q,%q,%s,%s,%s\n",
+			task.ID,
+			task.Title,
+			task.Description,
+			task.Status,
+			assigned,
+			agentID,
+			agentName,
+			agentTypeName,
+			parentID,
+			task.CreatedAt.Format(time.RFC3339),
+			task.UpdatedAt.Format(time.RFC3339),
+		)
+	}
+	return nil
 }
