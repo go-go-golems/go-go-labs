@@ -75,13 +75,13 @@ Examples:
 		}
 		defer tm.Close()
 
-		var agentTypeID *string
+		var agentTypeSlug *string
 		if cmd.Flags().Changed("type") {
-			typeID, _ := cmd.Flags().GetString("type")
-			agentTypeID = &typeID
+			typeSlug, _ := cmd.Flags().GetString("type")
+			agentTypeSlug = &typeSlug
 		}
 
-		agent, err := tm.CreateAgent(name, agentTypeID)
+		agent, err := tm.CreateAgent(name, agentTypeSlug)
 		if err != nil {
 			return fmt.Errorf("failed to create agent: %w", err)
 		}

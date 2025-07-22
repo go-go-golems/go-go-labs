@@ -1,8 +1,42 @@
 package models
 
 import (
+	"crypto/rand"
+	"math/big"
+	"regexp"
+	"strings"
 	"time"
 )
+
+// generateSlug creates a slug from a title and adds a random suffix for uniqueness
+func generateSlug(title string) string {
+	// Convert to lowercase and replace spaces/special chars with hyphens
+	slug := strings.ToLower(title)
+	// Replace non-alphanumeric chars with hyphens
+	reg := regexp.MustCompile(`[^a-z0-9]+`)
+	slug = reg.ReplaceAllString(slug, "-")
+	// Remove leading/trailing hyphens
+	slug = strings.Trim(slug, "-")
+	// Limit length
+	if len(slug) > 50 {
+		slug = slug[:50]
+	}
+	
+	// Add random suffix for uniqueness
+	suffix := generateRandomSuffix()
+	return slug + "-" + suffix
+}
+
+// generateRandomSuffix generates a 6-character random suffix
+func generateRandomSuffix() string {
+	const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
+	result := make([]byte, 6)
+	for i := range result {
+		num, _ := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
+		result[i] = charset[num.Int64()]
+	}
+	return string(result)
+}
 
 // Agent represents an AI coding agent
 type Agent struct {

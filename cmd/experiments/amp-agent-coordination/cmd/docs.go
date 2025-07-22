@@ -45,7 +45,7 @@ A comprehensive SQLite-based task management system for coding agents with hiera
 - ` + "`id`" + `: Unique agent identifier (UUID)
 - ` + "`name`" + `: Agent name
 - ` + "`status`" + `: Agent status (idle, busy, etc.)
-- ` + "`agent_type_id`" + `: Reference to agent type (optional)
+- ` + "`agent_type_slug`" + `: Reference to agent type slug (optional)
 
 ### Tasks Table
 - ` + "`id`" + `: Unique task identifier (UUID)

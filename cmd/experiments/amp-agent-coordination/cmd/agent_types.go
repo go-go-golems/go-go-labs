@@ -99,7 +99,7 @@ var assignToTypeCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		taskID := args[0]
-		agentTypeID := args[1]
+		agentTypeSlug := args[1]
 
 		tm, err := NewTaskManager(dbPath, logger)
 		if err != nil {
@@ -107,12 +107,12 @@ var assignToTypeCmd = &cobra.Command{
 		}
 		defer tm.Close()
 
-		err = tm.AssignTaskToAgentType(taskID, agentTypeID)
+		err = tm.AssignTaskToAgentType(taskID, agentTypeSlug)
 		if err != nil {
 			return fmt.Errorf("failed to assign task to agent type: %w", err)
 		}
 
-		fmt.Printf("Assigned task %s to agent type %s\n", taskID, agentTypeID)
+		fmt.Printf("Assigned task %s to agent type %s\n", taskID, agentTypeSlug)
 		return nil
 	},
 }

@@ -24,25 +24,27 @@ A comprehensive SQLite-based task management system for coding agents with hiera
 - `author_id`: Optional author agent reference
 
 ### Agent Types Table
-- `id`: Unique agent type identifier (UUID)
+- `id`: Unique agent type identifier (slug)
+- `slug`: Agent type slug (e.g., "code-reviewer", "testing-agent") 
 - `name`: Agent type name (e.g., "Code Reviewer")
 - `description`: Agent type description
-- `project_id`: Associated project
+- `project_id`: Associated project slug
 
 ### Agents Table  
-- `id`: Unique agent identifier (UUID)
+- `id`: Unique agent identifier (slug)
 - `name`: Agent name
 - `status`: Agent status (idle, busy, etc.)
-- `agent_type_id`: Reference to agent type (optional)
+- `agent_type_slug`: Reference to agent type slug (optional)
 
 ### Tasks Table
-- `id`: Unique task identifier (UUID)
+- `id`: Unique task identifier (slug)
 - `parent_id`: Reference to parent task (nullable)
 - `title`: Task title
 - `description`: Task description
 - `status`: Task status (pending, in_progress, completed, failed)
-- `agent_id`: Assigned agent UUID (nullable)
-- `project_id`: Associated project
+- `agent_id`: Assigned agent slug (nullable)
+- `project_id`: Associated project slug
+- `preferred_agent_type_slug`: Preferred agent type slug (nullable)
 - `created_at`, `updated_at`: Timestamps
 
 ### Task Dependencies Table

@@ -1,11 +1,14 @@
 package cmd
 
 import (
+	"crypto/rand"
 	"database/sql"
 	"fmt"
+	"math/big"
+	"regexp"
+	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/rs/zerolog"
 )
@@ -19,6 +22,36 @@ const (
 	TaskStatusFailed     TaskStatus = "failed"
 )
 
+// generateSlug creates a slug from a title and adds a random suffix for uniqueness
+func generateSlug(title string) string {
+	// Convert to lowercase and replace spaces/special chars with hyphens
+	slug := strings.ToLower(title)
+	// Replace non-alphanumeric chars with hyphens
+	reg := regexp.MustCompile(`[^a-z0-9]+`)
+	slug = reg.ReplaceAllString(slug, "-")
+	// Remove leading/trailing hyphens
+	slug = strings.Trim(slug, "-")
+	// Limit length
+	if len(slug) > 50 {
+		slug = slug[:50]
+	}
+	
+	// Add random suffix for uniqueness
+	suffix := generateRandomSuffix()
+	return slug + "-" + suffix
+}
+
+// generateRandomSuffix generates a 6-character random suffix
+func generateRandomSuffix() string {
+	const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
+	result := make([]byte, 6)
+	for i := range result {
+		num, _ := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
+		result[i] = charset[num.Int64()]
+	}
+	return string(result)
+}
+
 type Task struct {
 	ID                     string     `json:"id"`
 	ParentID               *string    `json:"parent_id"`
@@ -27,15 +60,15 @@ type Task struct {
 	Status                 TaskStatus `json:"status"`
 	AgentID                *string    `json:"agent_id"`
 	ProjectID              string     `json:"project_id"`
-	PreferredAgentTypeID   *string    `json:"preferred_agent_type_id"`
+	PreferredAgentTypeSlug *string    `json:"preferred_agent_type_slug"`
 	CreatedAt              time.Time  `json:"created_at"`
 	UpdatedAt              time.Time  `json:"updated_at"`
 }
 
 type TaskWithAgentInfo struct {
 	Task
-	AgentName             *string `json:"agent_name"`
-	AgentTypeName         *string `json:"agent_type_name"`
+	AgentName              *string `json:"agent_name"`
+	AgentTypeName          *string `json:"agent_type_name"`
 	PreferredAgentTypeName *string `json:"preferred_agent_type_name"`
 }
 
@@ -46,16 +79,17 @@ type TaskDependency struct {
 }
 
 type Agent struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	Status      string    `json:"status"`
-	AgentTypeID *string   `json:"agent_type_id"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID              string    `json:"id"`
+	Name            string    `json:"name"`
+	Status          string    `json:"status"`
+	AgentTypeSlug   *string   `json:"agent_type_slug"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
 }
 
 type AgentType struct {
 	ID          string    `json:"id"`
+	Slug        string    `json:"slug"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
 	ProjectID   string    `json:"project_id"`
@@ -145,6 +179,7 @@ func (tm *TaskManager) initSchema() error {
 
 	CREATE TABLE IF NOT EXISTS agent_types (
 		id TEXT PRIMARY KEY,
+		slug TEXT UNIQUE NOT NULL,
 		name TEXT NOT NULL,
 		description TEXT,
 		project_id TEXT NOT NULL REFERENCES projects(id),
@@ -156,7 +191,7 @@ func (tm *TaskManager) initSchema() error {
 		id TEXT PRIMARY KEY,
 		name TEXT NOT NULL,
 		status TEXT NOT NULL DEFAULT 'idle',
-		agent_type_id TEXT REFERENCES agent_types(id),
+		agent_type_slug TEXT REFERENCES agent_types(slug),
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 	);
@@ -169,7 +204,7 @@ func (tm *TaskManager) initSchema() error {
 		status TEXT NOT NULL DEFAULT 'pending',
 		agent_id TEXT REFERENCES agents(id),
 		project_id TEXT NOT NULL REFERENCES projects(id),
-		preferred_agent_type_id TEXT REFERENCES agent_types(id),
+		preferred_agent_type_slug TEXT REFERENCES agent_types(slug),
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 	);
@@ -213,10 +248,11 @@ func (tm *TaskManager) initSchema() error {
 	CREATE INDEX IF NOT EXISTS idx_tasks_agent_id ON tasks(agent_id);
 	CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 	CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id);
-	CREATE INDEX IF NOT EXISTS idx_tasks_preferred_agent_type_id ON tasks(preferred_agent_type_id);
+	CREATE INDEX IF NOT EXISTS idx_tasks_preferred_agent_type_slug ON tasks(preferred_agent_type_slug);
 	CREATE INDEX IF NOT EXISTS idx_agents_status ON agents(status);
-	CREATE INDEX IF NOT EXISTS idx_agents_type_id ON agents(agent_type_id);
+	CREATE INDEX IF NOT EXISTS idx_agents_type_slug ON agents(agent_type_slug);
 	CREATE INDEX IF NOT EXISTS idx_agent_types_project_id ON agent_types(project_id);
+	CREATE INDEX IF NOT EXISTS idx_agent_types_slug ON agent_types(slug);
 	CREATE INDEX IF NOT EXISTS idx_tils_project_id ON tils(project_id);
 	CREATE INDEX IF NOT EXISTS idx_tils_task_id ON tils(task_id);
 	CREATE INDEX IF NOT EXISTS idx_tils_agent_id ON tils(agent_id);
@@ -228,25 +264,25 @@ func (tm *TaskManager) initSchema() error {
 	return err
 }
 
-func (tm *TaskManager) CreateTask(title, description string, parentID *string, projectID string, preferredAgentTypeID *string) (*Task, error) {
+func (tm *TaskManager) CreateTask(title, description string, parentID *string, projectID string, preferredAgentTypeSlug *string) (*Task, error) {
 	task := &Task{
-		ID:                   uuid.New().String(),
-		ParentID:             parentID,
-		Title:                title,
-		Description:          description,
-		Status:               TaskStatusPending,
-		ProjectID:            projectID,
-		PreferredAgentTypeID: preferredAgentTypeID,
-		CreatedAt:            time.Now(),
-		UpdatedAt:            time.Now(),
+		ID:                     generateSlug(title),
+		ParentID:               parentID,
+		Title:                  title,
+		Description:            description,
+		Status:                 TaskStatusPending,
+		ProjectID:              projectID,
+		PreferredAgentTypeSlug: preferredAgentTypeSlug,
+		CreatedAt:              time.Now(),
+		UpdatedAt:              time.Now(),
 	}
 
 	query := `
-		INSERT INTO tasks (id, parent_id, title, description, status, project_id, preferred_agent_type_id, created_at, updated_at)
+		INSERT INTO tasks (id, parent_id, title, description, status, project_id, preferred_agent_type_slug, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
-	_, err := tm.db.Exec(query, task.ID, task.ParentID, task.Title, task.Description, task.Status, task.ProjectID, task.PreferredAgentTypeID, task.CreatedAt, task.UpdatedAt)
+	_, err := tm.db.Exec(query, task.ID, task.ParentID, task.Title, task.Description, task.Status, task.ProjectID, task.PreferredAgentTypeSlug, task.CreatedAt, task.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create task: %w", err)
 	}
@@ -257,13 +293,13 @@ func (tm *TaskManager) CreateTask(title, description string, parentID *string, p
 
 func (tm *TaskManager) GetTask(taskID string) (*Task, error) {
 	query := `
-		SELECT id, parent_id, title, description, status, agent_id, project_id, preferred_agent_type_id, created_at, updated_at
+		SELECT id, parent_id, title, description, status, agent_id, project_id, preferred_agent_type_slug, created_at, updated_at
 		FROM tasks WHERE id = ?
 	`
 
 	var task Task
 	row := tm.db.QueryRow(query, taskID)
-	err := row.Scan(&task.ID, &task.ParentID, &task.Title, &task.Description, &task.Status, &task.AgentID, &task.ProjectID, &task.PreferredAgentTypeID, &task.CreatedAt, &task.UpdatedAt)
+	err := row.Scan(&task.ID, &task.ParentID, &task.Title, &task.Description, &task.Status, &task.AgentID, &task.ProjectID, &task.PreferredAgentTypeSlug, &task.CreatedAt, &task.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("task not found: %s", taskID)
@@ -274,9 +310,9 @@ func (tm *TaskManager) GetTask(taskID string) (*Task, error) {
 	return &task, nil
 }
 
-func (tm *TaskManager) ListTasks(parentID *string, status *TaskStatus, agentID *string, projectID *string, preferredAgentTypeID *string) ([]Task, error) {
+func (tm *TaskManager) ListTasks(parentID *string, status *TaskStatus, agentID *string, projectID *string, preferredAgentTypeSlug *string) ([]Task, error) {
 	query := `
-		SELECT id, parent_id, title, description, status, agent_id, project_id, preferred_agent_type_id, created_at, updated_at
+		SELECT id, parent_id, title, description, status, agent_id, project_id, preferred_agent_type_slug, created_at, updated_at
 		FROM tasks WHERE 1=1
 	`
 	var args []interface{}
@@ -305,9 +341,9 @@ func (tm *TaskManager) ListTasks(parentID *string, status *TaskStatus, agentID *
 		args = append(args, *projectID)
 	}
 
-	if preferredAgentTypeID != nil {
-		query += " AND preferred_agent_type_id = ?"
-		args = append(args, *preferredAgentTypeID)
+	if preferredAgentTypeSlug != nil {
+		query += " AND preferred_agent_type_slug = ?"
+		args = append(args, *preferredAgentTypeSlug)
 	}
 
 	query += " ORDER BY created_at ASC"
@@ -321,7 +357,7 @@ func (tm *TaskManager) ListTasks(parentID *string, status *TaskStatus, agentID *
 	var tasks []Task
 	for rows.Next() {
 		var task Task
-		err := rows.Scan(&task.ID, &task.ParentID, &task.Title, &task.Description, &task.Status, &task.AgentID, &task.ProjectID, &task.PreferredAgentTypeID, &task.CreatedAt, &task.UpdatedAt)
+		err := rows.Scan(&task.ID, &task.ParentID, &task.Title, &task.Description, &task.Status, &task.AgentID, &task.ProjectID, &task.PreferredAgentTypeSlug, &task.CreatedAt, &task.UpdatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan task: %w", err)
 		}
@@ -331,17 +367,17 @@ func (tm *TaskManager) ListTasks(parentID *string, status *TaskStatus, agentID *
 	return tasks, nil
 }
 
-func (tm *TaskManager) ListTasksWithAgentInfo(parentID *string, status *TaskStatus, agentID *string, projectID *string, preferredAgentTypeID *string) ([]TaskWithAgentInfo, error) {
+func (tm *TaskManager) ListTasksWithAgentInfo(parentID *string, status *TaskStatus, agentID *string, projectID *string, preferredAgentTypeSlug *string) ([]TaskWithAgentInfo, error) {
 	query := `
 		SELECT 
-			t.id, t.parent_id, t.title, t.description, t.status, t.agent_id, t.project_id, t.preferred_agent_type_id, t.created_at, t.updated_at,
+			t.id, t.parent_id, t.title, t.description, t.status, t.agent_id, t.project_id, t.preferred_agent_type_slug, t.created_at, t.updated_at,
 			a.name as agent_name,
 			at.name as agent_type_name,
 			pat.name as preferred_agent_type_name
 		FROM tasks t
 		LEFT JOIN agents a ON t.agent_id = a.id
-		LEFT JOIN agent_types at ON a.agent_type_id = at.id
-		LEFT JOIN agent_types pat ON t.preferred_agent_type_id = pat.id
+		LEFT JOIN agent_types at ON a.agent_type_slug = at.slug
+		LEFT JOIN agent_types pat ON t.preferred_agent_type_slug = pat.slug
 		WHERE 1=1
 	`
 	var args []interface{}
@@ -370,9 +406,9 @@ func (tm *TaskManager) ListTasksWithAgentInfo(parentID *string, status *TaskStat
 		args = append(args, *projectID)
 	}
 
-	if preferredAgentTypeID != nil {
-		query += " AND t.preferred_agent_type_id = ?"
-		args = append(args, *preferredAgentTypeID)
+	if preferredAgentTypeSlug != nil {
+		query += " AND t.preferred_agent_type_slug = ?"
+		args = append(args, *preferredAgentTypeSlug)
 	}
 
 	query += " ORDER BY t.created_at ASC"
@@ -386,7 +422,7 @@ func (tm *TaskManager) ListTasksWithAgentInfo(parentID *string, status *TaskStat
 	var tasks []TaskWithAgentInfo
 	for rows.Next() {
 		var task TaskWithAgentInfo
-		err := rows.Scan(&task.ID, &task.ParentID, &task.Title, &task.Description, &task.Status, &task.AgentID, &task.ProjectID, &task.PreferredAgentTypeID, &task.CreatedAt, &task.UpdatedAt, &task.AgentName, &task.AgentTypeName, &task.PreferredAgentTypeName)
+		err := rows.Scan(&task.ID, &task.ParentID, &task.Title, &task.Description, &task.Status, &task.AgentID, &task.ProjectID, &task.PreferredAgentTypeSlug, &task.CreatedAt, &task.UpdatedAt, &task.AgentName, &task.AgentTypeName, &task.PreferredAgentTypeName)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan task with agent info: %w", err)
 		}
@@ -461,9 +497,9 @@ func (tm *TaskManager) GetTaskDependencies(taskID string) ([]TaskDependency, err
 	return deps, nil
 }
 
-func (tm *TaskManager) GetAvailableTasks(preferredAgentTypeID *string) ([]Task, error) {
+func (tm *TaskManager) GetAvailableTasks(preferredAgentTypeSlug *string) ([]Task, error) {
 	query := `
-		SELECT t.id, t.parent_id, t.title, t.description, t.status, t.agent_id, t.project_id, t.preferred_agent_type_id, t.created_at, t.updated_at
+		SELECT t.id, t.parent_id, t.title, t.description, t.status, t.agent_id, t.project_id, t.preferred_agent_type_slug, t.created_at, t.updated_at
 		FROM tasks t
 		WHERE t.status = 'pending'
 		AND NOT EXISTS (
@@ -474,9 +510,9 @@ func (tm *TaskManager) GetAvailableTasks(preferredAgentTypeID *string) ([]Task, 
 	`
 	var args []interface{}
 
-	if preferredAgentTypeID != nil {
-		query += " AND t.preferred_agent_type_id = ?"
-		args = append(args, *preferredAgentTypeID)
+	if preferredAgentTypeSlug != nil {
+		query += " AND t.preferred_agent_type_slug = ?"
+		args = append(args, *preferredAgentTypeSlug)
 	}
 
 	query += " ORDER BY t.created_at ASC"
@@ -490,7 +526,7 @@ func (tm *TaskManager) GetAvailableTasks(preferredAgentTypeID *string) ([]Task, 
 	var tasks []Task
 	for rows.Next() {
 		var task Task
-		err := rows.Scan(&task.ID, &task.ParentID, &task.Title, &task.Description, &task.Status, &task.AgentID, &task.ProjectID, &task.PreferredAgentTypeID, &task.CreatedAt, &task.UpdatedAt)
+		err := rows.Scan(&task.ID, &task.ParentID, &task.Title, &task.Description, &task.Status, &task.AgentID, &task.ProjectID, &task.PreferredAgentTypeSlug, &task.CreatedAt, &task.UpdatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan task: %w", err)
 		}
@@ -500,17 +536,17 @@ func (tm *TaskManager) GetAvailableTasks(preferredAgentTypeID *string) ([]Task, 
 	return tasks, nil
 }
 
-func (tm *TaskManager) GetAvailableTasksWithAgentInfo(preferredAgentTypeID *string) ([]TaskWithAgentInfo, error) {
+func (tm *TaskManager) GetAvailableTasksWithAgentInfo(preferredAgentTypeSlug *string) ([]TaskWithAgentInfo, error) {
 	query := `
 		SELECT 
-			t.id, t.parent_id, t.title, t.description, t.status, t.agent_id, t.project_id, t.preferred_agent_type_id, t.created_at, t.updated_at,
+			t.id, t.parent_id, t.title, t.description, t.status, t.agent_id, t.project_id, t.preferred_agent_type_slug, t.created_at, t.updated_at,
 			a.name as agent_name,
 			at.name as agent_type_name,
 			pat.name as preferred_agent_type_name
 		FROM tasks t
 		LEFT JOIN agents a ON t.agent_id = a.id
-		LEFT JOIN agent_types at ON a.agent_type_id = at.id
-		LEFT JOIN agent_types pat ON t.preferred_agent_type_id = pat.id
+		LEFT JOIN agent_types at ON a.agent_type_slug = at.slug
+		LEFT JOIN agent_types pat ON t.preferred_agent_type_slug = pat.slug
 		WHERE t.status = 'pending'
 		AND NOT EXISTS (
 			SELECT 1 FROM task_dependencies td
@@ -520,9 +556,9 @@ func (tm *TaskManager) GetAvailableTasksWithAgentInfo(preferredAgentTypeID *stri
 	`
 	var args []interface{}
 
-	if preferredAgentTypeID != nil {
-		query += " AND t.preferred_agent_type_id = ?"
-		args = append(args, *preferredAgentTypeID)
+	if preferredAgentTypeSlug != nil {
+		query += " AND t.preferred_agent_type_slug = ?"
+		args = append(args, *preferredAgentTypeSlug)
 	}
 
 	query += " ORDER BY t.created_at ASC"
@@ -536,7 +572,7 @@ func (tm *TaskManager) GetAvailableTasksWithAgentInfo(preferredAgentTypeID *stri
 	var tasks []TaskWithAgentInfo
 	for rows.Next() {
 		var task TaskWithAgentInfo
-		err := rows.Scan(&task.ID, &task.ParentID, &task.Title, &task.Description, &task.Status, &task.AgentID, &task.ProjectID, &task.PreferredAgentTypeID, &task.CreatedAt, &task.UpdatedAt, &task.AgentName, &task.AgentTypeName, &task.PreferredAgentTypeName)
+		err := rows.Scan(&task.ID, &task.ParentID, &task.Title, &task.Description, &task.Status, &task.AgentID, &task.ProjectID, &task.PreferredAgentTypeSlug, &task.CreatedAt, &task.UpdatedAt, &task.AgentName, &task.AgentTypeName, &task.PreferredAgentTypeName)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan available task with agent info: %w", err)
 		}
@@ -546,22 +582,22 @@ func (tm *TaskManager) GetAvailableTasksWithAgentInfo(preferredAgentTypeID *stri
 	return tasks, nil
 }
 
-func (tm *TaskManager) CreateAgent(name string, agentTypeID *string) (*Agent, error) {
+func (tm *TaskManager) CreateAgent(name string, agentTypeSlug *string) (*Agent, error) {
 	agent := &Agent{
-		ID:          uuid.New().String(),
-		Name:        name,
-		Status:      "idle",
-		AgentTypeID: agentTypeID,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		ID:            generateSlug(name),
+		Name:          name,
+		Status:        "idle",
+		AgentTypeSlug: agentTypeSlug,
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
 	}
 
 	query := `
-		INSERT INTO agents (id, name, status, agent_type_id, created_at, updated_at)
+		INSERT INTO agents (id, name, status, agent_type_slug, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?)
 	`
 
-	_, err := tm.db.Exec(query, agent.ID, agent.Name, agent.Status, agent.AgentTypeID, agent.CreatedAt, agent.UpdatedAt)
+	_, err := tm.db.Exec(query, agent.ID, agent.Name, agent.Status, agent.AgentTypeSlug, agent.CreatedAt, agent.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create agent: %w", err)
 	}
@@ -572,7 +608,7 @@ func (tm *TaskManager) CreateAgent(name string, agentTypeID *string) (*Agent, er
 
 func (tm *TaskManager) ListAgents() ([]Agent, error) {
 	query := `
-		SELECT id, name, status, agent_type_id, created_at, updated_at
+		SELECT id, name, status, agent_type_slug, created_at, updated_at
 		FROM agents ORDER BY created_at ASC
 	`
 
@@ -585,7 +621,7 @@ func (tm *TaskManager) ListAgents() ([]Agent, error) {
 	var agents []Agent
 	for rows.Next() {
 		var agent Agent
-		err := rows.Scan(&agent.ID, &agent.Name, &agent.Status, &agent.AgentTypeID, &agent.CreatedAt, &agent.UpdatedAt)
+		err := rows.Scan(&agent.ID, &agent.Name, &agent.Status, &agent.AgentTypeSlug, &agent.CreatedAt, &agent.UpdatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan agent: %w", err)
 		}
@@ -598,7 +634,7 @@ func (tm *TaskManager) ListAgents() ([]Agent, error) {
 // Project management methods
 func (tm *TaskManager) CreateProject(name, description, guidelines string, authorID *string) (*Project, error) {
 	project := &Project{
-		ID:          uuid.New().String(),
+		ID:          generateSlug(name),
 		Name:        name,
 		Description: description,
 		Guidelines:  guidelines,
@@ -694,7 +730,8 @@ func (tm *TaskManager) ListProjects() ([]Project, error) {
 // Agent type management methods
 func (tm *TaskManager) CreateAgentType(name, description, projectID string) (*AgentType, error) {
 	agentType := &AgentType{
-		ID:          uuid.New().String(),
+		ID:          generateSlug(name),
+		Slug:        generateSlug(name),
 		Name:        name,
 		Description: description,
 		ProjectID:   projectID,
@@ -703,22 +740,22 @@ func (tm *TaskManager) CreateAgentType(name, description, projectID string) (*Ag
 	}
 
 	query := `
-		INSERT INTO agent_types (id, name, description, project_id, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?)
+		INSERT INTO agent_types (id, slug, name, description, project_id, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`
 
-	_, err := tm.db.Exec(query, agentType.ID, agentType.Name, agentType.Description, agentType.ProjectID, agentType.CreatedAt, agentType.UpdatedAt)
+	_, err := tm.db.Exec(query, agentType.ID, agentType.Slug, agentType.Name, agentType.Description, agentType.ProjectID, agentType.CreatedAt, agentType.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create agent type: %w", err)
 	}
 
-	tm.logger.Debug().Str("agent_type_id", agentType.ID).Str("name", agentType.Name).Msg("Agent type created")
+	tm.logger.Debug().Str("agent_type_slug", agentType.Slug).Str("name", agentType.Name).Msg("Agent type created")
 	return agentType, nil
 }
 
 func (tm *TaskManager) ListAgentTypes(projectID *string) ([]AgentType, error) {
 	query := `
-		SELECT id, name, description, project_id, created_at, updated_at
+		SELECT id, slug, name, description, project_id, created_at, updated_at
 		FROM agent_types WHERE 1=1
 	`
 	var args []interface{}
@@ -739,7 +776,7 @@ func (tm *TaskManager) ListAgentTypes(projectID *string) ([]AgentType, error) {
 	var agentTypes []AgentType
 	for rows.Next() {
 		var agentType AgentType
-		err := rows.Scan(&agentType.ID, &agentType.Name, &agentType.Description, &agentType.ProjectID, &agentType.CreatedAt, &agentType.UpdatedAt)
+		err := rows.Scan(&agentType.ID, &agentType.Slug, &agentType.Name, &agentType.Description, &agentType.ProjectID, &agentType.CreatedAt, &agentType.UpdatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan agent type: %w", err)
 		}
@@ -749,19 +786,19 @@ func (tm *TaskManager) ListAgentTypes(projectID *string) ([]AgentType, error) {
 	return agentTypes, nil
 }
 
-func (tm *TaskManager) AssignTaskToAgentType(taskID, agentTypeID string) error {
+func (tm *TaskManager) AssignTaskToAgentType(taskID, agentTypeSlug string) error {
 	// Find an available agent of this type
 	query := `
 		SELECT id FROM agents 
-		WHERE agent_type_id = ? AND status = 'idle' 
+		WHERE agent_type_slug = ? AND status = 'idle' 
 		ORDER BY created_at ASC LIMIT 1
 	`
 
 	var agentID string
-	err := tm.db.QueryRow(query, agentTypeID).Scan(&agentID)
+	err := tm.db.QueryRow(query, agentTypeSlug).Scan(&agentID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return fmt.Errorf("no available agents of type %s", agentTypeID)
+			return fmt.Errorf("no available agents of type %s", agentTypeSlug)
 		}
 		return fmt.Errorf("failed to find agent: %w", err)
 	}
@@ -803,7 +840,7 @@ func (tm *TaskManager) GetGlobalKV(key string) (string, error) {
 // TIL management methods
 func (tm *TaskManager) CreateTIL(projectID string, taskID *string, agentID string, title string, content string) (*TIL, error) {
 	til := &TIL{
-		ID:        uuid.New().String(),
+		ID:        generateSlug(title),
 		ProjectID: projectID,
 		TaskID:    taskID,
 		AgentID:   agentID,
@@ -877,7 +914,7 @@ func (tm *TaskManager) ListTILs(projectID *string, taskID *string, agentID *stri
 // Note management methods
 func (tm *TaskManager) CreateNote(taskID string, agentID string, content string) (*Note, error) {
 	note := &Note{
-		ID:        uuid.New().String(),
+		ID:        generateSlug("note"),
 		TaskID:    taskID,
 		AgentID:   agentID,
 		Content:   content,
