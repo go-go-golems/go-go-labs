@@ -65,6 +65,10 @@ type Coordinator struct {
 	streams    []models.StreamData
 	serverData models.ServerData
 
+	// Message rate tracking
+	streamLengthHistory map[string][]int64 // Track stream lengths over time
+	lengthHistorySize   int                // Number of data points to keep
+
 	// Submodels
 	streamsView    *StreamsView
 	groupsView     *GroupsView
@@ -98,6 +102,10 @@ func NewCoordinator(client RedisClient, demoMode bool, refreshRate time.Duration
 		refreshRate: refreshRate,
 		currentView: "streams",
 		styles:      styles,
+
+		// Initialize message rate tracking
+		streamLengthHistory: make(map[string][]int64),
+		lengthHistorySize:   20, // Keep last 20 data points
 
 		// Initialize submodels
 		streamsView:    NewStreamsView(styles),
@@ -314,7 +322,7 @@ func (c *Coordinator) fetchData() tea.Cmd {
 				Groups:         info.Groups,
 				LastID:         info.LastGeneratedID,
 				ConsumerGroups: groupData,
-				MessageRates:   generateSparklineData(10), // Mock for now
+				MessageRates:   c.calculateMessageRates(info.Name, info.Length),
 			})
 		}
 
@@ -396,7 +404,54 @@ func (c *Coordinator) fetchDemoData() tea.Cmd {
 	}
 }
 
-// generateSparklineData creates mock sparkline data
+// calculateMessageRates calculates message rates for sparkline display
+func (c *Coordinator) calculateMessageRates(streamName string, currentLength int64) []float64 {
+	// Get or create history for this stream
+	if _, exists := c.streamLengthHistory[streamName]; !exists {
+		c.streamLengthHistory[streamName] = make([]int64, 0, c.lengthHistorySize)
+	}
+	
+	history := c.streamLengthHistory[streamName]
+	
+	// Add current length to history
+	history = append(history, currentLength)
+	
+	// Keep only the last lengthHistorySize entries
+	if len(history) > c.lengthHistorySize {
+		history = history[len(history)-c.lengthHistorySize:]
+	}
+	
+	// Update the history
+	c.streamLengthHistory[streamName] = history
+	
+	// Calculate rates (differences between consecutive measurements)
+	rates := make([]float64, len(history))
+	if len(history) > 1 {
+		for i := 1; i < len(history); i++ {
+			rate := float64(history[i] - history[i-1])
+			if rate < 0 {
+				rate = 0 // Handle stream resets/deletions
+			}
+			rates[i] = rate
+		}
+	}
+	
+	// If we don't have enough data, pad with zeros
+	if len(rates) < 10 {
+		padded := make([]float64, 10)
+		copy(padded[10-len(rates):], rates)
+		return padded
+	}
+	
+	// Return the last 10 rates for display
+	if len(rates) > 10 {
+		return rates[len(rates)-10:]
+	}
+	
+	return rates
+}
+
+// generateSparklineData creates mock sparkline data (kept for demo mode)
 func generateSparklineData(length int) []float64 {
 	data := make([]float64, length)
 	for i := range data {

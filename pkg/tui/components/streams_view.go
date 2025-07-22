@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/go-go-golems/go-go-labs/pkg/sparkline"
 	"github.com/go-go-golems/go-go-labs/pkg/tui/models"
 	"github.com/go-go-golems/go-go-labs/pkg/tui/styles"
 )
@@ -13,6 +14,7 @@ import (
 type StreamsView struct {
 	styles      styles.Styles
 	streams     []models.StreamData
+	sparklines  map[string]*sparkline.Sparkline // Map of stream name to sparkline
 	selectedIdx int
 	width       int
 	height      int
@@ -26,7 +28,8 @@ type StreamsDataMsg struct {
 // NewStreamsView creates a new streams view
 func NewStreamsView(styles styles.Styles) *StreamsView {
 	return &StreamsView{
-		styles: styles,
+		styles:     styles,
+		sparklines: make(map[string]*sparkline.Sparkline),
 	}
 }
 
@@ -44,6 +47,22 @@ func (v *StreamsView) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case StreamsDataMsg:
 		v.streams = msg.Streams
+		// Update sparklines for each stream
+		for _, stream := range msg.Streams {
+			if _, exists := v.sparklines[stream.Name]; !exists {
+				// Create new sparkline for this stream
+				config := sparkline.Config{
+					Width:        15,
+					Height:       1,
+					MaxPoints:    20,
+					Style:        sparkline.StyleBars,
+					DefaultStyle: v.styles.Sparkline,
+				}
+				v.sparklines[stream.Name] = sparkline.New(config)
+			}
+			// Set the data for this stream's sparkline
+			v.sparklines[stream.Name].SetData(stream.MessageRates)
+		}
 		// Ensure selected index is within bounds
 		if v.selectedIdx >= len(v.streams) {
 			v.selectedIdx = len(v.streams) - 1
@@ -80,14 +99,17 @@ func (v *StreamsView) View() string {
 	rows = append(rows, v.styles.Selected.Render(header))
 
 	for i, stream := range v.streams {
-		sparkline := v.renderSparkline(stream.MessageRates)
+		var sparklineStr string
+		if sl, exists := v.sparklines[stream.Name]; exists {
+			sparklineStr = sl.Render()
+		}
 		row := fmt.Sprintf("%-15s %-10d %-10s %-8d %-15s %s",
 			truncateString(stream.Name, 15),
 			stream.Length,
 			formatBytes(stream.MemoryUsage),
 			stream.Groups,
 			truncateString(stream.LastID, 15),
-			sparkline)
+			sparklineStr)
 
 		if i == v.selectedIdx {
 			rows = append(rows, v.styles.Selected.Render(row))
@@ -118,29 +140,6 @@ func (v *StreamsView) GetSelectedStream() *models.StreamData {
 		return &v.streams[v.selectedIdx]
 	}
 	return nil
-}
-
-// renderSparkline creates a text-based sparkline
-func (v *StreamsView) renderSparkline(data []float64) string {
-	if len(data) == 0 {
-		return ""
-	}
-
-	bars := []rune{'▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'}
-	var result strings.Builder
-
-	for _, value := range data {
-		if value <= 0 {
-			result.WriteRune(' ')
-		} else if value >= 1 {
-			result.WriteRune(bars[len(bars)-1])
-		} else {
-			idx := int(value * float64(len(bars)-1))
-			result.WriteRune(bars[idx])
-		}
-	}
-
-	return v.styles.Sparkline.Render(result.String())
 }
 
 // truncateString truncates a string to a given length with ellipsis
