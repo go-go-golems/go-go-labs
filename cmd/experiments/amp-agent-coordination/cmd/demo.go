@@ -54,30 +54,36 @@ This command will:
 		}
 
 		// Create root task
-		rootTask, err := tm.CreateTask("Build Agent Coordination System", "Main project to build agent coordination system", nil, project.ID)
+		rootTask, err := tm.CreateTask("Build Agent Coordination System", "Main project to build agent coordination system", nil, project.ID, nil)
 		if err != nil {
 			return fmt.Errorf("failed to create root task: %w", err)
 		}
 
-		// Create subtasks
-		designTask, err := tm.CreateTask("Design Database Schema", "Design the task management database schema", &rootTask.ID, project.ID)
+		// Create subtasks with preferred agent types
+		designTask, err := tm.CreateTask("Design Database Schema", "Design the task management database schema", &rootTask.ID, project.ID, &codeReviewType.ID)
 		if err != nil {
 			return fmt.Errorf("failed to create design task: %w", err)
 		}
 
-		implementTask, err := tm.CreateTask("Implement Task Manager", "Implement the task manager with CRUD operations", &rootTask.ID, project.ID)
+		implementTask, err := tm.CreateTask("Implement Task Manager", "Implement the task manager with CRUD operations", &rootTask.ID, project.ID, &codeReviewType.ID)
 		if err != nil {
 			return fmt.Errorf("failed to create implement task: %w", err)
 		}
 
-		testTask, err := tm.CreateTask("Write Tests", "Write unit tests for task manager", &rootTask.ID, project.ID)
+		testTask, err := tm.CreateTask("Write Tests", "Write unit tests for task manager", &rootTask.ID, project.ID, &testRunnerType.ID)
 		if err != nil {
 			return fmt.Errorf("failed to create test task: %w", err)
 		}
 
-		cliTask, err := tm.CreateTask("Build CLI Tools", "Create command-line interface tools", &rootTask.ID, project.ID)
+		cliTask, err := tm.CreateTask("Build CLI Tools", "Create command-line interface tools", &rootTask.ID, project.ID, nil)
 		if err != nil {
 			return fmt.Errorf("failed to create CLI task: %w", err)
+		}
+
+		// Create documentation task to demonstrate the feature
+		_, err = tm.CreateTask("Write Documentation", "Create user and API documentation", &rootTask.ID, project.ID, &docAgentType.ID)
+		if err != nil {
+			return fmt.Errorf("failed to create doc task: %w", err)
 		}
 
 		// Add dependencies
@@ -118,7 +124,7 @@ This command will:
 		logger.Info().Msg("Simulating agent workflow...")
 
 		// Get available tasks
-		availableTasks, err := tm.GetAvailableTasks()
+		availableTasks, err := tm.GetAvailableTasks(nil)
 		if err != nil {
 			return fmt.Errorf("failed to get available tasks: %w", err)
 		}
@@ -146,7 +152,7 @@ This command will:
 			fmt.Printf("Completed '%s'\n", firstTask.Title)
 
 			// Check available tasks again
-			availableTasks, err = tm.GetAvailableTasks()
+			availableTasks, err = tm.GetAvailableTasks(nil)
 			if err != nil {
 				return fmt.Errorf("failed to get available tasks: %w", err)
 			}

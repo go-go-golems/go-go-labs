@@ -56,7 +56,13 @@ Examples:
 			agentID = &agent
 		}
 
-		tasks, err := tm.ListTasksWithAgentInfo(parentID, status, agentID, nil)
+		var preferredAgentTypeID *string
+		if cmd.Flags().Changed("agent-type") {
+			agentType, _ := cmd.Flags().GetString("agent-type")
+			preferredAgentTypeID = &agentType
+		}
+
+		tasks, err := tm.ListTasksWithAgentInfo(parentID, status, agentID, nil, preferredAgentTypeID)
 		if err != nil {
 			return fmt.Errorf("failed to list tasks: %w", err)
 		}
@@ -153,7 +159,13 @@ Examples:
 			return fmt.Errorf("failed to get default project: %w", err)
 		}
 
-		task, err := tm.CreateTask(title, description, parentID, project.ID)
+		var preferredAgentTypeID *string
+		if cmd.Flags().Changed("agent-type") {
+			agentType, _ := cmd.Flags().GetString("agent-type")
+			preferredAgentTypeID = &agentType
+		}
+
+		task, err := tm.CreateTask(title, description, parentID, project.ID, preferredAgentTypeID)
 		if err != nil {
 			return fmt.Errorf("failed to create task: %w", err)
 		}
@@ -191,7 +203,13 @@ Shows assignment status and agent type information where available.`,
 		}
 		defer tm.Close()
 
-		tasks, err := tm.GetAvailableTasksWithAgentInfo()
+		var preferredAgentTypeID *string
+		if cmd.Flags().Changed("agent-type") {
+			agentType, _ := cmd.Flags().GetString("agent-type")
+			preferredAgentTypeID = &agentType
+		}
+
+		tasks, err := tm.GetAvailableTasksWithAgentInfo(preferredAgentTypeID)
 		if err != nil {
 			return fmt.Errorf("failed to get available tasks: %w", err)
 		}
@@ -282,7 +300,7 @@ Examples:
 
 		// If task completed, show available tasks in dual mode
 		if status == TaskStatusCompleted {
-			availableTasks, err := tm.GetAvailableTasks()
+			availableTasks, err := tm.GetAvailableTasks(nil)
 			if err == nil && len(availableTasks) > 0 {
 				fmt.Printf("\nAvailable tasks after completion:\n")
 				for _, task := range availableTasks {
@@ -444,10 +462,15 @@ func init() {
 	listTasksCmd.Flags().String("parent", "", "Filter by parent task ID (empty string for root tasks)")
 	listTasksCmd.Flags().String("status", "", "Filter by status (pending, in_progress, completed, failed)")
 	listTasksCmd.Flags().String("agent", "", "Filter by agent ID")
+	listTasksCmd.Flags().String("agent-type", "", "Filter by preferred agent type ID")
+
+	// Available tasks specific flags
+	availableTasksCmd.Flags().String("agent-type", "", "Filter by preferred agent type ID")
 
 	// Create specific flags
 	createTaskCmd.Flags().StringP("description", "d", "", "Task description")
 	createTaskCmd.Flags().StringP("parent", "p", "", "Parent task ID")
+	createTaskCmd.Flags().String("agent-type", "", "Preferred agent type ID for this task")
 	createTaskCmd.Flags().StringP("output", "o", "table", "Output format (table, json)")
 }
 
@@ -471,7 +494,7 @@ func outputTasksWithAgentInfoTable(tasks []TaskWithAgentInfo) error {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tTITLE\tSTATUS\tASSIGNED\tAGENT_TYPE\tPARENT\tCREATED")
+	fmt.Fprintln(w, "ID\tTITLE\tSTATUS\tASSIGNED\tAGENT_TYPE\tPREFERRED_TYPE\tPARENT\tCREATED")
 
 	for _, task := range tasks {
 		id := truncateString(task.ID, 8)
@@ -488,21 +511,26 @@ func outputTasksWithAgentInfoTable(tasks []TaskWithAgentInfo) error {
 			}
 		}
 
+		preferredType := "none"
+		if task.PreferredAgentTypeName != nil {
+			preferredType = truncateString(*task.PreferredAgentTypeName, 12)
+		}
+
 		parent := "none"
 		if task.ParentID != nil {
 			parent = truncateString(*task.ParentID, 8)
 		}
 		created := task.CreatedAt.Format("2006-01-02 15:04")
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-			id, title, task.Status, assigned, agentType, parent, created)
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+			id, title, task.Status, assigned, agentType, preferredType, parent, created)
 	}
 
 	return w.Flush()
 }
 
 func outputTasksWithAgentInfoCSV(tasks []TaskWithAgentInfo) error {
-	fmt.Println("id,title,description,status,assigned,agent_id,agent_name,agent_type_name,parent_id,created_at,updated_at")
+	fmt.Println("id,title,description,status,assigned,agent_id,agent_name,agent_type_name,preferred_agent_type_id,preferred_agent_type_name,parent_id,created_at,updated_at")
 	for _, task := range tasks {
 		agentID := ""
 		agentName := ""
@@ -520,12 +548,22 @@ func outputTasksWithAgentInfoCSV(tasks []TaskWithAgentInfo) error {
 			agentTypeName = *task.AgentTypeName
 		}
 
+		preferredAgentTypeID := ""
+		if task.PreferredAgentTypeID != nil {
+			preferredAgentTypeID = *task.PreferredAgentTypeID
+		}
+
+		preferredAgentTypeName := ""
+		if task.PreferredAgentTypeName != nil {
+			preferredAgentTypeName = *task.PreferredAgentTypeName
+		}
+
 		parentID := ""
 		if task.ParentID != nil {
 			parentID = *task.ParentID
 		}
 
-		fmt.Printf("%s,%q,%q,%s,%s,%s,%q,%q,%s,%s,%s\n",
+		fmt.Printf("%s,%q,%q,%s,%s,%s,%q,%q,%s,%q,%s,%s,%s\n",
 			task.ID,
 			task.Title,
 			task.Description,
@@ -534,6 +572,8 @@ func outputTasksWithAgentInfoCSV(tasks []TaskWithAgentInfo) error {
 			agentID,
 			agentName,
 			agentTypeName,
+			preferredAgentTypeID,
+			preferredAgentTypeName,
 			parentID,
 			task.CreatedAt.Format(time.RFC3339),
 			task.UpdatedAt.Format(time.RFC3339),

@@ -20,21 +20,23 @@ const (
 )
 
 type Task struct {
-	ID          string     `json:"id"`
-	ParentID    *string    `json:"parent_id"`
-	Title       string     `json:"title"`
-	Description string     `json:"description"`
-	Status      TaskStatus `json:"status"`
-	AgentID     *string    `json:"agent_id"`
-	ProjectID   string     `json:"project_id"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	ID                     string     `json:"id"`
+	ParentID               *string    `json:"parent_id"`
+	Title                  string     `json:"title"`
+	Description            string     `json:"description"`
+	Status                 TaskStatus `json:"status"`
+	AgentID                *string    `json:"agent_id"`
+	ProjectID              string     `json:"project_id"`
+	PreferredAgentTypeID   *string    `json:"preferred_agent_type_id"`
+	CreatedAt              time.Time  `json:"created_at"`
+	UpdatedAt              time.Time  `json:"updated_at"`
 }
 
 type TaskWithAgentInfo struct {
 	Task
-	AgentName     *string `json:"agent_name"`
-	AgentTypeName *string `json:"agent_type_name"`
+	AgentName             *string `json:"agent_name"`
+	AgentTypeName         *string `json:"agent_type_name"`
+	PreferredAgentTypeName *string `json:"preferred_agent_type_name"`
 }
 
 type TaskDependency struct {
@@ -167,6 +169,7 @@ func (tm *TaskManager) initSchema() error {
 		status TEXT NOT NULL DEFAULT 'pending',
 		agent_id TEXT REFERENCES agents(id),
 		project_id TEXT NOT NULL REFERENCES projects(id),
+		preferred_agent_type_id TEXT REFERENCES agent_types(id),
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 	);
@@ -210,6 +213,7 @@ func (tm *TaskManager) initSchema() error {
 	CREATE INDEX IF NOT EXISTS idx_tasks_agent_id ON tasks(agent_id);
 	CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 	CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id);
+	CREATE INDEX IF NOT EXISTS idx_tasks_preferred_agent_type_id ON tasks(preferred_agent_type_id);
 	CREATE INDEX IF NOT EXISTS idx_agents_status ON agents(status);
 	CREATE INDEX IF NOT EXISTS idx_agents_type_id ON agents(agent_type_id);
 	CREATE INDEX IF NOT EXISTS idx_agent_types_project_id ON agent_types(project_id);
@@ -224,24 +228,25 @@ func (tm *TaskManager) initSchema() error {
 	return err
 }
 
-func (tm *TaskManager) CreateTask(title, description string, parentID *string, projectID string) (*Task, error) {
+func (tm *TaskManager) CreateTask(title, description string, parentID *string, projectID string, preferredAgentTypeID *string) (*Task, error) {
 	task := &Task{
-		ID:          uuid.New().String(),
-		ParentID:    parentID,
-		Title:       title,
-		Description: description,
-		Status:      TaskStatusPending,
-		ProjectID:   projectID,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		ID:                   uuid.New().String(),
+		ParentID:             parentID,
+		Title:                title,
+		Description:          description,
+		Status:               TaskStatusPending,
+		ProjectID:            projectID,
+		PreferredAgentTypeID: preferredAgentTypeID,
+		CreatedAt:            time.Now(),
+		UpdatedAt:            time.Now(),
 	}
 
 	query := `
-		INSERT INTO tasks (id, parent_id, title, description, status, project_id, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO tasks (id, parent_id, title, description, status, project_id, preferred_agent_type_id, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
-	_, err := tm.db.Exec(query, task.ID, task.ParentID, task.Title, task.Description, task.Status, task.ProjectID, task.CreatedAt, task.UpdatedAt)
+	_, err := tm.db.Exec(query, task.ID, task.ParentID, task.Title, task.Description, task.Status, task.ProjectID, task.PreferredAgentTypeID, task.CreatedAt, task.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create task: %w", err)
 	}
@@ -252,13 +257,13 @@ func (tm *TaskManager) CreateTask(title, description string, parentID *string, p
 
 func (tm *TaskManager) GetTask(taskID string) (*Task, error) {
 	query := `
-		SELECT id, parent_id, title, description, status, agent_id, project_id, created_at, updated_at
+		SELECT id, parent_id, title, description, status, agent_id, project_id, preferred_agent_type_id, created_at, updated_at
 		FROM tasks WHERE id = ?
 	`
 
 	var task Task
 	row := tm.db.QueryRow(query, taskID)
-	err := row.Scan(&task.ID, &task.ParentID, &task.Title, &task.Description, &task.Status, &task.AgentID, &task.ProjectID, &task.CreatedAt, &task.UpdatedAt)
+	err := row.Scan(&task.ID, &task.ParentID, &task.Title, &task.Description, &task.Status, &task.AgentID, &task.ProjectID, &task.PreferredAgentTypeID, &task.CreatedAt, &task.UpdatedAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("task not found: %s", taskID)
@@ -269,9 +274,9 @@ func (tm *TaskManager) GetTask(taskID string) (*Task, error) {
 	return &task, nil
 }
 
-func (tm *TaskManager) ListTasks(parentID *string, status *TaskStatus, agentID *string, projectID *string) ([]Task, error) {
+func (tm *TaskManager) ListTasks(parentID *string, status *TaskStatus, agentID *string, projectID *string, preferredAgentTypeID *string) ([]Task, error) {
 	query := `
-		SELECT id, parent_id, title, description, status, agent_id, project_id, created_at, updated_at
+		SELECT id, parent_id, title, description, status, agent_id, project_id, preferred_agent_type_id, created_at, updated_at
 		FROM tasks WHERE 1=1
 	`
 	var args []interface{}
@@ -300,6 +305,11 @@ func (tm *TaskManager) ListTasks(parentID *string, status *TaskStatus, agentID *
 		args = append(args, *projectID)
 	}
 
+	if preferredAgentTypeID != nil {
+		query += " AND preferred_agent_type_id = ?"
+		args = append(args, *preferredAgentTypeID)
+	}
+
 	query += " ORDER BY created_at ASC"
 
 	rows, err := tm.db.Query(query, args...)
@@ -311,7 +321,7 @@ func (tm *TaskManager) ListTasks(parentID *string, status *TaskStatus, agentID *
 	var tasks []Task
 	for rows.Next() {
 		var task Task
-		err := rows.Scan(&task.ID, &task.ParentID, &task.Title, &task.Description, &task.Status, &task.AgentID, &task.ProjectID, &task.CreatedAt, &task.UpdatedAt)
+		err := rows.Scan(&task.ID, &task.ParentID, &task.Title, &task.Description, &task.Status, &task.AgentID, &task.ProjectID, &task.PreferredAgentTypeID, &task.CreatedAt, &task.UpdatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan task: %w", err)
 		}
@@ -321,15 +331,17 @@ func (tm *TaskManager) ListTasks(parentID *string, status *TaskStatus, agentID *
 	return tasks, nil
 }
 
-func (tm *TaskManager) ListTasksWithAgentInfo(parentID *string, status *TaskStatus, agentID *string, projectID *string) ([]TaskWithAgentInfo, error) {
+func (tm *TaskManager) ListTasksWithAgentInfo(parentID *string, status *TaskStatus, agentID *string, projectID *string, preferredAgentTypeID *string) ([]TaskWithAgentInfo, error) {
 	query := `
 		SELECT 
-			t.id, t.parent_id, t.title, t.description, t.status, t.agent_id, t.project_id, t.created_at, t.updated_at,
+			t.id, t.parent_id, t.title, t.description, t.status, t.agent_id, t.project_id, t.preferred_agent_type_id, t.created_at, t.updated_at,
 			a.name as agent_name,
-			at.name as agent_type_name
+			at.name as agent_type_name,
+			pat.name as preferred_agent_type_name
 		FROM tasks t
 		LEFT JOIN agents a ON t.agent_id = a.id
 		LEFT JOIN agent_types at ON a.agent_type_id = at.id
+		LEFT JOIN agent_types pat ON t.preferred_agent_type_id = pat.id
 		WHERE 1=1
 	`
 	var args []interface{}
@@ -358,6 +370,11 @@ func (tm *TaskManager) ListTasksWithAgentInfo(parentID *string, status *TaskStat
 		args = append(args, *projectID)
 	}
 
+	if preferredAgentTypeID != nil {
+		query += " AND t.preferred_agent_type_id = ?"
+		args = append(args, *preferredAgentTypeID)
+	}
+
 	query += " ORDER BY t.created_at ASC"
 
 	rows, err := tm.db.Query(query, args...)
@@ -369,7 +386,7 @@ func (tm *TaskManager) ListTasksWithAgentInfo(parentID *string, status *TaskStat
 	var tasks []TaskWithAgentInfo
 	for rows.Next() {
 		var task TaskWithAgentInfo
-		err := rows.Scan(&task.ID, &task.ParentID, &task.Title, &task.Description, &task.Status, &task.AgentID, &task.ProjectID, &task.CreatedAt, &task.UpdatedAt, &task.AgentName, &task.AgentTypeName)
+		err := rows.Scan(&task.ID, &task.ParentID, &task.Title, &task.Description, &task.Status, &task.AgentID, &task.ProjectID, &task.PreferredAgentTypeID, &task.CreatedAt, &task.UpdatedAt, &task.AgentName, &task.AgentTypeName, &task.PreferredAgentTypeName)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan task with agent info: %w", err)
 		}
@@ -444,9 +461,9 @@ func (tm *TaskManager) GetTaskDependencies(taskID string) ([]TaskDependency, err
 	return deps, nil
 }
 
-func (tm *TaskManager) GetAvailableTasks() ([]Task, error) {
+func (tm *TaskManager) GetAvailableTasks(preferredAgentTypeID *string) ([]Task, error) {
 	query := `
-		SELECT t.id, t.parent_id, t.title, t.description, t.status, t.agent_id, t.project_id, t.created_at, t.updated_at
+		SELECT t.id, t.parent_id, t.title, t.description, t.status, t.agent_id, t.project_id, t.preferred_agent_type_id, t.created_at, t.updated_at
 		FROM tasks t
 		WHERE t.status = 'pending'
 		AND NOT EXISTS (
@@ -454,10 +471,17 @@ func (tm *TaskManager) GetAvailableTasks() ([]Task, error) {
 			JOIN tasks dep ON td.depends_on_id = dep.id
 			WHERE td.task_id = t.id AND dep.status != 'completed'
 		)
-		ORDER BY t.created_at ASC
 	`
+	var args []interface{}
 
-	rows, err := tm.db.Query(query)
+	if preferredAgentTypeID != nil {
+		query += " AND t.preferred_agent_type_id = ?"
+		args = append(args, *preferredAgentTypeID)
+	}
+
+	query += " ORDER BY t.created_at ASC"
+
+	rows, err := tm.db.Query(query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get available tasks: %w", err)
 	}
@@ -466,7 +490,7 @@ func (tm *TaskManager) GetAvailableTasks() ([]Task, error) {
 	var tasks []Task
 	for rows.Next() {
 		var task Task
-		err := rows.Scan(&task.ID, &task.ParentID, &task.Title, &task.Description, &task.Status, &task.AgentID, &task.ProjectID, &task.CreatedAt, &task.UpdatedAt)
+		err := rows.Scan(&task.ID, &task.ParentID, &task.Title, &task.Description, &task.Status, &task.AgentID, &task.ProjectID, &task.PreferredAgentTypeID, &task.CreatedAt, &task.UpdatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan task: %w", err)
 		}
@@ -476,25 +500,34 @@ func (tm *TaskManager) GetAvailableTasks() ([]Task, error) {
 	return tasks, nil
 }
 
-func (tm *TaskManager) GetAvailableTasksWithAgentInfo() ([]TaskWithAgentInfo, error) {
+func (tm *TaskManager) GetAvailableTasksWithAgentInfo(preferredAgentTypeID *string) ([]TaskWithAgentInfo, error) {
 	query := `
 		SELECT 
-			t.id, t.parent_id, t.title, t.description, t.status, t.agent_id, t.project_id, t.created_at, t.updated_at,
+			t.id, t.parent_id, t.title, t.description, t.status, t.agent_id, t.project_id, t.preferred_agent_type_id, t.created_at, t.updated_at,
 			a.name as agent_name,
-			at.name as agent_type_name
+			at.name as agent_type_name,
+			pat.name as preferred_agent_type_name
 		FROM tasks t
 		LEFT JOIN agents a ON t.agent_id = a.id
 		LEFT JOIN agent_types at ON a.agent_type_id = at.id
+		LEFT JOIN agent_types pat ON t.preferred_agent_type_id = pat.id
 		WHERE t.status = 'pending'
 		AND NOT EXISTS (
 			SELECT 1 FROM task_dependencies td
 			JOIN tasks dep ON td.depends_on_id = dep.id
 			WHERE td.task_id = t.id AND dep.status != 'completed'
 		)
-		ORDER BY t.created_at ASC
 	`
+	var args []interface{}
 
-	rows, err := tm.db.Query(query)
+	if preferredAgentTypeID != nil {
+		query += " AND t.preferred_agent_type_id = ?"
+		args = append(args, *preferredAgentTypeID)
+	}
+
+	query += " ORDER BY t.created_at ASC"
+
+	rows, err := tm.db.Query(query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get available tasks with agent info: %w", err)
 	}
@@ -503,7 +536,7 @@ func (tm *TaskManager) GetAvailableTasksWithAgentInfo() ([]TaskWithAgentInfo, er
 	var tasks []TaskWithAgentInfo
 	for rows.Next() {
 		var task TaskWithAgentInfo
-		err := rows.Scan(&task.ID, &task.ParentID, &task.Title, &task.Description, &task.Status, &task.AgentID, &task.ProjectID, &task.CreatedAt, &task.UpdatedAt, &task.AgentName, &task.AgentTypeName)
+		err := rows.Scan(&task.ID, &task.ParentID, &task.Title, &task.Description, &task.Status, &task.AgentID, &task.ProjectID, &task.PreferredAgentTypeID, &task.CreatedAt, &task.UpdatedAt, &task.AgentName, &task.AgentTypeName, &task.PreferredAgentTypeName)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan available task with agent info: %w", err)
 		}

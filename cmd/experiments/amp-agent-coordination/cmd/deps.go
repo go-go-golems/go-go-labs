@@ -121,7 +121,7 @@ Examples:
 		defer tm.Close()
 
 		// Get all tasks and dependencies
-		tasks, err := tm.ListTasks(nil, nil, nil, nil)
+		tasks, err := tm.ListTasks(nil, nil, nil, nil, nil)
 		if err != nil {
 			return fmt.Errorf("failed to get tasks: %w", err)
 		}

@@ -125,7 +125,7 @@ Shows how many tasks are assigned to each agent by status.`,
 
 			// Count tasks by status for this agent
 			for _, status := range []TaskStatus{TaskStatusPending, TaskStatusInProgress, TaskStatusCompleted, TaskStatusFailed} {
-				tasks, err := tm.ListTasks(nil, &status, &agent.ID, nil)
+				tasks, err := tm.ListTasks(nil, &status, &agent.ID, nil, nil)
 				if err != nil {
 					return fmt.Errorf("failed to get tasks for agent %s: %w", agent.ID, err)
 				}
@@ -176,7 +176,7 @@ Shows metrics like total tasks completed, success rate, etc.`,
 
 			// Count tasks by status
 			for _, status := range []TaskStatus{TaskStatusPending, TaskStatusInProgress, TaskStatusCompleted, TaskStatusFailed} {
-				tasks, err := tm.ListTasks(nil, &status, &agent.ID, nil)
+				tasks, err := tm.ListTasks(nil, &status, &agent.ID, nil, nil)
 				if err != nil {
 					return fmt.Errorf("failed to get tasks for agent %s: %w", agent.ID, err)
 				}
