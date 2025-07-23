@@ -233,6 +233,9 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			rootLogger.Info().Int("streams_in_update", len(dataUpdate.StreamsData)).Msg("Sending DataUpdateMsg to widgets")
 			cmds = append(cmds, m.updateWidgets(dataUpdate)...)
+			
+			// Recalculate widget sizes after data update since MaxHeight may have changed
+			m.updateWidgetSizes()
 		}
 		
 	default:
@@ -264,20 +267,26 @@ func (m RootModel) View() string {
 	
 	// Use lipgloss to measure actual rendered sizes
 	headerHeight := lipgloss.Height(headerView)
+	headerWidth := lipgloss.Width(headerView)
 	streamsHeight := lipgloss.Height(streamsView)
+	streamsWidth := lipgloss.Width(streamsView)
 	groupsHeight := lipgloss.Height(groupsView)
+	groupsWidth := lipgloss.Width(groupsView)
 	alertsHeight := lipgloss.Height(alertsView)
+	alertsWidth := lipgloss.Width(alertsView)
 	metricsHeight := lipgloss.Height(metricsView)
+	metricsWidth := lipgloss.Width(metricsView)
 	footerHeight := lipgloss.Height(footerView)
+	footerWidth := lipgloss.Width(footerView)
 	
-	rootLogger.Debug().
-		Int("header_len", len(headerView)).Int("header_height", headerHeight).
-		Int("streams_len", len(streamsView)).Int("streams_height", streamsHeight).
-		Int("groups_len", len(groupsView)).Int("groups_height", groupsHeight).
-		Int("alerts_len", len(alertsView)).Int("alerts_height", alertsHeight).
-		Int("metrics_len", len(metricsView)).Int("metrics_height", metricsHeight).
-		Int("footer_len", len(footerView)).Int("footer_height", footerHeight).
-		Msg("Widget views rendered")
+	rootLogger.Info().
+		Int("header_len", len(headerView)).Int("header_height", headerHeight).Int("header_width", headerWidth).
+		Int("streams_len", len(streamsView)).Int("streams_height", streamsHeight).Int("streams_width", streamsWidth).
+		Int("groups_len", len(groupsView)).Int("groups_height", groupsHeight).Int("groups_width", groupsWidth).
+		Int("alerts_len", len(alertsView)).Int("alerts_height", alertsHeight).Int("alerts_width", alertsWidth).
+		Int("metrics_len", len(metricsView)).Int("metrics_height", metricsHeight).Int("metrics_width", metricsWidth).
+		Int("footer_len", len(footerView)).Int("footer_height", footerHeight).Int("footer_width", footerWidth).
+		Msg("Widget views rendered with dimensions")
 	
 	sections = append(sections, headerView)
 	sections = append(sections, streamsView)

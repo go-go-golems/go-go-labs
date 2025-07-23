@@ -50,8 +50,9 @@ type StreamsTableStyles struct {
 func NewStreamsTableWidget(styles StreamsTableStyles) StreamsTableWidget {
 	// Create columns for the table
 	columns := []table.Column{
-		{Title: "Stream", Width: 20},
-		{Title: "Entries", Width: 25},
+		{Title: "Stream", Width: 15},
+		{Title: "Entries", Width: 12},
+		{Title: "Trend", Width: 20},
 		{Title: "Size", Width: 10},
 		{Title: "Groups", Width: 8},
 		{Title: "Last ID", Width: 15},
@@ -89,10 +90,9 @@ func (w StreamsTableWidget) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		logger.Debug().Int("width", msg.Width).Int("height", msg.Height).Msg("WindowSizeMsg received")
-		w.width = msg.Width
-		w.height = msg.Height
-		w.updateTableSize()
+		// Don't handle WindowSizeMsg directly - let the root model handle size allocation
+		// The root model will call SetSize() with the proper allocated dimensions
+		logger.Debug().Int("width", msg.Width).Int("height", msg.Height).Msg("WindowSizeMsg received - ignoring, root model handles sizing")
 
 	case DataUpdateMsg:
 		logger.Info().Int("stream_count", len(msg.StreamsData)).Msg("DataUpdateMsg received")
@@ -129,22 +129,67 @@ func (w StreamsTableWidget) View() string {
 		return w.styles.Container.Render("No streams found")
 	}
 	
-	return w.styles.Container.Width(w.width).Height(w.height).Render(w.table.View())
+	// Get the table view and measure it
+	tableView := w.table.View()
+	tableHeight := lipgloss.Height(tableView)
+	tableWidth := lipgloss.Width(tableView)
+	
+	// Render with container styling, but ensure height constraint is enforced
+	containerStyle := w.styles.Container.Width(w.width).Height(w.height)
+	renderedView := containerStyle.Render(tableView)
+	renderedHeight := lipgloss.Height(renderedView)
+	renderedWidth := lipgloss.Width(renderedView)
+	
+	// If the rendered view exceeds our allocated height, we need to truncate
+	if renderedHeight > w.height {
+		logger.Warn().
+			Int("allocated_height", w.height).
+			Int("rendered_height", renderedHeight).
+			Msg("StreamsTable exceeds allocated height, truncating")
+		
+		// Use lipgloss to truncate to fit the allocated height
+		lines := strings.Split(renderedView, "\n")
+		if len(lines) > w.height {
+			lines = lines[:w.height]
+		}
+		renderedView = strings.Join(lines, "\n")
+		renderedHeight = lipgloss.Height(renderedView)
+	}
+	
+	logger.Info().
+		Int("widget_width", w.width).
+		Int("widget_height", w.height).
+		Int("table_width", tableWidth).
+		Int("table_height", tableHeight).
+		Int("rendered_width", renderedWidth).
+		Int("rendered_height", renderedHeight).
+		Int("table_rows", len(w.table.Rows())).
+		Int("streams_count", len(w.streams)).
+		Msg("StreamsTable View() rendering")
+	
+	return renderedView
 }
 
 // SetSize implements Widget interface
 func (w *StreamsTableWidget) SetSize(width, height int) {
 	// Clamp height to reasonable bounds to prevent infinite loops
 	maxHeight := 25 // Maximum reasonable height for the table
+	originalHeight := height
 	if height > maxHeight {
 		logger.Warn().Int("requested_height", height).Int("clamped_height", maxHeight).
 			Msg("Clamping table height to prevent render issues")
 		height = maxHeight
 	}
 	
-	logger.Info().Int("old_width", w.width).Int("old_height", w.height).
-		Int("new_width", width).Int("new_height", height).
+	logger.Info().
+		Int("old_width", w.width).Int("old_height", w.height).
+		Int("requested_width", width).Int("requested_height", originalHeight).
+		Int("final_width", width).Int("final_height", height).
+		Int("streams_count", len(w.streams)).
+		Int("max_height_limit", w.MaxHeight()).
+		Int("min_height_limit", w.MinHeight()).
 		Msg("SetSize called")
+		
 	w.width = width
 	w.height = height
 	w.updateTableSize()
@@ -167,21 +212,19 @@ func (w StreamsTableWidget) MinHeight() int {
 
 // MaxHeight implements Widget interface
 func (w StreamsTableWidget) MaxHeight() int {
-	// Ensure minimum useful height even when no streams are loaded yet
-	minHeight := 20 // Minimum height for table headers and content with room to grow
 	streamCount := len(w.streams)
 	if streamCount == 0 {
-		return minHeight
+		// When no streams loaded, reserve minimal space
+		return 3
 	}
-	if streamCount+3 > minHeight {
-		return streamCount + 3
-	}
-	return minHeight
+	// Header (1) + streams (N) + minimal buffer (2) = N + 3  
+	return streamCount + 3
 }
 
 // updateTableSize updates the table dimensions and column widths
 func (w *StreamsTableWidget) updateTableSize() {
 	if w.width <= 0 || w.height <= 0 {
+		logger.Warn().Int("width", w.width).Int("height", w.height).Msg("updateTableSize: invalid dimensions")
 		return
 	}
 
@@ -190,6 +233,11 @@ func (w *StreamsTableWidget) updateTableSize() {
 	if tableHeight < 3 {
 		tableHeight = 3 // Minimum viable height
 	}
+
+	logger.Info().
+		Int("widget_width", w.width).Int("widget_height", w.height).
+		Int("table_width", w.width).Int("table_height", tableHeight).
+		Msg("updateTableSize: setting table dimensions")
 
 	w.table.SetWidth(w.width)
 	w.table.SetHeight(tableHeight)
@@ -200,6 +248,7 @@ func (w *StreamsTableWidget) updateTableSize() {
 	columns := []table.Column{
 		{Title: "Stream", Width: cols.stream},
 		{Title: "Entries", Width: cols.entries},
+		{Title: "Trend", Width: cols.trend},
 		{Title: "Size", Width: cols.size},
 		{Title: "Groups", Width: cols.groups},
 		{Title: "Last ID", Width: cols.lastID},
@@ -207,6 +256,15 @@ func (w *StreamsTableWidget) updateTableSize() {
 	}
 
 	w.table.SetColumns(columns)
+	
+	logger.Info().
+		Int("stream_col", cols.stream).
+		Int("entries_col", cols.entries).
+		Int("size_col", cols.size).
+		Int("groups_col", cols.groups).
+		Int("lastid_col", cols.lastID).
+		Int("memory_col", cols.memory).
+		Msg("updateTableSize: column widths calculated")
 }
 
 // updateTableRows converts stream data to table rows
@@ -215,7 +273,7 @@ func (w *StreamsTableWidget) updateTableRows() {
 	rows := make([]table.Row, len(w.streams))
 
 	for i, stream := range w.streams {
-		// Get sparkline for display alongside entries
+		// Get sparkline for dedicated trend column
 		sparklineStr := ""
 		if sl, exists := w.sparklines[stream.Name]; exists {
 			rawSparkline := sl.Render()
@@ -223,25 +281,19 @@ func (w *StreamsTableWidget) updateTableRows() {
 			sparklineStr = strings.TrimSpace(rawSparkline)
 		}
 
-		// Format entries with sparkline on same line if it fits
-		entriesWidth := w.getColumnWidth("entries")
-		entriesText := formatNumberWithCommas(stream.Length)
-		sparklinePrefix := " "
+		// Format entries as just numbers now
+		entriesContent := formatNumberWithCommas(stream.Length)
 
-		// Try to fit sparkline on same line
-		availableSpace := entriesWidth - len(entriesText) - len(sparklinePrefix)
-		var entriesContent string
-
-		if availableSpace > 8 && len(sparklineStr) > 0 && len(sparklineStr) <= availableSpace {
-			entriesContent = entriesText + sparklinePrefix + sparklineStr
-		} else {
-			// Just show the number if sparkline doesn't fit
-			entriesContent = entriesText
+		// Format sparkline for trend column
+		trendContent := sparklineStr
+		if trendContent == "" {
+			trendContent = "-" // Show dash if no sparkline data
 		}
 
 		rows[i] = table.Row{
 			truncateString(stream.Name, w.getColumnWidth("stream")),
 			entriesContent,
+			truncateString(trendContent, w.getColumnWidth("trend")),
 			formatBytes(stream.MemoryUsage),
 			formatNumberWithCommas(stream.Groups),
 			truncateString(stream.LastID, w.getColumnWidth("lastID")),
@@ -256,21 +308,12 @@ func (w *StreamsTableWidget) updateTableRows() {
 
 // updateSparklines creates or updates sparklines for each stream
 func (w *StreamsTableWidget) updateSparklines() {
-	// Calculate actual available space for sparklines
-	entriesWidth := w.getColumnWidth("entries")
-
-	// Find the longest number we might display to calculate available space
-	maxNumberWidth := 0
-	for _, stream := range w.streams {
-		numberText := formatNumberWithCommas(stream.Length)
-		if len(numberText) > maxNumberWidth {
-			maxNumberWidth = len(numberText)
-		}
-	}
-
-	separatorWidth := 1
-	sparklineWidth := entriesWidth - maxNumberWidth - separatorWidth
-
+	// Use the dedicated trend column width for sparklines
+	trendWidth := w.getColumnWidth("trend")
+	
+	// Leave some margin for padding/borders
+	sparklineWidth := trendWidth - 2
+	
 	if sparklineWidth < 5 {
 		sparklineWidth = 5
 	}
@@ -324,6 +367,8 @@ func (w StreamsTableWidget) getColumnWidth(columnName string) int {
 		return cols.stream
 	case "entries":
 		return cols.entries
+	case "trend":
+		return cols.trend
 	case "size":
 		return cols.size
 	case "groups":
@@ -341,6 +386,7 @@ func (w StreamsTableWidget) getColumnWidth(columnName string) int {
 type columnWidths struct {
 	stream  int
 	entries int
+	trend   int
 	size    int
 	groups  int
 	lastID  int
@@ -351,8 +397,9 @@ type columnWidths struct {
 func (w StreamsTableWidget) calculateColumnWidths() columnWidths {
 	// Minimum column widths
 	minWidths := columnWidths{
-		stream:  12,
-		entries: 20, // Increased to accommodate sparklines
+		stream:  10, // Narrower stream name column
+		entries: 10, // Just for numbers now, no sparklines
+		trend:   15, // Dedicated sparkline column
 		size:    8,
 		groups:  8,
 		lastID:  10,
@@ -368,7 +415,7 @@ func (w StreamsTableWidget) calculateColumnWidths() columnWidths {
 	}
 
 	// Calculate total minimum width needed
-	totalMinWidth := minWidths.stream + minWidths.entries + minWidths.size +
+	totalMinWidth := minWidths.stream + minWidths.entries + minWidths.trend + minWidths.size +
 		minWidths.groups + minWidths.lastID + minWidths.memory
 
 	if availableWidth <= totalMinWidth {
@@ -379,11 +426,11 @@ func (w StreamsTableWidget) calculateColumnWidths() columnWidths {
 	extraSpace := availableWidth - totalMinWidth
 	result := minWidths
 
-	// Give extra space to entries and stream columns first
-	entriesExtra := extraSpace / 2
-	streamExtra := extraSpace - entriesExtra
+	// Give extra space to trend and stream columns first
+	trendExtra := extraSpace / 2
+	streamExtra := extraSpace - trendExtra
 
-	result.entries += entriesExtra
+	result.trend += trendExtra
 	result.stream += streamExtra
 
 	return result
