@@ -393,16 +393,33 @@ type columnWidths struct {
 	memory  int
 }
 
-// calculateColumnWidths determines responsive column widths based on terminal size
+// calculateColumnWidths determines responsive column widths based on terminal size and content
 func (w StreamsTableWidget) calculateColumnWidths() columnWidths {
+	// Calculate content-based widths
+	maxStreamLen := len("Stream") // Header width as minimum
+	maxLastIDLen := len("Last ID") // Header width as minimum
+	
+	for _, stream := range w.streams {
+		if len(stream.Name) > maxStreamLen {
+			maxStreamLen = len(stream.Name)
+		}
+		if len(stream.LastID) > maxLastIDLen {
+			maxLastIDLen = len(stream.LastID)
+		}
+	}
+	
+	// Add some padding for content
+	maxStreamLen += 2
+	maxLastIDLen += 2
+	
 	// Minimum column widths
 	minWidths := columnWidths{
-		stream:  10, // Narrower stream name column
+		stream:  maxStreamLen, // Content-based stream name column
 		entries: 10, // Just for numbers now, no sparklines
-		trend:   15, // Dedicated sparkline column
+		trend:   20, // Fixed reasonable width for sparkline column
 		size:    8,
 		groups:  8,
-		lastID:  10,
+		lastID:  maxLastIDLen, // Content-based last ID column
 		memory:  12,
 	}
 
@@ -422,16 +439,16 @@ func (w StreamsTableWidget) calculateColumnWidths() columnWidths {
 		return minWidths
 	}
 
-	// Distribute extra space proportionally
+	// Distribute extra space proportionally to flexible columns
 	extraSpace := availableWidth - totalMinWidth
 	result := minWidths
 
-	// Give extra space to trend and stream columns first
-	trendExtra := extraSpace / 2
-	streamExtra := extraSpace - trendExtra
+	// Distribute extra space to entries and memory columns
+	entriesExtra := extraSpace / 2
+	memoryExtra := extraSpace - entriesExtra
 
-	result.trend += trendExtra
-	result.stream += streamExtra
+	result.entries += entriesExtra
+	result.memory += memoryExtra
 
 	return result
 }
