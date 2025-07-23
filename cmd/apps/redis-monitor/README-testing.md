@@ -69,6 +69,17 @@ redis-server
 - `generate-data.sh` - Continuously add test data to streams
 - `test-sparklines.sh` - Automated test with screenshots
 
+## Speed Controls
+
+Use `>` and `<` to adjust refresh speed in real-time:
+- **`>` (Speed Up)**: 10s → 5s → 3s → 2s → 1.5s → 1s → 0.5s → 0.2s → 0.1s
+- **`<` (Speed Down)**: 0.1s → 0.2s → 0.5s → 1s → 1.5s → 2s → 3s → 5s → 10s
+
+Perfect for:
+- Fast updates during high activity periods
+- Slower updates to see long-term trends
+- Conserving system resources when needed
+
 ## Understanding Sparklines
 
 The sparklines show **message rates**, not cumulative counts:

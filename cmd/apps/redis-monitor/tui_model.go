@@ -2,55 +2,63 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/go-go-golems/go-go-labs/pkg/tui/components"
+	"github.com/go-go-golems/go-go-labs/pkg/tui/models"
 )
 
-// Model represents the TUI state - now just wraps the coordinator
+// Model represents the TUI state - now uses the new RootModel
 type Model struct {
-	coordinator *components.Coordinator
+	root models.RootModel
 }
 
-// NewModel creates a new TUI model using the coordinator
+// NewModel creates a new TUI model using the new RootModel
 func NewModel(client *RedisClient, demoMode bool, refreshRate time.Duration) Model {
-	// Adapt RedisClient to components.RedisClient interface
-	adaptedClient := &redisClientAdapter{client: client}
+	var adaptedClient models.RedisClient
+	
+	if demoMode || client == nil {
+		// Use nil client for demo mode
+		adaptedClient = nil
+	} else {
+		// Adapt RedisClient to models.RedisClient interface
+		adaptedClient = &redisClientAdapter{client: client}
+	}
 
 	return Model{
-		coordinator: components.NewCoordinator(adaptedClient, demoMode, refreshRate),
+		root: models.NewRootModel(adaptedClient, demoMode, refreshRate),
 	}
 }
 
 // Init implements tea.Model
 func (m Model) Init() tea.Cmd {
-	return m.coordinator.Init()
+	return m.root.Init()
 }
 
 // Update implements tea.Model
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	coordinator, cmd := m.coordinator.Update(msg)
-	m.coordinator = coordinator.(*components.Coordinator)
+	rootModel, cmd := m.root.Update(msg)
+	m.root = rootModel.(models.RootModel)
 	return m, cmd
 }
 
 // View implements tea.Model
 func (m Model) View() string {
-	return m.coordinator.View()
+	return m.root.View()
 }
 
-// redisClientAdapter adapts RedisClient to components.RedisClient interface
+// redisClientAdapter adapts RedisClient to models.RedisClient interface
 type redisClientAdapter struct {
 	client *RedisClient
 }
 
-func (a *redisClientAdapter) GetServerInfo(ctx context.Context) (*components.ServerInfo, error) {
+func (a *redisClientAdapter) GetServerInfo(ctx context.Context) (*models.ServerInfo, error) {
 	info, err := a.client.GetServerInfo(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return &components.ServerInfo{
+	return &models.ServerInfo{
 		UptimeInSeconds:   info.UptimeInSeconds,
 		UsedMemory:        info.UsedMemory,
 		TotalSystemMemory: info.TotalSystemMemory,
@@ -62,12 +70,21 @@ func (a *redisClientAdapter) DiscoverStreams(ctx context.Context) ([]string, err
 	return a.client.DiscoverStreams(ctx)
 }
 
-func (a *redisClientAdapter) GetStreamInfo(ctx context.Context, name string) (*components.StreamInfo, error) {
+func (a *redisClientAdapter) GetStreamInfo(ctx context.Context, name string) (*models.StreamInfo, error) {
+	if a.client == nil {
+		return nil, fmt.Errorf("redis client is nil")
+	}
+	
 	info, err := a.client.GetStreamInfo(ctx, name)
 	if err != nil {
 		return nil, err
 	}
-	return &components.StreamInfo{
+	
+	if info == nil {
+		return nil, fmt.Errorf("stream info is nil for stream: %s", name)
+	}
+	
+	return &models.StreamInfo{
 		Name:            info.Name,
 		Length:          info.Length,
 		MemoryUsage:     info.MemoryUsage,
@@ -76,15 +93,15 @@ func (a *redisClientAdapter) GetStreamInfo(ctx context.Context, name string) (*c
 	}, nil
 }
 
-func (a *redisClientAdapter) GetStreamGroups(ctx context.Context, stream string) ([]components.GroupInfo, error) {
+func (a *redisClientAdapter) GetStreamGroups(ctx context.Context, stream string) ([]models.GroupInfo, error) {
 	groups, err := a.client.GetStreamGroups(ctx, stream)
 	if err != nil {
 		return nil, err
 	}
 
-	var result []components.GroupInfo
+	var result []models.GroupInfo
 	for _, g := range groups {
-		result = append(result, components.GroupInfo{
+		result = append(result, models.GroupInfo{
 			Name:    g.Name,
 			Pending: g.Pending,
 		})
@@ -92,15 +109,15 @@ func (a *redisClientAdapter) GetStreamGroups(ctx context.Context, stream string)
 	return result, nil
 }
 
-func (a *redisClientAdapter) GetGroupConsumers(ctx context.Context, stream, group string) ([]components.ConsumerInfo, error) {
+func (a *redisClientAdapter) GetGroupConsumers(ctx context.Context, stream, group string) ([]models.ConsumerInfo, error) {
 	consumers, err := a.client.GetGroupConsumers(ctx, stream, group)
 	if err != nil {
 		return nil, err
 	}
 
-	var result []components.ConsumerInfo
+	var result []models.ConsumerInfo
 	for _, c := range consumers {
-		result = append(result, components.ConsumerInfo{
+		result = append(result, models.ConsumerInfo{
 			Name:    c.Name,
 			Pending: c.Pending,
 			Idle:    c.Idle,

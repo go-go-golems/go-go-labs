@@ -2,6 +2,7 @@ package widgets
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -85,12 +86,16 @@ func (w StreamsTableWidget) View() string {
 		return w.styles.Container.Render("No streams found")
 	}
 	
+	// Calculate responsive column widths
+	cols := w.calculateColumnWidths()
+	
 	var rows []string
 	
-	// Table header with border
-	topBorder := "┌─────────┬──────────────┬──────────┬───────────────┬───────────┬──────────────┐"
-	headerRow := "│ Stream  │   Entries    │   Size   │   Groups      │  Last ID  │  Memory RSS  │"
-	divider := "├─────────┼──────────────┼──────────┼───────────────┼───────────┼──────────────┤"
+	// Create borders and headers
+	topBorder := w.createBorder(cols, "┌", "┬", "┐")
+	headerRow := w.createHeaderRow(cols)
+	divider := w.createBorder(cols, "├", "┼", "┤")
+	bottomBorder := w.createBorder(cols, "└", "┴", "┘")
 	
 	rows = append(rows, topBorder)
 	rows = append(rows, w.styles.HeaderRow.Render(headerRow))
@@ -99,22 +104,10 @@ func (w StreamsTableWidget) View() string {
 	// Stream rows
 	for i, stream := range w.streams {
 		// Main data row
-		mainRow := fmt.Sprintf("│ %-7s │ %,12d │ %-8s │ %13d │ %-9s │ %-12s │",
-			truncateString(stream.Name, 7),
-			stream.Length,
-			formatBytes(stream.MemoryUsage),
-			stream.Groups,
-			truncateString(stream.LastID, 9),
-			formatBytes(stream.MemoryUsage),
-		)
+		mainRow := w.createDataRow(stream, cols)
 		
 		// Sparkline row
-		sparklineStr := ""
-		if sl, exists := w.sparklines[stream.Name]; exists {
-			sparklineStr = sl.Render()
-		}
-		sparklineRow := fmt.Sprintf("│         │ msg/s: %-25s │          │               │           │              │",
-			sparklineStr)
+		sparklineRow := w.createSparklineRow(stream, cols)
 		
 		// Apply styling based on selection
 		if i == w.selectedIdx && w.focused {
@@ -131,8 +124,6 @@ func (w StreamsTableWidget) View() string {
 		}
 	}
 	
-	// Bottom border
-	bottomBorder := "└─────────┴──────────────┴──────────┴───────────────┴───────────┴──────────────┘"
 	rows = append(rows, bottomBorder)
 	
 	content := strings.Join(rows, "\n")
@@ -164,15 +155,38 @@ func (w StreamsTableWidget) MaxHeight() int {
 
 // updateSparklines creates or updates sparklines for each stream
 func (w *StreamsTableWidget) updateSparklines() {
+	// Calculate optimal sparkline width based on entries column width
+	cols := w.calculateColumnWidths()
+	sparklineWidth := cols.entries - len("msg/s: ")
+	if sparklineWidth < 5 {
+		sparklineWidth = 5 // Minimum sparkline width
+	}
+	if sparklineWidth > 40 {
+		sparklineWidth = 40 // Maximum sparkline width for performance
+	}
+	
 	for _, stream := range w.streams {
 		if _, exists := w.sparklines[stream.Name]; !exists {
 			config := sparkline.Config{
-				Width:     25,
+				Width:     sparklineWidth,
 				Height:    1,
-				MaxPoints: 25,
+				MaxPoints: sparklineWidth,
 				Style:     sparkline.StyleBars,
 			}
 			w.sparklines[stream.Name] = sparkline.New(config)
+		} else {
+			// Update existing sparkline configuration if width changed
+			existing := w.sparklines[stream.Name]
+			currentConfig := existing.GetConfig()
+			if currentConfig.Width != sparklineWidth {
+				config := sparkline.Config{
+					Width:     sparklineWidth,
+					Height:    1,
+					MaxPoints: sparklineWidth,
+					Style:     sparkline.StyleBars,
+				}
+				existing.UpdateConfig(config)
+			}
 		}
 		
 		// Update sparkline data
@@ -186,6 +200,129 @@ func (w StreamsTableWidget) GetSelectedStream() *StreamData {
 		return &w.streams[w.selectedIdx]
 	}
 	return nil
+}
+
+// Column widths structure
+type columnWidths struct {
+	stream   int
+	entries  int
+	size     int
+	groups   int
+	lastID   int
+	memory   int
+}
+
+// calculateColumnWidths determines responsive column widths based on terminal size
+func (w StreamsTableWidget) calculateColumnWidths() columnWidths {
+	// Minimum column widths
+	minWidths := columnWidths{
+		stream:  7,
+		entries: 12,
+		size:    8,
+		groups:  8,
+		lastID:  9,
+		memory:  12,
+	}
+	
+	// Account for borders and padding (6 columns = 7 borders + 12 spaces)
+	overhead := 7 + 12
+	availableWidth := w.width - overhead
+	
+	if availableWidth <= 0 {
+		return minWidths
+	}
+	
+	// Calculate total minimum width needed
+	totalMinWidth := minWidths.stream + minWidths.entries + minWidths.size + 
+		minWidths.groups + minWidths.lastID + minWidths.memory
+	
+	if availableWidth <= totalMinWidth {
+		return minWidths
+	}
+	
+	// Distribute extra space proportionally
+	extraSpace := availableWidth - totalMinWidth
+	result := minWidths
+	
+	// Give extra space to entries and memory columns first
+	entriesExtra := extraSpace / 3
+	memoryExtra := extraSpace / 3
+	streamExtra := extraSpace - entriesExtra - memoryExtra
+	
+	result.entries += entriesExtra
+	result.memory += memoryExtra
+	result.stream += streamExtra
+	
+	return result
+}
+
+// createBorder creates a horizontal border with given characters
+func (w StreamsTableWidget) createBorder(cols columnWidths, left, middle, right string) string {
+	parts := []string{
+		left + strings.Repeat("─", cols.stream),
+		middle + strings.Repeat("─", cols.entries),
+		middle + strings.Repeat("─", cols.size),
+		middle + strings.Repeat("─", cols.groups),
+		middle + strings.Repeat("─", cols.lastID),
+		middle + strings.Repeat("─", cols.memory) + right,
+	}
+	return strings.Join(parts, "")
+}
+
+// createHeaderRow creates the table header
+func (w StreamsTableWidget) createHeaderRow(cols columnWidths) string {
+	return fmt.Sprintf("│ %-*s │ %-*s │ %-*s │ %-*s │ %-*s │ %-*s │",
+		cols.stream, "Stream",
+		cols.entries, "Entries",
+		cols.size, "Size",
+		cols.groups, "Groups",
+		cols.lastID, "Last ID",
+		cols.memory, "Memory RSS",
+	)
+}
+
+// createDataRow creates a data row for a stream
+func (w StreamsTableWidget) createDataRow(stream StreamData, cols columnWidths) string {
+	return fmt.Sprintf("│ %-*s │ %*s │ %-*s │ %*s │ %-*s │ %-*s │",
+		cols.stream, truncateString(stream.Name, cols.stream),
+		cols.entries, formatNumberWithCommas(stream.Length),
+		cols.size, formatBytes(stream.MemoryUsage),
+		cols.groups, formatNumberWithCommas(stream.Groups),
+		cols.lastID, truncateString(stream.LastID, cols.lastID),
+		cols.memory, formatBytes(stream.MemoryUsage),
+	)
+}
+
+// createSparklineRow creates the sparkline row for a stream
+func (w StreamsTableWidget) createSparklineRow(stream StreamData, cols columnWidths) string {
+	sparklineStr := ""
+	if sl, exists := w.sparklines[stream.Name]; exists {
+		sparklineStr = sl.Render()
+	}
+	
+	// Calculate available space for sparkline
+	prefix := "msg/s: "
+	maxSparklineWidth := cols.entries - len(prefix)
+	
+	// Ensure we have at least some space for the sparkline
+	if maxSparklineWidth <= 0 {
+		maxSparklineWidth = 0
+		sparklineStr = ""
+	} else if len(sparklineStr) > maxSparklineWidth {
+		// Truncate sparkline to fit available space
+		sparklineStr = sparklineStr[:maxSparklineWidth]
+	}
+	
+	sparklineContent := fmt.Sprintf("%s%s", prefix, sparklineStr)
+	
+	return fmt.Sprintf("│ %-*s │ %-*s │ %-*s │ %-*s │ %-*s │ %-*s │",
+		cols.stream, "",
+		cols.entries, sparklineContent,
+		cols.size, "",
+		cols.groups, "",
+		cols.lastID, "",
+		cols.memory, "",
+	)
 }
 
 // Helper functions
@@ -211,4 +348,24 @@ func formatBytes(bytes int64) string {
 		exp++
 	}
 	return fmt.Sprintf("%.1f%cB", float64(bytes)/float64(div), "KMGTPE"[exp])
+}
+
+// formatNumberWithCommas formats int64 with commas for thousands separators
+func formatNumberWithCommas(n int64) string {
+	str := strconv.FormatInt(n, 10)
+	
+	// Add commas for thousands separators
+	if len(str) <= 3 {
+		return str
+	}
+	
+	var result strings.Builder
+	for i, char := range str {
+		if i > 0 && (len(str)-i)%3 == 0 {
+			result.WriteString(",")
+		}
+		result.WriteRune(char)
+	}
+	
+	return result.String()
 }
