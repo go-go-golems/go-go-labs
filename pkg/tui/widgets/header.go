@@ -42,11 +42,11 @@ func (w HeaderWidget) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		w.width = msg.Width
-		
+
 	case DataUpdateMsg:
 		w.serverData = msg.ServerData
 	}
-	
+
 	return w, nil
 }
 
@@ -55,29 +55,29 @@ func (w HeaderWidget) View() string {
 	if w.width == 0 {
 		return ""
 	}
-	
+
 	title := w.styles.Title.Render("Redis Streams Monitor (top-like)")
-	
+
 	uptime := formatDuration(w.serverData.Uptime)
 	refresh := fmt.Sprintf("Refresh: %v", w.refreshRate)
 	mode := ""
 	if w.demoMode {
 		mode = " [DEMO]"
 	}
-	
+
 	info := w.styles.Info.Render(fmt.Sprintf("Uptime: %s   %s%s", uptime, refresh, mode))
-	
+
 	// Create horizontal layout
 	contentWidth := w.width - w.styles.Container.GetHorizontalFrameSize()
 	spacerWidth := contentWidth - lipgloss.Width(title) - lipgloss.Width(info)
 	if spacerWidth < 0 {
 		spacerWidth = 0
 	}
-	
+
 	spacer := lipgloss.NewStyle().Width(spacerWidth).Render("")
-	
+
 	headerContent := lipgloss.JoinHorizontal(lipgloss.Top, title, spacer, info)
-	
+
 	return w.styles.Container.Width(w.width).Render(headerContent)
 }
 

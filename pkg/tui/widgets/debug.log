@@ -1,0 +1,9 @@
+{"level":"debug","component":"streams_table","width":120,"height":20,"time":"2025-07-23T09:56:28-04:00","message":"SetSize called"}
+{"level":"info","component":"streams_table","stream_count":3,"time":"2025-07-23T09:56:28-04:00","message":"DataUpdateMsg received"}
+{"level":"debug","component":"streams_table","index":0,"name":"user_events","length":1500,"time":"2025-07-23T09:56:28-04:00","message":"Stream data"}
+{"level":"debug","component":"streams_table","index":1,"name":"analytics_data","length":8750,"time":"2025-07-23T09:56:28-04:00","message":"Stream data"}
+{"level":"debug","component":"streams_table","index":2,"name":"notifications","length":250,"time":"2025-07-23T09:56:28-04:00","message":"Stream data"}
+{"level":"info","component":"streams_table","stream_count":3,"time":"2025-07-23T09:56:28-04:00","message":"updateTableRows called"}
+{"level":"info","component":"streams_table","rows_created":3,"time":"2025-07-23T09:56:28-04:00","message":"Setting table rows"}
+{"level":"info","component":"streams_table","table_rows_after_set":3,"time":"2025-07-23T09:56:28-04:00","message":"Table rows set complete"}
+{"level":"info","component":"streams_table","streams_after_update":3,"table_rows":3,"time":"2025-07-23T09:56:28-04:00","message":"Data update completed"}

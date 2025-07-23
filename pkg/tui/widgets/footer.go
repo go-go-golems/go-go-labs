@@ -37,7 +37,7 @@ func (w FooterWidget) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		w.width = msg.Width
 	}
-	
+
 	return w, nil
 }
 
@@ -46,10 +46,10 @@ func (w FooterWidget) View() string {
 	if w.width == 0 {
 		return ""
 	}
-	
+
 	commandsText := "Commands: [R]efresh  [+/-]Speed  [Tab]Focus  [Q]uit"
 	commands := w.styles.Commands.Render(commandsText)
-	
+
 	return w.styles.Container.Width(w.width).Render(commands)
 }
 

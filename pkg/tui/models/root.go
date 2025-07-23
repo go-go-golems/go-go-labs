@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -13,7 +14,20 @@ import (
 	"github.com/go-go-golems/go-go-labs/pkg/tui/keys"
 	"github.com/go-go-golems/go-go-labs/pkg/tui/styles"
 	"github.com/go-go-golems/go-go-labs/pkg/tui/widgets"
+	"github.com/rs/zerolog"
 )
+
+var rootLogger zerolog.Logger
+
+func init() {
+	// Create log file for debugging
+	logFile, err := os.OpenFile("debug.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err == nil {
+		rootLogger = zerolog.New(logFile).With().Timestamp().Caller().Str("component", "root_model").Logger()
+	} else {
+		rootLogger = zerolog.Nop()
+	}
+}
 
 // RedisClient interface for data fetching
 type RedisClient interface {
@@ -155,6 +169,7 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
+		rootLogger.Info().Int("width", msg.Width).Int("height", msg.Height).Msg("WindowSizeMsg received")
 		m.width = msg.Width
 		m.height = msg.Height
 		m.initialized = true
@@ -203,7 +218,9 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.fetchInFlight = false
 		if msg.Error != nil {
 			log.Printf("Error fetching data: %v", msg.Error)
+			rootLogger.Error().Err(msg.Error).Msg("Error fetching data")
 		} else {
+			rootLogger.Info().Int("streams_count", len(msg.StreamsData)).Msg("DataFetchedMsg received")
 			m.serverData = msg.ServerData
 			m.streamsData = msg.StreamsData
 			m.lastRefresh = time.Now()
@@ -214,11 +231,13 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				StreamsData: msg.StreamsData,
 				Timestamp:   time.Now(),
 			}
+			rootLogger.Info().Int("streams_in_update", len(dataUpdate.StreamsData)).Msg("Sending DataUpdateMsg to widgets")
 			cmds = append(cmds, m.updateWidgets(dataUpdate)...)
 		}
 		
 	default:
 		// Pass other messages to widgets
+		rootLogger.Debug().Str("msg_type", fmt.Sprintf("%T", msg)).Msg("Passing message to widgets")
 		cmds = append(cmds, m.updateWidgets(msg)...)
 	}
 	
@@ -231,22 +250,55 @@ func (m RootModel) View() string {
 		return "Initializing..."
 	}
 	
+	rootLogger.Debug().Msg("RootModel.View() called")
+	
 	var sections []string
 	
 	// Render each widget
-	sections = append(sections, m.header.View())
-	sections = append(sections, m.streams.View())
-	sections = append(sections, m.groups.View())
-	sections = append(sections, m.alerts.View())
-	sections = append(sections, m.metrics.View())
-	sections = append(sections, m.footer.View())
+	headerView := m.header.View()
+	streamsView := m.streams.View()
+	groupsView := m.groups.View()
+	alertsView := m.alerts.View()
+	metricsView := m.metrics.View()
+	footerView := m.footer.View()
 	
-	return lipgloss.JoinVertical(lipgloss.Top, sections...)
+	// Use lipgloss to measure actual rendered sizes
+	headerHeight := lipgloss.Height(headerView)
+	streamsHeight := lipgloss.Height(streamsView)
+	groupsHeight := lipgloss.Height(groupsView)
+	alertsHeight := lipgloss.Height(alertsView)
+	metricsHeight := lipgloss.Height(metricsView)
+	footerHeight := lipgloss.Height(footerView)
+	
+	rootLogger.Debug().
+		Int("header_len", len(headerView)).Int("header_height", headerHeight).
+		Int("streams_len", len(streamsView)).Int("streams_height", streamsHeight).
+		Int("groups_len", len(groupsView)).Int("groups_height", groupsHeight).
+		Int("alerts_len", len(alertsView)).Int("alerts_height", alertsHeight).
+		Int("metrics_len", len(metricsView)).Int("metrics_height", metricsHeight).
+		Int("footer_len", len(footerView)).Int("footer_height", footerHeight).
+		Msg("Widget views rendered")
+	
+	sections = append(sections, headerView)
+	sections = append(sections, streamsView)
+	sections = append(sections, groupsView)
+	sections = append(sections, alertsView)
+	sections = append(sections, metricsView)
+	sections = append(sections, footerView)
+	
+	result := lipgloss.JoinVertical(lipgloss.Top, sections...)
+	rootLogger.Info().Int("final_layout_len", len(result)).
+		Int("sections_count", len(sections)).
+		Msg("Final layout composed")
+	
+	return result
 }
 
 // updateWidgetSizes calculates and sets sizes for all widgets
 func (m *RootModel) updateWidgetSizes() {
+	rootLogger.Info().Int("terminal_height", m.height).Msg("updateWidgetSizes called")
 	if m.height == 0 {
+		rootLogger.Warn().Msg("updateWidgetSizes: height is 0, returning")
 		return
 	}
 	
@@ -257,8 +309,15 @@ func (m *RootModel) updateWidgetSizes() {
 	// Distribute remaining space
 	if availableHeight > 0 {
 		// Give priority to streams table, then groups, then alerts
-		streamHeight := min(availableHeight/2, m.streams.MaxHeight())
+		streamsMaxHeight := m.streams.MaxHeight()
+		streamHeight := min(availableHeight/2, streamsMaxHeight)
 		remainingHeight := availableHeight - streamHeight
+		
+		rootLogger.Info().
+			Int("available_height", availableHeight).
+			Int("streams_max_height", streamsMaxHeight).
+			Int("streams_allocated_height", streamHeight).
+			Msg("Streams sizing calculation")
 		
 		groupHeight := min(remainingHeight/2, m.groups.MaxHeight())
 		remainingHeight -= groupHeight
@@ -267,6 +326,15 @@ func (m *RootModel) updateWidgetSizes() {
 		metricHeight := m.metrics.MinHeight()
 		
 		// Set widget sizes
+		rootLogger.Info().
+			Int("terminal_height", m.height).
+			Int("available_height", availableHeight).
+			Int("stream_height", streamHeight).
+			Int("group_height", groupHeight).
+			Int("alert_height", alertHeight).
+			Int("metric_height", metricHeight).
+			Msg("Setting widget sizes")
+			
 		m.header.SetSize(m.width, m.header.MinHeight())
 		m.streams.SetSize(m.width, streamHeight)
 		m.groups.SetSize(m.width, groupHeight)
@@ -302,8 +370,10 @@ func (m *RootModel) updateWidgets(msg tea.Msg) []tea.Cmd {
 	}
 	
 	// Update streams widget
+	rootLogger.Debug().Msg("Updating streams widget")
 	model, cmd = m.streams.Update(msg)
 	m.streams = model.(widgets.StreamsTableWidget)
+	rootLogger.Debug().Msg("Streams widget updated")
 	if cmd != nil {
 		cmds = append(cmds, cmd)
 	}

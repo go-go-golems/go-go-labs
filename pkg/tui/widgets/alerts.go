@@ -42,11 +42,11 @@ func (w AlertsWidget) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		w.width = msg.Width
 		w.height = msg.Height
-		
+
 	case DataUpdateMsg:
 		w.streamsData = msg.StreamsData
 	}
-	
+
 	return w, nil
 }
 
@@ -55,19 +55,19 @@ func (w AlertsWidget) View() string {
 	if w.width == 0 {
 		return ""
 	}
-	
+
 	var alerts []string
-	
+
 	// Title
 	alerts = append(alerts, w.styles.Title.Render("Trim / Memory Alerts:"))
-	
+
 	if len(w.streamsData) == 0 {
 		alerts = append(alerts, w.styles.Info.Render("  No streams to monitor"))
 		return w.styles.Container.Width(w.width).Render(strings.Join(alerts, "\n"))
 	}
-	
+
 	hasAlerts := false
-	
+
 	// Check each stream for alerts
 	for _, stream := range w.streamsData {
 		alert := w.generateStreamAlert(stream)
@@ -76,12 +76,12 @@ func (w AlertsWidget) View() string {
 			hasAlerts = true
 		}
 	}
-	
+
 	// If no specific alerts, show general status
 	if !hasAlerts {
 		alerts = append(alerts, w.styles.Info.Render("  All streams within normal parameters"))
 	}
-	
+
 	content := strings.Join(alerts, "\n")
 	return w.styles.Container.Width(w.width).Render(content)
 }
@@ -111,27 +111,27 @@ func (w AlertsWidget) MaxHeight() int {
 // generateStreamAlert creates an alert message for a stream based on its characteristics
 func (w AlertsWidget) generateStreamAlert(stream StreamData) string {
 	const (
-		highThreshold = 500000  // 500k entries
-		medThreshold  = 100000  // 100k entries
+		highThreshold = 500000 // 500k entries
+		medThreshold  = 100000 // 100k entries
 	)
-	
+
 	if stream.Length > highThreshold {
 		// High usage - show trim rate alert
 		rate := (stream.Length - highThreshold) / 10000 // Simulated trim rate
 		return w.styles.Alert.Render(fmt.Sprintf("  • %s: maxlen=500k (approx %s entries) → trim rate: %d/s",
 			stream.Name, formatNumber(stream.Length), rate))
-			
+
 	} else if stream.Length > medThreshold {
 		// Medium usage - show threshold warning
 		return w.styles.Warning.Render(fmt.Sprintf("  • %s: maxlen=100k (%s entries) → within threshold",
 			stream.Name, formatNumber(stream.Length)))
-			
+
 	} else if stream.Length > 0 {
 		// Low usage - show info
 		return w.styles.Info.Render(fmt.Sprintf("  • %s: no maxlen configured",
 			stream.Name))
 	}
-	
+
 	return ""
 }
 
