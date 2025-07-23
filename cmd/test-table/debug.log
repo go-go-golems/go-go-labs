@@ -1,8 +1,0 @@
-{"level":"info","component":"streams_table","stream_count":2,"time":"2025-07-23T09:50:28-04:00","message":"DataUpdateMsg received"}
-{"level":"debug","component":"streams_table","index":0,"name":"test_stream_1","length":1500,"time":"2025-07-23T09:50:28-04:00","message":"Stream data"}
-{"level":"debug","component":"streams_table","index":1,"name":"test_stream_2","length":8750,"time":"2025-07-23T09:50:28-04:00","message":"Stream data"}
-{"level":"info","component":"streams_table","stream_count":2,"time":"2025-07-23T09:50:28-04:00","message":"updateTableRows called"}
-{"level":"info","component":"streams_table","rows_created":2,"time":"2025-07-23T09:50:28-04:00","message":"Setting table rows"}
-{"level":"info","component":"streams_table","table_rows_after_set":2,"time":"2025-07-23T09:50:28-04:00","message":"Table rows set complete"}
-{"level":"info","component":"streams_table","streams_after_update":2,"table_rows":2,"time":"2025-07-23T09:50:28-04:00","message":"Data update completed"}
-{"level":"debug","component":"streams_table","width":143,"height":53,"time":"2025-07-23T09:50:28-04:00","message":"SetSize called"}
