@@ -1,4 +1,4 @@
-# Amp Agent Coordination
+# Amp Tasks
 
 A comprehensive SQLite-based task management system for coding agents with hierarchical task planning, DAG dependencies, project management, and agent typing.
 
@@ -60,8 +60,16 @@ A comprehensive SQLite-based task management system for coding agents with hiera
 
 ### Quick Start
 ```bash
-# Run demo to set up sample data
-go run ./cmd/experiments/amp-agent-coordination demo
+# Initialize amp-tasks project
+amp-tasks projects create "amp-tasks" --description "Task coordination system development" --guidelines "Follow Go conventions, write tests, document APIs"
+
+# Set as default project
+amp-tasks projects set-default amp-tasks
+
+# Create initial development tasks
+amp-tasks tasks create "Setup project structure" --description "Initialize Go modules and directory structure"
+amp-tasks tasks create "Implement core CLI" --description "Build basic command structure with cobra"
+amp-tasks tasks create "Add database layer" --description "Implement SQLite schema and basic CRUD operations"
 
 # See available work
 amp-tasks tasks available

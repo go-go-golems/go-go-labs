@@ -27,15 +27,15 @@ func init() {
 
 // MetricsWidget displays global throughput and memory usage
 type MetricsWidget struct {
-	width             int
-	height            int
-	serverData        ServerData
-	streamsData       []StreamData
-	throughputHistory []float64
-	sparkline         *sparkline.Sparkline
-	memoryProgress    progress.Model
-	styles            MetricsStyles
-	lastProgressUpdate time.Time  // Throttle progress updates
+	width              int
+	height             int
+	serverData         ServerData
+	streamsData        []StreamData
+	throughputHistory  []float64
+	sparkline          *sparkline.Sparkline
+	memoryProgress     progress.Model
+	styles             MetricsStyles
+	lastProgressUpdate time.Time // Throttle progress updates
 }
 
 type MetricsStyles struct {
@@ -96,7 +96,7 @@ func (w MetricsWidget) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Update progress bar - but avoid continuous animation by only updating when needed
 	progressModel, progressCmd := w.memoryProgress.Update(msg)
 	w.memoryProgress = progressModel.(progress.Model)
-	
+
 	// Log what type of command the progress bar is returning
 	if progressCmd != nil {
 		metricsLogger.Warn().
@@ -104,7 +104,7 @@ func (w MetricsWidget) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			Str("progress_cmd_type", fmt.Sprintf("%T", progressCmd)).
 			Msg("Progress bar returned a command")
 	}
-	
+
 	// Only return progress animation commands if we don't already have another command
 	// This prevents chaining sequence messages
 	if cmd == nil {
@@ -187,7 +187,7 @@ func (w *MetricsWidget) updateMetrics() {
 	if w.serverData.MemoryTotal > 0 {
 		memoryPercent = float64(w.serverData.MemoryUsed) / float64(w.serverData.MemoryTotal)
 	}
-	
+
 	// Get current percent to avoid unnecessary updates
 	currentPercent := w.memoryProgress.Percent()
 	if currentPercent != memoryPercent {

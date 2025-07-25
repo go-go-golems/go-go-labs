@@ -5,15 +5,15 @@ import "github.com/charmbracelet/bubbles/key"
 
 // KeyMap defines all keyboard bindings
 type KeyMap struct {
-	Quit         key.Binding
-	Refresh      key.Binding
-	RefreshUp    key.Binding
-	RefreshDown  key.Binding
-	FocusNext    key.Binding
-	FocusPrev    key.Binding
-	ScrollUp     key.Binding
-	ScrollDown   key.Binding
-	Help         key.Binding
+	Quit        key.Binding
+	Refresh     key.Binding
+	RefreshUp   key.Binding
+	RefreshDown key.Binding
+	FocusNext   key.Binding
+	FocusPrev   key.Binding
+	ScrollUp    key.Binding
+	ScrollDown  key.Binding
+	Help        key.Binding
 }
 
 // DefaultKeyMap returns the default key bindings

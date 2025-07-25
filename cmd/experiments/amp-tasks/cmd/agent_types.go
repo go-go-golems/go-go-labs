@@ -32,6 +32,13 @@ var listAgentTypesCmd = &cobra.Command{
 		if cmd.Flags().Changed("project") {
 			proj, _ := cmd.Flags().GetString("project")
 			projectID = &proj
+		} else {
+			// Default to current project scope
+			project, err := tm.GetDefaultProject()
+			if err != nil {
+				return fmt.Errorf("failed to get default project: %w", err)
+			}
+			projectID = &project.ID
 		}
 
 		agentTypes, err := tm.ListAgentTypes(projectID)
@@ -59,19 +66,29 @@ var createAgentTypeCmd = &cobra.Command{
 		}
 		defer tm.Close()
 
-		// Get project ID (default or specified)
-		var projectID string
-		if cmd.Flags().Changed("project") {
-			projectID, _ = cmd.Flags().GetString("project")
+		// Check for global flag
+		global, _ := cmd.Flags().GetBool("global")
+
+		var projectID *string
+		if global {
+			// Global agent types don't have a project association
+			projectID = nil
 		} else {
-			project, err := tm.GetDefaultProject()
-			if err != nil {
-				return fmt.Errorf("failed to get default project: %w", err)
+			// Get project ID (default or specified)
+			var projID string
+			if cmd.Flags().Changed("project") {
+				projID, _ = cmd.Flags().GetString("project")
+			} else {
+				project, err := tm.GetDefaultProject()
+				if err != nil {
+					return fmt.Errorf("failed to get default project: %w", err)
+				}
+				projID = project.ID
 			}
-			projectID = project.ID
+			projectID = &projID
 		}
 
-		agentType, err := tm.CreateAgentType(name, description, projectID)
+		agentType, err := tm.CreateAgentType(name, description, projectID, global)
 		if err != nil {
 			return fmt.Errorf("failed to create agent type: %w", err)
 		}
@@ -86,7 +103,11 @@ var createAgentTypeCmd = &cobra.Command{
 		if agentType.Description != "" {
 			fmt.Printf("Description: %s\n", agentType.Description)
 		}
-		fmt.Printf("Project: %s\n", agentType.ProjectID)
+		if agentType.Global {
+			fmt.Printf("Scope: Global (available to all projects)\n")
+		} else {
+			fmt.Printf("Project: %s\n", *agentType.ProjectID)
+		}
 
 		return nil
 	},
@@ -137,29 +158,43 @@ func outputAgentTypesTable(agentTypes []AgentType) error {
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tNAME\tDESCRIPTION\tPROJECT\tCREATED")
+	fmt.Fprintln(w, "ID\tNAME\tDESCRIPTION\tSCOPE\tPROJECT\tCREATED")
 
 	for _, agentType := range agentTypes {
 		id := truncateString(agentType.ID, 8)
 		name := truncateString(agentType.Name, 20)
 		description := truncateString(agentType.Description, 30)
-		project := truncateString(agentType.ProjectID, 8)
+
+		scope := "Project"
+		project := "none"
+		if agentType.Global {
+			scope = "Global"
+			project = "all"
+		} else if agentType.ProjectID != nil {
+			project = truncateString(*agentType.ProjectID, 8)
+		}
+
 		created := agentType.CreatedAt.Format("2006-01-02 15:04")
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", id, name, description, project, created)
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", id, name, description, scope, project, created)
 	}
 
 	return w.Flush()
 }
 
 func outputAgentTypesCSV(agentTypes []AgentType) error {
-	fmt.Println("id,name,description,project_id,created_at,updated_at")
+	fmt.Println("id,name,description,project_id,global,created_at,updated_at")
 	for _, agentType := range agentTypes {
-		fmt.Printf("%s,%q,%q,%s,%s,%s\n",
+		projectID := ""
+		if agentType.ProjectID != nil {
+			projectID = *agentType.ProjectID
+		}
+		fmt.Printf("%s,%q,%q,%s,%t,%s,%s\n",
 			agentType.ID,
 			agentType.Name,
 			agentType.Description,
-			agentType.ProjectID,
+			projectID,
+			agentType.Global,
 			agentType.CreatedAt.Format(time.RFC3339),
 			agentType.UpdatedAt.Format(time.RFC3339),
 		)
@@ -186,5 +221,6 @@ func init() {
 	// Create specific flags
 	createAgentTypeCmd.Flags().StringP("description", "d", "", "Agent type description")
 	createAgentTypeCmd.Flags().StringP("project", "p", "", "Project ID (uses default if not specified)")
+	createAgentTypeCmd.Flags().Bool("global", false, "Make this agent type available across all projects")
 	createAgentTypeCmd.Flags().StringP("output", "o", "table", "Output format (table, json)")
 }

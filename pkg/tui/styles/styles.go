@@ -18,14 +18,14 @@ type Styles struct {
 // NewStyles creates a new Styles instance with default styling
 func NewStyles() Styles {
 	// Define common colors
-	primaryColor := lipgloss.Color("57")   // Blue
-	accentColor := lipgloss.Color("69")    // Cyan
-	borderColor := lipgloss.Color("240")   // Gray
-	textColor := lipgloss.Color("15")      // White
-	mutedColor := lipgloss.Color("246")    // Light gray
-	errorColor := lipgloss.Color("196")    // Red
-	warningColor := lipgloss.Color("214")  // Orange
-	infoColor := lipgloss.Color("39")      // Light blue
+	primaryColor := lipgloss.Color("57")  // Blue
+	accentColor := lipgloss.Color("69")   // Cyan
+	borderColor := lipgloss.Color("240")  // Gray
+	textColor := lipgloss.Color("15")     // White
+	mutedColor := lipgloss.Color("246")   // Light gray
+	errorColor := lipgloss.Color("196")   // Red
+	warningColor := lipgloss.Color("214") // Orange
+	infoColor := lipgloss.Color("39")     // Light blue
 
 	return Styles{
 		Header: widgets.HeaderStyles{
