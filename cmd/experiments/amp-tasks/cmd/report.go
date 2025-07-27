@@ -932,12 +932,7 @@ func getTaskStatusEmoji(status TaskStatus) string {
 	}
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
+
 
 func init() {
 	rootCmd.AddCommand(reportCmd)

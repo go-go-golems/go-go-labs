@@ -1,0 +1,509 @@
+package cmd
+
+import "time"
+import "fmt"
+
+templ ReportPage(report *ProjectReport, autoRefresh bool, refreshInterval int) {
+	@Layout("Project Report", autoRefresh, refreshInterval) {
+		<div id="report-content">
+			@ReportContent(report)
+		</div>
+	}
+}
+
+templ ReportContent(report *ProjectReport) {
+	<div class="row">
+		<div class="col-12">
+			<div class="d-flex justify-content-between align-items-center mb-4">
+				<h1>
+					<i class="bi bi-file-earmark-text text-primary"></i>
+					Project Report
+				</h1>
+				<div class="btn-group" role="group">
+					<button type="button" class="btn btn-outline-primary" onclick="refreshContent()">
+						<i class="bi bi-arrow-clockwise"></i>
+						Refresh
+					</button>
+					<a href="/dashboard" class="btn btn-outline-secondary">
+						<i class="bi bi-speedometer2"></i>
+						Dashboard
+					</a>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Project Header -->
+	<div class="row mb-4">
+		<div class="col-12">
+			<div class="card">
+				<div class="card-body">
+					<h2 class="card-title">{ report.Project.Name }</h2>
+					if report.Project.Description != "" {
+						<p class="card-text">{ report.Project.Description }</p>
+					}
+					<div class="row">
+						<div class="col-md-6">
+							<small class="text-muted">
+								<i class="bi bi-calendar"></i>
+								Created: { report.Project.CreatedAt.Format("2006-01-02 15:04") }
+							</small>
+						</div>
+						<div class="col-md-6 text-end">
+							<small class="text-muted">
+								<i class="bi bi-clock"></i>
+								Generated: { report.GeneratedAt.Format("2006-01-02 15:04:05") }
+							</small>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Project Overview -->
+	<div class="row mb-4">
+		<div class="col-12">
+			<h3>
+				<i class="bi bi-bar-chart text-secondary"></i>
+				Project Overview
+			</h3>
+		</div>
+	</div>
+
+	<div class="row mb-4">
+		@OverviewMetrics(report.Summary)
+	</div>
+
+	<!-- Agent Contributions -->
+	if len(report.AgentContributions) > 0 {
+		<div class="row mb-4">
+			<div class="col-12">
+				<h3>
+					<i class="bi bi-people text-secondary"></i>
+					Agent Contributions
+				</h3>
+			</div>
+		</div>
+
+		<div class="row mb-4">
+			<div class="col-12">
+				<div class="card">
+					<div class="card-body">
+						@AgentContributionsTable(report.AgentContributions)
+					</div>
+				</div>
+			</div>
+		</div>
+	}
+
+	<!-- Timeline -->
+	if len(report.Timeline) > 0 {
+		<div class="row mb-4">
+			<div class="col-12">
+				<h3>
+					<i class="bi bi-clock-history text-secondary"></i>
+					Project Timeline
+				</h3>
+			</div>
+		</div>
+
+		<div class="row mb-4">
+			<div class="col-12">
+				<div class="card">
+					<div class="card-body">
+						@TimelineView(report.Timeline)
+					</div>
+				</div>
+			</div>
+		</div>
+	}
+
+	<!-- Task Analysis -->
+	<div class="row mb-4">
+		<div class="col-12">
+			<h3>
+				<i class="bi bi-graph-up text-secondary"></i>
+				Task Analysis
+			</h3>
+		</div>
+	</div>
+
+	<div class="row mb-4">
+		@TaskAnalysisSection(report.TaskAnalysis, report.Summary)
+	</div>
+
+	<!-- Insights -->
+	<div class="row mb-4">
+		<div class="col-12">
+			<h3>
+				<i class="bi bi-lightbulb text-secondary"></i>
+				Insights & Analytics
+			</h3>
+		</div>
+	</div>
+
+	<div class="row mb-4">
+		@InsightsSection(report.Insights)
+	</div>
+
+	<!-- Knowledge Documentation -->
+	if len(report.Knowledge.TopLearnings) > 0 {
+		<div class="row mb-4">
+			<div class="col-12">
+				<h3>
+					<i class="bi bi-book text-secondary"></i>
+					Knowledge Documentation
+				</h3>
+			</div>
+		</div>
+
+		<div class="row mb-4">
+			<div class="col-12">
+				<div class="card">
+					<div class="card-header">
+						<h5 class="mb-0">Recent Learnings (TIL)</h5>
+					</div>
+					<div class="card-body">
+						@TopLearningsView(report.Knowledge.TopLearnings)
+					</div>
+				</div>
+			</div>
+		</div>
+	}
+}
+
+templ OverviewMetrics(summary ProjectSummary) {
+	<div class="col-md-3">
+		<div class="card text-center">
+			<div class="card-body">
+				<i class="bi bi-kanban fs-1 text-primary"></i>
+				<h3 class="mt-2">{ toString(summary.TotalTasks) }</h3>
+				<p class="text-muted">Total Tasks</p>
+			</div>
+		</div>
+	</div>
+	<div class="col-md-3">
+		<div class="card text-center">
+			<div class="card-body">
+				<i class="bi bi-percent fs-1 text-success"></i>
+				<h3 class="mt-2">{ fmt.Sprintf("%.1f%%", summary.CompletionRate) }</h3>
+				<p class="text-muted">Completion Rate</p>
+			</div>
+		</div>
+	</div>
+	<div class="col-md-3">
+		<div class="card text-center">
+			<div class="card-body">
+				<i class="bi bi-people fs-1 text-info"></i>
+				<h3 class="mt-2">{ toString(summary.TotalAgents) }</h3>
+				<p class="text-muted">Active Agents</p>
+			</div>
+		</div>
+	</div>
+	<div class="col-md-3">
+		<div class="card text-center">
+			<div class="card-body">
+				<i class="bi bi-clock fs-1 text-warning"></i>
+				<h3 class="mt-2">{ summary.ProjectDuration.Round(time.Hour * 24).String() }</h3>
+				<p class="text-muted">Project Duration</p>
+			</div>
+		</div>
+	</div>
+}
+
+templ AgentContributionsTable(contributions []AgentContribution) {
+	<div class="table-responsive">
+		<table class="table table-striped">
+			<thead>
+				<tr>
+					<th>Agent</th>
+					<th>Completed</th>
+					<th>Failed</th>
+					<th>Pending</th>
+					<th>Success Rate</th>
+					<th>Notes</th>
+					<th>TILs</th>
+					<th>Avg Time</th>
+				</tr>
+			</thead>
+			<tbody>
+				for _, contrib := range contributions {
+					<tr>
+						<td>
+							<strong>{ contrib.Agent.Name }</strong>
+						</td>
+						<td>
+							<span class="badge bg-success">{ toString(contrib.TasksCompleted) }</span>
+						</td>
+						<td>
+							if contrib.TasksFailed > 0 {
+								<span class="badge bg-danger">{ toString(contrib.TasksFailed) }</span>
+							} else {
+								<span class="text-muted">0</span>
+							}
+						</td>
+						<td>
+							if contrib.TasksPending > 0 {
+								<span class="badge bg-warning">{ toString(contrib.TasksPending) }</span>
+							} else {
+								<span class="text-muted">0</span>
+							}
+						</td>
+						<td>{ fmt.Sprintf("%.1f%%", contrib.SuccessRate) }</td>
+						<td>{ toString(contrib.NotesWritten) }</td>
+						<td>{ toString(contrib.TILsShared) }</td>
+						<td>
+							if contrib.AvgCompletionTime > 0 {
+								{ contrib.AvgCompletionTime.Round(time.Hour).String() }
+							} else {
+								<span class="text-muted">N/A</span>
+							}
+						</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+	</div>
+}
+
+templ TimelineView(timeline []TimelineEvent) {
+	<div class="timeline">
+		for i, event := range timeline {
+			if i < 20 {
+				<div class="timeline-item mb-3">
+					<div class="d-flex">
+						<div class="timeline-icon me-3">
+							@TimelineIcon(event.Type)
+						</div>
+						<div class="timeline-content flex-grow-1">
+							<div class="d-flex justify-content-between align-items-center">
+								<h6 class="mb-1">{ event.Description }</h6>
+								<small class="text-muted">{ event.Time.Format("2006-01-02 15:04") }</small>
+							</div>
+							if event.AgentName != nil {
+								<small class="text-muted">by { *event.AgentName }</small>
+							}
+						</div>
+					</div>
+				</div>
+			}
+		}
+		if len(timeline) > 20 {
+			<div class="text-center text-muted">
+				<i class="bi bi-three-dots"></i>
+				{ toString(len(timeline) - 20) } more events...
+			</div>
+		}
+	</div>
+}
+
+templ TimelineIcon(eventType string) {
+	switch eventType {
+		case "task_created":
+			<i class="bi bi-plus-circle text-primary"></i>
+		case "task_completed":
+			<i class="bi bi-check-circle text-success"></i>
+		case "task_failed":
+			<i class="bi bi-x-circle text-danger"></i>
+		case "task_assigned":
+			<i class="bi bi-person text-info"></i>
+		case "note_added":
+			<i class="bi bi-journal-text text-secondary"></i>
+		case "til_created":
+			<i class="bi bi-lightbulb text-warning"></i>
+		default:
+			<i class="bi bi-circle text-muted"></i>
+	}
+}
+
+templ TaskAnalysisSection(analysis TaskAnalysis, summary ProjectSummary) {
+	<div class="col-md-6">
+		<div class="card h-100">
+			<div class="card-header">
+				<h5 class="mb-0">Task Statistics</h5>
+			</div>
+			<div class="card-body">
+				<div class="row text-center">
+					<div class="col-6">
+						<h4 class="text-success">{ toString(summary.CompletedTasks) }</h4>
+						<small class="text-muted">Completed</small>
+					</div>
+					<div class="col-6">
+						<h4 class="text-warning">{ toString(summary.PendingTasks) }</h4>
+						<small class="text-muted">Pending</small>
+					</div>
+				</div>
+				<hr/>
+				<div class="row text-center">
+					<div class="col-6">
+						<h4 class="text-info">{ toString(summary.TotalNotes) }</h4>
+						<small class="text-muted">Notes</small>
+					</div>
+					<div class="col-6">
+						<h4 class="text-primary">{ toString(summary.TotalTILs) }</h4>
+						<small class="text-muted">TILs</small>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="col-md-6">
+		<div class="card h-100">
+			<div class="card-header">
+				<h5 class="mb-0">Velocity Trends</h5>
+			</div>
+			<div class="card-body">
+				if len(analysis.VelocityTrends) > 0 {
+					@VelocityChart(analysis.VelocityTrends)
+				} else {
+					<p class="text-muted text-center">No velocity data available</p>
+				}
+			</div>
+		</div>
+	</div>
+
+	if len(analysis.BlockingPatterns) > 0 {
+		<div class="col-12 mt-3">
+			<div class="card">
+				<div class="card-header">
+					<h5 class="mb-0">
+						<i class="bi bi-exclamation-triangle text-warning"></i>
+						Blocking Patterns
+					</h5>
+				</div>
+				<div class="card-body">
+					<ul class="list-group list-group-flush">
+						for _, pattern := range analysis.BlockingPatterns {
+							<li class="list-group-item">
+								<i class="bi bi-info-circle text-warning"></i>
+								{ pattern }
+							</li>
+						}
+					</ul>
+				</div>
+			</div>
+		</div>
+	}
+}
+
+templ VelocityChart(trends []VelocityDataPoint) {
+	<div class="velocity-chart">
+		for _, point := range trends {
+			if len(trends) <= 10 {
+				<div class="d-flex justify-content-between align-items-center mb-2">
+					<small class="text-muted">{ point.Date.Format("01-02") }</small>
+					<div class="flex-grow-1 mx-2">
+						<div class="progress" style="height: 10px;">
+							<div class="progress-bar bg-success" style={ fmt.Sprintf("width: %d%%", min(point.TasksCompleted*10, 100)) }></div>
+						</div>
+					</div>
+					<small class="text-muted">{ toString(point.TasksCompleted) }</small>
+				</div>
+			}
+		}
+		if len(trends) > 10 {
+			<p class="text-center text-muted">
+				<i class="bi bi-graph-up"></i>
+				{ toString(len(trends)) } data points available
+			</p>
+		}
+	</div>
+}
+
+templ InsightsSection(insights ProjectInsights) {
+	<div class="col-md-6">
+		<div class="card h-100">
+			<div class="card-header">
+				<h5 class="mb-0">Key Insights</h5>
+			</div>
+			<div class="card-body">
+				if insights.MostProductiveAgent != nil {
+					<div class="mb-3">
+						<h6>
+							<i class="bi bi-trophy text-warning"></i>
+							Most Productive Agent
+						</h6>
+						<p class="mb-0">{ insights.MostProductiveAgent.Name }</p>
+					</div>
+				}
+
+				if insights.LongestRunningTask != nil {
+					<div class="mb-3">
+						<h6>
+							<i class="bi bi-clock text-info"></i>
+							Longest Running Task
+						</h6>
+						<p class="mb-0">{ insights.LongestRunningTask.Title }</p>
+						<small class="text-muted">
+							Running for { time.Since(insights.LongestRunningTask.CreatedAt).Round(time.Hour).String() }
+						</small>
+					</div>
+				}
+
+				if insights.MostCollaborativeTask != nil {
+					<div class="mb-3">
+						<h6>
+							<i class="bi bi-people text-success"></i>
+							Most Collaborative Task
+						</h6>
+						<p class="mb-0">{ insights.MostCollaborativeTask.Title }</p>
+					</div>
+				}
+			</div>
+		</div>
+	</div>
+
+	<div class="col-md-6">
+		<div class="card h-100">
+			<div class="card-header">
+				<h5 class="mb-0">Performance Metrics</h5>
+			</div>
+			<div class="card-body">
+				<div class="mb-3">
+					<div class="d-flex justify-content-between">
+						<span>Knowledge Sharing Rate</span>
+						<strong>{ fmt.Sprintf("%.2f", insights.KnowledgeSharing) } TILs/task</strong>
+					</div>
+				</div>
+				<div class="mb-3">
+					<div class="d-flex justify-content-between">
+						<span>Task Velocity</span>
+						<strong>{ fmt.Sprintf("%.2f", insights.TaskVelocity) } tasks/day</strong>
+					</div>
+				</div>
+				<div class="mb-3">
+					<div class="d-flex justify-content-between">
+						<span>Agent Utilization</span>
+						<strong>{ fmt.Sprintf("%.1f%%", insights.AgentUtilization) }</strong>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+}
+
+templ TopLearningsView(learnings []TIL) {
+	<div class="row">
+		for i, til := range learnings {
+			if i < 6 {
+				<div class="col-md-6 mb-3">
+					<div class="card h-100">
+						<div class="card-body">
+							<h6 class="card-title">{ til.Title }</h6>
+							<p class="card-text">{ til.Content }</p>
+							<small class="text-muted">{ til.CreatedAt.Format("2006-01-02") }</small>
+						</div>
+					</div>
+				</div>
+			}
+		}
+	</div>
+	if len(learnings) > 6 {
+		<div class="text-center text-muted">
+			<i class="bi bi-three-dots"></i>
+			{ toString(len(learnings) - 6) } more learnings...
+		</div>
+	}
+}
