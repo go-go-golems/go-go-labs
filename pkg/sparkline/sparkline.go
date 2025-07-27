@@ -57,14 +57,14 @@ type ColorRange struct {
 
 // Config holds the configuration for a sparkline
 type Config struct {
-	Width        int           // Display width in characters
-	Height       int           // Display height in characters  
-	MaxPoints    int           // Maximum number of data points to keep in memory
-	Style        Style         // Visual style (bars, dots, line, filled)
-	Title        string        // Optional title displayed above the sparkline
-	ShowValue    bool          // Whether to show the current (last) value
-	ShowMinMax   bool          // Whether to show min/max values
-	ColorRanges  []ColorRange  // Value-based color ranges
+	Width        int            // Display width in characters
+	Height       int            // Display height in characters
+	MaxPoints    int            // Maximum number of data points to keep in memory
+	Style        Style          // Visual style (bars, dots, line, filled)
+	Title        string         // Optional title displayed above the sparkline
+	ShowValue    bool           // Whether to show the current (last) value
+	ShowMinMax   bool           // Whether to show min/max values
+	ColorRanges  []ColorRange   // Value-based color ranges
 	DefaultStyle lipgloss.Style // Default style for values not in color ranges
 }
 

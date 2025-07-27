@@ -26,7 +26,7 @@ This command will:
 		logger.Info().Msg("Creating sample project and task hierarchy...")
 
 		// Create project
-		project, err := tm.CreateProject("Agent Coordination System", "A task management system for AI agents", "Work collaboratively, follow dependencies, communicate progress clearly", nil)
+		project, err := tm.CreateProject("Task Management System", "A task management system for AI agents", "Work collaboratively, follow dependencies, communicate progress clearly", nil)
 		if err != nil {
 			return fmt.Errorf("failed to create project: %w", err)
 		}
@@ -38,23 +38,23 @@ This command will:
 		}
 
 		// Create agent types
-		codeReviewType, err := tm.CreateAgentType("Code Reviewer", "Reviews code for quality and standards", project.ID)
+		codeReviewType, err := tm.CreateAgentType("Code Reviewer", "Reviews code for quality and standards", &project.ID, false)
 		if err != nil {
 			return fmt.Errorf("failed to create agent type: %w", err)
 		}
 
-		testRunnerType, err := tm.CreateAgentType("Test Runner", "Executes tests and validates functionality", project.ID)
+		testRunnerType, err := tm.CreateAgentType("Test Runner", "Executes tests and validates functionality", &project.ID, false)
 		if err != nil {
 			return fmt.Errorf("failed to create agent type: %w", err)
 		}
 
-		docAgentType, err := tm.CreateAgentType("Documentation Writer", "Creates and maintains documentation", project.ID)
+		docAgentType, err := tm.CreateAgentType("Documentation Writer", "Creates and maintains documentation", nil, true)
 		if err != nil {
 			return fmt.Errorf("failed to create agent type: %w", err)
 		}
 
 		// Create root task
-		rootTask, err := tm.CreateTask("Build Agent Coordination System", "Main project to build agent coordination system", nil, project.ID, nil)
+		rootTask, err := tm.CreateTask("Build Task Management System", "Main project to build task management system", nil, project.ID, nil)
 		if err != nil {
 			return fmt.Errorf("failed to create root task: %w", err)
 		}

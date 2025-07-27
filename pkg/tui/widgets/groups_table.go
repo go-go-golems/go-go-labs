@@ -104,7 +104,7 @@ func (w GroupsTableWidget) View() string {
 	// Add title and table view
 	title := w.styles.Title.Render("Groups Detail:")
 	tableView := w.table.View()
-	
+
 	content := title + "\n" + tableView
 	return w.styles.Container.Width(w.width).Height(w.height).Render(content)
 }
@@ -217,9 +217,9 @@ type groupColumnWidths struct {
 // calculateColumnWidths determines responsive column widths based on terminal size and content
 func (w GroupsTableWidget) calculateColumnWidths() groupColumnWidths {
 	// Calculate content-based widths
-	maxGroupLen := len("Group") // Header width as minimum
+	maxGroupLen := len("Group")   // Header width as minimum
 	maxStreamLen := len("Stream") // Header width as minimum
-	
+
 	for _, group := range w.groups {
 		if len(group.Name) > maxGroupLen {
 			maxGroupLen = len(group.Name)
@@ -228,11 +228,11 @@ func (w GroupsTableWidget) calculateColumnWidths() groupColumnWidths {
 			maxStreamLen = len(group.Stream)
 		}
 	}
-	
+
 	// Add some padding for content
 	maxGroupLen += 2
 	maxStreamLen += 2
-	
+
 	// Minimum column widths
 	minWidths := groupColumnWidths{
 		group:     maxGroupLen,  // Content-based group name column

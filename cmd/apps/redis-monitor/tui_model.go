@@ -17,7 +17,7 @@ type Model struct {
 // NewModel creates a new TUI model using the new RootModel
 func NewModel(client *RedisClient, demoMode bool, refreshRate time.Duration) Model {
 	var adaptedClient models.RedisClient
-	
+
 	if demoMode || client == nil {
 		// Use nil client for demo mode
 		adaptedClient = nil
@@ -74,16 +74,16 @@ func (a *redisClientAdapter) GetStreamInfo(ctx context.Context, name string) (*m
 	if a.client == nil {
 		return nil, fmt.Errorf("redis client is nil")
 	}
-	
+
 	info, err := a.client.GetStreamInfo(ctx, name)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if info == nil {
 		return nil, fmt.Errorf("stream info is nil for stream: %s", name)
 	}
-	
+
 	return &models.StreamInfo{
 		Name:            info.Name,
 		Length:          info.Length,

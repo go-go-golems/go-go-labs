@@ -1,0 +1,184 @@
+/* amp-tasks Web Interface Styles */
+
+body {
+    background-color: #f8f9fa;
+}
+
+.navbar-brand {
+    font-weight: bold;
+}
+
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: 1px solid rgba(0, 0, 0, 0.125);
+    transition: box-shadow 0.15s ease-in-out;
+}
+
+.card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.timeline-item {
+    position: relative;
+    padding-left: 2rem;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: 10px;
+    top: 30px;
+    bottom: -20px;
+    width: 2px;
+    background-color: #dee2e6;
+}
+
+.timeline-item:last-child::before {
+    display: none;
+}
+
+.timeline-icon {
+    position: relative;
+    z-index: 1;
+    background-color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.velocity-chart .progress {
+    background-color: #e9ecef;
+}
+
+.task-status-card {
+    transition: transform 0.15s ease-in-out;
+}
+
+.task-status-card:hover {
+    transform: translateY(-2px);
+}
+
+/* Custom scrollbar for timeline */
+.timeline {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.timeline::-webkit-scrollbar {
+    width: 6px;
+}
+
+.timeline::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.timeline::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 3px;
+}
+
+.timeline::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Animation for refresh button */
+.btn-refresh {
+    transition: transform 0.3s ease;
+}
+
+.btn-refresh:active {
+    transform: rotate(180deg);
+}
+
+/* Responsive text sizes */
+@media (max-width: 768px) {
+    .fs-1 {
+        font-size: 2rem !important;
+    }
+    
+    h1 {
+        font-size: 1.75rem;
+    }
+    
+    h3 {
+        font-size: 1.25rem;
+    }
+}
+
+/* Status indicators */
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 0.5rem;
+}
+
+.status-indicator.completed {
+    background-color: #28a745;
+}
+
+.status-indicator.pending {
+    background-color: #6c757d;
+}
+
+.status-indicator.in-progress {
+    background-color: #ffc107;
+}
+
+.status-indicator.failed {
+    background-color: #dc3545;
+}
+
+/* Loading states */
+.loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Utility classes */
+.text-truncate-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.border-left-primary {
+    border-left: 4px solid #007bff !important;
+}
+
+.border-left-success {
+    border-left: 4px solid #28a745 !important;
+}
+
+.border-left-warning {
+    border-left: 4px solid #ffc107 !important;
+}
+
+.border-left-danger {
+    border-left: 4px solid #dc3545 !important;
+}

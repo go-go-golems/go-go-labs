@@ -18,16 +18,16 @@ type NavigationView struct {
 
 // keyMap defines the key bindings
 type keyMap struct {
-	Refresh     key.Binding
-	Groups      key.Binding
-	Streams     key.Binding
-	Metrics     key.Binding
-	Up          key.Binding
-	Down        key.Binding
-	SpeedUp     key.Binding
-	SpeedDown   key.Binding
-	Quit        key.Binding
-	Help        key.Binding
+	Refresh   key.Binding
+	Groups    key.Binding
+	Streams   key.Binding
+	Metrics   key.Binding
+	Up        key.Binding
+	Down      key.Binding
+	SpeedUp   key.Binding
+	SpeedDown key.Binding
+	Quit      key.Binding
+	Help      key.Binding
 }
 
 func (k keyMap) ShortHelp() []key.Binding {

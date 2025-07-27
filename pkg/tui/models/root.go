@@ -71,24 +71,24 @@ type RootModel struct {
 	width       int
 	height      int
 	initialized bool
-	
+
 	// Data
 	redisClient RedisClient
 	serverData  widgets.ServerData
 	streamsData []widgets.StreamData
 	refreshRate time.Duration
 	demoMode    bool
-	
+
 	// Data tracking for sparklines
 	streamLengthHistory map[string][]int64
 	lastRefresh         time.Time
 	fetchInFlight       bool
-	
+
 	// UI state
-	focusedWidget string
-	refreshRates  []time.Duration
+	focusedWidget  string
+	refreshRates   []time.Duration
 	refreshRateIdx int
-	
+
 	// Widgets
 	header  widgets.HeaderWidget
 	streams widgets.StreamsTableWidget
@@ -96,7 +96,7 @@ type RootModel struct {
 	alerts  widgets.AlertsWidget
 	metrics widgets.MetricsWidget
 	footer  widgets.FooterWidget
-	
+
 	// Input handling
 	keys keys.KeyMap
 }
@@ -115,36 +115,36 @@ type DataFetchedMsg struct {
 
 // Available refresh rates
 var defaultRefreshRates = []time.Duration{
-	100 * time.Millisecond,  // 0.1s
-	200 * time.Millisecond,  // 0.2s
-	500 * time.Millisecond,  // 0.5s
-	1 * time.Second,         // 1s
-	2 * time.Second,         // 2s
-	5 * time.Second,         // 5s
-	10 * time.Second,        // 10s
+	100 * time.Millisecond, // 0.1s
+	200 * time.Millisecond, // 0.2s
+	500 * time.Millisecond, // 0.5s
+	1 * time.Second,        // 1s
+	2 * time.Second,        // 2s
+	5 * time.Second,        // 5s
+	10 * time.Second,       // 10s
 }
 
 // NewRootModel creates a new root model
 func NewRootModel(client RedisClient, demoMode bool, refreshRate time.Duration) RootModel {
 	// Initialize styles
 	appStyles := styles.NewStyles()
-	
+
 	// Find closest refresh rate
 	refreshRateIdx := findClosestRefreshRate(refreshRate)
-	
+
 	// Initialize key map
 	keyMap := keys.DefaultKeyMap()
-	
+
 	return RootModel{
 		redisClient:         client,
-		demoMode:           demoMode,
-		refreshRate:        defaultRefreshRates[refreshRateIdx],
-		refreshRateIdx:     refreshRateIdx,
-		refreshRates:       defaultRefreshRates,
-		focusedWidget:      "streams",
+		demoMode:            demoMode,
+		refreshRate:         defaultRefreshRates[refreshRateIdx],
+		refreshRateIdx:      refreshRateIdx,
+		refreshRates:        defaultRefreshRates,
+		focusedWidget:       "streams",
 		streamLengthHistory: make(map[string][]int64),
-		keys:               keyMap,
-		
+		keys:                keyMap,
+
 		// Initialize widgets
 		header:  widgets.NewHeaderWidget(appStyles.Header),
 		streams: widgets.NewStreamsTableWidget(appStyles.StreamsTable),
@@ -166,54 +166,54 @@ func (m RootModel) Init() tea.Cmd {
 // Update implements tea.Model
 func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
-	
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		rootLogger.Info().Int("width", msg.Width).Int("height", msg.Height).Msg("WindowSizeMsg received")
 		m.width = msg.Width
 		m.height = msg.Height
 		m.initialized = true
-		
+
 		// Update widget sizes
 		m.updateWidgetSizes()
-		
+
 		// Propagate to widgets
 		cmds = append(cmds, m.updateWidgets(msg)...)
-		
+
 	case tea.KeyMsg:
 		// Handle global keys first
 		switch {
 		case key.Matches(msg, m.keys.Quit):
 			return m, tea.Quit
-			
+
 		case key.Matches(msg, m.keys.Refresh):
 			if !m.fetchInFlight {
 				cmds = append(cmds, m.fetchData())
 			}
-			
+
 		case key.Matches(msg, m.keys.RefreshUp):
 			cmds = append(cmds, m.speedUp())
-			
+
 		case key.Matches(msg, m.keys.RefreshDown):
 			cmds = append(cmds, m.speedDown())
-			
+
 		case key.Matches(msg, m.keys.FocusNext):
 			m.cycleFocus(1)
-			
+
 		case key.Matches(msg, m.keys.FocusPrev):
 			m.cycleFocus(-1)
-			
+
 		default:
 			// Pass to focused widget
 			cmds = append(cmds, m.updateWidgets(msg)...)
 		}
-		
+
 	case RefreshTickMsg:
 		if !m.fetchInFlight {
 			cmds = append(cmds, m.fetchData())
 		}
 		cmds = append(cmds, m.startRefreshTimer())
-		
+
 	case DataFetchedMsg:
 		m.fetchInFlight = false
 		if msg.Error != nil {
@@ -224,7 +224,7 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.serverData = msg.ServerData
 			m.streamsData = msg.StreamsData
 			m.lastRefresh = time.Now()
-			
+
 			// Update widgets with new data
 			dataUpdate := widgets.DataUpdateMsg{
 				ServerData:  msg.ServerData,
@@ -233,17 +233,17 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			rootLogger.Info().Int("streams_in_update", len(dataUpdate.StreamsData)).Msg("Sending DataUpdateMsg to widgets")
 			cmds = append(cmds, m.updateWidgets(dataUpdate)...)
-			
+
 			// Recalculate widget sizes after data update since MaxHeight may have changed
 			m.updateWidgetSizes()
 		}
-		
+
 	default:
 		// Pass other messages to widgets
 		rootLogger.Debug().Str("msg_type", fmt.Sprintf("%T", msg)).Msg("Passing message to widgets")
 		cmds = append(cmds, m.updateWidgets(msg)...)
 	}
-	
+
 	return m, tea.Batch(cmds...)
 }
 
@@ -252,11 +252,11 @@ func (m RootModel) View() string {
 	if !m.initialized {
 		return "Initializing..."
 	}
-	
+
 	rootLogger.Debug().Msg("RootModel.View() called")
-	
+
 	var sections []string
-	
+
 	// Render each widget
 	headerView := m.header.View()
 	streamsView := m.streams.View()
@@ -264,7 +264,7 @@ func (m RootModel) View() string {
 	alertsView := m.alerts.View()
 	metricsView := m.metrics.View()
 	footerView := m.footer.View()
-	
+
 	// Use lipgloss to measure actual rendered sizes
 	headerHeight := lipgloss.Height(headerView)
 	headerWidth := lipgloss.Width(headerView)
@@ -278,7 +278,7 @@ func (m RootModel) View() string {
 	metricsWidth := lipgloss.Width(metricsView)
 	footerHeight := lipgloss.Height(footerView)
 	footerWidth := lipgloss.Width(footerView)
-	
+
 	rootLogger.Info().
 		Int("header_len", len(headerView)).Int("header_height", headerHeight).Int("header_width", headerWidth).
 		Int("streams_len", len(streamsView)).Int("streams_height", streamsHeight).Int("streams_width", streamsWidth).
@@ -287,19 +287,19 @@ func (m RootModel) View() string {
 		Int("metrics_len", len(metricsView)).Int("metrics_height", metricsHeight).Int("metrics_width", metricsWidth).
 		Int("footer_len", len(footerView)).Int("footer_height", footerHeight).Int("footer_width", footerWidth).
 		Msg("Widget views rendered with dimensions")
-	
+
 	sections = append(sections, headerView)
 	sections = append(sections, streamsView)
 	sections = append(sections, groupsView)
 	sections = append(sections, alertsView)
 	sections = append(sections, metricsView)
 	sections = append(sections, footerView)
-	
+
 	result := lipgloss.JoinVertical(lipgloss.Top, sections...)
 	rootLogger.Info().Int("final_layout_len", len(result)).
 		Int("sections_count", len(sections)).
 		Msg("Final layout composed")
-	
+
 	return result
 }
 
@@ -310,30 +310,30 @@ func (m *RootModel) updateWidgetSizes() {
 		rootLogger.Warn().Msg("updateWidgetSizes: height is 0, returning")
 		return
 	}
-	
+
 	// Calculate available height for dynamic widgets
 	fixedHeight := m.header.MinHeight() + m.footer.MinHeight()
 	availableHeight := m.height - fixedHeight
-	
+
 	// Distribute remaining space
 	if availableHeight > 0 {
 		// Give priority to streams table, then groups, then alerts
 		streamsMaxHeight := m.streams.MaxHeight()
 		streamHeight := min(availableHeight/2, streamsMaxHeight)
 		remainingHeight := availableHeight - streamHeight
-		
+
 		rootLogger.Info().
 			Int("available_height", availableHeight).
 			Int("streams_max_height", streamsMaxHeight).
 			Int("streams_allocated_height", streamHeight).
 			Msg("Streams sizing calculation")
-		
+
 		groupHeight := min(remainingHeight/2, m.groups.MaxHeight())
 		remainingHeight -= groupHeight
-		
+
 		alertHeight := min(remainingHeight-m.metrics.MinHeight(), m.alerts.MaxHeight())
 		metricHeight := m.metrics.MinHeight()
-		
+
 		// Set widget sizes
 		rootLogger.Info().
 			Int("terminal_height", m.height).
@@ -343,7 +343,7 @@ func (m *RootModel) updateWidgetSizes() {
 			Int("alert_height", alertHeight).
 			Int("metric_height", metricHeight).
 			Msg("Setting widget sizes")
-			
+
 		m.header.SetSize(m.width, m.header.MinHeight())
 		m.streams.SetSize(m.width, streamHeight)
 		m.groups.SetSize(m.width, groupHeight)
@@ -351,7 +351,7 @@ func (m *RootModel) updateWidgetSizes() {
 		m.metrics.SetSize(m.width, metricHeight)
 		m.footer.SetSize(m.width, m.footer.MinHeight())
 	}
-	
+
 	// Update focus
 	m.updateWidgetFocus()
 }
@@ -368,7 +368,7 @@ func (m *RootModel) updateWidgets(msg tea.Msg) []tea.Cmd {
 	var cmds []tea.Cmd
 	var cmd tea.Cmd
 	var model tea.Model
-	
+
 	// Update header widget
 	m.header.SetRefreshRate(m.refreshRate)
 	m.header.SetDemoMode(m.demoMode)
@@ -377,7 +377,7 @@ func (m *RootModel) updateWidgets(msg tea.Msg) []tea.Cmd {
 	if cmd != nil {
 		cmds = append(cmds, cmd)
 	}
-	
+
 	// Update streams widget
 	rootLogger.Debug().Msg("Updating streams widget")
 	model, cmd = m.streams.Update(msg)
@@ -386,42 +386,42 @@ func (m *RootModel) updateWidgets(msg tea.Msg) []tea.Cmd {
 	if cmd != nil {
 		cmds = append(cmds, cmd)
 	}
-	
+
 	// Update groups widget
 	model, cmd = m.groups.Update(msg)
 	m.groups = model.(widgets.GroupsTableWidget)
 	if cmd != nil {
 		cmds = append(cmds, cmd)
 	}
-	
+
 	// Update alerts widget
 	model, cmd = m.alerts.Update(msg)
 	m.alerts = model.(widgets.AlertsWidget)
 	if cmd != nil {
 		cmds = append(cmds, cmd)
 	}
-	
+
 	// Update metrics widget
 	model, cmd = m.metrics.Update(msg)
 	m.metrics = model.(widgets.MetricsWidget)
 	if cmd != nil {
 		cmds = append(cmds, cmd)
 	}
-	
+
 	// Update footer widget
 	model, cmd = m.footer.Update(msg)
 	m.footer = model.(widgets.FooterWidget)
 	if cmd != nil {
 		cmds = append(cmds, cmd)
 	}
-	
+
 	return cmds
 }
 
 // cycleFocus moves focus between widgets
 func (m *RootModel) cycleFocus(direction int) {
 	focusableWidgets := []string{"streams", "groups"}
-	
+
 	currentIdx := 0
 	for i, widget := range focusableWidgets {
 		if widget == m.focusedWidget {
@@ -429,7 +429,7 @@ func (m *RootModel) cycleFocus(direction int) {
 			break
 		}
 	}
-	
+
 	newIdx := (currentIdx + direction + len(focusableWidgets)) % len(focusableWidgets)
 	m.focusedWidget = focusableWidgets[newIdx]
 	m.updateWidgetFocus()
@@ -465,17 +465,17 @@ func (m *RootModel) fetchData() tea.Cmd {
 	if m.fetchInFlight {
 		return nil
 	}
-	
+
 	m.fetchInFlight = true
-	
+
 	if m.demoMode {
 		return m.fetchDemoData()
 	}
-	
+
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		
+
 		serverData, streamsData, err := m.fetchRealData(ctx)
 		return DataFetchedMsg{
 			ServerData:  serverData,
@@ -496,15 +496,15 @@ func (m *RootModel) fetchDemoData() tea.Cmd {
 			Version:     "7.0.8",
 			Throughput:  1023.5,
 		}
-		
+
 		// Generate demo streams data
 		streamsData := []widgets.StreamData{
 			{
-				Name:        "orders",
-				Length:      1243592,
-				MemoryUsage: 126353408, // ~120.5MB
-				Groups:      3,
-				LastID:      "160123-7",
+				Name:         "orders",
+				Length:       1243592,
+				MemoryUsage:  126353408, // ~120.5MB
+				Groups:       3,
+				LastID:       "160123-7",
 				MessageRates: []float64{4.0, 4.0, 4.0, 4.0, 2.0, 2.0, 2.0, 1.0, 1.0, 1.0},
 				ConsumerGroups: []widgets.GroupData{
 					{Name: "cg-1", Stream: "orders", Pending: 12, Consumers: []widgets.ConsumerData{
@@ -517,11 +517,11 @@ func (m *RootModel) fetchDemoData() tea.Cmd {
 				},
 			},
 			{
-				Name:        "events", 
-				Length:      98234,
-				MemoryUsage: 9648128, // ~9.2MB
-				Groups:      5,
-				LastID:      "160123-3",
+				Name:         "events",
+				Length:       98234,
+				MemoryUsage:  9648128, // ~9.2MB
+				Groups:       5,
+				LastID:       "160123-3",
 				MessageRates: []float64{1.0, 1.0, 1.0, 1.0, 2.0, 2.0, 3.0, 4.0, 4.0, 3.0},
 				ConsumerGroups: []widgets.GroupData{
 					{Name: "cg-A", Stream: "events", Pending: 3, Consumers: []widgets.ConsumerData{
@@ -531,7 +531,7 @@ func (m *RootModel) fetchDemoData() tea.Cmd {
 				},
 			},
 		}
-		
+
 		return DataFetchedMsg{
 			ServerData:  serverData,
 			StreamsData: streamsData,
@@ -545,26 +545,26 @@ func (m *RootModel) fetchRealData(ctx context.Context) (widgets.ServerData, []wi
 	if m.redisClient == nil {
 		return widgets.ServerData{}, nil, fmt.Errorf("redis client not available")
 	}
-	
+
 	// Fetch server info
 	serverInfo, err := m.redisClient.GetServerInfo(ctx)
 	if err != nil {
 		return widgets.ServerData{}, nil, fmt.Errorf("failed to get server info: %w", err)
 	}
-	
+
 	serverData := widgets.ServerData{
 		Uptime:      time.Duration(serverInfo.UptimeInSeconds) * time.Second,
 		MemoryUsed:  serverInfo.UsedMemory,
 		MemoryTotal: serverInfo.TotalSystemMemory,
 		Version:     serverInfo.Version,
 	}
-	
+
 	// Discover streams
 	streamNames, err := m.redisClient.DiscoverStreams(ctx)
 	if err != nil {
 		return serverData, nil, fmt.Errorf("failed to discover streams: %w", err)
 	}
-	
+
 	var streamsData []widgets.StreamData
 	for _, streamName := range streamNames {
 		streamData, err := m.fetchStreamData(ctx, streamName)
@@ -574,7 +574,7 @@ func (m *RootModel) fetchRealData(ctx context.Context) (widgets.ServerData, []wi
 		}
 		streamsData = append(streamsData, streamData)
 	}
-	
+
 	return serverData, streamsData, nil
 }
 
@@ -585,16 +585,16 @@ func (m *RootModel) fetchStreamData(ctx context.Context, streamName string) (wid
 	if err != nil {
 		return widgets.StreamData{}, err
 	}
-	
+
 	// Calculate message rates
 	messageRates := m.calculateMessageRates(streamName, streamInfo.Length)
-	
+
 	// Get groups for this stream
 	groups, err := m.redisClient.GetStreamGroups(ctx, streamName)
 	if err != nil {
 		return widgets.StreamData{}, err
 	}
-	
+
 	var consumerGroups []widgets.GroupData
 	for _, group := range groups {
 		consumers, err := m.redisClient.GetGroupConsumers(ctx, streamName, group.Name)
@@ -602,7 +602,7 @@ func (m *RootModel) fetchStreamData(ctx context.Context, streamName string) (wid
 			log.Printf("Failed to get consumers for group %s: %v", group.Name, err)
 			continue
 		}
-		
+
 		var consumerData []widgets.ConsumerData
 		for _, consumer := range consumers {
 			consumerData = append(consumerData, widgets.ConsumerData{
@@ -611,7 +611,7 @@ func (m *RootModel) fetchStreamData(ctx context.Context, streamName string) (wid
 				Idle:    consumer.Idle,
 			})
 		}
-		
+
 		consumerGroups = append(consumerGroups, widgets.GroupData{
 			Name:      group.Name,
 			Stream:    streamName,
@@ -619,7 +619,7 @@ func (m *RootModel) fetchStreamData(ctx context.Context, streamName string) (wid
 			Consumers: consumerData,
 		})
 	}
-	
+
 	return widgets.StreamData{
 		Name:           streamInfo.Name,
 		Length:         streamInfo.Length,
@@ -634,21 +634,21 @@ func (m *RootModel) fetchStreamData(ctx context.Context, streamName string) (wid
 // calculateMessageRates calculates message rates for sparklines
 func (m *RootModel) calculateMessageRates(streamName string, currentLength int64) []float64 {
 	const historySize = 20
-	
+
 	// Get or create history for this stream
 	if _, exists := m.streamLengthHistory[streamName]; !exists {
 		m.streamLengthHistory[streamName] = make([]int64, 0, historySize)
 	}
-	
+
 	history := m.streamLengthHistory[streamName]
-	
+
 	// Add current length
 	history = append(history, currentLength)
 	if len(history) > historySize {
 		history = history[1:]
 	}
 	m.streamLengthHistory[streamName] = history
-	
+
 	// Calculate rates
 	rates := make([]float64, len(history))
 	for i := 1; i < len(history); i++ {
@@ -658,7 +658,7 @@ func (m *RootModel) calculateMessageRates(streamName string, currentLength int64
 		}
 		rates[i] = rate
 	}
-	
+
 	return rates
 }
 
@@ -667,7 +667,7 @@ func (m *RootModel) calculateMessageRates(streamName string, currentLength int64
 func findClosestRefreshRate(target time.Duration) int {
 	closest := 0
 	minDiff := absDuration(defaultRefreshRates[0] - target)
-	
+
 	for i, rate := range defaultRefreshRates {
 		diff := absDuration(rate - target)
 		if diff < minDiff {
@@ -675,7 +675,7 @@ func findClosestRefreshRate(target time.Duration) int {
 			closest = i
 		}
 	}
-	
+
 	return closest
 }
 

@@ -30,7 +30,7 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.5
 	github.com/charmbracelet/gum v0.11.0
 	github.com/charmbracelet/huh v0.6.0
-	github.com/charmbracelet/lipgloss v1.1.0
+	github.com/charmbracelet/lipgloss v1.1.1-0.20250404203927-76690c660834
 	github.com/chromedp/chromedp v0.9.2
 	github.com/cilium/ebpf v0.18.0
 	github.com/coder/hnsw v0.6.1
@@ -43,7 +43,7 @@ require (
 	github.com/go-git/go-git/v5 v5.16.2
 	github.com/go-go-golems/clay v0.1.39
 	github.com/go-go-golems/geppetto v0.4.44
-	github.com/go-go-golems/glazed v0.5.48
+	github.com/go-go-golems/glazed v0.6.6
 	github.com/go-go-golems/go-emrichen v0.0.5
 	github.com/go-go-golems/go-go-mcp v0.0.10
 	github.com/go-go-golems/pinocchio v0.0.1
@@ -60,8 +60,9 @@ require (
 	github.com/invopop/jsonschema v0.13.0
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/joho/godotenv v1.5.1
-	github.com/labstack/echo/v4 v4.13.3
+	github.com/labstack/echo/v4 v4.13.4
 	github.com/levigross/grequests v0.0.0-20221222020224-9eee758d18d5
+	github.com/lib/pq v1.10.9
 	github.com/machinebox/graphql v0.2.2
 	github.com/maragudk/gomponents v0.20.1
 	github.com/maragudk/gomponents-htmx v0.4.0
@@ -75,6 +76,7 @@ require (
 	github.com/pion/webrtc/v3 v3.3.5
 	github.com/pkg/errors v0.9.1
 	github.com/pkg/profile v1.7.0
+	github.com/redis/go-redis/v9 v9.11.0
 	github.com/rs/cors v1.11.0
 	github.com/rs/zerolog v1.34.0
 	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3
@@ -155,6 +157,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/charmbracelet/colorprofile v0.3.0 // indirect
 	github.com/charmbracelet/x/cellbuf v0.0.13 // indirect
+	github.com/charmbracelet/x/exp/slice v0.0.0-20250327172914-2fdc97757edf // indirect
 	github.com/chewxy/math32 v1.10.1 // indirect
 	github.com/creack/goselect v0.1.2 // indirect
 	github.com/cristalhq/jwt/v4 v4.0.2 // indirect
@@ -189,7 +192,6 @@ require (
 	github.com/huandu/go-clone v1.7.2 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/labstack/gommon v0.4.2 // indirect
-	github.com/lib/pq v1.10.9 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/matryer/is v1.4.1 // indirect
 	github.com/mattn/goveralls v0.0.12 // indirect
@@ -215,7 +217,6 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
 	github.com/r3labs/sse/v2 v2.10.0 // indirect
-	github.com/redis/go-redis/v9 v9.11.0 // indirect
 	github.com/sagikazarmark/locafero v0.7.0 // indirect
 	github.com/sashabaranov/go-openai v1.36.0 // indirect
 	github.com/seatgeek/logrus-gelf-formatter v0.0.0-20210414080842-5b05eb8ff761 // indirect
@@ -256,7 +257,7 @@ require (
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/mod v0.25.0 // indirect
-	golang.org/x/time v0.8.0 // indirect
+	golang.org/x/time v0.11.0 // indirect
 	golang.org/x/tools v0.33.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20241209162323-e6fa225c2576 // indirect
 	gopkg.in/cenkalti/backoff.v1 v1.1.0 // indirect
@@ -295,7 +296,7 @@ require (
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/bytedance/sonic v1.9.1 // indirect
 	github.com/catppuccin/go v0.2.0 // indirect
-	github.com/charmbracelet/glamour v0.9.1
+	github.com/charmbracelet/glamour v0.10.0
 	github.com/charmbracelet/harmonica v0.2.0 // indirect
 	github.com/charmbracelet/x/ansi v0.8.0 // indirect
 	github.com/charmbracelet/x/exp/strings v0.0.0-20240725160154-f9f6568126ec // indirect
@@ -392,7 +393,7 @@ require (
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/tj/go-naturaldate v1.3.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
-	github.com/ugorji/go/codec v1.2.11 // indirect
+	github.com/ugorji/go/codec v1.3.0 // indirect
 	github.com/willf/bitset v1.1.11 // indirect
 	github.com/wmentor/html v1.0.1 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect

@@ -1,0 +1,293 @@
+package cmd
+
+templ DashboardPage(data *DashboardData, autoRefresh bool, refreshInterval int) {
+	@Layout("Dashboard", autoRefresh, refreshInterval) {
+		<div id="dashboard-content">
+			@DashboardContent(data)
+		</div>
+	}
+}
+
+templ DashboardContent(data *DashboardData) {
+	<div class="row">
+		<div class="col-12">
+			<div class="d-flex justify-content-between align-items-center mb-4">
+				<h1>
+					<i class="bi bi-speedometer2 text-primary"></i>
+					Project Dashboard
+				</h1>
+				<div class="btn-group" role="group">
+					<button type="button" class="btn btn-outline-primary" onclick="refreshContent()">
+						<i class="bi bi-arrow-clockwise"></i>
+						Refresh
+					</button>
+					<a href="/report" class="btn btn-outline-secondary">
+						<i class="bi bi-file-earmark-text"></i>
+						View Report
+					</a>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Project Header -->
+	<div class="row mb-4">
+		<div class="col-12">
+			<div class="card">
+				<div class="card-body">
+					<h2 class="card-title">
+						<i class="bi bi-building text-primary"></i>
+						{ data.Project.Name }
+					</h2>
+					if data.Project.Description != "" {
+						<p class="card-text text-muted">{ data.Project.Description }</p>
+					}
+					<small class="text-muted">
+						<i class="bi bi-calendar"></i>
+						Created: { data.Project.CreatedAt.Format("2006-01-02 15:04") }
+					</small>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Task Overview -->
+	<div class="row mb-4">
+		<div class="col-12">
+			<h3>
+				<i class="bi bi-kanban text-secondary"></i>
+				Task Overview
+			</h3>
+		</div>
+	</div>
+
+	<div class="row mb-4">
+		@TaskStatusCards(data.Tasks)
+	</div>
+
+	<!-- Team Status and Active Work -->
+	<div class="row mb-4">
+		<div class="col-md-6">
+			<div class="card h-100">
+				<div class="card-header">
+					<h5 class="mb-0">
+						<i class="bi bi-people text-success"></i>
+						Team Status
+					</h5>
+				</div>
+				<div class="card-body">
+					<div class="row text-center">
+						<div class="col-6">
+							<h3 class="text-primary">{ toString(len(data.Agents)) }</h3>
+							<small class="text-muted">Agents</small>
+						</div>
+						<div class="col-6">
+							<h3 class="text-info">{ toString(len(data.AgentTypes)) }</h3>
+							<small class="text-muted">Types</small>
+						</div>
+					</div>
+					if len(data.AgentTypes) > 0 {
+						<hr/>
+						<h6>Agent Types:</h6>
+						<div class="list-group list-group-flush">
+							for _, agentType := range data.AgentTypes {
+								<div class="list-group-item p-2">
+									<div class="d-flex justify-content-between align-items-center">
+										<span>{ agentType.Name }</span>
+										if agentType.Global {
+											<span class="badge bg-warning">Global</span>
+										} else {
+											<span class="badge bg-primary">Project</span>
+										}
+									</div>
+									<small class="text-muted">{ agentType.Description }</small>
+								</div>
+							}
+						</div>
+					}
+				</div>
+			</div>
+		</div>
+
+		<div class="col-md-6">
+			<div class="card h-100">
+				<div class="card-header">
+					<h5 class="mb-0">
+						<i class="bi bi-play-circle text-warning"></i>
+						Current Work
+					</h5>
+				</div>
+				<div class="card-body">
+					@ActiveWorkList(data.Tasks, data.Agents)
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Recent Activity -->
+	if len(data.RecentNotes) > 0 || len(data.RecentTILs) > 0 {
+		<div class="row mb-4">
+			<div class="col-12">
+				<h3>
+					<i class="bi bi-clock-history text-secondary"></i>
+					Recent Activity
+				</h3>
+			</div>
+		</div>
+
+		<div class="row">
+			if len(data.RecentNotes) > 0 {
+				<div class="col-md-6">
+					<div class="card">
+						<div class="card-header">
+							<h5 class="mb-0">
+								<i class="bi bi-journal-text text-info"></i>
+								Recent Notes
+							</h5>
+						</div>
+						<div class="card-body">
+							@RecentNotesList(data.RecentNotes)
+						</div>
+					</div>
+				</div>
+			}
+
+			if len(data.RecentTILs) > 0 {
+				<div class="col-md-6">
+					<div class="card">
+						<div class="card-header">
+							<h5 class="mb-0">
+								<i class="bi bi-lightbulb text-warning"></i>
+								Recent Insights
+							</h5>
+						</div>
+						<div class="card-body">
+							@RecentTILsList(data.RecentTILs)
+						</div>
+					</div>
+				</div>
+			}
+		</div>
+	}
+
+	<!-- Project Guidelines -->
+	if data.Project.Guidelines != "" {
+		<div class="row mt-4">
+			<div class="col-12">
+				<div class="card">
+					<div class="card-header">
+						<h5 class="mb-0">
+							<i class="bi bi-book text-secondary"></i>
+							Project Guidelines
+						</h5>
+					</div>
+					<div class="card-body">
+						<p class="card-text">{ data.Project.Guidelines }</p>
+					</div>
+				</div>
+			</div>
+		</div>
+	}
+}
+
+templ TaskStatusCards(tasks []Task) {
+	<div class="col-md-3">
+		<div class="card border-success">
+			<div class="card-body text-center">
+				<i class="bi bi-check-circle fs-1 text-success"></i>
+				<h3 class="mt-2">{ toString(countTasksByStatus(tasks, "completed")) }</h3>
+				<p class="text-muted">Completed</p>
+			</div>
+		</div>
+	</div>
+	<div class="col-md-3">
+		<div class="card border-warning">
+			<div class="card-body text-center">
+				<i class="bi bi-arrow-clockwise fs-1 text-warning"></i>
+				<h3 class="mt-2">{ toString(countTasksByStatus(tasks, "in_progress")) }</h3>
+				<p class="text-muted">In Progress</p>
+			</div>
+		</div>
+	</div>
+	<div class="col-md-3">
+		<div class="card border-secondary">
+			<div class="card-body text-center">
+				<i class="bi bi-clock fs-1 text-secondary"></i>
+				<h3 class="mt-2">{ toString(countTasksByStatus(tasks, "pending")) }</h3>
+				<p class="text-muted">Pending</p>
+			</div>
+		</div>
+	</div>
+	<div class="col-md-3">
+		<div class="card border-danger">
+			<div class="card-body text-center">
+				<i class="bi bi-x-circle fs-1 text-danger"></i>
+				<h3 class="mt-2">{ toString(countTasksByStatus(tasks, "failed")) }</h3>
+				<p class="text-muted">Failed</p>
+			</div>
+		</div>
+	</div>
+}
+
+templ ActiveWorkList(tasks []Task, agents []Agent) {
+	if len(getActiveWork(tasks)) == 0 {
+		<p class="text-muted text-center">
+			<i class="bi bi-info-circle"></i>
+			No work currently in progress
+		</p>
+	} else {
+		<div class="list-group list-group-flush">
+			for _, task := range getActiveWork(tasks) {
+				<div class="list-group-item p-3">
+					<div class="d-flex justify-content-between align-items-start">
+						<div>
+							<h6 class="mb-1">{ task.Title }</h6>
+							if task.Description != "" {
+								<p class="mb-1 text-muted small">{ task.Description }</p>
+							}
+							<small class="text-muted">
+								Started: { formatTimeAgo(task.UpdatedAt) }
+							</small>
+						</div>
+						<div class="text-end">
+							if task.AgentID != nil {
+								if agent := findAgent(agents, *task.AgentID); agent != nil {
+									<span class="badge bg-info">{ agent.Name }</span>
+								}
+							} else {
+								<span class="badge bg-secondary">Unassigned</span>
+							}
+						</div>
+					</div>
+				</div>
+			}
+		</div>
+	}
+}
+
+templ RecentNotesList(notes []Note) {
+	<div class="list-group list-group-flush">
+		for i, note := range notes {
+			if i < 5 {
+				<div class="list-group-item p-3">
+					<p class="mb-1">{ note.Content }</p>
+					<small class="text-muted">{ formatTimeAgo(note.CreatedAt) }</small>
+				</div>
+			}
+		}
+	</div>
+}
+
+templ RecentTILsList(tils []TIL) {
+	<div class="list-group list-group-flush">
+		for i, til := range tils {
+			if i < 3 {
+				<div class="list-group-item p-3">
+					<h6 class="mb-1">{ til.Title }</h6>
+					<p class="mb-1">{ til.Content }</p>
+					<small class="text-muted">{ formatTimeAgo(til.CreatedAt) }</small>
+				</div>
+			}
+		}
+	</div>
+}

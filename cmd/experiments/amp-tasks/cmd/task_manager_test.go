@@ -32,7 +32,7 @@ func TestTILAndNotesIntegration(t *testing.T) {
 	}
 
 	// Create a task
-	task, err := tm.CreateTask("Test Task", "A test task", nil, project.ID)
+	task, err := tm.CreateTask("Test Task", "A test task", nil, project.ID, nil)
 	if err != nil {
 		t.Fatalf("Failed to create task: %v", err)
 	}
@@ -48,7 +48,7 @@ func TestTILAndNotesIntegration(t *testing.T) {
 	}
 
 	// Create TIL without task (project-level)
-	projectTIL, err := tm.CreateTIL(project.ID, nil, agent.ID, "Project Insight", "This project teaches agent coordination")
+	projectTIL, err := tm.CreateTIL(project.ID, nil, agent.ID, "Project Insight", "This project teaches task management")
 	if err != nil {
 		t.Fatalf("Failed to create project TIL: %v", err)
 	}
