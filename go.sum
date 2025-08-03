@@ -379,8 +379,8 @@ github.com/go-git/go-git-fixtures/v4 v4.3.2-0.20231010084843-55a94097c399 h1:eMj
 github.com/go-git/go-git-fixtures/v4 v4.3.2-0.20231010084843-55a94097c399/go.mod h1:1OCfN199q1Jm3HZlxleg+Dw/mwps2Wbk9frAWm+4FII=
 github.com/go-git/go-git/v5 v5.16.2 h1:fT6ZIOjE5iEnkzKyxTHK1W4HGAsPhqEqiSAssSO77hM=
 github.com/go-git/go-git/v5 v5.16.2/go.mod h1:4Ge4alE/5gPs30F2H1esi2gPd69R0C39lolkucHBOp8=
-github.com/go-go-golems/clay v0.1.39 h1:n54cEcAIGDJMq3R3VbtFGYr2Fi7At1ROmkOb7Eh+NrA=
-github.com/go-go-golems/clay v0.1.39/go.mod h1:yZnapCusACgz0ch1Sq6OM5wjMCWpc/Bgb9/huzCteF0=
+github.com/go-go-golems/clay v0.1.41 h1:gEMG9R+awRA6a4ibpu7/XLnhivKRK5UCnC+H4G/ACzs=
+github.com/go-go-golems/clay v0.1.41/go.mod h1:oPbA75HklU8Z0uUE/A0FrTHbNLd/gRAQhPPX1qFHkDg=
 github.com/go-go-golems/geppetto v0.4.52 h1:0w4tuDEyEHISBfaII5XFkhDsANHfGKBxrwtWIwXq7C0=
 github.com/go-go-golems/geppetto v0.4.52/go.mod h1:BB1anNRGvjs8kKFaTFllEHfyYJ8QACWXd3uR1s/74b4=
 github.com/go-go-golems/glazed v0.6.9 h1:yx2PsV+gtmnMiJJcooyk1IkI3DIqrzwyI8HKeERHreY=

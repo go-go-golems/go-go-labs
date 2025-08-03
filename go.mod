@@ -44,7 +44,7 @@ require (
 	github.com/go-faker/faker/v4 v4.6.0
 	github.com/go-git/go-git/v5 v5.16.2
 	github.com/go-go-golems/bobatea v0.0.11
-	github.com/go-go-golems/clay v0.1.39
+	github.com/go-go-golems/clay v0.1.41
 	github.com/go-go-golems/geppetto v0.4.52
 	github.com/go-go-golems/glazed v0.6.9
 	github.com/go-go-golems/go-emrichen v0.0.5
