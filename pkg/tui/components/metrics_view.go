@@ -6,7 +6,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/go-go-golems/go-go-labs/pkg/sparkline"
+	"github.com/go-go-golems/bobatea/pkg/sparkline"
 	"github.com/go-go-golems/go-go-labs/pkg/tui/models"
 	"github.com/go-go-golems/go-go-labs/pkg/tui/styles"
 )
