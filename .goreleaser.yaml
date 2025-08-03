@@ -1,93 +1,70 @@
-version: 2
-project_name: go-go-labs
-
 before:
-  hooks:
-    # You may remove this if you don't use go modules.
-    - go mod tidy
-    # you may remove this if you don't need go generate
-    - go generate ./...
-builds:
-  - env:
-      - CGO_ENABLED=0
-    main: ./cmd/mastoid
-    binary: mastoid
-    goos:
-      - linux
-# I am not able to test windows at the time
-#      - windows
-      - darwin
-checksum:
-  name_template: 'checksums.txt'
-
-signs:
-  - artifacts: checksum
-    # setup for github actions according to https://goreleaser.com/ci/actions/
-    args: [ "--batch", "-u", "{{ .Env.GPG_FINGERPRINT }}", "--output", "${signature}", "--detach-sign", "${artifact}" ]
-
-snapshot:
-  name_template: "{{ incpatch .Version }}-next"
-
-changelog:
-  sort: asc
-  filters:
-    exclude:
-      - '^docs:'
-      - '^test:'
-      -
+    hooks:
+        - go mod tidy
+        - go generate ./...
 brews:
-  - name: go-go-labs
-    description: "go-go-labs contains experimental go go tools"
-    homepage: "https://github.com/go-go-golems/go-go-labs"
-    repository:
-      owner: go-go-golems
-      name: homebrew-go-go-go
-      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
-
+    - description: go-go-labs contains experimental go go tools
+      homepage: https://github.com/go-go-golems/go-go-labs
+      name: go-go-labs
+      repository:
+        name: homebrew-go-go-go
+        owner: go-go-golems
+        token: '{{ .Env.TAP_GITHUB_TOKEN }}'
+builds:
+    - binary: mastoid
+      env:
+        - CGO_ENABLED=0
+      goos:
+        - linux
+        - darwin
+      main: ./cmd/mastoid
+changelog:
+    filters:
+        exclude:
+            - '^docs:'
+            - '^test:'
+            - null
+    sort: asc
+checksum:
+    name_template: checksums.txt
+furies:
+    - account: go-go-golems
+      ids:
+        - packages
 nfpms:
-  -
-    id: packages
-
-    vendor: GO GO GOLEMS
-    homepage: https://github.com/go-go-golems/
-    maintainer: Manuel Odendahl <wesen@ruinwesen.com>
-
-    description: |-
-      go-go-labs contains experimental go go tools
-
-    license: MIT
-
-    # Formats to be generated.
-    formats:
-      # - apk
-      - deb
-      - rpm
-
-    # Version Release.
-    release: 1
-
-    # Section.
-    section: default
-
-    # Priority.
-    priority: extra
-
-    # Custom configuration applied only to the Deb packager.
-    deb:
-      # Lintian overrides
-      lintian_overrides:
-        - statically-linked-binary
-        - changelog-file-missing-in-native-package
-
+    - deb:
+        lintian_overrides:
+            - statically-linked-binary
+            - changelog-file-missing-in-native-package
+      description: go-go-labs contains experimental go go tools
+      formats:
+        - deb
+        - rpm
+      homepage: https://github.com/go-go-golems/
+      id: packages
+      license: MIT
+      maintainer: Manuel Odendahl <wesen@ruinwesen.com>
+      priority: extra
+      release: 1
+      section: default
+      vendor: GO GO GOLEMS
+project_name: go-go-labs
 publishers:
-  - name: fury.io
-    # by specifying `packages` id here goreleaser will only use this publisher
-    # with artifacts identified by this id
-    ids:
-      - packages
-    dir: "{{ dir .ArtifactPath }}"
-    cmd: curl -F package=@{{ .ArtifactName }} https://{{ .Env.FURY_TOKEN }}@push.fury.io/go-go-golems/
-
-# modelines, feel free to remove those if you don't want/use them:
-# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
-# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+    - cmd: curl -F package=@{{ .ArtifactName }} https://{{ .Env.FURY_TOKEN }}@push.fury.io/go-go-golems/
+      dir: '{{ dir .ArtifactPath }}'
+      ids:
+        - packages
+      name: fury.io
+signs:
+    - args:
+        - --batch
+        - -u
+        - '{{ .Env.GPG_FINGERPRINT }}'
+        - --output
+        - ${signature}
+        - --detach-sign
+        - ${artifact}
+      artifacts: checksum
+snapshot:
+    name_template: '{{ incpatch .Version }}-next'
+version: 2

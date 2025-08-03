@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/help"
+	help_cmd "github.com/go-go-golems/glazed/pkg/help/cmd"
 	"github.com/spf13/cobra"
 )
 
@@ -30,7 +31,7 @@ func init() {
 	addDemoCommand()
 
 	helpSystem := help.NewHelpSystem()
-	helpCmd := help.NewCobraHelpCommand(helpSystem)
+	helpCmd := help_cmd.NewCobraHelpCommand(helpSystem)
 	rootCmd.AddCommand(helpCmd)
 }
 
