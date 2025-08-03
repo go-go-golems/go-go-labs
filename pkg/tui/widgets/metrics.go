@@ -9,7 +9,7 @@ import (
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/go-go-golems/go-go-labs/pkg/sparkline"
+	"github.com/go-go-golems/bobatea/pkg/sparkline"
 	"github.com/rs/zerolog"
 )
 

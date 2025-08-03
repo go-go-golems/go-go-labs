@@ -10,7 +10,7 @@ Design for a modular, widget-based Redis Streams Monitor TUI using bubbletea mod
 - **Redis Client Layer**: Well-implemented Redis operations (`redis.go`)
 - **CLI Commands**: Working glazed-based CLI commands
 - **TUI Components**: Basic component structure in `pkg/tui/components/`
-- **Sparkline Library**: Complete sparkline implementation in `pkg/sparkline/`
+- **Sparkline Library**: Complete sparkline implementation in `bobatea/pkg/sparkline/`
 - **Styles**: Basic styles in `pkg/tui/styles/`
 
 ### Issues with Current Implementation
@@ -257,7 +257,7 @@ progressModel.Width = 40
 
 #### Sparklines
 ```go
-// Use existing pkg/sparkline with lipgloss integration
+// Use existing bobatea/pkg/sparkline with lipgloss integration
 sparklineConfig := sparkline.Config{
     Width:     25,
     Height:    1,
