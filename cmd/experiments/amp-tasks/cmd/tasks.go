@@ -36,6 +36,12 @@ Examples:
 		}
 		defer tm.Close()
 
+		// Get default project for scoping
+		project, err := tm.GetDefaultProject()
+		if err != nil {
+			return fmt.Errorf("failed to get default project: %w", err)
+		}
+
 		var parentID *string
 		var status *TaskStatus
 		var agentID *string
@@ -62,7 +68,7 @@ Examples:
 			preferredAgentTypeSlug = &agentType
 		}
 
-		tasks, err := tm.ListTasksWithAgentInfo(parentID, status, agentID, nil, preferredAgentTypeSlug)
+		tasks, err := tm.ListTasksWithAgentInfo(parentID, status, agentID, &project.ID, preferredAgentTypeSlug)
 		if err != nil {
 			return fmt.Errorf("failed to list tasks: %w", err)
 		}
@@ -432,10 +438,8 @@ func outputTaskDetail(task *Task, deps []TaskDependency, format string) error {
 }
 
 func truncateString(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen-3] + "..."
+	// Never truncate in direct mode - return full string
+	return s
 }
 
 func getValidStatusStrings() []string {

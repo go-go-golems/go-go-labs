@@ -82,14 +82,14 @@ type Coordinator struct {
 	navigationView *NavigationView
 
 	// Progress bars and sparklines for the comprehensive view
-	memoryProgress     progress.Model
-	globalSparkline    *sparkline.Sparkline
-	streamSparklines   map[string]*sparkline.Sparkline
-	throughputHistory  []float64
-	
+	memoryProgress    progress.Model
+	globalSparkline   *sparkline.Sparkline
+	streamSparklines  map[string]*sparkline.Sparkline
+	throughputHistory []float64
+
 	// Styles
 	styles styles.Styles
-	
+
 	// Refresh rate control
 	refreshRateIndex int // Current index in refreshRates array
 }
@@ -151,10 +151,10 @@ func NewCoordinator(client RedisClient, demoMode bool, refreshRate time.Duration
 		lengthHistorySize:   20, // Keep last 20 data points
 
 		// Initialize progress bars and sparklines
-		memoryProgress:     memoryProgress,
-		globalSparkline:    globalSparkline,
-		streamSparklines:   make(map[string]*sparkline.Sparkline),
-		throughputHistory:  make([]float64, 0, 30),
+		memoryProgress:    memoryProgress,
+		globalSparkline:   globalSparkline,
+		streamSparklines:  make(map[string]*sparkline.Sparkline),
+		throughputHistory: make([]float64, 0, 30),
 
 		// Initialize submodels
 		streamsView:    NewStreamsView(styles),
@@ -279,7 +279,7 @@ func (c *Coordinator) View() string {
 	header := c.renderHeader()
 	sections = append(sections, header)
 
-	// Main streams table with sparklines  
+	// Main streams table with sparklines
 	streamsTable := c.renderStreamsTable()
 	sections = append(sections, streamsTable)
 
@@ -477,20 +477,20 @@ func (c *Coordinator) calculateMessageRates(streamName string, currentLength int
 	if _, exists := c.streamLengthHistory[streamName]; !exists {
 		c.streamLengthHistory[streamName] = make([]int64, 0, c.lengthHistorySize)
 	}
-	
+
 	history := c.streamLengthHistory[streamName]
-	
+
 	// Add current length to history
 	history = append(history, currentLength)
-	
+
 	// Keep only the last lengthHistorySize entries
 	if len(history) > c.lengthHistorySize {
 		history = history[len(history)-c.lengthHistorySize:]
 	}
-	
+
 	// Update the history
 	c.streamLengthHistory[streamName] = history
-	
+
 	// Calculate rates (differences between consecutive measurements)
 	rates := make([]float64, len(history))
 	if len(history) > 1 {
@@ -502,19 +502,19 @@ func (c *Coordinator) calculateMessageRates(streamName string, currentLength int
 			rates[i] = rate
 		}
 	}
-	
+
 	// If we don't have enough data, pad with zeros
 	if len(rates) < 10 {
 		padded := make([]float64, 10)
 		copy(padded[10-len(rates):], rates)
 		return padded
 	}
-	
+
 	// Return the last 10 rates for display
 	if len(rates) > 10 {
 		return rates[len(rates)-10:]
 	}
-	
+
 	return rates
 }
 
@@ -530,8 +530,8 @@ func generateSparklineData(length int) []float64 {
 // findClosestRefreshRateIndex finds the index of the closest refresh rate
 func findClosestRefreshRateIndex(target time.Duration) int {
 	minDiff := time.Duration(1<<63 - 1) // Max duration
-	bestIndex := 3 // Default to 1 second (index 3)
-	
+	bestIndex := 3                      // Default to 1 second (index 3)
+
 	for i, rate := range refreshRates {
 		diff := target - rate
 		if diff < 0 {
@@ -542,7 +542,7 @@ func findClosestRefreshRateIndex(target time.Duration) int {
 			bestIndex = i
 		}
 	}
-	
+
 	return bestIndex
 }
 

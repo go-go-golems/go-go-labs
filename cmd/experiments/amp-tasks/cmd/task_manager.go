@@ -35,7 +35,7 @@ func generateSlug(title string) string {
 	if len(slug) > 50 {
 		slug = slug[:50]
 	}
-	
+
 	// Add random suffix for uniqueness
 	suffix := generateRandomSuffix()
 	return slug + "-" + suffix
@@ -79,12 +79,12 @@ type TaskDependency struct {
 }
 
 type Agent struct {
-	ID              string    `json:"id"`
-	Name            string    `json:"name"`
-	Status          string    `json:"status"`
-	AgentTypeSlug   *string   `json:"agent_type_slug"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	ID            string    `json:"id"`
+	Name          string    `json:"name"`
+	Status        string    `json:"status"`
+	AgentTypeSlug *string   `json:"agent_type_slug"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 type AgentType struct {
@@ -92,7 +92,8 @@ type AgentType struct {
 	Slug        string    `json:"slug"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
-	ProjectID   string    `json:"project_id"`
+	ProjectID   *string   `json:"project_id"`
+	Global      bool      `json:"global"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
@@ -182,9 +183,14 @@ func (tm *TaskManager) initSchema() error {
 		slug TEXT UNIQUE NOT NULL,
 		name TEXT NOT NULL,
 		description TEXT,
-		project_id TEXT NOT NULL REFERENCES projects(id),
+		project_id TEXT REFERENCES projects(id),
+		global BOOLEAN NOT NULL DEFAULT 0,
 		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		CONSTRAINT agent_type_project_check CHECK (
+			(global = 1 AND project_id IS NULL) OR 
+			(global = 0 AND project_id IS NOT NULL)
+		)
 	);
 
 	CREATE TABLE IF NOT EXISTS agents (
@@ -728,44 +734,54 @@ func (tm *TaskManager) ListProjects() ([]Project, error) {
 }
 
 // Agent type management methods
-func (tm *TaskManager) CreateAgentType(name, description, projectID string) (*AgentType, error) {
+func (tm *TaskManager) CreateAgentType(name, description string, projectID *string, global bool) (*AgentType, error) {
+	// Validate project association constraint
+	if global && projectID != nil {
+		return nil, fmt.Errorf("global agent types cannot be associated with a specific project")
+	}
+	if !global && projectID == nil {
+		return nil, fmt.Errorf("non-global agent types must be associated with a project")
+	}
+
 	agentType := &AgentType{
 		ID:          generateSlug(name),
 		Slug:        generateSlug(name),
 		Name:        name,
 		Description: description,
 		ProjectID:   projectID,
+		Global:      global,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
 
 	query := `
-		INSERT INTO agent_types (id, slug, name, description, project_id, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO agent_types (id, slug, name, description, project_id, global, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
-	_, err := tm.db.Exec(query, agentType.ID, agentType.Slug, agentType.Name, agentType.Description, agentType.ProjectID, agentType.CreatedAt, agentType.UpdatedAt)
+	_, err := tm.db.Exec(query, agentType.ID, agentType.Slug, agentType.Name, agentType.Description, agentType.ProjectID, agentType.Global, agentType.CreatedAt, agentType.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create agent type: %w", err)
 	}
 
-	tm.logger.Debug().Str("agent_type_slug", agentType.Slug).Str("name", agentType.Name).Msg("Agent type created")
+	tm.logger.Debug().Str("agent_type_slug", agentType.Slug).Str("name", agentType.Name).Bool("global", agentType.Global).Msg("Agent type created")
 	return agentType, nil
 }
 
 func (tm *TaskManager) ListAgentTypes(projectID *string) ([]AgentType, error) {
 	query := `
-		SELECT id, slug, name, description, project_id, created_at, updated_at
+		SELECT id, slug, name, description, project_id, global, created_at, updated_at
 		FROM agent_types WHERE 1=1
 	`
 	var args []interface{}
 
 	if projectID != nil {
-		query += " AND project_id = ?"
+		// Include both project-specific types and global types
+		query += " AND (project_id = ? OR global = 1)"
 		args = append(args, *projectID)
 	}
 
-	query += " ORDER BY created_at ASC"
+	query += " ORDER BY global DESC, created_at ASC"
 
 	rows, err := tm.db.Query(query, args...)
 	if err != nil {
@@ -776,7 +792,7 @@ func (tm *TaskManager) ListAgentTypes(projectID *string) ([]AgentType, error) {
 	var agentTypes []AgentType
 	for rows.Next() {
 		var agentType AgentType
-		err := rows.Scan(&agentType.ID, &agentType.Slug, &agentType.Name, &agentType.Description, &agentType.ProjectID, &agentType.CreatedAt, &agentType.UpdatedAt)
+		err := rows.Scan(&agentType.ID, &agentType.Slug, &agentType.Name, &agentType.Description, &agentType.ProjectID, &agentType.Global, &agentType.CreatedAt, &agentType.UpdatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan agent type: %w", err)
 		}
@@ -786,7 +802,50 @@ func (tm *TaskManager) ListAgentTypes(projectID *string) ([]AgentType, error) {
 	return agentTypes, nil
 }
 
+func (tm *TaskManager) GetAgentType(slug string) (*AgentType, error) {
+	query := `
+		SELECT id, slug, name, description, project_id, global, created_at, updated_at
+		FROM agent_types WHERE slug = ?
+	`
+
+	var agentType AgentType
+	row := tm.db.QueryRow(query, slug)
+	err := row.Scan(&agentType.ID, &agentType.Slug, &agentType.Name, &agentType.Description, &agentType.ProjectID, &agentType.Global, &agentType.CreatedAt, &agentType.UpdatedAt)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("agent type not found: %s", slug)
+		}
+		return nil, fmt.Errorf("failed to get agent type: %w", err)
+	}
+
+	return &agentType, nil
+}
+
 func (tm *TaskManager) AssignTaskToAgentType(taskID, agentTypeSlug string) error {
+	// First, verify the task exists and get its project
+	task, err := tm.GetTask(taskID)
+	if err != nil {
+		return fmt.Errorf("failed to get task: %w", err)
+	}
+
+	// Check if agent type is available for this project
+	agentTypes, err := tm.ListAgentTypes(&task.ProjectID)
+	if err != nil {
+		return fmt.Errorf("failed to get agent types for project: %w", err)
+	}
+
+	agentTypeExists := false
+	for _, at := range agentTypes {
+		if at.Slug == agentTypeSlug {
+			agentTypeExists = true
+			break
+		}
+	}
+
+	if !agentTypeExists {
+		return fmt.Errorf("agent type %s is not available in project %s", agentTypeSlug, task.ProjectID)
+	}
+
 	// Find an available agent of this type
 	query := `
 		SELECT id FROM agents 
@@ -795,7 +854,7 @@ func (tm *TaskManager) AssignTaskToAgentType(taskID, agentTypeSlug string) error
 	`
 
 	var agentID string
-	err := tm.db.QueryRow(query, agentTypeSlug).Scan(&agentID)
+	err = tm.db.QueryRow(query, agentTypeSlug).Scan(&agentID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return fmt.Errorf("no available agents of type %s", agentTypeSlug)

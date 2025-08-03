@@ -110,11 +110,11 @@ func (w StreamsTableWidget) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			w.table, cmd = w.table.Update(msg)
 		}
 	}
-	
+
 	if cmd != nil {
 		logger.Warn().Str("cmd_type", fmt.Sprintf("%T", cmd)).Msg("Streams widget returning command")
 	}
-	
+
 	return w, cmd
 }
 
@@ -128,25 +128,25 @@ func (w StreamsTableWidget) View() string {
 		logger.Warn().Int("width", w.width).Int("height", w.height).Msg("View() called with no streams")
 		return w.styles.Container.Render("No streams found")
 	}
-	
+
 	// Get the table view and measure it
 	tableView := w.table.View()
 	tableHeight := lipgloss.Height(tableView)
 	tableWidth := lipgloss.Width(tableView)
-	
+
 	// Render with container styling, but ensure height constraint is enforced
 	containerStyle := w.styles.Container.Width(w.width).Height(w.height)
 	renderedView := containerStyle.Render(tableView)
 	renderedHeight := lipgloss.Height(renderedView)
 	renderedWidth := lipgloss.Width(renderedView)
-	
+
 	// If the rendered view exceeds our allocated height, we need to truncate
 	if renderedHeight > w.height {
 		logger.Warn().
 			Int("allocated_height", w.height).
 			Int("rendered_height", renderedHeight).
 			Msg("StreamsTable exceeds allocated height, truncating")
-		
+
 		// Use lipgloss to truncate to fit the allocated height
 		lines := strings.Split(renderedView, "\n")
 		if len(lines) > w.height {
@@ -155,7 +155,7 @@ func (w StreamsTableWidget) View() string {
 		renderedView = strings.Join(lines, "\n")
 		renderedHeight = lipgloss.Height(renderedView)
 	}
-	
+
 	logger.Info().
 		Int("widget_width", w.width).
 		Int("widget_height", w.height).
@@ -166,7 +166,7 @@ func (w StreamsTableWidget) View() string {
 		Int("table_rows", len(w.table.Rows())).
 		Int("streams_count", len(w.streams)).
 		Msg("StreamsTable View() rendering")
-	
+
 	return renderedView
 }
 
@@ -180,7 +180,7 @@ func (w *StreamsTableWidget) SetSize(width, height int) {
 			Msg("Clamping table height to prevent render issues")
 		height = maxHeight
 	}
-	
+
 	logger.Info().
 		Int("old_width", w.width).Int("old_height", w.height).
 		Int("requested_width", width).Int("requested_height", originalHeight).
@@ -189,7 +189,7 @@ func (w *StreamsTableWidget) SetSize(width, height int) {
 		Int("max_height_limit", w.MaxHeight()).
 		Int("min_height_limit", w.MinHeight()).
 		Msg("SetSize called")
-		
+
 	w.width = width
 	w.height = height
 	w.updateTableSize()
@@ -217,7 +217,7 @@ func (w StreamsTableWidget) MaxHeight() int {
 		// When no streams loaded, reserve minimal space
 		return 3
 	}
-	// Header (1) + streams (N) + minimal buffer (2) = N + 3  
+	// Header (1) + streams (N) + minimal buffer (2) = N + 3
 	return streamCount + 3
 }
 
@@ -256,7 +256,7 @@ func (w *StreamsTableWidget) updateTableSize() {
 	}
 
 	w.table.SetColumns(columns)
-	
+
 	logger.Info().
 		Int("stream_col", cols.stream).
 		Int("entries_col", cols.entries).
@@ -310,10 +310,10 @@ func (w *StreamsTableWidget) updateTableRows() {
 func (w *StreamsTableWidget) updateSparklines() {
 	// Use the dedicated trend column width for sparklines
 	trendWidth := w.getColumnWidth("trend")
-	
+
 	// Leave some margin for padding/borders
 	sparklineWidth := trendWidth - 2
-	
+
 	if sparklineWidth < 5 {
 		sparklineWidth = 5
 	}
@@ -396,9 +396,9 @@ type columnWidths struct {
 // calculateColumnWidths determines responsive column widths based on terminal size and content
 func (w StreamsTableWidget) calculateColumnWidths() columnWidths {
 	// Calculate content-based widths
-	maxStreamLen := len("Stream") // Header width as minimum
+	maxStreamLen := len("Stream")  // Header width as minimum
 	maxLastIDLen := len("Last ID") // Header width as minimum
-	
+
 	for _, stream := range w.streams {
 		if len(stream.Name) > maxStreamLen {
 			maxStreamLen = len(stream.Name)
@@ -407,16 +407,16 @@ func (w StreamsTableWidget) calculateColumnWidths() columnWidths {
 			maxLastIDLen = len(stream.LastID)
 		}
 	}
-	
+
 	// Add some padding for content
 	maxStreamLen += 2
 	maxLastIDLen += 2
-	
+
 	// Minimum column widths
 	minWidths := columnWidths{
 		stream:  maxStreamLen, // Content-based stream name column
-		entries: 10, // Just for numbers now, no sparklines
-		trend:   20, // Fixed reasonable width for sparkline column
+		entries: 10,           // Just for numbers now, no sparklines
+		trend:   20,           // Fixed reasonable width for sparkline column
 		size:    8,
 		groups:  8,
 		lastID:  maxLastIDLen, // Content-based last ID column

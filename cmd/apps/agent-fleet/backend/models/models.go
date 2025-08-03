@@ -21,7 +21,7 @@ func generateSlug(title string) string {
 	if len(slug) > 50 {
 		slug = slug[:50]
 	}
-	
+
 	// Add random suffix for uniqueness
 	suffix := generateRandomSuffix()
 	return slug + "-" + suffix
