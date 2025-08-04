@@ -39,3 +39,6 @@ cmd/apps/textractor/outputs
 node_modules
 
 .git-commit-message.yaml
+
+# CRUSH directory
+.crush/
