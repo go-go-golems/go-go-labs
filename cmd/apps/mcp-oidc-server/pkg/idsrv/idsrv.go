@@ -361,6 +361,13 @@ func (s *Server) InitSQLite(path string) error {
         private_pem BLOB NOT NULL,
         created_at TIMESTAMP NOT NULL
     );`); err != nil { return err }
+    if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS oauth_tokens (
+        token TEXT PRIMARY KEY,
+        subject TEXT NOT NULL,
+        client_id TEXT NOT NULL,
+        scopes TEXT NOT NULL,
+        expires_at TIMESTAMP NOT NULL
+    );`); err != nil { return err }
 
     // Load or persist signing key
     var existingPEM []byte
@@ -431,3 +438,57 @@ func joinCSV(ss []string) string { return strings.Join(ss, ",") }
 
 // sqlite open indirection for single-file path
 func sqlOpen(path string) (*sql.DB, error) { return sql.Open("sqlite3", path) }
+
+// Token persistence helpers
+type TokenRecord struct {
+    Token     string
+    Subject   string
+    ClientID  string
+    Scopes    []string
+    ExpiresAt time.Time
+}
+
+func (s *Server) PersistToken(tr TokenRecord) error {
+    if s.dbPath == "" { return fosite.ErrServerError.WithHint("db not enabled") }
+    db, err := sqlOpen(s.dbPath)
+    if err != nil { return err }
+    defer db.Close()
+    _, err = db.Exec(`INSERT OR REPLACE INTO oauth_tokens (token, subject, client_id, scopes, expires_at) VALUES (?, ?, ?, ?, ?)`,
+        tr.Token, tr.Subject, tr.ClientID, joinCSV(tr.Scopes), tr.ExpiresAt)
+    return err
+}
+
+func (s *Server) GetToken(token string) (TokenRecord, bool, error) {
+    var out TokenRecord
+    if s.dbPath == "" { return out, false, fosite.ErrServerError.WithHint("db not enabled") }
+    db, err := sqlOpen(s.dbPath)
+    if err != nil { return out, false, err }
+    defer db.Close()
+    row := db.QueryRow(`SELECT token, subject, client_id, scopes, expires_at FROM oauth_tokens WHERE token = ?`, token)
+    var scopes string
+    if err := row.Scan(&out.Token, &out.Subject, &out.ClientID, &scopes, &out.ExpiresAt); err != nil {
+        if err == sql.ErrNoRows { return out, false, nil }
+        return out, false, err
+    }
+    out.Scopes = splitCSV(scopes)
+    return out, true, nil
+}
+
+func (s *Server) ListTokens() ([]TokenRecord, error) {
+    if s.dbPath == "" { return nil, fosite.ErrServerError.WithHint("db not enabled") }
+    db, err := sqlOpen(s.dbPath)
+    if err != nil { return nil, err }
+    defer db.Close()
+    rows, err := db.Query(`SELECT token, subject, client_id, scopes, expires_at FROM oauth_tokens ORDER BY expires_at DESC`)
+    if err != nil { return nil, err }
+    defer rows.Close()
+    var out []TokenRecord
+    for rows.Next() {
+        var tr TokenRecord
+        var scopes string
+        if err := rows.Scan(&tr.Token, &tr.Subject, &tr.ClientID, &scopes, &tr.ExpiresAt); err != nil { return nil, err }
+        tr.Scopes = splitCSV(scopes)
+        out = append(out, tr)
+    }
+    return out, nil
+}

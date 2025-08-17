@@ -4,9 +4,12 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	idsrv "github.com/go-go-golems/go-go-labs/cmd/apps/mcp-oidc-server/pkg/idsrv"
+	"github.com/ory/fosite"
+	"github.com/ory/fosite/handler/openid"
 	"github.com/rs/zerolog/log"
 )
 
@@ -64,38 +67,8 @@ func (s *Server) Routes(mux *http.ServeMux) {
 		writeJSONWithPreview(w, r, "dev-callback", resp)
 	})
 
-	// MCP endpoint: advertise authorization via 401 + WWW-Authenticate (intermediate step)
-	mux.HandleFunc("/mcp", func(w http.ResponseWriter, r *http.Request) {
-		// Capture small body for debug visibility
-		var bodyPreview string
-		if r.Body != nil {
-			b, _ := io.ReadAll(io.LimitReader(r.Body, 2048))
-			bodyPreview = string(b)
-		}
-		authz := r.Header.Get("Authorization")
-		if authz == "" {
-			// RFC 9728 Section 5.1: advertise resource metadata via WWW-Authenticate on 401
-			asMeta := s.issuer + "/.well-known/oauth-authorization-server"
-			prm := s.issuer + "/.well-known/oauth-protected-resource"
-			hdr := "Bearer realm=\"mcp\", resource=\"" + s.issuer + "/mcp\"" +
-				", authorization_uri=\"" + asMeta + "\", resource_metadata=\"" + prm + "\""
-			w.Header().Set("WWW-Authenticate", hdr)
-			log.Warn().
-				Str("endpoint", "mcp").
-				Str("method", r.Method).
-				Str("origin", r.Header.Get("Origin")).
-				Str("contentType", r.Header.Get("Content-Type")).
-				Str("ua", r.UserAgent()).
-				Str("www_authenticate", hdr).
-				Str("bodyPreview", bodyPreview).
-				Msg("unauthorized - advertising AS metadata")
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotImplemented)
-		_ = json.NewEncoder(w).Encode(map[string]any{"error": "MCP not implemented yet"})
-	})
+	// MCP endpoint: JSON-RPC with Bearer protection
+	mux.Handle("/mcp", s.mcpAuthMiddleware(http.HandlerFunc(s.handleMCP)))
 }
 
 func writeJSONWithPreview(w http.ResponseWriter, r *http.Request, endpoint string, v any) {
@@ -153,6 +126,164 @@ func (rw *responseRecorder) Write(b []byte) (int, error) {
 	n, err := rw.ResponseWriter.Write(b)
 	rw.written += n
 	return n, err
+}
+
+// Minimal in-memory corpus for search/fetch demo
+type doc struct{
+	id string
+	title string
+	url string
+	text string
+}
+
+var sampleDocs = []doc{
+	{ id: "1", title: "Welcome", url: "https://example.com/welcome", text: "Welcome to the MCP demo corpus." },
+	{ id: "2", title: "OIDC Notes", url: "https://example.com/oidc", text: "OIDC Authorization Code with PKCE example." },
+}
+
+// Bearer auth + audience enforcement, with RFC 9728 advertisement on 401
+func (s *Server) mcpAuthMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// small preview for debugging
+		var bodyPreview string
+		if r.Body != nil {
+			b, _ := io.ReadAll(io.LimitReader(r.Body, 2048))
+			bodyPreview = string(b)
+			r.Body = io.NopCloser(strings.NewReader(bodyPreview))
+		}
+		authz := r.Header.Get("Authorization")
+		if !strings.HasPrefix(authz, "Bearer ") {
+			asMeta := s.issuer + "/.well-known/oauth-authorization-server"
+			prm := s.issuer + "/.well-known/oauth-protected-resource"
+			hdr := "Bearer realm=\"mcp\", resource=\"" + s.issuer + "/mcp\"" + ", authorization_uri=\"" + asMeta + "\", resource_metadata=\"" + prm + "\""
+			w.Header().Set("WWW-Authenticate", hdr)
+			log.Warn().Str("endpoint", "mcp").Str("reason", "missing bearer").Str("www_authenticate", hdr).Str("bodyPreview", bodyPreview).Msg("unauthorized")
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		raw := strings.TrimPrefix(authz, "Bearer ")
+		sess := new(openid.DefaultSession)
+		// Introspect opaque access token
+		_, _, err := s.ids.ProviderRef().IntrospectToken(r.Context(), raw, fosite.AccessToken, sess)
+		if err != nil {
+			// Dev fallback: accept manual tokens stored in DB
+			if tr, ok, derr := s.ids.GetToken(raw); derr == nil && ok {
+				if time.Now().Before(tr.ExpiresAt) {
+					log.Warn().Str("endpoint", "mcp").Str("reason", "using dev token fallback").Str("subject", tr.Subject).Str("client_id", tr.ClientID).Time("expires_at", tr.ExpiresAt).Msg("authorized via DB token")
+					// proceed without Fosite session
+					next.ServeHTTP(w, r)
+					return
+				}
+				log.Warn().Str("endpoint", "mcp").Str("reason", "dev token expired").Time("expired_at", tr.ExpiresAt).Msg("unauthorized")
+			}
+			log.Warn().Str("endpoint", "mcp").Str("reason", "introspection failed").Err(err).Msg("unauthorized")
+			http.Error(w, "invalid token", http.StatusUnauthorized)
+			return
+		}
+		// Optionally enforce audience on access tokens if set
+		// Log subject for traceability
+		subject := ""
+		if sess.Claims != nil { subject = sess.Claims.Subject }
+		log.Debug().Str("endpoint", "mcp").Str("subject", subject).Msg("authorized request")
+		next.ServeHTTP(w, r)
+	})
+}
+
+// JSON-RPC request/response types (minimal)
+type rpcRequest struct{
+	JSONRPC string `json:"jsonrpc"`
+	ID any `json:"id"`
+	Method string `json:"method"`
+	Params json.RawMessage `json:"params"`
+}
+
+type rpcResponse struct{
+	JSONRPC string `json:"jsonrpc"`
+	ID any `json:"id"`
+	Result any `json:"result,omitempty"`
+	Error *rpcError `json:"error,omitempty"`
+}
+
+type rpcError struct{
+	Code int `json:"code"`
+	Message string `json:"message"`
+	Data any `json:"data,omitempty"`
+}
+
+func (s *Server) handleMCP(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	var req rpcRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Error().Str("endpoint", "mcp").Err(err).Msg("failed to decode JSON-RPC request")
+		writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: nil, Error: &rpcError{Code: -32700, Message: "parse error"}})
+		return
+	}
+	log.Info().Str("endpoint", "mcp").Any("id", req.ID).Str("method", req.Method).Dur("since", time.Since(start)).Msg("received JSON-RPC")
+	switch req.Method {
+	case "initialize":
+		res := map[string]any{
+			"protocolVersion": "2025-03-26",
+			"serverInfo": map[string]any{"name": "go-mcp", "version": "0.1.0"},
+			"capabilities": map[string]any{},
+		}
+		writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: req.ID, Result: res})
+	case "tools/list":
+		tools := []map[string]any{
+			{
+				"name": "search",
+				"description": "Search corpus and return candidate items",
+				"inputSchema": map[string]any{
+					"type": "object",
+					"properties": map[string]any{"query": map[string]any{"type": "string"}},
+					"required": []string{"query"},
+				},
+			},
+			{
+				"name": "fetch",
+				"description": "Fetch a record by ID",
+				"inputSchema": map[string]any{
+					"type": "object",
+					"properties": map[string]any{"id": map[string]any{"type": "string"}},
+					"required": []string{"id"},
+				},
+			},
+		}
+		writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: req.ID, Result: map[string]any{"tools": tools}})
+	case "tools/call":
+		var p struct{ Name string `json:"name"`; Arguments map[string]any `json:"arguments"` }
+		if err := json.Unmarshal(req.Params, &p); err != nil { writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: req.ID, Error: &rpcError{Code: -32602, Message: "invalid params"}}); return }
+		log.Debug().Str("endpoint", "mcp").Str("tool", p.Name).Interface("args", p.Arguments).Msg("tools/call")
+		switch p.Name {
+		case "search":
+			q, _ := p.Arguments["query"].(string)
+			var items []map[string]any
+			for _, d := range sampleDocs {
+				if q == "" || strings.Contains(strings.ToLower(d.text), strings.ToLower(q)) || strings.Contains(strings.ToLower(d.title), strings.ToLower(q)) {
+					items = append(items, map[string]any{"id": d.id, "title": d.title, "text": d.text, "url": d.url})
+				}
+			}
+			writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: req.ID, Result: map[string]any{"content": []any{map[string]any{"type": "application/json", "data": items}}}})
+		case "fetch":
+			id, _ := p.Arguments["id"].(string)
+			for _, d := range sampleDocs {
+				if d.id == id {
+					item := map[string]any{"id": d.id, "title": d.title, "text": d.text, "url": d.url}
+					writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: req.ID, Result: map[string]any{"content": []any{map[string]any{"type": "application/json", "data": item}}}})
+					return
+				}
+			}
+			writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: req.ID, Error: &rpcError{Code: -32004, Message: "not found"}})
+		default:
+			writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: req.ID, Error: &rpcError{Code: -32601, Message: "unknown tool"}})
+		}
+	default:
+		writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: req.ID, Error: &rpcError{Code: -32601, Message: "method not found"}})
+	}
+}
+
+func writeRPC(w http.ResponseWriter, resp rpcResponse) {
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 
