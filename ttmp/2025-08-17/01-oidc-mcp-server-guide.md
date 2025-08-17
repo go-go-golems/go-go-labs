@@ -723,3 +723,53 @@ If you want, I can collapse the code above into a single `main.go` and a tiny `g
 [14]: https://datatracker.ietf.org/doc/html/rfc7591?utm_source=chatgpt.com "RFC 7591 - OAuth 2.0 Dynamic Client Registration Protocol"
 [15]: https://stackoverflow.com/questions/66290396/how-to-create-jwt-access-token-in-fosite-oauth2?utm_source=chatgpt.com "How to create JWT access token in Fosite OAuth2?"
 
+
+## 15) Implementation progress and amendments (2025-08-17)
+
+Amendments made during bring-up with ChatGPT connector (MCP Authorization draft compliance):
+
+- [x] Added `code_challenge_methods_supported: ["S256"]` to both `/.well-known/oauth-authorization-server` and `/.well-known/openid-configuration`
+- [x] Added explicit capability fields: `response_types_supported`, `grant_types_supported`, `scopes_supported`, `token_endpoint_auth_methods_supported: ["none"]`
+- [x] Implemented OAuth 2.0 Protected Resource Metadata at `/.well-known/oauth-protected-resource` with `authorization_servers` and `resource`
+- [x] Updated `/mcp` to return `401` with `WWW-Authenticate: Bearer` including `resource`, `authorization_uri`, and `resource_metadata` (RFC 9728)
+- [x] Added `registration_endpoint` and a stub `POST /register` returning a generated `client_id` and logging payload
+- [x] Introduced Cobra CLI (`--addr`, `--issuer`, `--log-format`, `--log-level`) and zerolog-based global request logging (covers 404/405)
+- [x] Added stubs for `GET /oauth2/auth` and `POST /oauth2/token` with detailed logging including PKCE and `resource`
+- [x] Created a self-contained tmux runner to build, run, and capture discovery/MCP curls
+
+Next steps (to complete the end-to-end flow):
+
+- [ ] Implement real Authorization Code + PKCE with Fosite (`/login`, `/oauth2/auth` issuing code, `/oauth2/token` exchanging tokens)
+- [ ] Bind `aud` to the canonical MCP resource (e.g., `<issuer>/mcp`) when issuing tokens; validate audience on `/mcp`
+- [ ] Add Origin checks per MCP transport guidance; optionally SSE GET
+- [ ] Replace MCP stub with actual `mcp-go` server and protect with Bearer token validation
+- [ ] Persist dynamic client registrations
+
+---
+
+## NEXT STEPS (for tomorrow)
+
+1) Implement real OAuth 2.1 Authorization Code + PKCE using Fosite
+- [ ] `/login` (GET/POST) with a simple form and session cookie
+- [ ] `/oauth2/auth` issues a code after login, binds state and resource
+- [ ] `/oauth2/token` exchanges code for tokens (access + id [+ optional refresh])
+- [ ] Include `aud` bound to `<issuer>/mcp` and verify `resource` parameter
+
+2) Protect `/mcp`
+- [ ] Validate access tokens (Fosite introspection or JWT strategy)
+- [ ] Enforce audience (`aud == <issuer>/mcp`) and expiry
+- [ ] Add Origin checks (per MCP transport guidance)
+
+3) Replace MCP stub with `mcp-go`
+- [ ] Wire `initialize`, `tools/list`, `tools/call`
+- [ ] Start with two tools (`search`, `fetch`) returning mock data
+
+4) Developer quality-of-life
+- [ ] Add `/dev/callback` to echo code/state for manual tests
+- [ ] Expand tmux runner to run PKCE auth flow automatically (with a local test page or scripted curl)
+- [ ] Add minimal storage for dynamic client registrations
+
+5) Documentation
+- [ ] Update this guide’s sections 3.2 and 4 with the concrete Fosite implementation
+- [ ] Add a “Troubleshooting auth” appendix with common PKCE and redirect URI pitfalls
+
