@@ -369,6 +369,19 @@ func (s *Server) InitSQLite(path string) error {
         expires_at TIMESTAMP NOT NULL
     );`); err != nil { return err }
 
+    if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS mcp_tool_calls (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ts TIMESTAMP NOT NULL,
+        subject TEXT,
+        client_id TEXT,
+        request_id TEXT,
+        tool_name TEXT NOT NULL,
+        args_json TEXT,
+        result_json TEXT,
+        status TEXT NOT NULL,
+        duration_ms INTEGER NOT NULL
+    );`); err != nil { return err }
+
     // Load or persist signing key
     var existingPEM []byte
     var existingKID string
@@ -491,4 +504,29 @@ func (s *Server) ListTokens() ([]TokenRecord, error) {
         out = append(out, tr)
     }
     return out, nil
+}
+
+// MCP tool call logging
+type MCPCallLog struct {
+    Timestamp  time.Time
+    Subject    string
+    ClientID   string
+    RequestID  string
+    ToolName   string
+    ArgsJSON   string
+    ResultJSON string
+    Status     string
+    DurationMs int64
+}
+
+func (s *Server) LogMCPCall(entry MCPCallLog) error {
+    if s.dbPath == "" { return fosite.ErrServerError.WithHint("db not enabled") }
+    db, err := sqlOpen(s.dbPath)
+    if err != nil { return err }
+    defer db.Close()
+    if entry.Timestamp.IsZero() { entry.Timestamp = time.Now() }
+    _, err = db.Exec(`INSERT INTO mcp_tool_calls (ts, subject, client_id, request_id, tool_name, args_json, result_json, status, duration_ms)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        entry.Timestamp, entry.Subject, entry.ClientID, entry.RequestID, entry.ToolName, entry.ArgsJSON, entry.ResultJSON, entry.Status, entry.DurationMs)
+    return err
 }

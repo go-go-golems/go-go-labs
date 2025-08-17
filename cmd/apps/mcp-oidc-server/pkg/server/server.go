@@ -212,13 +212,17 @@ type rpcError struct{
 
 func (s *Server) handleMCP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
+	// Read full body for debug logging
+	bodyBytes, _ := io.ReadAll(r.Body)
+	_ = r.Body.Close()
 	var req rpcRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := json.Unmarshal(bodyBytes, &req); err != nil {
 		log.Error().Str("endpoint", "mcp").Err(err).Msg("failed to decode JSON-RPC request")
-		writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: nil, Error: &rpcError{Code: -32700, Message: "parse error"}})
+		writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: nil, Error: &rpcError{Code: -32700, Message: "parse error"}}, "parse-error")
 		return
 	}
 	log.Info().Str("endpoint", "mcp").Any("id", req.ID).Str("method", req.Method).Dur("since", time.Since(start)).Msg("received JSON-RPC")
+	log.Debug().Str("endpoint", "mcp").Str("method", req.Method).Any("id", req.ID).RawJSON("request_body", bodyBytes).Msg("jsonrpc request body")
 	switch req.Method {
 	case "initialize":
 		res := map[string]any{
@@ -226,12 +230,13 @@ func (s *Server) handleMCP(w http.ResponseWriter, r *http.Request) {
 			"serverInfo": map[string]any{"name": "go-mcp", "version": "0.1.0"},
 			"capabilities": map[string]any{},
 		}
-		writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: req.ID, Result: res})
+		writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: req.ID, Result: res}, req.Method)
 	case "tools/list":
 		tools := []map[string]any{
 			{
 				"name": "search",
 				"description": "Search corpus and return candidate items",
+				"require_approval": "never",
 				"inputSchema": map[string]any{
 					"type": "object",
 					"properties": map[string]any{"query": map[string]any{"type": "string"}},
@@ -241,6 +246,7 @@ func (s *Server) handleMCP(w http.ResponseWriter, r *http.Request) {
 			{
 				"name": "fetch",
 				"description": "Fetch a record by ID",
+				"require_approval": "never",
 				"inputSchema": map[string]any{
 					"type": "object",
 					"properties": map[string]any{"id": map[string]any{"type": "string"}},
@@ -248,10 +254,11 @@ func (s *Server) handleMCP(w http.ResponseWriter, r *http.Request) {
 				},
 			},
 		}
-		writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: req.ID, Result: map[string]any{"tools": tools}})
+		log.Info().Str("endpoint", "mcp").Str("method", "tools/list").Int("tools", len(tools)).Msg("returning tools list")
+		writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: req.ID, Result: map[string]any{"tools": tools}}, req.Method)
 	case "tools/call":
 		var p struct{ Name string `json:"name"`; Arguments map[string]any `json:"arguments"` }
-		if err := json.Unmarshal(req.Params, &p); err != nil { writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: req.ID, Error: &rpcError{Code: -32602, Message: "invalid params"}}); return }
+		if err := json.Unmarshal(req.Params, &p); err != nil { writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: req.ID, Error: &rpcError{Code: -32602, Message: "invalid params"}}, req.Method); return }
 		log.Debug().Str("endpoint", "mcp").Str("tool", p.Name).Interface("args", p.Arguments).Msg("tools/call")
 		switch p.Name {
 		case "search":
@@ -262,28 +269,38 @@ func (s *Server) handleMCP(w http.ResponseWriter, r *http.Request) {
 					items = append(items, map[string]any{"id": d.id, "title": d.title, "text": d.text, "url": d.url})
 				}
 			}
-			writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: req.ID, Result: map[string]any{"content": []any{map[string]any{"type": "application/json", "data": items}}}})
+			log.Info().Str("endpoint", "mcp").Str("tool", "search").Str("query", q).Int("results", len(items)).Msg("search results")
+			writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: req.ID, Result: map[string]any{"content": []any{map[string]any{"type": "application/json", "data": items}}}}, req.Method)
 		case "fetch":
 			id, _ := p.Arguments["id"].(string)
 			for _, d := range sampleDocs {
 				if d.id == id {
 					item := map[string]any{"id": d.id, "title": d.title, "text": d.text, "url": d.url}
-					writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: req.ID, Result: map[string]any{"content": []any{map[string]any{"type": "application/json", "data": item}}}})
+					log.Info().Str("endpoint", "mcp").Str("tool", "fetch").Str("id", id).Int("bytes", len(d.text)).Msg("fetch result")
+					writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: req.ID, Result: map[string]any{"content": []any{map[string]any{"type": "application/json", "data": item}}}}, req.Method)
 					return
 				}
 			}
-			writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: req.ID, Error: &rpcError{Code: -32004, Message: "not found"}})
+			log.Warn().Str("endpoint", "mcp").Str("tool", "fetch").Str("id", id).Msg("fetch not found")
+			writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: req.ID, Error: &rpcError{Code: -32004, Message: "not found"}}, req.Method)
 		default:
-			writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: req.ID, Error: &rpcError{Code: -32601, Message: "unknown tool"}})
+			writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: req.ID, Error: &rpcError{Code: -32601, Message: "unknown tool"}}, req.Method)
 		}
 	default:
-		writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: req.ID, Error: &rpcError{Code: -32601, Message: "method not found"}})
+		writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: req.ID, Error: &rpcError{Code: -32601, Message: "method not found"}}, req.Method)
 	}
 }
 
-func writeRPC(w http.ResponseWriter, resp rpcResponse) {
+func writeRPC(w http.ResponseWriter, resp rpcResponse, method string) {
+	// Encode to buffer to log full response body
+	b, err := json.Marshal(resp)
+	if err == nil {
+		log.Debug().Str("endpoint", "mcp").Str("method", method).Any("id", resp.ID).RawJSON("response_body", b).Msg("jsonrpc response body")
+	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(resp)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		log.Error().Str("endpoint", "mcp").Str("method", method).Any("id", resp.ID).Err(err).Msg("failed writing response")
+	}
 }
 
 
