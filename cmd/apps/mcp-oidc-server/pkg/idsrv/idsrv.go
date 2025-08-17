@@ -4,8 +4,10 @@ import (
     "database/sql"
     "crypto/rand"
     "crypto/rsa"
+    "crypto/x509"
     "encoding/base64"
     "encoding/json"
+    "encoding/pem"
     "html/template"
     "math/big"
     "net/http"
@@ -28,6 +30,7 @@ type Server struct {
     Issuer     string
     Provider   fosite.OAuth2Provider
     store      *storage.MemoryStore
+    cfg        *fosite.Config
     mu         sync.Mutex
     // optional persistence
     // set when InitSQLite is called
@@ -45,6 +48,7 @@ func New(issuer string) (*Server, error) {
     cfg := &fosite.Config{
         IDTokenIssuer:               issuer,
         EnforcePKCEForPublicClients: true,
+        GlobalSecret:                []byte("0123456789abcdef0123456789abcdef"), // 32 bytes
     }
 
     mem := storage.NewMemoryStore()
@@ -60,9 +64,8 @@ func New(issuer string) (*Server, error) {
         Public:        true,
     }
 
-    secret := []byte("dev-hmac-secret-change-me")
-    // Use high-level composer compatible with fosite v0.49.0
-    provider := compose.ComposeAllEnabled(cfg, mem, secret)
+    // Use high-level composer: pass the RSA private key (not the HMAC secret)
+    provider := compose.ComposeAllEnabled(cfg, mem, privateKey)
 
     log.Debug().Str("component", "idsrv").Str("issuer", issuer).Str("dev_client_id", devClientID).Str("dev_redirect", devRedirect).Msg("initialized identity server")
 
@@ -71,6 +74,7 @@ func New(issuer string) (*Server, error) {
         Issuer:     issuer,
         Provider:   provider,
         store:      mem,
+        cfg:        cfg,
         User:       "admin",
         Pass:       "password123",
     }, nil
@@ -225,13 +229,19 @@ func (s *Server) authorize(w http.ResponseWriter, r *http.Request) {
             IssuedAt:    now,
             AuthTime:    now,
             RequestedAt: now,
-            Audience:    []string{s.Issuer + "/mcp"},
+            Audience:    []string{ar.GetClient().GetID()},
         },
         Headers: &jwt.Headers{Extra: map[string]any{"kid": "1"}},
     }
     resp, err := s.Provider.NewAuthorizeResponse(ctx, ar, sess)
     if err != nil {
-        log.Error().Err(err).Str("endpoint", "/oauth2/auth").Msg("failed issuing code")
+        rfc := fosite.ErrorToRFC6749Error(err)
+        log.Error().Err(err).
+            Str("endpoint", "/oauth2/auth").
+            Str("rfc_error", rfc.ErrorField).
+            Str("rfc_hint", rfc.HintField).
+            Str("rfc_description", rfc.DescriptionField).
+            Msg("failed issuing code")
         s.Provider.WriteAuthorizeError(ctx, w, ar, err)
         return
     }
@@ -255,13 +265,25 @@ func (s *Server) token(w http.ResponseWriter, r *http.Request) {
     sess := new(openid.DefaultSession)
     accessReq, err := s.Provider.NewAccessRequest(ctx, r, sess)
     if err != nil {
-        log.Error().Err(err).Str("endpoint", "/oauth2/token").Msg("access request error")
+        rfc := fosite.ErrorToRFC6749Error(err)
+        log.Error().Err(err).
+            Str("endpoint", "/oauth2/token").
+            Str("rfc_error", rfc.ErrorField).
+            Str("rfc_hint", rfc.HintField).
+            Str("rfc_description", rfc.DescriptionField).
+            Msg("access request error")
         s.Provider.WriteAccessError(ctx, w, accessReq, err)
         return
     }
     resp, err := s.Provider.NewAccessResponse(ctx, accessReq)
     if err != nil {
-        log.Error().Err(err).Str("endpoint", "/oauth2/token").Msg("access response error")
+        rfc := fosite.ErrorToRFC6749Error(err)
+        log.Error().Err(err).
+            Str("endpoint", "/oauth2/token").
+            Str("rfc_error", rfc.ErrorField).
+            Str("rfc_hint", rfc.HintField).
+            Str("rfc_description", rfc.DescriptionField).
+            Msg("access response error")
         s.Provider.WriteAccessError(ctx, w, accessReq, err)
         return
     }
@@ -334,6 +356,31 @@ func (s *Server) InitSQLite(path string) error {
         client_id TEXT PRIMARY KEY,
         redirect_uris TEXT NOT NULL
     );`); err != nil { return err }
+    if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS oauth_keys (
+        kid TEXT PRIMARY KEY,
+        private_pem BLOB NOT NULL,
+        created_at TIMESTAMP NOT NULL
+    );`); err != nil { return err }
+
+    // Load or persist signing key
+    var existingPEM []byte
+    var existingKID string
+    row := db.QueryRow(`SELECT kid, private_pem FROM oauth_keys LIMIT 1`)
+    _ = row.Scan(&existingKID, &existingPEM)
+    if len(existingPEM) > 0 {
+        pk, err := pemDecodeRSAPrivateKey(existingPEM)
+        if err != nil { return err }
+        s.PrivateKey = pk
+        // Recompose provider with persisted key
+        s.Provider = compose.ComposeAllEnabled(s.cfg, s.store, s.PrivateKey)
+        log.Info().Str("component", "idsrv").Str("db", path).Str("kid", existingKID).Msg("loaded signing key from sqlite")
+    } else {
+        // Persist current in-memory key
+        pemBytes, err := pemEncodeRSAPrivateKey(s.PrivateKey)
+        if err != nil { return err }
+        if _, err := db.Exec(`INSERT INTO oauth_keys (kid, private_pem, created_at) VALUES (?, ?, ?)`, "1", pemBytes, time.Now()); err != nil { return err }
+        log.Info().Str("component", "idsrv").Str("db", path).Str("kid", "1").Msg("persisted new signing key to sqlite")
+    }
     // Load existing
     rows, err := db.Query(`SELECT client_id, redirect_uris FROM oauth_clients`)
     if err != nil { return err }
@@ -356,6 +403,18 @@ func (s *Server) InitSQLite(path string) error {
     }
     log.Info().Str("component", "idsrv").Str("db", path).Int("clients", loaded).Msg("loaded clients from sqlite")
     return nil
+}
+
+func pemEncodeRSAPrivateKey(pk *rsa.PrivateKey) ([]byte, error) {
+    b := x509.MarshalPKCS1PrivateKey(pk)
+    blk := &pem.Block{Type: "RSA PRIVATE KEY", Bytes: b}
+    return pem.EncodeToMemory(blk), nil
+}
+
+func pemDecodeRSAPrivateKey(p []byte) (*rsa.PrivateKey, error) {
+    blk, _ := pem.Decode(p)
+    if blk == nil || blk.Type != "RSA PRIVATE KEY" { return nil, fosite.ErrServerError.WithHint("invalid PEM for RSA private key") }
+    return x509.ParsePKCS1PrivateKey(blk.Bytes)
 }
 
 func (s *Server) persistClientToSQLite(id string, redirects []string) error {
