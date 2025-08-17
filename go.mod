@@ -2,11 +2,8 @@ module github.com/go-go-golems/go-go-labs
 
 go 1.24.3
 
-replace github.com/go-go-golems/bobatea => ../bobatea
-
 require (
 	github.com/BobuSumisu/aho-corasick v1.0.3
-	github.com/BurntSushi/xgb v0.0.0-20210121224620-deaf085860bc
 	github.com/DataDog/datadog-api-client-go/v2 v2.38.0
 	github.com/GianlucaP106/gotmux v0.5.0
 	github.com/JohannesKaufmann/html-to-markdown v1.6.0
@@ -26,32 +23,31 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.44.0
 	github.com/aws/aws-sdk-go-v2/service/lambda v1.69.0
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.68.0
-	github.com/aws/aws-sdk-go-v2/service/sns v1.35.2
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.37.1
 	github.com/blevesearch/bleve v1.0.14
 	github.com/carapace-sh/carapace v1.8.3
 	github.com/charmbracelet/bubbles v0.21.0
-	github.com/charmbracelet/bubbletea v1.3.5
+	github.com/charmbracelet/bubbletea v1.3.6
 	github.com/charmbracelet/gum v0.11.0
-	github.com/charmbracelet/huh v0.6.0
+	github.com/charmbracelet/huh v0.7.0
 	github.com/charmbracelet/lipgloss v1.1.1-0.20250404203927-76690c660834
 	github.com/chromedp/chromedp v0.9.2
 	github.com/cilium/ebpf v0.18.0
 	github.com/coder/hnsw v0.6.1
-	github.com/creack/pty v1.1.21
+	github.com/creack/pty v1.1.24
 	github.com/dop251/goja v0.0.0-20250630131328-58d95d85e994
 	github.com/getkin/kin-openapi v0.120.0
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-chi/chi/v5 v5.1.0
 	github.com/go-faker/faker/v4 v4.6.0
 	github.com/go-git/go-git/v5 v5.16.2
-	github.com/go-go-golems/bobatea v0.0.11
-	github.com/go-go-golems/clay v0.1.41
-	github.com/go-go-golems/geppetto v0.4.52
-	github.com/go-go-golems/glazed v0.6.9
+	github.com/go-go-golems/bobatea v0.0.24
+	github.com/go-go-golems/clay v0.1.47
+	github.com/go-go-golems/geppetto v0.4.54
+	github.com/go-go-golems/glazed v0.6.10
 	github.com/go-go-golems/go-emrichen v0.0.5
 	github.com/go-go-golems/go-go-mcp v0.0.10
-	github.com/go-go-golems/pinocchio v0.0.1
+	github.com/go-go-golems/pinocchio v0.4.39
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/google/uuid v1.6.0
@@ -90,7 +86,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/tarm/serial v0.0.0-20180830185346-98f6abe2eb07
 	github.com/tdewolff/parse/v2 v2.8.1
-	github.com/tiktoken-go/tokenizer v0.2.0
+	github.com/tiktoken-go/tokenizer v0.6.1
 	github.com/weaviate/tiktoken-go v0.0.2
 	github.com/weaviate/weaviate v1.27.0
 	github.com/weaviate/weaviate-go-client/v4 v4.16.1
@@ -117,6 +113,7 @@ require (
 )
 
 require (
+	cloud.google.com/go v0.116.0 // indirect
 	cloud.google.com/go/auth v0.13.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.6 // indirect
 	cloud.google.com/go/compute/metadata v0.6.0 // indirect
@@ -159,7 +156,7 @@ require (
 	github.com/carapace-sh/carapace-shlex v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/charmbracelet/colorprofile v0.3.0 // indirect
+	github.com/charmbracelet/colorprofile v0.3.1 // indirect
 	github.com/charmbracelet/x/cellbuf v0.0.13 // indirect
 	github.com/charmbracelet/x/exp/slice v0.0.0-20250327172914-2fdc97757edf // indirect
 	github.com/chewxy/math32 v1.10.1 // indirect
@@ -182,6 +179,7 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/geo v0.0.0-20210211234256-740aa86cb551 // indirect
 	github.com/golang/mock v1.6.0 // indirect
+	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/pprof v0.0.0-20240727154555-813a5fbdbec8 // indirect
 	github.com/google/renameio v1.0.1 // indirect
 	github.com/google/s2a-go v0.1.8 // indirect
@@ -193,9 +191,12 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.7.7 // indirect
 	github.com/hashicorp/terraform-json v0.22.1 // indirect
 	github.com/huandu/go-clone v1.7.2 // indirect
+	github.com/jackc/pgpassfile v1.0.0 // indirect
+	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
+	github.com/jackc/pgx/v5 v5.7.5 // indirect
+	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/labstack/gommon v0.4.2 // indirect
-	github.com/lib/pq v1.10.9 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/matryer/is v1.4.1 // indirect
 	github.com/mattn/goveralls v0.0.12 // indirect
@@ -263,6 +264,7 @@ require (
 	golang.org/x/mod v0.25.0 // indirect
 	golang.org/x/time v0.8.0 // indirect
 	golang.org/x/tools v0.34.0 // indirect
+	google.golang.org/genai v1.14.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20241209162323-e6fa225c2576 // indirect
 	gopkg.in/cenkalti/backoff.v1 v1.1.0 // indirect
 )
@@ -299,10 +301,10 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.9.0
 	github.com/buger/jsonparser v1.1.1 // indirect
 	github.com/bytedance/sonic v1.9.1 // indirect
-	github.com/catppuccin/go v0.2.0 // indirect
+	github.com/catppuccin/go v0.3.0 // indirect
 	github.com/charmbracelet/glamour v0.10.0
 	github.com/charmbracelet/harmonica v0.2.0 // indirect
-	github.com/charmbracelet/x/ansi v0.8.0 // indirect
+	github.com/charmbracelet/x/ansi v0.9.3 // indirect
 	github.com/charmbracelet/x/exp/strings v0.0.0-20240725160154-f9f6568126ec // indirect
 	github.com/charmbracelet/x/term v0.2.1 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
