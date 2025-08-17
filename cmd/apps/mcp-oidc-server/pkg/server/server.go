@@ -1,10 +1,8 @@
 package server
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"io"
-	"math/big"
 	"net/http"
 	"time"
 
@@ -25,6 +23,14 @@ func New(issuer string) (*Server, error) {
 	return &Server{issuer: issuer, ids: id}, nil
 }
 
+// EnableSQLite enables SQLite persistence for dynamic client registrations.
+func (s *Server) EnableSQLite(path string) error {
+	if path == "" { return nil }
+	if err := s.ids.InitSQLite(path); err != nil { return err }
+	log.Info().Str("component", "server").Str("db", path).Msg("sqlite persistence enabled")
+	return nil
+}
+
 func (s *Server) Routes(mux *http.ServeMux) {
 	// health
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -33,9 +39,8 @@ func (s *Server) Routes(mux *http.ServeMux) {
 		_, _ = w.Write([]byte("ok"))
 	})
 
-	// Delegate discovery/AS metadata to idsrv
-	mux.HandleFunc("/.well-known/openid-configuration", s.ids.RoutesDiscovery)
-	mux.HandleFunc("/.well-known/oauth-authorization-server", s.ids.RoutesASMetadata)
+	// Delegate all IdP routes (discovery, jwks, oauth2, login, register) to idsrv
+	s.ids.Routes(mux)
 
 	// OAuth 2.0 Protected Resource Metadata (RFC 9728)
 	mux.HandleFunc("/.well-known/oauth-protected-resource", func(w http.ResponseWriter, r *http.Request) {
@@ -45,32 +50,21 @@ func (s *Server) Routes(mux *http.ServeMux) {
 			"resource":              s.issuer + "/mcp",
 		}
 		writeJSONWithPreview(w, r, "oauth-protected-resource", j)
-		log.Info().Str("endpoint", "oauth-protected-resource").Msg("served protected resource metadata")
+		log.Info().Str("endpoint", "oauth-protected-resource").Interface("response", j).Msg("served protected resource metadata")
 	})
 
-	mux.HandleFunc("/oauth2/auth", s.ids.Authorize)
-	mux.HandleFunc("/oauth2/token", s.ids.Token)
-	mux.HandleFunc("/register", s.ids.Register)
-	mux.HandleFunc("/login", s.ids.Login)
-
-	// JWKS
-	mux.HandleFunc("/jwks.json", func(w http.ResponseWriter, r *http.Request) {
-		log.Debug().Str("endpoint", "jwks").Str("ua", r.UserAgent()).Msg("serving jwks")
-		pub := &s.ids.PrivateKey.PublicKey
-		j := map[string]any{
-			"keys": []map[string]any{
-				{
-					"kty": "RSA", "alg": "RS256", "use": "sig", "kid": "1",
-					"n": base64.RawURLEncoding.EncodeToString(pub.N.Bytes()),
-					"e": base64.RawURLEncoding.EncodeToString(big.NewInt(int64(pub.E)).Bytes()),
-				},
-			},
+	// Dev callback for manual testing: echoes code/state
+	mux.HandleFunc("/dev/callback", func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		resp := map[string]any{
+			"code":  q.Get("code"),
+			"state": q.Get("state"),
 		}
-		writeJSONWithPreview(w, r, "jwks", j)
-		log.Info().Str("endpoint", "jwks").Msg("served jwks")
+		log.Info().Str("endpoint", "/dev/callback").Interface("resp", resp).Msg("dev callback")
+		writeJSONWithPreview(w, r, "dev-callback", resp)
 	})
 
-	// MCP endpoint: for now, advertise authorization via 401 + WWW-Authenticate per RFC 9728
+	// MCP endpoint: advertise authorization via 401 + WWW-Authenticate (intermediate step)
 	mux.HandleFunc("/mcp", func(w http.ResponseWriter, r *http.Request) {
 		// Capture small body for debug visibility
 		var bodyPreview string
@@ -83,14 +77,21 @@ func (s *Server) Routes(mux *http.ServeMux) {
 			// RFC 9728 Section 5.1: advertise resource metadata via WWW-Authenticate on 401
 			asMeta := s.issuer + "/.well-known/oauth-authorization-server"
 			prm := s.issuer + "/.well-known/oauth-protected-resource"
-			w.Header().Set("WWW-Authenticate", "Bearer realm=\"mcp\", resource=\""+s.issuer+"/mcp\""+
-				", authorization_uri=\""+asMeta+"\", resource_metadata=\""+prm+"\"")
-			log.Warn().Str("endpoint", "mcp").Str("method", r.Method).Str("origin", r.Header.Get("Origin")).Str("contentType", r.Header.Get("Content-Type")).Str("bodyPreview", bodyPreview).Msg("unauthorized - advertising AS metadata")
+			hdr := "Bearer realm=\"mcp\", resource=\"" + s.issuer + "/mcp\"" +
+				", authorization_uri=\"" + asMeta + "\", resource_metadata=\"" + prm + "\""
+			w.Header().Set("WWW-Authenticate", hdr)
+			log.Warn().
+				Str("endpoint", "mcp").
+				Str("method", r.Method).
+				Str("origin", r.Header.Get("Origin")).
+				Str("contentType", r.Header.Get("Content-Type")).
+				Str("ua", r.UserAgent()).
+				Str("www_authenticate", hdr).
+				Str("bodyPreview", bodyPreview).
+				Msg("unauthorized - advertising AS metadata")
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		// No token validation yet; still not implemented
-		log.Warn().Str("endpoint", "mcp").Str("method", r.Method).Str("origin", r.Header.Get("Origin")).Str("contentType", r.Header.Get("Content-Type")).Str("bodyPreview", bodyPreview).Msg("received MCP request - not implemented")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotImplemented)
 		_ = json.NewEncoder(w).Encode(map[string]any{"error": "MCP not implemented yet"})

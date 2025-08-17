@@ -1,6 +1,7 @@
 package idsrv
 
 import (
+    "database/sql"
     "crypto/rand"
     "crypto/rsa"
     "encoding/base64"
@@ -8,20 +9,71 @@ import (
     "html/template"
     "math/big"
     "net/http"
+    "net/url"
+    "strings"
+    "sync"
     "time"
 
+    "github.com/ory/fosite"
+    "github.com/ory/fosite/compose"
+    "github.com/ory/fosite/handler/openid"
+    "github.com/ory/fosite/storage"
+    "github.com/ory/fosite/token/jwt"
+    _ "github.com/mattn/go-sqlite3"
     "github.com/rs/zerolog/log"
 )
 
 type Server struct {
     PrivateKey *rsa.PrivateKey
     Issuer     string
+    Provider   fosite.OAuth2Provider
+    store      *storage.MemoryStore
+    mu         sync.Mutex
+    // optional persistence
+    // set when InitSQLite is called
+    // guarded by mu for writes
+    dbPath string
+    // demo login
+    User string
+    Pass string
 }
 
 func New(issuer string) (*Server, error) {
     privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
     if err != nil { return nil, err }
-    return &Server{PrivateKey: privateKey, Issuer: issuer}, nil
+
+    cfg := &fosite.Config{
+        IDTokenIssuer:               issuer,
+        EnforcePKCEForPublicClients: true,
+    }
+
+    mem := storage.NewMemoryStore()
+    // Dev client for manual tests
+    devClientID := "dev-client"
+    devRedirect := issuer + "/dev/callback"
+    mem.Clients[devClientID] = &fosite.DefaultClient{
+        ID:            devClientID,
+        RedirectURIs:  []string{devRedirect},
+        GrantTypes:    []string{"authorization_code", "refresh_token"},
+        ResponseTypes: []string{"code"},
+        Scopes:        []string{"openid", "profile", "offline_access"},
+        Public:        true,
+    }
+
+    secret := []byte("dev-hmac-secret-change-me")
+    // Use high-level composer compatible with fosite v0.49.0
+    provider := compose.ComposeAllEnabled(cfg, mem, secret)
+
+    log.Debug().Str("component", "idsrv").Str("issuer", issuer).Str("dev_client_id", devClientID).Str("dev_redirect", devRedirect).Msg("initialized identity server")
+
+    return &Server{
+        PrivateKey: privateKey,
+        Issuer:     issuer,
+        Provider:   provider,
+        store:      mem,
+        User:       "admin",
+        Pass:       "password123",
+    }, nil
 }
 
 func (s *Server) Routes(mux *http.ServeMux) {
@@ -34,7 +86,10 @@ func (s *Server) Routes(mux *http.ServeMux) {
     mux.HandleFunc("/register", s.register)
 }
 
+func (s *Server) ProviderRef() fosite.OAuth2Provider { return s.Provider }
+
 func (s *Server) oidcDiscovery(w http.ResponseWriter, r *http.Request) {
+    log.Debug().Str("endpoint", "/.well-known/openid-configuration").Msg("serving OIDC discovery")
     j := map[string]any{
         "issuer":                 s.Issuer,
         "authorization_endpoint": s.Issuer + "/oauth2/auth",
@@ -52,6 +107,7 @@ func (s *Server) oidcDiscovery(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) asMetadata(w http.ResponseWriter, r *http.Request) {
+    log.Debug().Str("endpoint", "/.well-known/oauth-authorization-server").Msg("serving AS metadata")
     j := map[string]any{
         "issuer":                 s.Issuer,
         "authorization_endpoint": s.Issuer + "/oauth2/auth",
@@ -68,6 +124,7 @@ func (s *Server) asMetadata(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) jwks(w http.ResponseWriter, r *http.Request) {
+    log.Debug().Str("endpoint", "/jwks.json").Msg("serving JWKS")
     pub := &s.PrivateKey.PublicKey
     jwks := map[string]any{
         "keys": []map[string]any{
@@ -81,6 +138,8 @@ func (s *Server) jwks(w http.ResponseWriter, r *http.Request) {
     writeJSON(w, jwks)
 }
 
+const cookieName = "sid"
+
 var loginTpl = template.Must(template.New("login").Parse(`
 <!doctype html><meta charset="utf-8"><title>Login</title>
 <body style="font-family:sans-serif">
@@ -90,43 +149,164 @@ var loginTpl = template.Must(template.New("login").Parse(`
   <div><label>User <input name="username" autofocus></label></div>
   <div><label>Pass <input type="password" name="password"></label></div>
   <button type="submit">Login</button>
-</form>
+  </form>
 </body>`))
 
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
     switch r.Method {
     case http.MethodGet:
+        log.Debug().Str("endpoint", "/login").Str("method", "GET").Str("return_to", r.URL.Query().Get("return_to")).Msg("render login")
         _ = loginTpl.Execute(w, struct{ ReturnTo string }{r.URL.Query().Get("return_to")})
     case http.MethodPost:
-        http.Redirect(w, r, r.FormValue("return_to"), http.StatusFound)
+        _ = r.ParseForm()
+        u := r.FormValue("username")
+        log.Debug().Str("endpoint", "/login").Str("method", "POST").Str("username", u).Str("return_to", r.FormValue("return_to")).Msg("attempt login")
+        p := r.FormValue("password")
+        if u == s.User && p == s.Pass {
+            http.SetCookie(w, &http.Cookie{Name: cookieName, Value: "ok:"+u, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode})
+            rt := r.FormValue("return_to")
+            if rt == "" { rt = "/" }
+            log.Info().Str("endpoint", "/login").Str("username", u).Str("return_to", rt).Msg("login success, redirecting")
+            http.Redirect(w, r, rt, http.StatusFound)
+            return
+        }
+        log.Warn().Str("endpoint", "/login").Str("username", u).Msg("invalid credentials")
+        http.Error(w, "invalid credentials", http.StatusUnauthorized)
     default:
         http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
     }
 }
 
+func currentUser(r *http.Request) (string, bool) {
+    c, err := r.Cookie(cookieName)
+    if err != nil || !strings.HasPrefix(c.Value, "ok:") {
+        return "", false
+    }
+    return strings.TrimPrefix(c.Value, "ok:"), true
+}
+
 func (s *Server) authorize(w http.ResponseWriter, r *http.Request) {
-    log.Info().Str("endpoint", "oauth2/auth").RawJSON("query", []byte("{}")).Msg("authorize request (stub)")
-    w.Header().Set("Content-Type", "application/json")
-    w.WriteHeader(http.StatusNotImplemented)
-    _ = json.NewEncoder(w).Encode(map[string]any{"error": "authorize endpoint not implemented yet"})
+    ctx := r.Context()
+    q := r.URL.Query()
+    log.Info().
+        Str("endpoint", "/oauth2/auth").
+        Str("client_id", q.Get("client_id")).
+        Str("redirect_uri", q.Get("redirect_uri")).
+        Str("response_type", q.Get("response_type")).
+        Str("scope", q.Get("scope")).
+        Str("state", q.Get("state")).
+        Str("code_challenge_method", q.Get("code_challenge_method")).
+        Str("code_challenge", q.Get("code_challenge")).
+        Str("resource", q.Get("resource")).
+        Msg("authorize request")
+    ar, err := s.Provider.NewAuthorizeRequest(ctx, r)
+    if err != nil {
+        log.Error().Err(err).
+            Str("endpoint", "/oauth2/auth").
+            Str("client_id", q.Get("client_id")).
+            Str("redirect_uri", q.Get("redirect_uri")).
+            Msg("authorize error")
+        s.Provider.WriteAuthorizeError(ctx, w, ar, err)
+        return
+    }
+    user, ok := currentUser(r)
+    if !ok {
+        log.Debug().Str("endpoint", "/oauth2/auth").Msg("not logged in, redirect to /login")
+        http.Redirect(w, r, "/login?return_to="+url.QueryEscape(r.URL.String()), http.StatusFound)
+        return
+    }
+    now := time.Now()
+    sess := &openid.DefaultSession{
+        Subject:  user,
+        Username: user,
+        Claims: &jwt.IDTokenClaims{
+            Subject:     user,
+            Issuer:      s.Issuer,
+            IssuedAt:    now,
+            AuthTime:    now,
+            RequestedAt: now,
+            Audience:    []string{s.Issuer + "/mcp"},
+        },
+        Headers: &jwt.Headers{Extra: map[string]any{"kid": "1"}},
+    }
+    resp, err := s.Provider.NewAuthorizeResponse(ctx, ar, sess)
+    if err != nil {
+        log.Error().Err(err).Str("endpoint", "/oauth2/auth").Msg("failed issuing code")
+        s.Provider.WriteAuthorizeError(ctx, w, ar, err)
+        return
+    }
+    log.Info().Str("endpoint", "/oauth2/auth").Str("client_id", q.Get("client_id")).Str("redirect_uri", q.Get("redirect_uri")).Msg("issued authorization code")
+    s.Provider.WriteAuthorizeResponse(ctx, w, ar, resp)
 }
 
 func (s *Server) token(w http.ResponseWriter, r *http.Request) {
+    ctx := r.Context()
     _ = r.ParseForm()
-    log.Info().Str("endpoint", "oauth2/token").RawJSON("form", []byte("{}")).Msg("token request (stub)")
-    w.Header().Set("Content-Type", "application/json")
-    w.WriteHeader(http.StatusNotImplemented)
-    _ = json.NewEncoder(w).Encode(map[string]any{"error": "token endpoint not implemented yet"})
+    form := r.PostForm
+    log.Info().
+        Str("endpoint", "/oauth2/token").
+        Str("grant_type", form.Get("grant_type")).
+        Str("client_id", form.Get("client_id")).
+        Str("redirect_uri", form.Get("redirect_uri")).
+        Bool("has_code", form.Get("code") != "").
+        Bool("has_code_verifier", form.Get("code_verifier") != "").
+        Bool("has_refresh_token", form.Get("refresh_token") != "").
+        Msg("token request")
+    sess := new(openid.DefaultSession)
+    accessReq, err := s.Provider.NewAccessRequest(ctx, r, sess)
+    if err != nil {
+        log.Error().Err(err).Str("endpoint", "/oauth2/token").Msg("access request error")
+        s.Provider.WriteAccessError(ctx, w, accessReq, err)
+        return
+    }
+    resp, err := s.Provider.NewAccessResponse(ctx, accessReq)
+    if err != nil {
+        log.Error().Err(err).Str("endpoint", "/oauth2/token").Msg("access response error")
+        s.Provider.WriteAccessError(ctx, w, accessReq, err)
+        return
+    }
+    log.Info().Str("endpoint", "/oauth2/token").Str("grant_type", form.Get("grant_type")).Msg("token exchange success")
+    s.Provider.WriteAccessResponse(ctx, w, accessReq, resp)
 }
 
 func (s *Server) register(w http.ResponseWriter, r *http.Request) {
-    var payload map[string]any
+    var payload struct {
+        RedirectURIs []string `json:"redirect_uris"`
+        TokenEndpointAuthMethod string `json:"token_endpoint_auth_method"`
+        GrantTypes []string `json:"grant_types"`
+        ResponseTypes []string `json:"response_types"`
+        ClientName string `json:"client_name"`
+        ClientID   string `json:"client_id"`
+    }
     _ = json.NewDecoder(r.Body).Decode(&payload)
-    id := "dev-client-" + time.Now().Format("150405")
-    log.Info().Str("endpoint", "register").Str("client_id", id).Interface("payload", payload).Msg("dynamic registration (stub)")
+    log.Debug().Str("endpoint", "/register").Interface("payload", payload).Msg("dynamic registration request")
+    if len(payload.RedirectURIs) == 0 {
+        http.Error(w, "missing redirect_uris", http.StatusBadRequest)
+        return
+    }
+    id := payload.ClientID
+    if id == "" {
+        id = "client-" + time.Now().Format("20060102-150405")
+    }
+    // persist in memory store
+    s.mu.Lock()
+    s.store.Clients[id] = &fosite.DefaultClient{
+        ID:            id,
+        RedirectURIs:  payload.RedirectURIs,
+        GrantTypes:    []string{"authorization_code", "refresh_token"},
+        ResponseTypes: []string{"code"},
+        Scopes:        []string{"openid", "profile", "offline_access"},
+        Public:        true,
+    }
+    s.mu.Unlock()
+    // persist if enabled
+    if err := s.persistClientToSQLite(id, payload.RedirectURIs); err != nil {
+        log.Error().Err(err).Str("endpoint", "/register").Str("client_id", id).Msg("failed to persist client")
+    }
+    log.Info().Str("endpoint", "/register").Str("client_id", id).Interface("redirect_uris", payload.RedirectURIs).Msg("dynamic client registered")
     resp := map[string]any{
         "client_id":                  id,
-        "redirect_uris":              payload["redirect_uris"],
+        "redirect_uris":              payload.RedirectURIs,
         "token_endpoint_auth_method": "none",
         "grant_types":                []string{"authorization_code", "refresh_token"},
         "response_types":             []string{"code"},
@@ -140,4 +320,55 @@ func writeJSON(w http.ResponseWriter, v any) {
     _ = json.NewEncoder(w).Encode(v)
 }
 
+// InitSQLite enables persistence of clients to a simple SQLite DB at the given path and loads existing clients on boot.
+// This is optional; if not called, in-memory storage is used only.
+func (s *Server) InitSQLite(path string) error {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+    s.dbPath = path
+    // Create table if not exists and load clients
+    db, err := sqlOpen(path)
+    if err != nil { return err }
+    defer db.Close()
+    if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS oauth_clients (
+        client_id TEXT PRIMARY KEY,
+        redirect_uris TEXT NOT NULL
+    );`); err != nil { return err }
+    // Load existing
+    rows, err := db.Query(`SELECT client_id, redirect_uris FROM oauth_clients`)
+    if err != nil { return err }
+    defer rows.Close()
+    loaded := 0
+    for rows.Next() {
+        var id string
+        var uris string
+        if err := rows.Scan(&id, &uris); err != nil { return err }
+        redirects := splitCSV(uris)
+        s.store.Clients[id] = &fosite.DefaultClient{
+            ID:            id,
+            RedirectURIs:  redirects,
+            GrantTypes:    []string{"authorization_code", "refresh_token"},
+            ResponseTypes: []string{"code"},
+            Scopes:        []string{"openid", "profile", "offline_access"},
+            Public:        true,
+        }
+        loaded++
+    }
+    log.Info().Str("component", "idsrv").Str("db", path).Int("clients", loaded).Msg("loaded clients from sqlite")
+    return nil
+}
 
+func (s *Server) persistClientToSQLite(id string, redirects []string) error {
+    if s.dbPath == "" { return nil }
+    db, err := sqlOpen(s.dbPath)
+    if err != nil { return err }
+    defer db.Close()
+    _, err = db.Exec(`INSERT OR REPLACE INTO oauth_clients (client_id, redirect_uris) VALUES (?, ?)`, id, joinCSV(redirects))
+    return err
+}
+
+func splitCSV(s string) []string { if s == "" { return nil }; return strings.Split(s, ",") }
+func joinCSV(ss []string) string { return strings.Join(ss, ",") }
+
+// sqlite open indirection for single-file path
+func sqlOpen(path string) (*sql.DB, error) { return sql.Open("sqlite3", path) }

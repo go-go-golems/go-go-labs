@@ -10,6 +10,8 @@ import (
 	"github.com/spf13/cobra"
 
 	appserver "github.com/go-go-golems/go-go-labs/cmd/apps/mcp-oidc-server/pkg/server"
+    "database/sql"
+    _ "github.com/mattn/go-sqlite3"
 )
 
 func getenv(k, def string) string {
@@ -25,6 +27,7 @@ func main() {
 		issuer    string
 		logFormat string
 		logLevel  string
+		dbPath    string
 	)
 
 	rootCmd := &cobra.Command{
@@ -57,6 +60,11 @@ func main() {
 			if err != nil {
 				zlog.Fatal().Err(err).Msg("failed generating RSA key")
 			}
+			if dbPath != "" {
+				if err := s.EnableSQLite(dbPath); err != nil {
+					zlog.Fatal().Err(err).Str("db", dbPath).Msg("failed enabling sqlite persistence")
+				}
+			}
 
 			mux := http.NewServeMux()
 			s.Routes(mux)
@@ -73,6 +81,30 @@ func main() {
 	rootCmd.Flags().StringVar(&issuer, "issuer", getenv("ISSUER", "http://localhost:8080"), "Issuer/base URL")
 	rootCmd.Flags().StringVar(&logFormat, "log-format", getenv("LOG_FORMAT", "console"), "Log format: console|json")
 	rootCmd.Flags().StringVar(&logLevel, "log-level", getenv("LOG_LEVEL", "info"), "Log level: trace|debug|info|warn|error")
+	rootCmd.Flags().StringVar(&dbPath, "db", getenv("DB", ""), "SQLite DB path for client persistence (optional)")
+
+    listCmd := &cobra.Command{
+        Use:   "list-clients",
+        Short: "List registered OAuth clients from SQLite",
+        RunE: func(cmd *cobra.Command, args []string) error {
+            if dbPath == "" {
+                zlog.Fatal().Msg("--db is required to list clients")
+            }
+            db, err := sql.Open("sqlite3", dbPath)
+            if err != nil { return err }
+            defer db.Close()
+            rows, err := db.Query("SELECT client_id, redirect_uris FROM oauth_clients")
+            if err != nil { return err }
+            defer rows.Close()
+            for rows.Next() {
+                var id, uris string
+                if err := rows.Scan(&id, &uris); err != nil { return err }
+                zlog.Info().Str("client_id", id).Str("redirect_uris", uris).Msg("client")
+            }
+            return nil
+        },
+    }
+    rootCmd.AddCommand(listCmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		zlog.Fatal().Err(err).Msg("command error")
