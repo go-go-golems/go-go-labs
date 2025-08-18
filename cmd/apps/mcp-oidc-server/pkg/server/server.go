@@ -1,11 +1,13 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
 	"time"
+	"strconv"
 
 	idsrv "github.com/go-go-golems/go-go-labs/cmd/apps/mcp-oidc-server/pkg/idsrv"
 	"github.com/ory/fosite"
@@ -16,6 +18,26 @@ import (
 type Server struct {
 	issuer string
 	ids    *idsrv.Server
+}
+
+// auth context keys
+type ctxKey string
+
+const (
+	ctxSubjectKey  ctxKey = "mcp_subject"
+	ctxClientIDKey ctxKey = "mcp_client_id"
+)
+
+func setAuthCtx(ctx context.Context, subject, clientID string) context.Context {
+	ctx = context.WithValue(ctx, ctxSubjectKey, subject)
+	ctx = context.WithValue(ctx, ctxClientIDKey, clientID)
+	return ctx
+}
+
+func getAuthCtx(ctx context.Context) (string, string) {
+	subj, _ := ctx.Value(ctxSubjectKey).(string)
+	cid, _ := ctx.Value(ctxClientIDKey).(string)
+	return subj, cid
 }
 
 func New(issuer string) (*Server, error) {
@@ -164,14 +186,14 @@ func (s *Server) mcpAuthMiddleware(next http.Handler) http.Handler {
 		raw := strings.TrimPrefix(authz, "Bearer ")
 		sess := new(openid.DefaultSession)
 		// Introspect opaque access token
-		_, _, err := s.ids.ProviderRef().IntrospectToken(r.Context(), raw, fosite.AccessToken, sess)
+		tt, ar, err := s.ids.ProviderRef().IntrospectToken(r.Context(), raw, fosite.AccessToken, sess)
 		if err != nil {
 			// Dev fallback: accept manual tokens stored in DB
 			if tr, ok, derr := s.ids.GetToken(raw); derr == nil && ok {
 				if time.Now().Before(tr.ExpiresAt) {
 					log.Warn().Str("endpoint", "mcp").Str("reason", "using dev token fallback").Str("subject", tr.Subject).Str("client_id", tr.ClientID).Time("expires_at", tr.ExpiresAt).Msg("authorized via DB token")
-					// proceed without Fosite session
-					next.ServeHTTP(w, r)
+					ctx := setAuthCtx(r.Context(), tr.Subject, tr.ClientID)
+					next.ServeHTTP(w, r.WithContext(ctx))
 					return
 				}
 				log.Warn().Str("endpoint", "mcp").Str("reason", "dev token expired").Time("expired_at", tr.ExpiresAt).Msg("unauthorized")
@@ -180,12 +202,15 @@ func (s *Server) mcpAuthMiddleware(next http.Handler) http.Handler {
 			http.Error(w, "invalid token", http.StatusUnauthorized)
 			return
 		}
-		// Optionally enforce audience on access tokens if set
-		// Log subject for traceability
+		_ = tt
+		// Trace subject and client_id
 		subject := ""
 		if sess.Claims != nil { subject = sess.Claims.Subject }
-		log.Debug().Str("endpoint", "mcp").Str("subject", subject).Msg("authorized request")
-		next.ServeHTTP(w, r)
+		clientID := ""
+		if ar != nil && ar.GetClient() != nil { clientID = ar.GetClient().GetID() }
+		log.Debug().Str("endpoint", "mcp").Str("subject", subject).Str("client_id", clientID).Msg("authorized request")
+		ctx := setAuthCtx(r.Context(), subject, clientID)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
@@ -255,11 +280,17 @@ func (s *Server) handleMCP(w http.ResponseWriter, r *http.Request) {
 			},
 		}
 		log.Info().Str("endpoint", "mcp").Str("method", "tools/list").Int("tools", len(tools)).Msg("returning tools list")
-		writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: req.ID, Result: map[string]any{"tools": tools}}, req.Method)
+		resp := rpcResponse{JSONRPC: "2.0", ID: req.ID, Result: map[string]any{"tools": tools}}
+		subj, cid := getAuthCtx(r.Context())
+		_ = s.ids.LogMCPCall(idsrv.MCPCallLog{Timestamp: time.Now(), Subject: subj, ClientID: cid, RequestID: toStringID(req.ID), ToolName: "tools/list", ArgsJSON: "{}", ResultJSON: mustJSON(resp.Result), Status: "ok", DurationMs: time.Since(start).Milliseconds()})
+		writeRPC(w, resp, req.Method)
 	case "tools/call":
 		var p struct{ Name string `json:"name"`; Arguments map[string]any `json:"arguments"` }
 		if err := json.Unmarshal(req.Params, &p); err != nil { writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: req.ID, Error: &rpcError{Code: -32602, Message: "invalid params"}}, req.Method); return }
 		log.Debug().Str("endpoint", "mcp").Str("tool", p.Name).Interface("args", p.Arguments).Msg("tools/call")
+		subj, cid := getAuthCtx(r.Context())
+		argsBytes, _ := json.Marshal(p.Arguments)
+		callStart := time.Now()
 		switch p.Name {
 		case "search":
 			q, _ := p.Arguments["query"].(string)
@@ -270,20 +301,26 @@ func (s *Server) handleMCP(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 			log.Info().Str("endpoint", "mcp").Str("tool", "search").Str("query", q).Int("results", len(items)).Msg("search results")
-			writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: req.ID, Result: map[string]any{"content": []any{map[string]any{"type": "application/json", "data": items}}}}, req.Method)
+			resp := rpcResponse{JSONRPC: "2.0", ID: req.ID, Result: map[string]any{"content": []any{map[string]any{"type": "application/json", "data": items}}}}
+			_ = s.ids.LogMCPCall(idsrv.MCPCallLog{Timestamp: time.Now(), Subject: subj, ClientID: cid, RequestID: toStringID(req.ID), ToolName: "search", ArgsJSON: string(argsBytes), ResultJSON: mustJSON(resp.Result), Status: "ok", DurationMs: time.Since(callStart).Milliseconds()})
+			writeRPC(w, resp, req.Method)
 		case "fetch":
 			id, _ := p.Arguments["id"].(string)
 			for _, d := range sampleDocs {
 				if d.id == id {
 					item := map[string]any{"id": d.id, "title": d.title, "text": d.text, "url": d.url}
 					log.Info().Str("endpoint", "mcp").Str("tool", "fetch").Str("id", id).Int("bytes", len(d.text)).Msg("fetch result")
-					writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: req.ID, Result: map[string]any{"content": []any{map[string]any{"type": "application/json", "data": item}}}}, req.Method)
+					resp := rpcResponse{JSONRPC: "2.0", ID: req.ID, Result: map[string]any{"content": []any{map[string]any{"type": "application/json", "data": item}}}}
+					_ = s.ids.LogMCPCall(idsrv.MCPCallLog{Timestamp: time.Now(), Subject: subj, ClientID: cid, RequestID: toStringID(req.ID), ToolName: "fetch", ArgsJSON: string(argsBytes), ResultJSON: mustJSON(resp.Result), Status: "ok", DurationMs: time.Since(callStart).Milliseconds()})
+					writeRPC(w, resp, req.Method)
 					return
 				}
 			}
 			log.Warn().Str("endpoint", "mcp").Str("tool", "fetch").Str("id", id).Msg("fetch not found")
+			_ = s.ids.LogMCPCall(idsrv.MCPCallLog{Timestamp: time.Now(), Subject: subj, ClientID: cid, RequestID: toStringID(req.ID), ToolName: "fetch", ArgsJSON: string(argsBytes), ResultJSON: "", Status: "not_found", DurationMs: time.Since(callStart).Milliseconds()})
 			writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: req.ID, Error: &rpcError{Code: -32004, Message: "not found"}}, req.Method)
 		default:
+			_ = s.ids.LogMCPCall(idsrv.MCPCallLog{Timestamp: time.Now(), Subject: subj, ClientID: cid, RequestID: toStringID(req.ID), ToolName: p.Name, ArgsJSON: string(argsBytes), ResultJSON: "", Status: "unknown_tool", DurationMs: time.Since(callStart).Milliseconds()})
 			writeRPC(w, rpcResponse{JSONRPC: "2.0", ID: req.ID, Error: &rpcError{Code: -32601, Message: "unknown tool"}}, req.Method)
 		}
 	default:
@@ -301,6 +338,23 @@ func writeRPC(w http.ResponseWriter, resp rpcResponse, method string) {
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		log.Error().Str("endpoint", "mcp").Str("method", method).Any("id", resp.ID).Err(err).Msg("failed writing response")
 	}
+}
+
+// small helpers
+func toStringID(v any) string {
+	switch t := v.(type) {
+	case string:
+		return t
+	case float64:
+		return strconv.FormatInt(int64(t), 10)
+	default:
+		return ""
+	}
+}
+
+func mustJSON(v any) string {
+	b, _ := json.Marshal(v)
+	return string(b)
 }
 
 
