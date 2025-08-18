@@ -4,6 +4,7 @@ go 1.24.3
 
 require (
 	github.com/BobuSumisu/aho-corasick v1.0.3
+	github.com/BurntSushi/xgb v0.0.0-20210121224620-deaf085860bc
 	github.com/DataDog/datadog-api-client-go/v2 v2.38.0
 	github.com/GianlucaP106/gotmux v0.5.0
 	github.com/JohannesKaufmann/html-to-markdown v1.6.0
@@ -17,12 +18,13 @@ require (
 	github.com/alecthomas/participle/v2 v2.1.0
 	github.com/asg017/sqlite-vss/bindings/go v0.0.0-20230830180803-8fc443018430
 	github.com/aws/aws-sdk-go v1.55.6
-	github.com/aws/aws-sdk-go-v2 v1.37.1
+	github.com/aws/aws-sdk-go-v2 v1.38.0
 	github.com/aws/aws-sdk-go-v2/config v1.29.6
 	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.43.1
 	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.44.0
 	github.com/aws/aws-sdk-go-v2/service/lambda v1.69.0
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.68.0
+	github.com/aws/aws-sdk-go-v2/service/sns v1.37.0
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.37.1
 	github.com/blevesearch/bleve v1.0.14
 	github.com/carapace-sh/carapace v1.8.3
@@ -66,7 +68,6 @@ require (
 	github.com/machinebox/graphql v0.2.2
 	github.com/maragudk/gomponents v0.20.1
 	github.com/maragudk/gomponents-htmx v0.4.0
-	github.com/mark3labs/mcp-go v0.37.0
 	github.com/mattn/go-sqlite3 v1.14.28
 	github.com/milosgajdos/go-embeddings v0.3.2
 	github.com/mmcdole/gofeed v1.2.1
@@ -127,8 +128,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.7 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.59 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.28 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.1 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.1 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.3 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.3 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.2 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/v4a v1.3.24 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.12.2 // indirect
@@ -241,7 +242,6 @@ require (
 	github.com/viterin/vek v0.4.2 // indirect
 	github.com/wlynxg/anet v0.0.3 // indirect
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
-	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
 	github.com/zclconf/go-cty v1.14.4 // indirect
 	go.lsp.dev/pkg v0.0.0-20210717090340-384b27a52fb2 // indirect
