@@ -1,0 +1,2 @@
+This app uses the parent module (go-go-labs). No separate go.mod.
+
