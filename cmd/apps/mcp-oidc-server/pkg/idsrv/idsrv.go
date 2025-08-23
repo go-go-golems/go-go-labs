@@ -5,6 +5,7 @@ import (
     "crypto/rand"
     "crypto/rsa"
     "crypto/x509"
+    "embed"
     "encoding/base64"
     "encoding/json"
     "encoding/pem"
@@ -25,6 +26,19 @@ import (
     _ "github.com/mattn/go-sqlite3"
     "github.com/rs/zerolog/log"
 )
+
+//go:embed static/*
+var staticFiles embed.FS
+
+var loginTemplate *template.Template
+
+func init() {
+    var err error
+    loginTemplate, err = template.ParseFS(staticFiles, "static/login.html")
+    if err != nil {
+        panic("Failed to parse login template: " + err.Error())
+    }
+}
 
 type Server struct {
     PrivateKey *rsa.PrivateKey
@@ -149,23 +163,12 @@ func (s *Server) jwks(w http.ResponseWriter, r *http.Request) {
 
 const cookieName = "sid"
 
-var loginTpl = template.Must(template.New("login").Parse(`
-<!doctype html><meta charset="utf-8"><title>Login</title>
-<body style="font-family:sans-serif">
-<h3>Sign in</h3>
-<form method="post" action="/login">
-  <input type="hidden" name="return_to" value="{{.ReturnTo}}">
-  <div><label>User <input name="username" autofocus></label></div>
-  <div><label>Pass <input type="password" name="password"></label></div>
-  <button type="submit">Login</button>
-  </form>
-</body>`))
-
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
     switch r.Method {
     case http.MethodGet:
         log.Debug().Str("endpoint", "/login").Str("method", "GET").Str("return_to", r.URL.Query().Get("return_to")).Msg("render login")
-        _ = loginTpl.Execute(w, struct{ ReturnTo string }{r.URL.Query().Get("return_to")})
+        w.Header().Set("Content-Type", "text/html; charset=utf-8")
+        _ = loginTemplate.Execute(w, struct{ ReturnTo string }{r.URL.Query().Get("return_to")})
     case http.MethodPost:
         _ = r.ParseForm()
         u := r.FormValue("username")
@@ -523,11 +526,11 @@ func sqlOpen(path string) (*sql.DB, error) { return sql.Open("sqlite3", path) }
 
 // Token persistence helpers
 type TokenRecord struct {
-    Token     string
-    Subject   string
-    ClientID  string
-    Scopes    []string
-    ExpiresAt time.Time
+    Token     string    `json:"token"`
+    Subject   string    `json:"subject"`
+    ClientID  string    `json:"client_id"`
+    Scopes    []string  `json:"scopes"`
+    ExpiresAt time.Time `json:"expires_at"`
 }
 
 func (s *Server) PersistToken(tr TokenRecord) error {

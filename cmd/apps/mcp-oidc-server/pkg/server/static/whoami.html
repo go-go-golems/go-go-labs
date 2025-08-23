@@ -1,0 +1,65 @@
+<div class="row">
+    <div class="col-md-8">
+        <h1>Profile</h1>
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">User Information</h5>
+                <p><strong>Username:</strong> {{.Subject}}</p>
+                <p><strong>Status:</strong> <span class="badge bg-success">Active</span></p>
+            </div>
+        </div>
+
+        {{if .DevToken}}
+        <div class="alert alert-info mt-4">
+            <h5>New API Token Generated</h5>
+            <p>Use this token in the Authorization header:</p>
+            <div class="input-group">
+                <span class="input-group-text">Bearer</span>
+                <input type="text" class="form-control" value="{{.DevToken}}" readonly>
+                <button class="btn btn-outline-secondary" type="button" onclick="copyToken()">Copy</button>
+            </div>
+            {{if not .DevTokenFallbackEnabled}}
+            <small class="text-muted">Note: Dev token fallback is disabled on the server. This token won't work for /mcp unless enabled.</small>
+            {{end}}
+        </div>
+        {{end}}
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5>Generate API Token</h5>
+            </div>
+            <div class="card-body">
+                <p>Generate a development API token for testing purposes.</p>
+                <form method="post" action="/dev/token">
+                    <button type="submit" class="btn btn-primary">Generate Token</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Available Tools</h5>
+            </div>
+            <div class="card-body">
+                {{range .Tools}}
+                <div class="mb-3">
+                    <h6>{{.name}}</h6>
+                    <p class="text-muted small">{{.description}}</p>
+                    <span class="badge bg-secondary">{{.require_approval}}</span>
+                </div>
+                {{end}}
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5>Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <a href="/tokens" class="btn btn-outline-primary btn-sm d-block mb-2">Manage Tokens</a>
+                <a href="/logout" class="btn btn-outline-danger btn-sm d-block">Logout</a>
+            </div>
+        </div>
+    </div>
+</div>
