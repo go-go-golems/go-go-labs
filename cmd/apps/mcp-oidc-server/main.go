@@ -28,6 +28,9 @@ func main() {
 		logFormat string
 		logLevel  string
 		dbPath    string
+		localUsers bool
+		sessionTTL time.Duration
+		devTokenFallback bool
 	)
 
 	rootCmd := &cobra.Command{
@@ -66,6 +69,9 @@ func main() {
 				}
 			}
 
+			// Configure authentication (Model C)
+			s.ConfigureAuth(localUsers, sessionTTL, devTokenFallback)
+
 			mux := http.NewServeMux()
 			s.Routes(mux)
 			wrapped := s.LoggingMiddleware(mux)
@@ -82,6 +88,9 @@ func main() {
 	rootCmd.Flags().StringVar(&logFormat, "log-format", getenv("LOG_FORMAT", "console"), "Log format: console|json")
 	rootCmd.Flags().StringVar(&logLevel, "log-level", getenv("LOG_LEVEL", "info"), "Log level: trace|debug|info|warn|error")
 	rootCmd.PersistentFlags().StringVar(&dbPath, "db", getenv("DB", ""), "SQLite DB path for client persistence (optional)")
+	rootCmd.Flags().BoolVar(&localUsers, "local-users", true, "Enable local DB-backed users (Model C)")
+	rootCmd.Flags().DurationVar(&sessionTTL, "session-ttl", 12*time.Hour, "Server-side session TTL (Model C)")
+	rootCmd.Flags().BoolVar(&devTokenFallback, "dev-token-fallback", false, "Enable dev DB token fallback for /mcp")
 
     listCmd := &cobra.Command{
         Use:   "list-clients",
@@ -155,6 +164,51 @@ func main() {
     tokensCreate.Flags().DurationVar(&tkTTL, "ttl", 24*time.Hour, "Token TTL (default 24h)")
     tokensCmd.AddCommand(tokensList, tokensCreate)
     rootCmd.AddCommand(tokensCmd)
+
+	// users CLI (Model C)
+	usersCmd := &cobra.Command{ Use: "users", Short: "Manage local users (requires --db)" }
+	var uUsername, uEmail, uPassword string
+	usersAdd := &cobra.Command{ Use: "add", Short: "Add user", RunE: func(cmd *cobra.Command, args []string) error {
+		if dbPath == "" { zlog.Fatal().Msg("--db is required") }
+		s, err := appserver.New(issuer); if err != nil { return err }
+		if err := s.EnableSQLite(dbPath); err != nil { return err }
+		return s.CreateUser(uUsername, uEmail, uPassword)
+	}}
+	usersAdd.Flags().StringVar(&uUsername, "username", "", "Username")
+	usersAdd.Flags().StringVar(&uEmail, "email", "", "Email")
+	usersAdd.Flags().StringVar(&uPassword, "password", "", "Password")
+	_ = usersAdd.MarkFlagRequired("username")
+	_ = usersAdd.MarkFlagRequired("password")
+	usersDisable := &cobra.Command{ Use: "disable", Short: "Disable user", RunE: func(cmd *cobra.Command, args []string) error {
+		if dbPath == "" { zlog.Fatal().Msg("--db is required") }
+		s, err := appserver.New(issuer); if err != nil { return err }
+		if err := s.EnableSQLite(dbPath); err != nil { return err }
+		return s.DisableUser(uUsername)
+	}}
+	usersDisable.Flags().StringVar(&uUsername, "username", "", "Username")
+	_ = usersDisable.MarkFlagRequired("username")
+	usersSetPassword := &cobra.Command{ Use: "set-password", Short: "Set user password", RunE: func(cmd *cobra.Command, args []string) error {
+		if dbPath == "" { zlog.Fatal().Msg("--db is required") }
+		s, err := appserver.New(issuer); if err != nil { return err }
+		if err := s.EnableSQLite(dbPath); err != nil { return err }
+		return s.SetPassword(uUsername, uPassword)
+	}}
+	usersSetPassword.Flags().StringVar(&uUsername, "username", "", "Username")
+	usersSetPassword.Flags().StringVar(&uPassword, "password", "", "Password")
+	_ = usersSetPassword.MarkFlagRequired("username")
+	_ = usersSetPassword.MarkFlagRequired("password")
+	usersList := &cobra.Command{ Use: "list", Short: "List users", RunE: func(cmd *cobra.Command, args []string) error {
+		if dbPath == "" { zlog.Fatal().Msg("--db is required") }
+		s, err := appserver.New(issuer); if err != nil { return err }
+		if err := s.EnableSQLite(dbPath); err != nil { return err }
+		us, err := s.ListUsers(); if err != nil { return err }
+		for _, u := range us {
+			zlog.Info().Str("username", u.Username).Str("email", u.Email).Bool("disabled", u.Disabled).Time("created_at", u.CreatedAt).Msg("user")
+		}
+		return nil
+	}}
+	usersCmd.AddCommand(usersAdd, usersDisable, usersSetPassword, usersList)
+	rootCmd.AddCommand(usersCmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		zlog.Fatal().Err(err).Msg("command error")

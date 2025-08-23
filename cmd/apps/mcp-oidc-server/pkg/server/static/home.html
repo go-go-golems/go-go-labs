@@ -1,0 +1,69 @@
+<div class="row">
+    <div class="col-md-8">
+        <h1>MCP OIDC Server</h1>
+        {{if .LoggedIn}}
+        <div class="alert alert-success">
+            <strong>Welcome back, {{.Subject}}!</strong>
+            <p class="mb-0">You are successfully logged in.</p>
+        </div>
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Profile</h5>
+                        <p class="card-text">View your profile information and available tools.</p>
+                        <a href="/whoami" class="btn btn-primary">View Profile</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">API Tokens</h5>
+                        <p class="card-text">Manage your API tokens for accessing protected resources.</p>
+                        <a href="/tokens" class="btn btn-primary">Manage Tokens</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {{else}}
+        <div class="alert alert-info">
+            <strong>Welcome!</strong>
+            <p class="mb-0">Please log in to access your profile and manage API tokens.</p>
+        </div>
+        <div class="mt-4">
+            <a href="/login" class="btn btn-primary btn-lg">Login</a>
+        </div>
+        {{end}}
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Server Information</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Issuer:</strong> {{.Issuer}}</p>
+                <p><strong>Status:</strong> 
+                    {{if .LoggedIn}}
+                    <span class="badge bg-success">Authenticated</span>
+                    {{else}}
+                    <span class="badge bg-secondary">Not authenticated</span>
+                    {{end}}
+                </p>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5>API Endpoints</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li><a href="/.well-known/openid-configuration" target="_blank">OIDC Discovery</a></li>
+                    <li><a href="/.well-known/oauth-authorization-server" target="_blank">AS Metadata</a></li>
+                    <li><a href="/jwks.json" target="_blank">JWKS</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>

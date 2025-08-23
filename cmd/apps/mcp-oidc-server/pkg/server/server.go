@@ -2,7 +2,11 @@ package server
 
 import (
 	"context"
+	"crypto/rand"
+	"embed"
 	"encoding/json"
+	"encoding/hex"
+	"html/template"
 	"io"
 	"net/http"
 	"strings"
@@ -15,9 +19,63 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+//go:embed static/*
+var staticFiles embed.FS
+
+var templates *template.Template
+
+func init() {
+	var err error
+	templates, err = template.ParseFS(staticFiles, "static/*.html")
+	if err != nil {
+		panic("Failed to parse templates: " + err.Error())
+	}
+}
+
 type Server struct {
 	issuer string
 	ids    *idsrv.Server
+	devTokenFallbackEnabled bool
+}
+
+type PageData struct {
+	Title                   string
+	LoggedIn                bool
+	Subject                 string
+	Issuer                  string
+	Content                 template.HTML
+	Script                  template.JS
+	DevToken                string
+	DevTokenFallbackEnabled bool
+	Tools                   []map[string]any
+}
+
+func (s *Server) renderPage(w http.ResponseWriter, contentTemplate string, data PageData) {
+	data.Issuer = s.issuer
+	
+	// First render the content template with the data
+	contentTmpl, err := template.New("content").Parse(string(data.Content))
+	if err != nil {
+		log.Error().Err(err).Msg("failed to parse content template")
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	
+	var contentBuf strings.Builder
+	if err := contentTmpl.Execute(&contentBuf, data); err != nil {
+		log.Error().Err(err).Msg("failed to execute content template")
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	
+	// Update the data with the rendered content
+	data.Content = template.HTML(contentBuf.String())
+	
+	// Then render the layout template
+	if err := templates.ExecuteTemplate(w, "layout.html", data); err != nil {
+		log.Error().Err(err).Str("template", "layout.html").Msg("template execution failed")
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
 }
 
 // auth context keys
@@ -45,7 +103,7 @@ func New(issuer string) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Server{issuer: issuer, ids: id}, nil
+	return &Server{issuer: issuer, ids: id, devTokenFallbackEnabled: true}, nil
 }
 
 // EnableSQLite enables SQLite persistence for dynamic client registrations.
@@ -62,6 +120,25 @@ func (s *Server) Routes(mux *http.ServeMux) {
 		log.Debug().Str("endpoint", "healthz").Str("ua", r.UserAgent()).Msg("health check")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
+	})
+
+	// root page: login status and links
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
+			http.NotFound(w, r)
+			return
+		}
+		subj, ok := s.ids.SubjectFromRequest(r)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		
+		homeContent, _ := staticFiles.ReadFile("static/home.html")
+		data := PageData{
+			Title:    "Home",
+			LoggedIn: ok,
+			Subject:  subj,
+			Content:  template.HTML(homeContent),
+		}
+		s.renderPage(w, "home", data)
 	})
 
 	// Delegate all IdP routes (discovery, jwks, oauth2, login, register) to idsrv
@@ -91,7 +168,184 @@ func (s *Server) Routes(mux *http.ServeMux) {
 
 	// MCP endpoint: JSON-RPC with Bearer protection
 	mux.Handle("/mcp", s.mcpAuthMiddleware(http.HandlerFunc(s.handleMCP)))
+
+	// whoami: simple test page
+	mux.HandleFunc("/whoami", func(w http.ResponseWriter, r *http.Request) {
+		subject, ok := s.ids.SubjectFromRequest(r)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if !ok {
+			http.Redirect(w, r, "/login?return_to="+r.URL.Path, http.StatusFound)
+			return
+		}
+		
+		// basic tools listing (same as tools/list payload)
+		tools := []map[string]any{
+			{
+				"name": "search",
+				"description": "Search corpus and return candidate items",
+				"require_approval": "never",
+			},
+			{
+				"name": "fetch",
+				"description": "Fetch a record by ID",
+				"require_approval": "never",
+			},
+		}
+		
+		whoamiContent, _ := staticFiles.ReadFile("static/whoami.html")
+		whoamiScript, _ := staticFiles.ReadFile("static/whoami.js")
+		
+		data := PageData{
+			Title:                   "Profile",
+			LoggedIn:                ok,
+			Subject:                 subject,
+			Content:                 template.HTML(whoamiContent),
+			Script:                  template.JS(whoamiScript),
+			DevToken:                r.URL.Query().Get("dev_token"),
+			DevTokenFallbackEnabled: s.devTokenFallbackEnabled,
+			Tools:                   tools,
+		}
+		s.renderPage(w, "whoami", data)
+	})
+
+	// dev token generator: creates an API token for current user
+	mux.HandleFunc("/dev/token", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		subject, ok := s.ids.SubjectFromRequest(r)
+		if !ok {
+			http.Error(w, "not logged in", http.StatusUnauthorized)
+			return
+		}
+		// defaults
+		clientID := r.URL.Query().Get("client_id")
+		if clientID == "" { clientID = "manual-client" }
+		scopes := r.URL.Query().Get("scopes")
+		if scopes == "" { scopes = "openid,profile" }
+		ttlStr := r.URL.Query().Get("ttl")
+		if ttlStr == "" { ttlStr = "24h" }
+		ttl, err := time.ParseDuration(ttlStr)
+		if err != nil { ttl = 24 * time.Hour }
+		// generate token
+		buf := make([]byte, 24)
+		_, _ = rand.Read(buf)
+		token := hex.EncodeToString(buf)
+		// persist
+		err = s.ids.PersistToken(idsrv.TokenRecord{Token: token, Subject: subject, ClientID: clientID, Scopes: strings.Split(scopes, ","), ExpiresAt: time.Now().Add(ttl)})
+		if err != nil {
+			log.Error().Str("endpoint", "/dev/token").Str("subject", subject).Err(err).Msg("persist token error")
+			http.Error(w, "server error", http.StatusInternalServerError)
+			return
+		}
+		log.Info().Str("endpoint", "/dev/token").Str("subject", subject).Str("client_id", clientID).Dur("ttl", ttl).Msg("created dev token")
+		http.Redirect(w, r, "/whoami?dev_token="+token, http.StatusFound)
+	})
+
+	// REST API: tokens (list/create/delete) scoped to current subject
+	mux.HandleFunc("/api/tokens", func(w http.ResponseWriter, r *http.Request) {
+		subject, ok := s.ids.SubjectFromRequest(r)
+		if !ok { 
+			writeJSONWithPreview(w, r, "/api/tokens", map[string]string{"error": "unauthorized"})
+			w.WriteHeader(http.StatusUnauthorized)
+			return 
+		}
+		switch r.Method {
+		case http.MethodGet:
+			list, err := s.ids.ListTokensBySubject(subject)
+			if err != nil { 
+				writeJSONWithPreview(w, r, "/api/tokens", map[string]string{"error": "server error"})
+				w.WriteHeader(http.StatusInternalServerError)
+				return 
+			}
+			if list == nil {
+				list = []idsrv.TokenRecord{}
+			}
+			writeJSONWithPreview(w, r, "/api/tokens", list)
+		case http.MethodPost:
+			var body struct { ClientID string `json:"client_id"`; Scopes []string `json:"scopes"`; TTL string `json:"ttl"` }
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil { 
+				writeJSONWithPreview(w, r, "/api/tokens", map[string]string{"error": "bad request"})
+				w.WriteHeader(http.StatusBadRequest)
+				return 
+			}
+			if body.ClientID == "" { body.ClientID = "manual-client" }
+			if len(body.Scopes) == 0 { body.Scopes = []string{"openid","profile"} }
+			ttl := 24 * time.Hour
+			if body.TTL != "" { if d, err := time.ParseDuration(body.TTL); err == nil { ttl = d } }
+			buf := make([]byte, 24); _, _ = rand.Read(buf); token := hex.EncodeToString(buf)
+			if err := s.ids.PersistToken(idsrv.TokenRecord{Token: token, Subject: subject, ClientID: body.ClientID, Scopes: body.Scopes, ExpiresAt: time.Now().Add(ttl)}); err != nil {
+				writeJSONWithPreview(w, r, "/api/tokens", map[string]string{"error": "server error"})
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			writeJSONWithPreview(w, r, "/api/tokens", map[string]any{"token": token})
+		case http.MethodDelete:
+			tok := r.URL.Query().Get("token")
+			if tok == "" { 
+				writeJSONWithPreview(w, r, "/api/tokens", map[string]string{"error": "token required"})
+				w.WriteHeader(http.StatusBadRequest)
+				return 
+			}
+			// ensure token belongs to subject before delete
+			list, _ := s.ids.ListTokensBySubject(subject)
+			owned := false
+			for _, tr := range list { if tr.Token == tok { owned = true; break } }
+			if !owned { 
+				writeJSONWithPreview(w, r, "/api/tokens", map[string]string{"error": "not found"})
+				w.WriteHeader(http.StatusNotFound)
+				return 
+			}
+			if err := s.ids.DeleteToken(tok); err != nil { 
+				writeJSONWithPreview(w, r, "/api/tokens", map[string]string{"error": "server error"})
+				w.WriteHeader(http.StatusInternalServerError)
+				return 
+			}
+			writeJSONWithPreview(w, r, "/api/tokens", map[string]string{"success": "deleted"})
+		default:
+			writeJSONWithPreview(w, r, "/api/tokens", map[string]string{"error": "method not allowed"})
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
+	// UI: tokens management (Bootstrap + minimal JS)
+	mux.HandleFunc("/tokens", func(w http.ResponseWriter, r *http.Request) {
+		subject, ok := s.ids.SubjectFromRequest(r)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if !ok {
+			http.Redirect(w, r, "/login?return_to="+r.URL.Path, http.StatusFound)
+			return
+		}
+		
+		tokensContent, _ := staticFiles.ReadFile("static/tokens.html")
+		tokensScript, _ := staticFiles.ReadFile("static/tokens.js")
+		
+		data := PageData{
+			Title:    "API Tokens",
+			LoggedIn: ok,
+			Subject:  subject,
+			Content:  template.HTML(tokensContent),
+			Script:   template.JS(tokensScript),
+		}
+		s.renderPage(w, "tokens", data)
+	})
 }
+
+// ConfigureAuth allows the caller to configure local user auth and dev-token fallback.
+func (s *Server) ConfigureAuth(localUsers bool, sessionTTL time.Duration, devTokenFallbackEnabled bool) {
+	s.ids.LocalUsersEnabled = localUsers
+	if sessionTTL > 0 {
+		s.ids.SessionTTL = sessionTTL
+	}
+	s.devTokenFallbackEnabled = devTokenFallbackEnabled
+}
+
+// User management proxies (Model C)
+func (s *Server) CreateUser(username, email, password string) error { return s.ids.CreateUser(username, email, password) }
+func (s *Server) DisableUser(username string) error { return s.ids.DisableUser(username) }
+func (s *Server) SetPassword(username, password string) error { return s.ids.SetPassword(username, password) }
+func (s *Server) ListUsers() ([]idsrv.User, error) { return s.ids.ListUsers() }
 
 func writeJSONWithPreview(w http.ResponseWriter, r *http.Request, endpoint string, v any) {
 	b, _ := json.Marshal(v)
@@ -189,6 +443,7 @@ func (s *Server) mcpAuthMiddleware(next http.Handler) http.Handler {
 		tt, ar, err := s.ids.ProviderRef().IntrospectToken(r.Context(), raw, fosite.AccessToken, sess)
 		if err != nil {
 			// Dev fallback: accept manual tokens stored in DB
+			if s.devTokenFallbackEnabled {
 			if tr, ok, derr := s.ids.GetToken(raw); derr == nil && ok {
 				if time.Now().Before(tr.ExpiresAt) {
 					log.Warn().Str("endpoint", "mcp").Str("reason", "using dev token fallback").Str("subject", tr.Subject).Str("client_id", tr.ClientID).Time("expires_at", tr.ExpiresAt).Msg("authorized via DB token")
@@ -197,6 +452,7 @@ func (s *Server) mcpAuthMiddleware(next http.Handler) http.Handler {
 					return
 				}
 				log.Warn().Str("endpoint", "mcp").Str("reason", "dev token expired").Time("expired_at", tr.ExpiresAt).Msg("unauthorized")
+			}
 			}
 			log.Warn().Str("endpoint", "mcp").Str("reason", "introspection failed").Err(err).Msg("unauthorized")
 			http.Error(w, "invalid token", http.StatusUnauthorized)

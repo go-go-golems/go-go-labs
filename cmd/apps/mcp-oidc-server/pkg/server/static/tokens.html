@@ -1,0 +1,93 @@
+<div class="row">
+    <div class="col-md-8">
+        <h1>API Tokens</h1>
+        <p class="text-muted">Manage your API tokens for accessing protected resources.</p>
+
+        <div class="card">
+            <div class="card-header">
+                <h5>Create New Token</h5>
+            </div>
+            <div class="card-body">
+                <form id="tokenForm">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="client_id" class="form-label">Client ID</label>
+                                <input type="text" class="form-control" id="client_id" value="manual-client">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="scopes" class="form-label">Scopes</label>
+                                <input type="text" class="form-control" id="scopes" value="openid,profile" placeholder="comma separated">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="ttl" class="form-label">TTL</label>
+                                <input type="text" class="form-control" id="ttl" value="24h" placeholder="e.g. 24h, 7d">
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" id="createBtn" class="btn btn-primary">Create Token</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5>Existing Tokens</h5>
+            </div>
+            <div class="card-body">
+                <div id="loading" class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+                <div class="table-responsive" id="tokenTable" style="display: none;">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Token</th>
+                                <th>Client ID</th>
+                                <th>Scopes</th>
+                                <th>Expires</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tokenTableBody">
+                        </tbody>
+                    </table>
+                </div>
+                <div id="noTokens" class="text-center text-muted" style="display: none;">
+                    <p>No tokens found. Create your first token above.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Usage</h5>
+            </div>
+            <div class="card-body">
+                <p>Use your tokens in API requests:</p>
+                <pre class="bg-light p-2 rounded"><code>curl -H "Authorization: Bearer YOUR_TOKEN" \
+  http://localhost:8080/mcp</code></pre>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5>Token Information</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li><strong>Default TTL:</strong> 24 hours</li>
+                    <li><strong>Default Scopes:</strong> openid, profile</li>
+                    <li><strong>Format:</strong> Opaque tokens</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
