@@ -575,6 +575,36 @@ func (s *Server) ListTokens() ([]TokenRecord, error) {
     return out, nil
 }
 
+// ListTokensBySubject returns tokens for a given subject.
+func (s *Server) ListTokensBySubject(subject string) ([]TokenRecord, error) {
+    if s.dbPath == "" { return nil, fosite.ErrServerError.WithHint("db not enabled") }
+    db, err := sqlOpen(s.dbPath)
+    if err != nil { return nil, err }
+    defer db.Close()
+    rows, err := db.Query(`SELECT token, subject, client_id, scopes, expires_at FROM oauth_tokens WHERE subject = ? ORDER BY expires_at DESC`, subject)
+    if err != nil { return nil, err }
+    defer rows.Close()
+    var out []TokenRecord
+    for rows.Next() {
+        var tr TokenRecord
+        var scopes string
+        if err := rows.Scan(&tr.Token, &tr.Subject, &tr.ClientID, &scopes, &tr.ExpiresAt); err != nil { return nil, err }
+        tr.Scopes = splitCSV(scopes)
+        out = append(out, tr)
+    }
+    return out, nil
+}
+
+// DeleteToken removes a token by value.
+func (s *Server) DeleteToken(token string) error {
+    if s.dbPath == "" { return fosite.ErrServerError.WithHint("db not enabled") }
+    db, err := sqlOpen(s.dbPath)
+    if err != nil { return err }
+    defer db.Close()
+    _, err = db.Exec(`DELETE FROM oauth_tokens WHERE token = ?`, token)
+    return err
+}
+
 // MCP tool call logging
 type MCPCallLog struct {
     Timestamp  time.Time

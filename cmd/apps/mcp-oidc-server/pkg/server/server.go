@@ -2,7 +2,9 @@ package server
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
+	"encoding/hex"
 	"io"
 	"net/http"
 	"strings"
@@ -130,7 +132,96 @@ func (s *Server) Routes(mux *http.ServeMux) {
 			},
 		}
 		b, _ := json.MarshalIndent(tools, "", "  ")
-		html := "<h3>Logged in</h3><p>User: <b>" + subject + "</b></p><h4>Tools</h4><pre>" + string(b) + "</pre><p><a href=\"/logout\">Logout</a></p>"
+		// include dev token info if generated
+		devTok := r.URL.Query().Get("dev_token")
+		devMsg := ""
+		if devTok != "" {
+			devMsg = "<h4>Dev API token</h4><p>Use in Authorization header:</p><pre>Authorization: Bearer " + devTok + "</pre>"
+			if !s.devTokenFallbackEnabled {
+				devMsg += "<p><i>Note: dev token fallback is disabled on the server, this token won't work for /mcp unless enabled.</i></p>"
+			}
+		}
+		html := "<h3>Logged in</h3><p>User: <b>" + subject + "</b></p>" + devMsg + "<form method=\"post\" action=\"/dev/token\"><button type=\"submit\">Generate API token (dev)</button></form><h4>Tools</h4><pre>" + string(b) + "</pre><p><a href=\"/logout\">Logout</a></p>"
+		_, _ = w.Write([]byte(html))
+	})
+
+	// dev token generator: creates an API token for current user
+	mux.HandleFunc("/dev/token", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		subject, ok := s.ids.SubjectFromRequest(r)
+		if !ok {
+			http.Error(w, "not logged in", http.StatusUnauthorized)
+			return
+		}
+		// defaults
+		clientID := r.URL.Query().Get("client_id")
+		if clientID == "" { clientID = "manual-client" }
+		scopes := r.URL.Query().Get("scopes")
+		if scopes == "" { scopes = "openid,profile" }
+		ttlStr := r.URL.Query().Get("ttl")
+		if ttlStr == "" { ttlStr = "24h" }
+		ttl, err := time.ParseDuration(ttlStr)
+		if err != nil { ttl = 24 * time.Hour }
+		// generate token
+		buf := make([]byte, 24)
+		_, _ = rand.Read(buf)
+		token := hex.EncodeToString(buf)
+		// persist
+		err = s.ids.PersistToken(idsrv.TokenRecord{Token: token, Subject: subject, ClientID: clientID, Scopes: strings.Split(scopes, ","), ExpiresAt: time.Now().Add(ttl)})
+		if err != nil {
+			log.Error().Str("endpoint", "/dev/token").Str("subject", subject).Err(err).Msg("persist token error")
+			http.Error(w, "server error", http.StatusInternalServerError)
+			return
+		}
+		log.Info().Str("endpoint", "/dev/token").Str("subject", subject).Str("client_id", clientID).Dur("ttl", ttl).Msg("created dev token")
+		http.Redirect(w, r, "/whoami?dev_token="+token, http.StatusFound)
+	})
+
+	// REST API: tokens (list/create/delete) scoped to current subject
+	mux.HandleFunc("/api/tokens", func(w http.ResponseWriter, r *http.Request) {
+		subject, ok := s.ids.SubjectFromRequest(r)
+		if !ok { http.Error(w, "unauthorized", http.StatusUnauthorized); return }
+		switch r.Method {
+		case http.MethodGet:
+			list, err := s.ids.ListTokensBySubject(subject)
+			if err != nil { http.Error(w, "server error", http.StatusInternalServerError); return }
+			writeJSONWithPreview(w, r, "/api/tokens", list)
+		case http.MethodPost:
+			var body struct { ClientID string `json:"client_id"`; Scopes []string `json:"scopes"`; TTL string `json:"ttl"` }
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil { http.Error(w, "bad request", http.StatusBadRequest); return }
+			if body.ClientID == "" { body.ClientID = "manual-client" }
+			if len(body.Scopes) == 0 { body.Scopes = []string{"openid","profile"} }
+			ttl := 24 * time.Hour
+			if body.TTL != "" { if d, err := time.ParseDuration(body.TTL); err == nil { ttl = d } }
+			buf := make([]byte, 24); _, _ = rand.Read(buf); token := hex.EncodeToString(buf)
+			if err := s.ids.PersistToken(idsrv.TokenRecord{Token: token, Subject: subject, ClientID: body.ClientID, Scopes: body.Scopes, ExpiresAt: time.Now().Add(ttl)}); err != nil {
+				http.Error(w, "server error", http.StatusInternalServerError); return
+			}
+			writeJSONWithPreview(w, r, "/api/tokens", map[string]any{"token": token})
+		case http.MethodDelete:
+			tok := r.URL.Query().Get("token")
+			if tok == "" { http.Error(w, "token required", http.StatusBadRequest); return }
+			// ensure token belongs to subject before delete
+			list, _ := s.ids.ListTokensBySubject(subject)
+			owned := false
+			for _, tr := range list { if tr.Token == tok { owned = true; break } }
+			if !owned { http.Error(w, "not found", http.StatusNotFound); return }
+			if err := s.ids.DeleteToken(tok); err != nil { http.Error(w, "server error", http.StatusInternalServerError); return }
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
+	// UI: tokens management (Bootstrap + minimal JS)
+	mux.HandleFunc("/tokens", func(w http.ResponseWriter, r *http.Request) {
+		subject, ok := s.ids.SubjectFromRequest(r)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if !ok { _, _ = w.Write([]byte("<link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css\"><div class=\"container p-4\"><h3>Tokens</h3><div class=\"alert alert-warning\">Please <a href=\"/login\">login</a>.</div></div>")); return }
+		html := "<!doctype html><meta charset=\"utf-8\"><link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css\"><div class=\"container p-4\"><h3>Tokens for " + subject + "</h3><div class=\"mb-3\"><label class=\"form-label\">Client ID</label><input id=\"client_id\" class=\"form-control\" placeholder=\"manual-client\" value=\"manual-client\"></div><div class=\"mb-3\"><label class=\"form-label\">Scopes (comma)</label><input id=\"scopes\" class=\"form-control\" placeholder=\"openid,profile\" value=\"openid,profile\"></div><div class=\"mb-3\"><label class=\"form-label\">TTL</label><input id=\"ttl\" class=\"form-control\" placeholder=\"24h\" value=\"24h\"></div><button id=\"create\" class=\"btn btn-primary\">Create token</button><hr><h5>Existing tokens</h5><table class=\"table table-sm\" id=\"tbl\"><thead><tr><th>Token</th><th>Client</th><th>Scopes</th><th>Expires</th><th></th></tr></thead><tbody></tbody></table><p><a href=\"/whoami\">Back</a></p></div><script>function esc(s){return String(s).replace(/[&<>\"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]||c;});}async function refresh(){ var res=await fetch('/api/tokens'); var data=await res.json(); var tb=document.querySelector('#tbl tbody'); tb.innerHTML=''; for(var i=0;i<data.length;i++){ var t=data[i]; var tr=document.createElement('tr'); tr.innerHTML = '<td><code>'+esc(t.token)+'</code></td><td>'+esc(t.client_id||t.clientID||'')+'</td><td>'+esc((t.scopes||[]).join(','))+'</td><td>'+esc(t.expires_at||t.expiresAt||'')+'</td><td><button class=\"btn btn-sm btn-danger\" data-token=\"'+esc(t.token)+'\">Delete</button></td>'; tb.appendChild(tr);} }document.addEventListener('click', function(e){ if(e.target && e.target.matches('button[data-token]')){ var tok=e.target.getAttribute('data-token'); fetch('/api/tokens?token='+encodeURIComponent(tok), { method:'DELETE' }).then(function(){ refresh(); }); }});document.getElementById('create').addEventListener('click', function(){ var client_id=(document.getElementById('client_id').value||'manual-client'); var scopes=(document.getElementById('scopes').value||'openid,profile').split(',').map(function(s){return s.trim();}).filter(Boolean); var ttl=(document.getElementById('ttl').value||'24h'); fetch('/api/tokens', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ client_id: client_id, scopes: scopes, ttl: ttl })}).then(function(res){ if(res.ok){ refresh(); } }); });refresh();</script>"
 		_, _ = w.Write([]byte(html))
 	})
 }
