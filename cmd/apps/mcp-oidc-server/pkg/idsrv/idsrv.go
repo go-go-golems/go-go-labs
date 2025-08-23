@@ -16,6 +16,7 @@ import (
     "sync"
     "time"
 
+    "github.com/alexedwards/argon2id"
     "github.com/ory/fosite"
     "github.com/ory/fosite/compose"
     "github.com/ory/fosite/handler/openid"
@@ -39,6 +40,9 @@ type Server struct {
     // demo login
     User string
     Pass string
+    // Model C: local users + sessions
+    LocalUsersEnabled bool
+    SessionTTL        time.Duration
 }
 
 func New(issuer string) (*Server, error) {
@@ -85,6 +89,7 @@ func (s *Server) Routes(mux *http.ServeMux) {
     mux.HandleFunc("/.well-known/oauth-authorization-server", s.asMetadata)
     mux.HandleFunc("/jwks.json", s.jwks)
     mux.HandleFunc("/login", s.login)
+    mux.HandleFunc("/logout", s.logout)
     mux.HandleFunc("/oauth2/auth", s.authorize)
     mux.HandleFunc("/oauth2/token", s.token)
     mux.HandleFunc("/register", s.register)
@@ -166,11 +171,26 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
         u := r.FormValue("username")
         log.Debug().Str("endpoint", "/login").Str("method", "POST").Str("username", u).Str("return_to", r.FormValue("return_to")).Msg("attempt login")
         p := r.FormValue("password")
-        if u == s.User && p == s.Pass {
+        // Prefer local users if enabled; else fall back to dev login
+        if s.LocalUsersEnabled {
+            ok, err := s.verifyUserPassword(u, p)
+            if err != nil { log.Error().Str("endpoint", "/login").Str("username", u).Err(err).Msg("verify error") }
+            if ok {
+                sid, err := s.createSession(u, s.SessionTTL)
+                if err != nil { log.Error().Str("endpoint", "/login").Str("username", u).Err(err).Msg("session create error"); http.Error(w, "server error", http.StatusInternalServerError); return }
+                // session cookie stores opaque session id
+                http.SetCookie(w, &http.Cookie{Name: cookieName, Value: sid, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode})
+                rt := r.FormValue("return_to")
+                if rt == "" { rt = "/" }
+                log.Info().Str("endpoint", "/login").Str("username", u).Str("return_to", rt).Msg("login success (local users), redirecting")
+                http.Redirect(w, r, rt, http.StatusFound)
+                return
+            }
+        } else if u == s.User && p == s.Pass {
             http.SetCookie(w, &http.Cookie{Name: cookieName, Value: "ok:"+u, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode})
             rt := r.FormValue("return_to")
             if rt == "" { rt = "/" }
-            log.Info().Str("endpoint", "/login").Str("username", u).Str("return_to", rt).Msg("login success, redirecting")
+            log.Info().Str("endpoint", "/login").Str("username", u).Str("return_to", rt).Msg("login success (dev), redirecting")
             http.Redirect(w, r, rt, http.StatusFound)
             return
         }
@@ -181,12 +201,42 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
     }
 }
 
+func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
+    // best-effort: clear cookie and delete session if present
+    c, err := r.Cookie(cookieName)
+    if err == nil && c.Value != "" && !strings.HasPrefix(c.Value, "ok:") {
+        _ = s.deleteSession(c.Value)
+    }
+    http.SetCookie(w, &http.Cookie{Name: cookieName, Value: "", Path: "/", MaxAge: -1, HttpOnly: true, SameSite: http.SameSiteLaxMode})
+    log.Info().Str("endpoint", "/logout").Msg("logged out and cleared session cookie")
+    http.Redirect(w, r, "/", http.StatusFound)
+}
+
 func currentUser(r *http.Request) (string, bool) {
     c, err := r.Cookie(cookieName)
     if err != nil || !strings.HasPrefix(c.Value, "ok:") {
         return "", false
     }
     return strings.TrimPrefix(c.Value, "ok:"), true
+}
+
+// lookupSessionSubject reads the server-side session id from cookie and resolves the subject.
+func (s *Server) lookupSessionSubject(r *http.Request) (string, bool) {
+    c, err := r.Cookie(cookieName)
+    if err != nil || c.Value == "" {
+        return "", false
+    }
+    // Support legacy dev cookie "ok:<user>"
+    if strings.HasPrefix(c.Value, "ok:") {
+        return strings.TrimPrefix(c.Value, "ok:"), true
+    }
+    sess, ok, err := s.getSession(c.Value)
+    if err != nil {
+        log.Error().Str("endpoint", "lookupSessionSubject").Err(err).Msg("get session error")
+        return "", false
+    }
+    if !ok || time.Now().After(sess.ExpiresAt) { return "", false }
+    return sess.Subject, true
 }
 
 func (s *Server) authorize(w http.ResponseWriter, r *http.Request) {
@@ -213,7 +263,7 @@ func (s *Server) authorize(w http.ResponseWriter, r *http.Request) {
         s.Provider.WriteAuthorizeError(ctx, w, ar, err)
         return
     }
-    user, ok := currentUser(r)
+    user, ok := s.lookupSessionSubject(r)
     if !ok {
         log.Debug().Str("endpoint", "/oauth2/auth").Msg("not logged in, redirect to /login")
         http.Redirect(w, r, "/login?return_to="+url.QueryEscape(r.URL.String()), http.StatusFound)
@@ -367,6 +417,25 @@ func (s *Server) InitSQLite(path string) error {
         client_id TEXT NOT NULL,
         scopes TEXT NOT NULL,
         expires_at TIMESTAMP NOT NULL
+    );`); err != nil { return err }
+
+    // Model C: local users and server-side sessions
+    if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        email TEXT,
+        password_hash TEXT NOT NULL,
+        disabled INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMP NOT NULL
+    );`); err != nil { return err }
+    if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS user_sessions (
+        session_id TEXT PRIMARY KEY,
+        subject TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        id_token TEXT,
+        refresh_token TEXT,
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP NOT NULL
     );`); err != nil { return err }
 
     if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS mcp_tool_calls (
@@ -529,4 +598,133 @@ func (s *Server) LogMCPCall(entry MCPCallLog) error {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         entry.Timestamp, entry.Subject, entry.ClientID, entry.RequestID, entry.ToolName, entry.ArgsJSON, entry.ResultJSON, entry.Status, entry.DurationMs)
     return err
+}
+
+// ===== Model C: Users and Sessions =====
+
+type User struct {
+    Username string
+    Email    string
+    Disabled bool
+    CreatedAt time.Time
+}
+
+func (s *Server) verifyUserPassword(username, password string) (bool, error) {
+    if s.dbPath == "" { return false, fosite.ErrServerError.WithHint("db not enabled") }
+    db, err := sqlOpen(s.dbPath)
+    if err != nil { return false, err }
+    defer db.Close()
+    var hash string
+    var disabled int
+    err = db.QueryRow(`SELECT password_hash, disabled FROM users WHERE username = ?`, username).Scan(&hash, &disabled)
+    if err != nil {
+        if err == sql.ErrNoRows { return false, nil }
+        return false, err
+    }
+    if disabled != 0 { return false, nil }
+    match, err := argon2id.ComparePasswordAndHash(password, hash)
+    return match, err
+}
+
+func (s *Server) CreateUser(username, email, password string) error {
+    if s.dbPath == "" { return fosite.ErrServerError.WithHint("db not enabled") }
+    db, err := sqlOpen(s.dbPath)
+    if err != nil { return err }
+    defer db.Close()
+    hash, err := argon2id.CreateHash(password, argon2id.DefaultParams)
+    if err != nil { return err }
+    _, err = db.Exec(`INSERT INTO users (username, email, password_hash, disabled, created_at) VALUES (?, ?, ?, 0, ?)`, username, email, hash, time.Now())
+    return err
+}
+
+func (s *Server) DisableUser(username string) error {
+    if s.dbPath == "" { return fosite.ErrServerError.WithHint("db not enabled") }
+    db, err := sqlOpen(s.dbPath)
+    if err != nil { return err }
+    defer db.Close()
+    _, err = db.Exec(`UPDATE users SET disabled = 1 WHERE username = ?`, username)
+    return err
+}
+
+func (s *Server) SetPassword(username, password string) error {
+    if s.dbPath == "" { return fosite.ErrServerError.WithHint("db not enabled") }
+    db, err := sqlOpen(s.dbPath)
+    if err != nil { return err }
+    defer db.Close()
+    hash, err := argon2id.CreateHash(password, argon2id.DefaultParams)
+    if err != nil { return err }
+    _, err = db.Exec(`UPDATE users SET password_hash = ? WHERE username = ?`, hash, username)
+    return err
+}
+
+func (s *Server) ListUsers() ([]User, error) {
+    if s.dbPath == "" { return nil, fosite.ErrServerError.WithHint("db not enabled") }
+    db, err := sqlOpen(s.dbPath)
+    if err != nil { return nil, err }
+    defer db.Close()
+    rows, err := db.Query(`SELECT username, email, disabled, created_at FROM users ORDER BY created_at DESC`)
+    if err != nil { return nil, err }
+    defer rows.Close()
+    var out []User
+    for rows.Next() {
+        var u User
+        var disabled int
+        if err := rows.Scan(&u.Username, &u.Email, &disabled, &u.CreatedAt); err != nil { return nil, err }
+        u.Disabled = disabled != 0
+        out = append(out, u)
+    }
+    return out, nil
+}
+
+type Session struct {
+    SessionID    string
+    Subject      string
+    Provider     string
+    IDToken      string
+    RefreshToken string
+    ExpiresAt    time.Time
+    CreatedAt    time.Time
+}
+
+func (s *Server) createSession(subject string, ttl time.Duration) (string, error) {
+    if ttl <= 0 { ttl = 12 * time.Hour }
+    if s.dbPath == "" { return "", fosite.ErrServerError.WithHint("db not enabled") }
+    db, err := sqlOpen(s.dbPath)
+    if err != nil { return "", err }
+    defer db.Close()
+    sid := randomID()
+    exp := time.Now().Add(ttl)
+    _, err = db.Exec(`INSERT INTO user_sessions (session_id, subject, provider, id_token, refresh_token, expires_at, created_at) VALUES (?, ?, ?, '', '', ?, ?)`, sid, subject, "local", exp, time.Now())
+    if err != nil { return "", err }
+    return sid, nil
+}
+
+func (s *Server) getSession(sessionID string) (Session, bool, error) {
+    var out Session
+    if s.dbPath == "" { return out, false, fosite.ErrServerError.WithHint("db not enabled") }
+    db, err := sqlOpen(s.dbPath)
+    if err != nil { return out, false, err }
+    defer db.Close()
+    row := db.QueryRow(`SELECT session_id, subject, provider, id_token, refresh_token, expires_at, created_at FROM user_sessions WHERE session_id = ?`, sessionID)
+    if err := row.Scan(&out.SessionID, &out.Subject, &out.Provider, &out.IDToken, &out.RefreshToken, &out.ExpiresAt, &out.CreatedAt); err != nil {
+        if err == sql.ErrNoRows { return out, false, nil }
+        return out, false, err
+    }
+    return out, true, nil
+}
+
+func (s *Server) deleteSession(sessionID string) error {
+    if s.dbPath == "" { return fosite.ErrServerError.WithHint("db not enabled") }
+    db, err := sqlOpen(s.dbPath)
+    if err != nil { return err }
+    defer db.Close()
+    _, err = db.Exec(`DELETE FROM user_sessions WHERE session_id = ?`, sessionID)
+    return err
+}
+
+// randomID produces a URL-safe opaque id
+func randomID() string {
+    b := make([]byte, 32)
+    _, _ = rand.Read(b)
+    return base64.RawURLEncoding.EncodeToString(b)
 }

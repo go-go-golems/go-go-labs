@@ -4,7 +4,6 @@ go 1.24.3
 
 require (
 	github.com/BobuSumisu/aho-corasick v1.0.3
-	github.com/BurntSushi/xgb v0.0.0-20210121224620-deaf085860bc
 	github.com/DataDog/datadog-api-client-go/v2 v2.38.0
 	github.com/GianlucaP106/gotmux v0.5.0
 	github.com/JohannesKaufmann/html-to-markdown v1.6.0
@@ -16,6 +15,7 @@ require (
 	github.com/a-h/templ v0.3.865
 	github.com/alecthomas/kong v0.8.0
 	github.com/alecthomas/participle/v2 v2.1.0
+	github.com/alexedwards/argon2id v1.0.0
 	github.com/asg017/sqlite-vss/bindings/go v0.0.0-20230830180803-8fc443018430
 	github.com/aws/aws-sdk-go v1.55.6
 	github.com/aws/aws-sdk-go-v2 v1.38.0
@@ -24,7 +24,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.44.0
 	github.com/aws/aws-sdk-go-v2/service/lambda v1.69.0
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.68.0
-	github.com/aws/aws-sdk-go-v2/service/sns v1.37.0
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.37.1
 	github.com/blevesearch/bleve v1.0.14
 	github.com/carapace-sh/carapace v1.8.3

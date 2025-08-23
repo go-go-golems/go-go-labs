@@ -18,6 +18,7 @@ import (
 type Server struct {
 	issuer string
 	ids    *idsrv.Server
+	devTokenFallbackEnabled bool
 }
 
 // auth context keys
@@ -45,7 +46,7 @@ func New(issuer string) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Server{issuer: issuer, ids: id}, nil
+	return &Server{issuer: issuer, ids: id, devTokenFallbackEnabled: true}, nil
 }
 
 // EnableSQLite enables SQLite persistence for dynamic client registrations.
@@ -62,6 +63,21 @@ func (s *Server) Routes(mux *http.ServeMux) {
 		log.Debug().Str("endpoint", "healthz").Str("ua", r.UserAgent()).Msg("health check")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
+	})
+
+	// root page: login status and links
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
+			http.NotFound(w, r)
+			return
+		}
+		subj, ok := s.ids.SubjectFromRequest(r)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if ok {
+			_, _ = w.Write([]byte("<h3>MCP OIDC Server</h3><p>Status: <b>Logged in</b> as <b>" + subj + "</b></p><ul><li><a href=\"/whoami\">Who am I</a></li><li><a href=\"/logout\">Logout</a></li></ul>"))
+			return
+		}
+		_, _ = w.Write([]byte("<h3>MCP OIDC Server</h3><p>Status: <b>Not logged in</b></p><ul><li><a href=\"/login\">Login</a></li><li><a href=\"/whoami\">Who am I</a></li></ul>"))
 	})
 
 	// Delegate all IdP routes (discovery, jwks, oauth2, login, register) to idsrv
@@ -91,7 +107,48 @@ func (s *Server) Routes(mux *http.ServeMux) {
 
 	// MCP endpoint: JSON-RPC with Bearer protection
 	mux.Handle("/mcp", s.mcpAuthMiddleware(http.HandlerFunc(s.handleMCP)))
+
+	// whoami: simple test page
+	mux.HandleFunc("/whoami", func(w http.ResponseWriter, r *http.Request) {
+		subject, ok := s.ids.SubjectFromRequest(r)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if !ok {
+			_, _ = w.Write([]byte("<h3>Not logged in</h3><p><a href=\"/login\">Login</a></p>"))
+			return
+		}
+		// basic tools listing (same as tools/list payload)
+		tools := []map[string]any{
+			{
+				"name": "search",
+				"description": "Search corpus and return candidate items",
+				"require_approval": "never",
+			},
+			{
+				"name": "fetch",
+				"description": "Fetch a record by ID",
+				"require_approval": "never",
+			},
+		}
+		b, _ := json.MarshalIndent(tools, "", "  ")
+		html := "<h3>Logged in</h3><p>User: <b>" + subject + "</b></p><h4>Tools</h4><pre>" + string(b) + "</pre><p><a href=\"/logout\">Logout</a></p>"
+		_, _ = w.Write([]byte(html))
+	})
 }
+
+// ConfigureAuth allows the caller to configure local user auth and dev-token fallback.
+func (s *Server) ConfigureAuth(localUsers bool, sessionTTL time.Duration, devTokenFallbackEnabled bool) {
+	s.ids.LocalUsersEnabled = localUsers
+	if sessionTTL > 0 {
+		s.ids.SessionTTL = sessionTTL
+	}
+	s.devTokenFallbackEnabled = devTokenFallbackEnabled
+}
+
+// User management proxies (Model C)
+func (s *Server) CreateUser(username, email, password string) error { return s.ids.CreateUser(username, email, password) }
+func (s *Server) DisableUser(username string) error { return s.ids.DisableUser(username) }
+func (s *Server) SetPassword(username, password string) error { return s.ids.SetPassword(username, password) }
+func (s *Server) ListUsers() ([]idsrv.User, error) { return s.ids.ListUsers() }
 
 func writeJSONWithPreview(w http.ResponseWriter, r *http.Request, endpoint string, v any) {
 	b, _ := json.Marshal(v)
@@ -189,6 +246,7 @@ func (s *Server) mcpAuthMiddleware(next http.Handler) http.Handler {
 		tt, ar, err := s.ids.ProviderRef().IntrospectToken(r.Context(), raw, fosite.AccessToken, sess)
 		if err != nil {
 			// Dev fallback: accept manual tokens stored in DB
+			if s.devTokenFallbackEnabled {
 			if tr, ok, derr := s.ids.GetToken(raw); derr == nil && ok {
 				if time.Now().Before(tr.ExpiresAt) {
 					log.Warn().Str("endpoint", "mcp").Str("reason", "using dev token fallback").Str("subject", tr.Subject).Str("client_id", tr.ClientID).Time("expires_at", tr.ExpiresAt).Msg("authorized via DB token")
@@ -197,6 +255,7 @@ func (s *Server) mcpAuthMiddleware(next http.Handler) http.Handler {
 					return
 				}
 				log.Warn().Str("endpoint", "mcp").Str("reason", "dev token expired").Time("expired_at", tr.ExpiresAt).Msg("unauthorized")
+			}
 			}
 			log.Warn().Str("endpoint", "mcp").Str("reason", "introspection failed").Err(err).Msg("unauthorized")
 			http.Error(w, "invalid token", http.StatusUnauthorized)
