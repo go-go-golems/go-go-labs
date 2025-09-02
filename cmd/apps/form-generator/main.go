@@ -123,8 +123,11 @@ func buildRequestsFromWizard(wz *wizard.Wizard) ([]*forms.Request, error) {
 					}
 					requests = append(requests, &forms.Request{
 						CreateItem: &forms.CreateItemRequest{
-							Item:     item,
-							Location: &forms.Location{Index: int64(index)},
+							Item: item,
+							Location: &forms.Location{
+								Index:           int64(index),
+								ForceSendFields: []string{"Index"},
+							},
 						},
 					})
 					index++
@@ -146,8 +149,11 @@ func buildRequestsFromWizard(wz *wizard.Wizard) ([]*forms.Request, error) {
 			})
 			requests = append(requests, &forms.Request{
 				CreateItem: &forms.CreateItemRequest{
-					Item:     item,
-					Location: &forms.Location{Index: int64(index)},
+					Item: item,
+					Location: &forms.Location{
+						Index:           int64(index),
+						ForceSendFields: []string{"Index"},
+					},
 				},
 			})
 			index++
@@ -251,18 +257,32 @@ func run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to build form items")
 	}
+
+	// Handle description update separately to avoid index conflicts
 	if formDescription != "" {
-		requests = append([]*forms.Request{
-			{
-				UpdateFormInfo: &forms.UpdateFormInfoRequest{
-					Info:       &forms.Info{Description: formDescription},
-					UpdateMask: "description",
+		log.Debug().Str("description", formDescription).Msg("Updating form description")
+		_, err = svc.Forms.BatchUpdate(form.FormId, &forms.BatchUpdateFormRequest{
+			Requests: []*forms.Request{
+				{
+					UpdateFormInfo: &forms.UpdateFormInfoRequest{
+						Info:       &forms.Info{Description: formDescription},
+						UpdateMask: "description",
+					},
 				},
 			},
-		}, requests...)
+		}).Do()
+		if err != nil {
+			return errors.Wrap(err, "failed to update form description")
+		}
 	}
-	log.Debug().Int("numRequests", len(requests)).Msg("Batch updating form")
+
+	log.Debug().Int("numRequests", len(requests)).Msg("Batch updating form items")
 	if len(requests) > 0 {
+		// Debug: log the first request to see what we're sending
+		debug, _ := cmd.Flags().GetBool("debug")
+		if debug {
+			log.Debug().Interface("firstRequest", requests[0]).Msg("First request details")
+		}
 		_, err = svc.Forms.BatchUpdate(form.FormId, &forms.BatchUpdateFormRequest{Requests: requests}).Do()
 		if err != nil {
 			return errors.Wrap(err, "batch update failed")
