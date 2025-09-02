@@ -1,0 +1,524 @@
+name: Club Med Developer Guild - AI Workshop Survey
+description: Help us customize the AI-assisted coding workshop for the Club Med developer guild and prepare for the AWS jam session
+theme: Catppuccin
+
+steps:
+  - id: welcome
+    type: info
+    title: Welcome to the Club Med Developer Guild AI Workshop Survey
+    content: |
+      # Club Med Developer Guild - AI Workshop Survey
+      
+      Welcome to the Club Med developer guild! This survey will help us prepare the AI-assisted coding workshop and the upcoming AWS jam session.
+      
+      ## About This Survey
+      
+      This survey will help us understand:
+      - Your technical background and current role at Club Med
+      - Experience with AI coding tools and AWS services
+      - Specific interests for the workshop and jam session
+      - How to best organize pair programming and team exercises
+      
+      **Estimated time:** 5-7 minutes
+      
+      ## What's Coming
+      
+      - **Workshop**: Half-day afternoon sessions focused on AI-assisted development
+      - **AWS Jam Session**: 2-3 day hands-on event with AWS tools (Bedrock, Q Developer, Kiro)
+      - **Pair Programming**: Mixed experience levels for knowledge sharing
+      
+      Your responses will help us customize the content and create effective development pairs.
+
+  - id: developer_profile
+    type: form
+    title: Developer Profile & Background
+    description: Tell us about your role and experience
+    form:
+      groups:
+        - name: Basic Information
+          fields:
+            - type: input
+              key: full_name
+              title: Full Name
+              
+            - type: input
+              key: job_title
+              title: Current Job Title
+              
+            - type: select
+              key: experience_level
+              title: Years of Professional Development Experience
+              options:
+                - label: "3-5 years"
+                  value: "3-5"
+                - label: "6-10 years"
+                  value: "6-10"
+                - label: "11-15 years"
+                  value: "11-15"
+                - label: "16+ years"
+                  value: "16+"
+                  
+            - type: select
+              key: team_role
+              title: Primary Role at Club Med
+              options:
+                - label: "Lead Developer / Tech Lead"
+                  value: "lead"
+                - label: "Full-Stack Developer"
+                  value: "fullstack"
+                - label: "Frontend Developer (React/UI)"
+                  value: "frontend"
+                - label: "Backend Developer (API)"
+                  value: "backend"
+                - label: "DevOps/Infrastructure Engineer"
+                  value: "devops"
+                - label: "B2C Project Developer (Booking Engine)"
+                  value: "b2c"
+                - label: "Data Team Member"
+                  value: "data"
+                - label: "Other"
+                  value: "other"
+                  
+            - type: select
+              key: club_med_experience
+              title: How long have you been working at Club Med?
+              options:
+                - label: "Less than 1 year"
+                  value: "less_1"
+                - label: "1-3 years"
+                  value: "1-3"
+                - label: "3-5 years"
+                  value: "3-5"
+                - label: "5+ years"
+                  value: "5plus"
+
+  - id: tech_stack
+    type: form
+    title: Technology Stack & Expertise
+    description: What technologies do you work with regularly?
+    form:
+      groups:
+        - name: Programming Languages
+          fields:
+            - type: multiselect
+              key: primary_languages
+              title: Primary Programming Languages (select all you use regularly)
+              options:
+                - label: "JavaScript/TypeScript"
+                  value: "javascript"
+                - label: "Python"
+                  value: "python"
+                - label: "Java"
+                  value: "java"
+                - label: "C#/.NET"
+                  value: "csharp"
+                - label: "Go"
+                  value: "go"
+                - label: "Rust"
+                  value: "rust"
+                - label: "C/C++"
+                  value: "cpp"
+                - label: "PHP"
+                  value: "php"
+                - label: "Ruby"
+                  value: "ruby"
+                - label: "Swift/Objective-C"
+                  value: "swift"
+                - label: "Kotlin"
+                  value: "kotlin"
+                - label: "Scala"
+                  value: "scala"
+                - label: "R"
+                  value: "r"
+                - label: "SQL"
+                  value: "sql"
+                - label: "Other"
+                  value: "other_lang"
+                  
+        - name: Frameworks & Technologies
+          fields:
+            - type: multiselect
+              key: frameworks_tools
+              title: Frameworks, Libraries & Tools (select all you use)
+              options:
+                - label: "React/Next.js"
+                  value: "react"
+                - label: "Vue.js/Nuxt.js"
+                  value: "vue"
+                - label: "Angular"
+                  value: "angular"
+                - label: "Node.js"
+                  value: "nodejs"
+                - label: "Express/Fastify"
+                  value: "express"
+                - label: "Django/Flask"
+                  value: "django"
+                - label: "Spring Boot"
+                  value: "spring"
+                - label: "ASP.NET"
+                  value: "aspnet"
+                - label: "Docker/Kubernetes"
+                  value: "containers"
+                - label: "AWS Services"
+                  value: "aws"
+                - label: "Infrastructure as Code (Terraform/CloudFormation)"
+                  value: "iac"
+                - label: "PostgreSQL/MySQL"
+                  value: "sql_db"
+                - label: "MongoDB/Redis"
+                  value: "nosql_db"
+                - label: "GraphQL"
+                  value: "graphql"
+                - label: "Microservices"
+                  value: "microservices"
+                - label: "Machine Learning/AI"
+                  value: "ml"
+                  
+            - type: input
+              key: other_technologies
+              title: Other Technologies/Frameworks (please specify)
+
+  - id: development_practices
+    type: form
+    title: Development Practices & Workflow
+    description: How does your team currently work?
+    form:
+      groups:
+        - name: Development Workflow
+          fields:
+            - type: multiselect
+              key: dev_practices
+              title: Development Practices Your Team Uses
+              options:
+                - label: "Agile/Scrum"
+                  value: "agile"
+                - label: "Test-Driven Development (TDD)"
+                  value: "tdd"
+                - label: "Continuous Integration/Deployment"
+                  value: "cicd"
+                - label: "Code Reviews"
+                  value: "code_reviews"
+                - label: "Pair Programming"
+                  value: "pair_programming"
+                - label: "DevOps/Infrastructure as Code"
+                  value: "devops"
+                - label: "Microservices Architecture"
+                  value: "microservices_practice"
+                - label: "API-First Development"
+                  value: "api_first"
+                  
+            - type: select
+              key: team_size
+              title: Development Team Size
+              options:
+                - label: "2-5 developers"
+                  value: "small"
+                - label: "6-15 developers"
+                  value: "medium"
+                - label: "16-30 developers"
+                  value: "large"
+                - label: "30+ developers"
+                  value: "enterprise"
+                  
+            - type: select
+              key: code_editor
+              title: Primary Code Editor/IDE
+              options:
+                - label: "Visual Studio Code"
+                  value: "vscode"
+                - label: "IntelliJ IDEA/WebStorm"
+                  value: "intellij"
+                - label: "Visual Studio"
+                  value: "vs"
+                - label: "Vim/Neovim"
+                  value: "vim"
+                - label: "Emacs"
+                  value: "emacs"
+                - label: "Sublime Text"
+                  value: "sublime"
+                - label: "Eclipse"
+                  value: "eclipse"
+                - label: "Xcode"
+                  value: "xcode"
+                - label: "Other"
+                  value: "other_editor"
+
+  - id: ai_experience
+    type: form
+    title: AI Tools & Experience
+    description: What's your current experience with AI-assisted development?
+    form:
+      groups:
+        - name: Current AI Tool Usage
+          fields:
+            - type: select
+              key: ai_coding_experience
+              title: How much experience do you have with AI coding assistants?
+              options:
+                - label: "No experience - haven't used any AI coding tools"
+                  value: "none"
+                - label: "Beginner - tried a few times, still learning"
+                  value: "beginner"
+                - label: "Intermediate - use regularly, comfortable with basics"
+                  value: "intermediate"
+                - label: "Advanced - daily user, know advanced techniques"
+                  value: "advanced"
+                  
+            - type: multiselect
+              key: ai_tools_used
+              title: Which AI coding tools have you used? (select all that apply)
+              options:
+                - label: "GitHub Copilot"
+                  value: "copilot"
+                - label: "ChatGPT/GPT-4/GPT-5"
+                  value: "chatgpt"
+                - label: "Claude (Anthropic) / Claude Code"
+                  value: "claude"
+                - label: "Cursor"
+                  value: "cursor"
+                - label: "Amazon Q Developer (CodeWhisperer)"
+                  value: "q_developer"
+                - label: "AWS Bedrock"
+                  value: "bedrock"
+                - label: "Google Gemini/Bard"
+                  value: "gemini"
+                - label: "JetBrains AI Assistant"
+                  value: "jetbrains_ai"
+                - label: "V0 by Vercel (UI/UX)"
+                  value: "v0"
+                - label: "Other AI tools"
+                  value: "other_ai"
+                - label: "None - no AI tools used yet"
+                  value: "none_used"
+                  
+            - type: text
+              key: ai_use_cases
+              title: How do you currently use AI tools in your development workflow? (if any)
+              
+        - name: AI Perspectives
+          fields:
+            - type: select
+              key: ai_comfort_level
+              title: How comfortable are you with AI-assisted coding?
+              options:
+                - label: "Very comfortable - excited to use AI tools"
+                  value: "very_comfortable"
+                - label: "Somewhat comfortable - open to learning"
+                  value: "comfortable"
+                - label: "Neutral - neither excited nor concerned"
+                  value: "neutral"
+                - label: "Somewhat hesitant - have concerns about AI tools"
+                  value: "hesitant"
+                - label: "Very hesitant - prefer traditional methods"
+                  value: "very_hesitant"
+                  
+            - type: multiselect
+              key: ai_concerns
+              title: What concerns (if any) do you have about AI-assisted coding?
+              options:
+                - label: "Code quality and reliability"
+                  value: "quality"
+                - label: "Security vulnerabilities"
+                  value: "security"
+                - label: "Intellectual property/licensing"
+                  value: "ip"
+                - label: "Over-dependence on AI"
+                  value: "dependence"
+                - label: "Learning and skill development"
+                  value: "learning"
+                - label: "Job security"
+                  value: "job_security"
+                - label: "Privacy/data concerns"
+                  value: "privacy"
+                - label: "Cost of AI tools"
+                  value: "cost"
+                - label: "No major concerns"
+                  value: "no_concerns"
+
+  - id: workshop_interests
+    type: form
+    title: Workshop & AWS Jam Session Interests
+    description: What would you like to focus on during the workshop and AWS jam session?
+    form:
+      groups:
+        - name: Workshop Learning Objectives
+          fields:
+            - type: multiselect
+              key: workshop_topics
+              title: Which topics are you most interested in learning about?
+              options:
+                - label: "Effective prompting techniques for coding"
+                  value: "prompting"
+                - label: "Code generation and completion"
+                  value: "code_generation"
+                - label: "Legacy code refactoring with AI (booking engine)"
+                  value: "legacy_refactoring"
+                - label: "AI-assisted architecture planning"
+                  value: "architecture_planning"
+                - label: "Frontend optimization with AI (React/Redux)"
+                  value: "frontend_optimization"
+                - label: "Test generation and TDD with AI"
+                  value: "testing"
+                - label: "Documentation generation"
+                  value: "documentation"
+                - label: "API design and implementation"
+                  value: "api_design"
+                - label: "Infrastructure as Code with AI"
+                  value: "iac_ai"
+                - label: "Excel/SharePoint automation with AI"
+                  value: "excel_automation"
+                - label: "Component isolation (Storybook/MSW)"
+                  value: "component_isolation"
+                - label: "AWS services integration"
+                  value: "aws_integration"
+                - label: "Team collaboration with AI tools"
+                  value: "team_collaboration"
+                  
+        - name: AWS Jam Session Focus
+          fields:
+            - type: multiselect
+              key: aws_tools_interest
+              title: Which AWS AI tools are you most interested in exploring?
+              options:
+                - label: "AWS Bedrock (Foundation Models)"
+                  value: "bedrock"
+                - label: "Amazon Q Developer (Coding Assistant)"
+                  value: "q_developer"
+                - label: "Kiro (New AWS Tool)"
+                  value: "kiro"
+                - label: "AWS CodeGuru (Code Review/Performance)"
+                  value: "codeguru"
+                - label: "AWS Lambda with AI integration"
+                  value: "lambda_ai"
+                - label: "SageMaker for ML workflows"
+                  value: "sagemaker"
+                - label: "Not sure yet - want to learn about options"
+                  value: "explore_options"
+                  
+            - type: select
+              key: workshop_format_preference
+              title: What workshop format would work best for you?
+              options:
+                - label: "Hands-on coding with Club Med use cases"
+                  value: "hands_on_clubmed"
+                - label: "Pair programming exercises (mixed experience levels)"
+                  value: "pair_programming"
+                - label: "Live demonstrations with Q&A"
+                  value: "demo_qa"
+                - label: "Mix of theory and practical exercises"
+                  value: "mixed"
+                - label: "Real project refactoring (booking engine)"
+                  value: "real_project"
+                  
+            - type: text
+              key: specific_challenges
+              title: What specific Club Med coding challenges would you like to explore with AI? (e.g., booking engine refactoring, Excel automation, etc.)
+              
+        - name: Pair Programming & Collaboration
+          fields:
+            - type: select
+              key: pairing_preference
+              title: For pair programming exercises, would you prefer to be paired with?
+              options:
+                - label: "Someone with similar experience level"
+                  value: "similar_level"
+                - label: "Someone more senior (to learn from)"
+                  value: "learn_from_senior"
+                - label: "Someone more junior (to mentor)"
+                  value: "mentor_junior"
+                - label: "Mixed - different pairings for different exercises"
+                  value: "mixed_pairing"
+                - label: "No preference"
+                  value: "no_preference"
+                  
+            - type: text
+              key: collaboration_style
+              title: How do you prefer to collaborate when learning new technologies?
+              
+        - name: AWS Jam Session Logistics
+          fields:
+            - type: select
+              key: aws_experience
+              title: Your current experience with AWS services
+              options:
+                - label: "Extensive experience - daily AWS user"
+                  value: "expert"
+                - label: "Moderate experience - familiar with key services"
+                  value: "moderate"
+                - label: "Basic experience - used a few services"
+                  value: "basic"
+                - label: "No experience - new to AWS"
+                  value: "none"
+                  
+            - type: select
+              key: jam_session_role
+              title: What role would you like to take in the 3-team AWS jam session?
+              options:
+                - label: "Team lead - coordinate and architect"
+                  value: "team_lead"
+                - label: "Hands-on developer - implement solutions"
+                  value: "developer"
+                - label: "Infrastructure specialist - focus on AWS setup"
+                  value: "infrastructure"
+                - label: "Flexible - adapt to team needs"
+                  value: "flexible"
+
+  - id: additional_info
+    type: form
+    title: Additional Information & Comments
+    description: Any other information that would help us customize the workshop?
+    form:
+      groups:
+        - name: Final Thoughts
+          fields:
+            - type: text
+              key: additional_comments
+              title: Additional comments, questions, or suggestions for the workshop
+              
+            - type: text
+              key: success_metrics
+              title: What would make this workshop successful for you personally?
+              
+            - type: text
+              key: club_med_context
+              title: Any Club Med-specific context that would be helpful for workshop examples? (current projects, pain points, etc.)
+              
+            - type: confirm
+              key: share_contact
+              title: Would you like to be contacted for follow-up questions or clarifications?
+              
+            - type: confirm
+              key: linkedin_sharing
+              title: Are you comfortable sharing your LinkedIn profile for better pairing and networking?
+
+  - id: thank_you
+    type: info
+    title: Thank You!
+    content: |
+      # Thank You for Your Input!
+      
+      Your responses have been recorded and will help us create a workshop that's tailored to your team's needs and experience levels.
+      
+      ## What's Next?
+      
+      - **Workshop Planning**: We'll analyze responses to create effective development pairs and customize content
+      - **AWS Jam Preparation**: Teams will be organized based on your experience and interests
+      - **Materials**: You'll receive workshop details and AWS access information before the sessions
+      - **Follow-up**: If requested, we may contact you for clarification on pairing preferences
+      
+      ## Upcoming Schedule
+      
+      - **Developer Guild Workshops**: Half-day afternoon sessions (2 consecutive afternoons per team)
+      - **AWS Jam Session**: 2-3 day intensive with 3 teams exploring different AWS AI tools
+      - **Follow-up**: Ongoing guild activities and best practices sharing
+      
+      ## Preparation Recommendations
+      
+      - Familiarize yourself with your preferred AI coding tools
+      - Think about current Club Med projects that could benefit from AI assistance
+      - Consider specific Excel/SharePoint automation opportunities
+      - Review any legacy code challenges (especially booking engine related)
+      
+      **Questions?** Contact Pierre, Nicolas, or Manuel.
+      
+      Looking forward to transforming development practices at Club Med with AI!

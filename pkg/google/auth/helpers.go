@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"context"
+
 	clay_sql "github.com/go-go-golems/clay/pkg/sql"
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/go-go-labs/pkg/google/auth/store"
@@ -60,6 +62,7 @@ func CreateTokenStoreFromLayers(parsedLayers *layers.ParsedLayers) (store.TokenS
 
 		// Get database connection from SQL layers
 		db, err := clay_sql.OpenDatabaseFromSqlConnectionLayer(
+			context.Background(),
 			parsedLayers,
 			clay_sql.SqlConnectionSlug,
 			clay_sql.DbtSlug,
