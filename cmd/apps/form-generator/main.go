@@ -17,6 +17,8 @@ import (
 
 	"google.golang.org/api/forms/v1"
 	"google.golang.org/api/option"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 func expandHome(path string) (string, error) {
@@ -161,6 +163,13 @@ func buildRequestsFromWizard(wz *wizard.Wizard) ([]*forms.Request, error) {
 func run(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
+	debug, _ := cmd.Flags().GetBool("debug")
+	if debug {
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	} else {
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	}
+
 	if len(args) < 1 {
 		return errors.New("missing DSL file path argument")
 	}
@@ -182,11 +191,13 @@ func run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	log.Debug().Str("dslPath", dslPath).Msg("Loading wizard DSL")
 	// Load the wizard DSL
 	wz, err := wizard.LoadWizard(dslPath)
 	if err != nil {
 		return errors.Wrap(err, "failed to load wizard DSL")
 	}
+	log.Debug().Str("wizardName", wz.Name).Int("numSteps", len(wz.Steps)).Msg("Wizard loaded")
 
 	formTitle := wz.Name
 	if titleOverride != "" {
@@ -201,6 +212,7 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 
 	// Authenticate with Google using our auth helper (Forms scope)
+	log.Debug().Str("credentials", credentialsFile).Str("token", tokenFile).Msg("Initializing authenticator")
 	authenticator, err := gauth.NewAuthenticator(
 		gauth.WithScopes(forms.FormsBodyScope),
 		gauth.WithCredentialsFile(credentialsFile),
@@ -214,17 +226,18 @@ func run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.Wrap(err, "authentication failed")
 	}
+	log.Debug().Msg("Authentication successful")
 
 	// Create Forms service
 	svc, err := forms.NewService(ctx, option.WithTokenSource(result.Client.TokenSource(ctx, result.Token)))
 	if err != nil {
 		return errors.Wrap(err, "failed to create forms service")
 	}
+	log.Debug().Msg("Forms service created")
 
-	// Create the form
-	form, err := svc.Forms.Create(&forms.Form{
-		Info: &forms.Info{Title: formTitle, Description: formDescription},
-	}).Do()
+	// Create the form (title only per API)
+	log.Debug().Str("title", formTitle).Msg("Creating form")
+	form, err := svc.Forms.Create(&forms.Form{Info: &forms.Info{Title: formTitle}}).Do()
 	if err != nil {
 		return errors.Wrap(err, "failed to create form")
 	}
@@ -238,6 +251,17 @@ func run(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to build form items")
 	}
+	if formDescription != "" {
+		requests = append([]*forms.Request{
+			{
+				UpdateFormInfo: &forms.UpdateFormInfoRequest{
+					Info:       &forms.Info{Description: formDescription},
+					UpdateMask: "description",
+				},
+			},
+		}, requests...)
+	}
+	log.Debug().Int("numRequests", len(requests)).Msg("Batch updating form")
 	if len(requests) > 0 {
 		_, err = svc.Forms.BatchUpdate(form.FormId, &forms.BatchUpdateFormRequest{Requests: requests}).Do()
 		if err != nil {
@@ -269,6 +293,7 @@ func main() {
 	rootCmd.Flags().String("token", "~/.google-form/token.json", "Path to store OAuth token JSON")
 	rootCmd.Flags().String("title", "", "Override form title")
 	rootCmd.Flags().String("description", "", "Override form description")
+	rootCmd.Flags().Bool("debug", false, "Enable debug logging")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)

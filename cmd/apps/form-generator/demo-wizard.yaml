@@ -1,0 +1,55 @@
+name: Form Generator Demo
+description: A simple demo wizard to generate a Google Form
+theme: Default
+
+steps:
+  - id: welcome
+    type: info
+    title: Welcome to the Demo
+    content: |
+      This wizard demonstrates generating a Google Form from the Uhoh Wizard DSL.
+      Click Next to proceed to the questions.
+
+  - id: demo-questions
+    type: form
+    title: Demo Questions
+    form:
+      groups:
+        - name: Basics
+          fields:
+            - type: input
+              key: full_name
+              title: Full Name
+            - type: text
+              key: about_you
+              title: Tell us about yourself
+
+        - name: Preferences
+          fields:
+            - type: select
+              key: favorite_language
+              title: Favorite Programming Language
+              options:
+                - label: Go
+                  value: go
+                - label: Python
+                  value: python
+                - label: Rust
+                  value: rust
+
+            - type: multiselect
+              key: tools_used
+              title: Tools You Use Regularly
+              options:
+                - label: Git
+                  value: git
+                - label: Docker
+                  value: docker
+                - label: Kubernetes
+                  value: k8s
+
+            - type: confirm
+              key: subscribe_updates
+              title: Would you like to receive updates?
+
+
