@@ -19,19 +19,41 @@ func newQuestionItem(title string, q *forms.Question) *forms.Item {
     }
 }
 
+// newTextItem creates a static text item (non-question) with optional description.
+func newTextItem(title string, description string) *forms.Item {
+    return &forms.Item{
+        Title:       title,
+        Description: description,
+        TextItem:    &forms.TextItem{},
+    }
+}
+
+// newPageBreakItem creates a section/page break item using the step title/description.
+func newPageBreakItem(title string, description string) *forms.Item {
+    return &forms.Item{
+        Title:         title,
+        Description:   description,
+        PageBreakItem: &forms.PageBreakItem{},
+    }
+}
+
 // fieldToItem converts a Uhoh field to a Google Forms item.
 func fieldToItem(f *uform.Field) (*forms.Item, error) {
     switch f.Type {
     case "input":
-        return newQuestionItem(f.Title, &forms.Question{
+        item := newQuestionItem(f.Title, &forms.Question{
             Required:     false,
             TextQuestion: &forms.TextQuestion{Paragraph: false},
-        }), nil
+        })
+        item.Description = f.Description
+        return item, nil
     case "text":
-        return newQuestionItem(f.Title, &forms.Question{
+        item := newQuestionItem(f.Title, &forms.Question{
             Required:     false,
             TextQuestion: &forms.TextQuestion{Paragraph: true},
-        }), nil
+        })
+        item.Description = f.Description
+        return item, nil
     case "select":
         opts := make([]*forms.Option, 0, len(f.Options))
         for _, o := range f.Options {
@@ -41,14 +63,16 @@ func fieldToItem(f *uform.Field) (*forms.Item, error) {
             }
             opts = append(opts, &forms.Option{Value: label})
         }
-        return newQuestionItem(f.Title, &forms.Question{
+        item := newQuestionItem(f.Title, &forms.Question{
             Required: true,
             ChoiceQuestion: &forms.ChoiceQuestion{
                 Type:    "RADIO",
                 Options: opts,
                 Shuffle: false,
             },
-        }), nil
+        })
+        item.Description = f.Description
+        return item, nil
     case "multiselect":
         opts := make([]*forms.Option, 0, len(f.Options))
         for _, o := range f.Options {
@@ -58,27 +82,31 @@ func fieldToItem(f *uform.Field) (*forms.Item, error) {
             }
             opts = append(opts, &forms.Option{Value: label})
         }
-        return newQuestionItem(f.Title, &forms.Question{
+        item := newQuestionItem(f.Title, &forms.Question{
             Required: false,
             ChoiceQuestion: &forms.ChoiceQuestion{
                 Type:    "CHECKBOX",
                 Options: opts,
                 Shuffle: false,
             },
-        }), nil
+        })
+        item.Description = f.Description
+        return item, nil
     case "confirm":
         opts := []*forms.Option{
             {Value: "Yes"},
             {Value: "No"},
         }
-        return newQuestionItem(f.Title, &forms.Question{
+        item := newQuestionItem(f.Title, &forms.Question{
             Required: true,
             ChoiceQuestion: &forms.ChoiceQuestion{
                 Type:    "RADIO",
                 Options: opts,
                 Shuffle: false,
             },
-        }), nil
+        })
+        item.Description = f.Description
+        return item, nil
     default:
         return nil, fmt.Errorf("unsupported field type: %s", f.Type)
     }
@@ -92,24 +120,45 @@ func BuildRequestsFromWizard(wz *wizard.Wizard) ([]*forms.Request, error) {
     for _, s := range wz.Steps {
         switch st := s.(type) {
         case *steps.FormStep:
+            // Collect items for this step first
+            stepItems := []*forms.Item{}
             for _, g := range st.FormData.Groups {
                 for _, f := range g.Fields {
                     item, err := fieldToItem(f)
                     if err != nil {
-                        // Skip unsupported field types rather than failing the whole form
                         continue
                     }
-                    requests = append(requests, &forms.Request{
-                        CreateItem: &forms.CreateItemRequest{
-                            Item: item,
-                            Location: &forms.Location{
-                                Index:           int64(index),
-                                ForceSendFields: []string{"Index"},
-                            },
-                        },
-                    })
-                    index++
+                    stepItems = append(stepItems, item)
                 }
+            }
+            if len(stepItems) == 0 {
+                break
+            }
+            // Insert a page break before the first item of this step (except at index 0)
+            if index > 0 {
+                pb := newPageBreakItem(st.Title(), st.Description())
+                requests = append(requests, &forms.Request{
+                    CreateItem: &forms.CreateItemRequest{
+                        Item: pb,
+                        Location: &forms.Location{
+                            Index:           int64(index),
+                            ForceSendFields: []string{"Index"},
+                        },
+                    },
+                })
+                index++
+            }
+            for _, item := range stepItems {
+                requests = append(requests, &forms.Request{
+                    CreateItem: &forms.CreateItemRequest{
+                        Item: item,
+                        Location: &forms.Location{
+                            Index:           int64(index),
+                            ForceSendFields: []string{"Index"},
+                        },
+                    },
+                })
+                index++
             }
         case *steps.DecisionStep:
             // Map a decision step to a multiple-choice question
@@ -125,6 +174,49 @@ func BuildRequestsFromWizard(wz *wizard.Wizard) ([]*forms.Request, error) {
                     Shuffle: false,
                 },
             })
+            if index > 0 {
+                pb := newPageBreakItem(st.Title(), st.Description())
+                requests = append(requests, &forms.Request{
+                    CreateItem: &forms.CreateItemRequest{
+                        Item: pb,
+                        Location: &forms.Location{
+                            Index:           int64(index),
+                            ForceSendFields: []string{"Index"},
+                        },
+                    },
+                })
+                index++
+            }
+            requests = append(requests, &forms.Request{
+                CreateItem: &forms.CreateItemRequest{
+                    Item: item,
+                    Location: &forms.Location{
+                        Index:           int64(index),
+                        ForceSendFields: []string{"Index"},
+                    },
+                },
+            })
+            index++
+        case *steps.InfoStep:
+            // Map info step content to a static text item
+            displayContent := st.Content
+            if st.Description() != "" {
+                displayContent = fmt.Sprintf("%s\n\n%s", st.Description(), st.Content)
+            }
+            item := newTextItem(st.Title(), displayContent)
+            if index > 0 {
+                pb := newPageBreakItem(st.Title(), st.Description())
+                requests = append(requests, &forms.Request{
+                    CreateItem: &forms.CreateItemRequest{
+                        Item: pb,
+                        Location: &forms.Location{
+                            Index:           int64(index),
+                            ForceSendFields: []string{"Index"},
+                        },
+                    },
+                })
+                index++
+            }
             requests = append(requests, &forms.Request{
                 CreateItem: &forms.CreateItemRequest{
                     Item: item,
