@@ -14,10 +14,10 @@ import (
 
 // GetOAuthTokenStoreLayers returns all layers required for OAuth token store configuration
 func GetOAuthTokenStoreLayers() (*layers.ParameterLayers, error) {
-	authLayer, err := NewAuthParameterLayer()
-	if err != nil {
-		return nil, fmt.Errorf("could not create auth parameter layer: %w", err)
-	}
+    authLayer, err := NewAuthParameterLayer()
+    if err != nil {
+        return nil, fmt.Errorf("could not create auth parameter layer: %w", err)
+    }
 
 	dbAuthLayer, err := NewDBAuthParameterLayer()
 	if err != nil {
@@ -42,6 +42,73 @@ func GetOAuthTokenStoreLayers() (*layers.ParameterLayers, error) {
 			dbtLayer,
 		),
 	), nil
+}
+
+// OAuthLayersOption configures defaults for building the OAuth token store layers.
+type OAuthLayersOption func(*oauthLayerDefaults)
+
+type oauthLayerDefaults struct {
+    credentialsPath string
+    tokenPath       string
+}
+
+// WithCredentialsDefault sets the default credentials file path on the auth layer.
+func WithCredentialsDefault(path string) OAuthLayersOption {
+    return func(d *oauthLayerDefaults) {
+        if path != "" {
+            d.credentialsPath = path
+        }
+    }
+}
+
+// WithTokenDefault sets the default token store file path on the auth layer.
+func WithTokenDefault(path string) OAuthLayersOption {
+    return func(d *oauthLayerDefaults) {
+        if path != "" {
+            d.tokenPath = path
+        }
+    }
+}
+
+// GetOAuthTokenStoreLayersWithOptions builds the OAuth layers using optional default paths.
+func GetOAuthTokenStoreLayersWithOptions(opts ...OAuthLayersOption) (*layers.ParameterLayers, error) {
+    // Start from calendar defaults for backward compatibility
+    d := &oauthLayerDefaults{
+        credentialsPath: "~/.gcal/credentials.json",
+        tokenPath:       "~/.gcal/token.json",
+    }
+    for _, o := range opts {
+        o(d)
+    }
+
+    authLayer, err := NewAuthParameterLayerWithDefaults(d.credentialsPath, d.tokenPath)
+    if err != nil {
+        return nil, fmt.Errorf("could not create auth parameter layer: %w", err)
+    }
+
+    dbAuthLayer, err := NewDBAuthParameterLayer()
+    if err != nil {
+        return nil, fmt.Errorf("could not create database auth parameter layer: %w", err)
+    }
+
+    sqlConnectionLayer, err := clay_sql.NewSqlConnectionParameterLayer(layers.WithPrefix("db-"))
+    if err != nil {
+        return nil, fmt.Errorf("could not create SQL connection layer: %w", err)
+    }
+
+    dbtLayer, err := clay_sql.NewDbtParameterLayer()
+    if err != nil {
+        return nil, fmt.Errorf("could not create DBT layer: %w", err)
+    }
+
+    return layers.NewParameterLayers(
+        layers.WithLayers(
+            authLayer,
+            dbAuthLayer,
+            sqlConnectionLayer,
+            dbtLayer,
+        ),
+    ), nil
 }
 
 // CreateTokenStoreFromLayers creates a token store from parsed layers
