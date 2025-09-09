@@ -45,6 +45,9 @@ func fieldToItem(f *uform.Field) (*forms.Item, error) {
             Required:     false,
             TextQuestion: &forms.TextQuestion{Paragraph: false},
         })
+        if item.QuestionItem != nil && item.QuestionItem.Question != nil {
+            item.QuestionItem.Question.Required = f.Required
+        }
         item.Description = f.Description
         return item, nil
     case "text":
@@ -52,6 +55,9 @@ func fieldToItem(f *uform.Field) (*forms.Item, error) {
             Required:     false,
             TextQuestion: &forms.TextQuestion{Paragraph: true},
         })
+        if item.QuestionItem != nil && item.QuestionItem.Question != nil {
+            item.QuestionItem.Question.Required = f.Required
+        }
         item.Description = f.Description
         return item, nil
     case "select":
@@ -71,6 +77,9 @@ func fieldToItem(f *uform.Field) (*forms.Item, error) {
                 Shuffle: false,
             },
         })
+        if item.QuestionItem != nil && item.QuestionItem.Question != nil {
+            item.QuestionItem.Question.Required = f.Required
+        }
         item.Description = f.Description
         return item, nil
     case "multiselect":
@@ -90,6 +99,9 @@ func fieldToItem(f *uform.Field) (*forms.Item, error) {
                 Shuffle: false,
             },
         })
+        if item.QuestionItem != nil && item.QuestionItem.Question != nil {
+            item.QuestionItem.Question.Required = f.Required
+        }
         item.Description = f.Description
         return item, nil
     case "confirm":
@@ -105,6 +117,9 @@ func fieldToItem(f *uform.Field) (*forms.Item, error) {
                 Shuffle: false,
             },
         })
+        if item.QuestionItem != nil && item.QuestionItem.Question != nil {
+            item.QuestionItem.Question.Required = f.Required
+        }
         item.Description = f.Description
         return item, nil
     default:

@@ -20,15 +20,21 @@ steps:
             - type: input
               key: full_name
               title: Full Name
+              description: Your legal name as it should appear on certificates
+              required: true
             - type: text
               key: about_you
               title: Tell us about yourself
+              description: A short paragraph about your background and interests
+              required: false
 
         - name: Preferences
           fields:
             - type: select
               key: favorite_language
               title: Favorite Programming Language
+              description: Choose one primary language you enjoy most
+              required: true
               options:
                 - label: Go
                   value: go
@@ -40,6 +46,7 @@ steps:
             - type: multiselect
               key: tools_used
               title: Tools You Use Regularly
+              description: Select any tools you use at least weekly
               options:
                 - label: Git
                   value: git
@@ -51,5 +58,6 @@ steps:
             - type: confirm
               key: subscribe_updates
               title: Would you like to receive updates?
+              description: We'll occasionally send news and tips
 
 

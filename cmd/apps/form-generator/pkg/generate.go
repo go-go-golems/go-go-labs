@@ -3,6 +3,7 @@ package pkg
 import (
     "context"
     "fmt"
+    "os"
 
     "github.com/go-go-golems/glazed/pkg/cli"
     "github.com/go-go-golems/glazed/pkg/cmds"
@@ -15,6 +16,7 @@ import (
     "github.com/spf13/cobra"
     "google.golang.org/api/forms/v1"
     "google.golang.org/api/option"
+    "gopkg.in/yaml.v3"
 )
 
 // GenerateSettings holds command parameters.
@@ -140,10 +142,19 @@ func (c *GenerateCommand) Run(ctx context.Context, parsedLayers *layers.ParsedLa
         zerolog.SetGlobalLevel(zerolog.InfoLevel)
     }
 
-    // Load wizard DSL
-    wz, err := uhwizard.LoadWizard(settings.WizardFile)
-    if err != nil {
-        return fmt.Errorf("failed to load wizard DSL: %w", err)
+    // Load wizard DSL (file path or inline YAML content)
+    var wz *uhwizard.Wizard
+    if fi, err := os.Stat(settings.WizardFile); err == nil && !fi.IsDir() {
+        wz, err = uhwizard.LoadWizard(settings.WizardFile)
+        if err != nil {
+            return fmt.Errorf("failed to load wizard DSL from file: %w", err)
+        }
+    } else {
+        var w uhwizard.Wizard
+        if err := yaml.Unmarshal([]byte(settings.WizardFile), &w); err != nil {
+            return fmt.Errorf("failed to load wizard DSL: neither a readable file path nor valid YAML content: %w", err)
+        }
+        wz = &w
     }
 
     // Determine form title/description defaults
@@ -159,7 +170,7 @@ func (c *GenerateCommand) Run(ctx context.Context, parsedLayers *layers.ParsedLa
         formDescription = settings.Description
     }
 
-    // Authenticate using Google OAuth with Forms scope
+    // Create Forms service
     authenticator, err := buildFormsAuthenticator(parsedLayers)
     if err != nil {
         return fmt.Errorf("failed to create authenticator: %w", err)
@@ -169,7 +180,6 @@ func (c *GenerateCommand) Run(ctx context.Context, parsedLayers *layers.ParsedLa
         return fmt.Errorf("authentication failed: %w", err)
     }
 
-    // Create Forms service
     ts := result.Client.TokenSource(ctx, result.Token)
     svc, err := forms.NewService(ctx, option.WithTokenSource(ts))
     if err != nil {
@@ -192,7 +202,7 @@ func (c *GenerateCommand) Run(ctx context.Context, parsedLayers *layers.ParsedLa
         return err
     }
 
-    // Output result in a simple human-readable way
+    // Output result
     if targetFormID == "" {
         fmt.Printf("Created form: %s\n", form.FormId)
     } else {
