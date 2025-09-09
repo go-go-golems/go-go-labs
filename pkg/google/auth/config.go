@@ -40,7 +40,7 @@ func WithCredentialsFile(path string) Option {
 		if err != nil {
 			return errors.Wrap(err, "unable to parse credentials file")
 		}
-
+:
 		c.oauthConfig = cfg
 		return nil
 	}

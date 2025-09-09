@@ -33,7 +33,10 @@ type GenerateCommand struct {
 // NewGenerateCommand creates the Cobra command for generating a Google Form from a Uhoh wizard.
 func NewGenerateCommand() (*cobra.Command, error) {
     // OAuth layers for credentials and token storage
-    oauthLayers, err := gauth.GetOAuthTokenStoreLayers()
+    oauthLayers, err := gauth.GetOAuthTokenStoreLayersWithOptions(
+        gauth.WithCredentialsDefault("~/.google-form/client_secret.json"),
+        gauth.WithTokenDefault("~/.google-form/token.json"),
+    )
     if err != nil {
         return nil, fmt.Errorf("could not create OAuth token store layers: %w", err)
     }
@@ -189,4 +192,3 @@ func (c *GenerateCommand) Run(ctx context.Context, parsedLayers *layers.ParsedLa
 
 // Ensure interface compliance
 var _ cmds.BareCommand = &GenerateCommand{}
-

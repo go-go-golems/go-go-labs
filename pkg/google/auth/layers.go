@@ -11,13 +11,13 @@ const (
 )
 
 type AuthSettings struct {
-	CredentialsFile string `glazed.parameter:"credentials-file"`
-	TokenStoreType  string `glazed.parameter:"token-store-type"`
-	TokenStorePath  string `glazed.parameter:"token-store-path"`
-	TokenStorePerms int    `glazed.parameter:"token-store-perms"`
-	ServerPort      int    `glazed.parameter:"server-port"`
-	CallbackPath    string `glazed.parameter:"callback-path"`
-	Timeout         int    `glazed.parameter:"timeout"`
+    CredentialsFile string `glazed.parameter:"credentials-file"`
+    TokenStoreType  string `glazed.parameter:"token-store-type"`
+    TokenStorePath  string `glazed.parameter:"token-store-path"`
+    TokenStorePerms int    `glazed.parameter:"token-store-perms"`
+    ServerPort      int    `glazed.parameter:"server-port"`
+    CallbackPath    string `glazed.parameter:"callback-path"`
+    Timeout         int    `glazed.parameter:"timeout"`
 }
 
 type DBAuthSettings struct {
@@ -70,54 +70,63 @@ func NewDBAuthParameterLayer() (layers.ParameterLayer, error) {
 	)
 }
 
+// NewAuthParameterLayerWithDefaults creates the Google Auth parameter layer with custom defaults
+// for credentials file and token store path. This allows commands to choose app-specific
+// default locations (e.g. ~/.google-form/*) while keeping the rest of the parameters identical.
+func NewAuthParameterLayerWithDefaults(credentialsDefaultPath string, tokenDefaultPath string) (layers.ParameterLayer, error) {
+    return layers.NewParameterLayer(
+        AuthSlug,
+        "Google Auth Settings",
+        layers.WithParameterDefinitions(
+            parameters.NewParameterDefinition(
+                "credentials-file",
+                parameters.ParameterTypeString,
+                parameters.WithHelp("Path to Google OAuth2 credentials file"),
+                parameters.WithDefault(credentialsDefaultPath),
+            ),
+            parameters.NewParameterDefinition(
+                "token-store-type",
+                parameters.ParameterTypeChoice,
+                parameters.WithHelp("Type of token store to use (file or database)"),
+                parameters.WithDefault("file"),
+                parameters.WithChoices("file", "database"),
+            ),
+            parameters.NewParameterDefinition(
+                "token-store-path",
+                parameters.ParameterTypeString,
+                parameters.WithHelp("Path to store the token (for file token store)"),
+                parameters.WithDefault(tokenDefaultPath),
+            ),
+            parameters.NewParameterDefinition(
+                "token-store-perms",
+                parameters.ParameterTypeInteger,
+                parameters.WithHelp("File permissions for token store (in octal)"),
+                parameters.WithDefault(0600),
+            ),
+            parameters.NewParameterDefinition(
+                "server-port",
+                parameters.ParameterTypeInteger,
+                parameters.WithHelp("Port for OAuth2 callback server"),
+                parameters.WithDefault(8080),
+            ),
+            parameters.NewParameterDefinition(
+                "callback-path",
+                parameters.ParameterTypeString,
+                parameters.WithHelp("Path for OAuth2 callback endpoint"),
+                parameters.WithDefault("/callback"),
+            ),
+            parameters.NewParameterDefinition(
+                "timeout",
+                parameters.ParameterTypeInteger,
+                parameters.WithHelp("Timeout in minutes for OAuth2 flow"),
+                parameters.WithDefault(5),
+            ),
+        ),
+    )
+}
+
+// NewAuthParameterLayer creates the Google Auth parameter layer with default values oriented
+// towards Google Calendar (~/.gcal/*). For app-specific defaults, use NewAuthParameterLayerWithDefaults.
 func NewAuthParameterLayer() (layers.ParameterLayer, error) {
-	return layers.NewParameterLayer(
-		AuthSlug,
-		"Google Auth Settings",
-		layers.WithParameterDefinitions(
-			parameters.NewParameterDefinition(
-				"credentials-file",
-				parameters.ParameterTypeString,
-				parameters.WithHelp("Path to Google OAuth2 credentials file"),
-				parameters.WithDefault("~/.gcal/credentials.json"),
-			),
-			parameters.NewParameterDefinition(
-				"token-store-type",
-				parameters.ParameterTypeChoice,
-				parameters.WithHelp("Type of token store to use (file or database)"),
-				parameters.WithDefault("file"),
-				parameters.WithChoices("file", "database"),
-			),
-			parameters.NewParameterDefinition(
-				"token-store-path",
-				parameters.ParameterTypeString,
-				parameters.WithHelp("Path to store the token (for file token store)"),
-				parameters.WithDefault("~/.gcal/token.json"),
-			),
-			parameters.NewParameterDefinition(
-				"token-store-perms",
-				parameters.ParameterTypeInteger,
-				parameters.WithHelp("File permissions for token store (in octal)"),
-				parameters.WithDefault(0600),
-			),
-			parameters.NewParameterDefinition(
-				"server-port",
-				parameters.ParameterTypeInteger,
-				parameters.WithHelp("Port for OAuth2 callback server"),
-				parameters.WithDefault(8080),
-			),
-			parameters.NewParameterDefinition(
-				"callback-path",
-				parameters.ParameterTypeString,
-				parameters.WithHelp("Path for OAuth2 callback endpoint"),
-				parameters.WithDefault("/callback"),
-			),
-			parameters.NewParameterDefinition(
-				"timeout",
-				parameters.ParameterTypeInteger,
-				parameters.WithHelp("Timeout in minutes for OAuth2 flow"),
-				parameters.WithDefault(5),
-			),
-		),
-	)
+    return NewAuthParameterLayerWithDefaults("~/.gcal/credentials.json", "~/.gcal/token.json")
 }
