@@ -8,6 +8,7 @@ import (
     "github.com/go-go-golems/uhoh/pkg/wizard"
     "github.com/go-go-golems/uhoh/pkg/wizard/steps"
 
+    "github.com/rs/zerolog/log"
     "google.golang.org/api/forms/v1"
 )
 
@@ -43,22 +44,24 @@ func fieldToItem(f *uform.Field) (*forms.Item, error) {
     case "input":
         item := newQuestionItem(f.Title, &forms.Question{
             Required:     false,
-            TextQuestion: &forms.TextQuestion{Paragraph: false},
+            TextQuestion: &forms.TextQuestion{Paragraph: false, ForceSendFields: []string{"Paragraph"}},
         })
         if item.QuestionItem != nil && item.QuestionItem.Question != nil {
             item.QuestionItem.Question.Required = f.Required
         }
         item.Description = f.Description
+        log.Debug().Str("fieldKey", f.Key).Str("fieldType", f.Type).Bool("paragraph", false).Msg("Mapped field to short text")
         return item, nil
     case "text":
         item := newQuestionItem(f.Title, &forms.Question{
             Required:     false,
-            TextQuestion: &forms.TextQuestion{Paragraph: true},
+            TextQuestion: &forms.TextQuestion{Paragraph: true, ForceSendFields: []string{"Paragraph"}},
         })
         if item.QuestionItem != nil && item.QuestionItem.Question != nil {
             item.QuestionItem.Question.Required = f.Required
         }
         item.Description = f.Description
+        log.Debug().Str("fieldKey", f.Key).Str("fieldType", f.Type).Bool("paragraph", true).Msg("Mapped field to paragraph text")
         return item, nil
     case "select":
         opts := make([]*forms.Option, 0, len(f.Options))
@@ -81,6 +84,7 @@ func fieldToItem(f *uform.Field) (*forms.Item, error) {
             item.QuestionItem.Question.Required = f.Required
         }
         item.Description = f.Description
+        log.Debug().Str("fieldKey", f.Key).Str("fieldType", f.Type).Int("options", len(opts)).Msg("Mapped field to single choice")
         return item, nil
     case "multiselect":
         opts := make([]*forms.Option, 0, len(f.Options))
@@ -103,6 +107,7 @@ func fieldToItem(f *uform.Field) (*forms.Item, error) {
             item.QuestionItem.Question.Required = f.Required
         }
         item.Description = f.Description
+        log.Debug().Str("fieldKey", f.Key).Str("fieldType", f.Type).Int("options", len(opts)).Msg("Mapped field to multi choice")
         return item, nil
     case "confirm":
         opts := []*forms.Option{
@@ -121,6 +126,7 @@ func fieldToItem(f *uform.Field) (*forms.Item, error) {
             item.QuestionItem.Question.Required = f.Required
         }
         item.Description = f.Description
+        log.Debug().Str("fieldKey", f.Key).Str("fieldType", f.Type).Msg("Mapped field to confirm")
         return item, nil
     default:
         return nil, fmt.Errorf("unsupported field type: %s", f.Type)
@@ -161,6 +167,7 @@ func BuildRequestsFromWizard(wz *wizard.Wizard) ([]*forms.Request, error) {
                         },
                     },
                 })
+                log.Debug().Int("index", index).Str("stepId", st.ID()).Msg("Inserted page break before step items")
                 index++
             }
             for _, item := range stepItems {
@@ -173,6 +180,7 @@ func BuildRequestsFromWizard(wz *wizard.Wizard) ([]*forms.Request, error) {
                         },
                     },
                 })
+                log.Debug().Int("index", index).Str("stepId", st.ID()).Msg("Added item to form")
                 index++
             }
         case *steps.DecisionStep:
@@ -200,6 +208,7 @@ func BuildRequestsFromWizard(wz *wizard.Wizard) ([]*forms.Request, error) {
                         },
                     },
                 })
+                log.Debug().Int("index", index).Str("stepId", st.ID()).Msg("Inserted page break before decision item")
                 index++
             }
             requests = append(requests, &forms.Request{
@@ -211,6 +220,7 @@ func BuildRequestsFromWizard(wz *wizard.Wizard) ([]*forms.Request, error) {
                     },
                 },
             })
+            log.Debug().Int("index", index).Str("stepId", st.ID()).Msg("Added decision item to form")
             index++
         case *steps.InfoStep:
             // Map info step content to a static text item
@@ -230,6 +240,7 @@ func BuildRequestsFromWizard(wz *wizard.Wizard) ([]*forms.Request, error) {
                         },
                     },
                 })
+                log.Debug().Int("index", index).Str("stepId", st.ID()).Msg("Inserted page break before info item")
                 index++
             }
             requests = append(requests, &forms.Request{
@@ -241,6 +252,7 @@ func BuildRequestsFromWizard(wz *wizard.Wizard) ([]*forms.Request, error) {
                     },
                 },
             })
+            log.Debug().Int("index", index).Str("stepId", st.ID()).Msg("Added info item to form")
             index++
         default:
             // Ignore info, action, summary for Google Forms structure
