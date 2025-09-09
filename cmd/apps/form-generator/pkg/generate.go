@@ -21,6 +21,7 @@ import (
 type GenerateSettings struct {
     WizardFile   string `glazed.parameter:"wizard"`
     FormID       string `glazed.parameter:"form-id"`
+    Create       bool   `glazed.parameter:"create"`
     Title        string `glazed.parameter:"title"`
     Description  string `glazed.parameter:"description"`
     Debug        bool   `glazed.parameter:"debug"`
@@ -47,8 +48,8 @@ func NewGenerateCommand() (*cobra.Command, error) {
         cmds.WithLong(`
 Generate Google Forms items from a Uhoh Wizard DSL file.
 
-If --form-id is provided, the command reuses the existing form and appends the generated items.
-You can optionally override the title and description.
+Use --create to create a new form. If --form-id is provided, the command updates the existing form
+and appends the generated items. You can optionally override the title and description.
 `),
         cmds.WithFlags(
             parameters.NewParameterDefinition(
@@ -56,6 +57,12 @@ You can optionally override the title and description.
                 parameters.ParameterTypeFile,
                 parameters.WithHelp("Path to Uhoh wizard YAML file"),
                 parameters.WithRequired(true),
+            ),
+            parameters.NewParameterDefinition(
+                "create",
+                parameters.ParameterTypeBool,
+                parameters.WithDefault(false),
+                parameters.WithHelp("Create a new form (mutually exclusive with --form-id)"),
             ),
             parameters.NewParameterDefinition(
                 "form-id",
@@ -123,6 +130,10 @@ func (c *GenerateCommand) Run(ctx context.Context, parsedLayers *layers.ParsedLa
         return err
     }
 
+    if settings.Create && settings.FormID != "" {
+        return fmt.Errorf("--create cannot be used together with --form-id; choose one")
+    }
+
     if settings.Debug {
         zerolog.SetGlobalLevel(zerolog.DebugLevel)
     } else {
@@ -172,13 +183,17 @@ func (c *GenerateCommand) Run(ctx context.Context, parsedLayers *layers.ParsedLa
     }
 
     // Create or update the form
-    form, err := CreateOrUpdateForm(ctx, svc, settings.FormID, formTitle, formDescription, requests)
+    targetFormID := settings.FormID
+    if settings.Create {
+        targetFormID = ""
+    }
+    form, err := CreateOrUpdateForm(ctx, svc, targetFormID, formTitle, formDescription, requests)
     if err != nil {
         return err
     }
 
     // Output result in a simple human-readable way
-    if settings.FormID == "" {
+    if targetFormID == "" {
         fmt.Printf("Created form: %s\n", form.FormId)
     } else {
         fmt.Printf("Updated form: %s\n", form.FormId)
