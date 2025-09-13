@@ -76,9 +76,14 @@ jobs:
           method: jwt
           path: jwt-github
           role: gha_cicd_go_go_golems
-          jwtGithubAudience: https://github.com/actions
           secrets: |
             secrets/data/environments/cicd/openai OPENAI_API_KEY | OPENAI_API_KEY
+
+
+      - name: Show OIDC claims
+        uses: github/actions-oidc-debugger@v1
+        with:
+          audience: https://github.com/actions
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
