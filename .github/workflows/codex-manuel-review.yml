@@ -80,10 +80,10 @@ jobs:
             secrets/data/environments/cicd/openai OPENAI_API_KEY | OPENAI_API_KEY
 
 
-      - name: Show OIDC claims
-        uses: github/actions-oidc-debugger@main
-        with:
-          audience: '${{ github.server_url }}/${{ github.repository_owner }}'
+    #   - name: Show OIDC claims
+    #     uses: github/actions-oidc-debugger@main
+    #     with:
+    #       audience: '${{ github.server_url }}/${{ github.repository_owner }}'
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
