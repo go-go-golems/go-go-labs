@@ -1,0 +1,134 @@
+name: Codex Manual Review
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_ref:
+        description: Base ref to compare against
+        required: false
+        default: origin/main
+      target_ref:
+        description: Target ref (defaults to HEAD)
+        required: false
+        default: ''
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: read
+
+jobs:
+  analyze:
+    name: Analyze diff with Codex
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify git
+        run: |
+          git --version
+
+      - name: Fetch all refs
+        run: |
+          git fetch --no-tags --prune --force --jobs=4 --recurse-submodules=no --depth=50 --all
+
+      - name: Determine base/target refs
+        id: refs
+        shell: bash
+        run: |
+          BASE_REF="${{ inputs.base_ref }}"
+          TARGET_REF="${{ inputs.target_ref }}"
+          if [ -z "$TARGET_REF" ]; then
+            TARGET_REF="${GITHUB_SHA}"
+          fi
+          echo "base=$BASE_REF" >> "$GITHUB_OUTPUT"
+          echo "target=$TARGET_REF" >> "$GITHUB_OUTPUT"
+
+      - name: Compute diff vs base
+        id: diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="${{ steps.refs.outputs.base }}"
+          TARGET="${{ steps.refs.outputs.target }}"
+          # Ensure base is locally available (strip origin/ if present for fetch)
+          BASE_NAME="${BASE#origin/}"
+          git fetch origin "$BASE_NAME":"refs/remotes/origin/$BASE_NAME" || true
+          # Produce a unified diff using merge-base (via ... syntax)
+          git diff --no-color "$BASE...$TARGET" > diff.txt || true
+          echo "Diff size (bytes): $(wc -c < diff.txt)" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "Changed files:" | tee -a "$GITHUB_STEP_SUMMARY"
+          git diff --name-status "$BASE...$TARGET" | tee -a "$GITHUB_STEP_SUMMARY"
+          # Truncate very large diffs to avoid oversized prompts
+          head -c 400000 diff.txt > diff_truncated.txt
+          echo "diff_file=diff_truncated.txt" >> "$GITHUB_OUTPUT"
+          echo "base=$BASE" >> "$GITHUB_OUTPUT"
+          echo "target=$TARGET" >> "$GITHUB_OUTPUT"
+
+      - name: Read OPENAI_API_KEY from Vault (OIDC)
+        id: vault
+        uses: hashicorp/vault-action@v3
+        with:
+          url: https://vault.mento.co
+          method: jwt
+          path: jwt-github
+          role: gha_cicd_go_go_golems
+          jwtGithubAudience: https://github.com/actions
+          secrets: |
+            secrets/data/environments/cicd/openai OPENAI_API_KEY | OPENAI_API_KEY
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Codex CLI
+        run: npm i -g @openai/codex
+
+      - name: Run Codex analysis
+        env:
+          OPENAI_API_KEY: ${{ steps.vault.outputs.OPENAI_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="${{ steps.diff.outputs.base }}"
+          TARGET="${{ steps.diff.outputs.target }}"
+          DIFF_FILE="${{ steps.diff.outputs.diff_file }}"
+          echo "Running Codex analysis for $BASE...$TARGET" | tee -a "$GITHUB_STEP_SUMMARY"
+          # Compose prompt with truncated diff content
+          SUMMARY_PROMPT=$(cat << 'EOF'
+          You are a code review assistant.
+          Task:
+          - Analyze the provided git diff and summarize the most important changes.
+          - Highlight risks, breaking changes, security implications, and test impact.
+          - Suggest follow-up checks or tests.
+          Limit to ~300-500 words.
+          EOF
+          )
+          # Escape backticks to avoid Markdown breaking
+          DIFF_CONTENT=$(sed 's/`/\`/g' "$DIFF_FILE")
+          PROMPT="$SUMMARY_PROMPT
+
+          Base: $BASE
+          Target: $TARGET
+
+          Diff (truncated):
+          \`\`\`
+          $DIFF_CONTENT
+          \`\`\`"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Codex analysis:" >> "$GITHUB_STEP_SUMMARY"
+          codex exec --quiet "$PROMPT" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload diff artifact (optional)
+        uses: actions/upload-artifact@v4
+        with:
+          name: git-diff
+          path: |
+            diff.txt
+            diff_truncated.txt
+
+
