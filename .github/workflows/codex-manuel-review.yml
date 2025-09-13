@@ -126,7 +126,7 @@ jobs:
           \`\`\`"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "Codex analysis:" >> "$GITHUB_STEP_SUMMARY"
-          codex exec --quiet "$PROMPT" | tee -a "$GITHUB_STEP_SUMMARY"
+          codex exec "$PROMPT" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Upload diff artifact (optional)
         uses: actions/upload-artifact@v4
