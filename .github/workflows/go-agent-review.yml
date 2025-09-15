@@ -1,0 +1,24 @@
+name: go-agent-review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Automated Go agent review
+        uses: go-go-golems/go-go-agent-action@v1.0.0
+        with:
+          tool_mode: mock
+          include_patch: true
+          output_mode: review+summary
