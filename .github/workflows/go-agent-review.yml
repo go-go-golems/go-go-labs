@@ -22,3 +22,4 @@ jobs:
           tool_mode: mock
           include_patch: true
           output_mode: review+summary
+          github_token: ${{ secrets.GITHUB_TOKEN }}
