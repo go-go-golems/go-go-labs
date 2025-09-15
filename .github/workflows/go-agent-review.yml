@@ -16,10 +16,16 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Build random reviewer
+        run: |
+          mkdir -p .tooling
+          go build -o .tooling/random-reviewer ./cmd/reviewers/random-reviewer
+
       - name: Automated Go agent review
         uses: go-go-golems/go-go-agent-action@v1.0.0
         with:
-          tool_mode: mock
+          tool_mode: cmd
+          tool_cmd: ./.tooling/random-reviewer
           include_patch: true
           output_mode: review+summary
           github_token: ${{ secrets.GITHUB_TOKEN }}
