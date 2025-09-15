@@ -3,6 +3,8 @@ name: go-agent-review
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: read
@@ -10,6 +12,10 @@ permissions:
 
 jobs:
   review:
+    # Run on PR events, or on mention comments that target a PR and contain @agent
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '@agent'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
