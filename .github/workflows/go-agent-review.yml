@@ -1,4 +1,5 @@
-name: agent-review
+name: go-agent-review
+
 on:
   pull_request:
     types: [opened, synchronize, reopened]
@@ -15,10 +16,9 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Agent review (mock LLM)
-        uses: ./. # replace with your-org/agent-action@v1 once published
+      - name: Automated Go agent review
+        uses: go-go-golems/go-go-agent-action@v1.0.0
         with:
           tool_mode: mock
           include_patch: true
-          include_file_contents: false
           output_mode: review+summary
