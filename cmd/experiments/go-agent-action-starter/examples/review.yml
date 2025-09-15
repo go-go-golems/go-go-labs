@@ -1,0 +1,24 @@
+name: agent-review
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Agent review (mock LLM)
+        uses: ./. # replace with your-org/agent-action@v1 once published
+        with:
+          tool_mode: mock
+          include_patch: true
+          include_file_contents: false
+          output_mode: review+summary

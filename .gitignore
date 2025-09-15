@@ -42,3 +42,5 @@ node_modules
 
 # CRUSH directory
 .crush/
+
+.cache/

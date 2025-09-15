@@ -1,0 +1,22 @@
+name: agent-mention
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  run-on-mention:
+    if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, '@agent') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Agent on mention
+        uses: ./. # replace with published action
+        with:
+          tool_mode: mock
+          output_mode: review+summary
