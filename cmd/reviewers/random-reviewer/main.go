@@ -8,26 +8,14 @@ import (
 )
 
 type prContext struct {
-	Number       int           `json:"number"`
-	ChangedFiles []changedFile `json:"changed_files"`
-}
-
-type changedFile struct {
-	Path string `json:"path"`
+	Number int `json:"number"`
 }
 
 type reviewResult struct {
-	SummaryMarkdown string          `json:"summary_markdown"`
-	Comments        []reviewComment `json:"comments"`
-	ReviewDecision  string          `json:"review_decision"`
-	ReviewBody      string          `json:"review_body"`
-}
-
-type reviewComment struct {
-	Path string `json:"path"`
-	Body string `json:"body"`
-	Line int    `json:"line,omitempty"`
-	Side string `json:"side,omitempty"`
+	SummaryMarkdown string `json:"summary_markdown"`
+	ReviewDecision  string `json:"review_decision"`
+	ReviewBody      string `json:"review_body"`
+	IssueComment    string `json:"issue_comment"`
 }
 
 func main() {
@@ -47,22 +35,13 @@ func main() {
 	cmd := commands[rand.Intn(len(commands))]
 
 	summary := "### Random review\n- suggested command: `" + cmd + "`"
+	body := "Random command reviewer: please run `" + cmd + "` and share the output."
 
 	result := reviewResult{
 		SummaryMarkdown: summary,
 		ReviewDecision:  "comment",
-		ReviewBody:      "Random command reviewer",
-	}
-
-	if len(ctx.ChangedFiles) > 0 {
-		result.Comments = []reviewComment{
-			{
-				Path: ctx.ChangedFiles[0].Path,
-				Body: "Please run `" + cmd + "` and share the output.",
-				Line: 1,
-				Side: "RIGHT",
-			},
-		}
+		ReviewBody:      body,
+		IssueComment:    body,
 	}
 
 	if err := json.NewEncoder(os.Stdout).Encode(result); err != nil {
