@@ -114,7 +114,7 @@ func (c *FetchSubmissionsCommand) RunIntoGlazeProcessor(
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	}
 
-	authenticator, err := buildFormsAuthenticator(parsedLayers)
+	authenticator, err := buildFormsAuthenticator(parsedLayers, forms.FormsResponsesReadonlyScope)
 	if err != nil {
 		return fmt.Errorf("failed to create authenticator: %w", err)
 	}

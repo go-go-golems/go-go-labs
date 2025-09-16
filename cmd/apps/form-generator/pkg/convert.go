@@ -347,9 +347,6 @@ func canInterpretAsDecision(item *forms.Item) bool {
 }
 
 func uniqueStepID(title, fallback string, index int, used map[string]int) string {
-	if stepID, _, ok := decodeMetadata(fallback); ok && stepID != "" {
-		return ensureUnique(stepID, used)
-	}
 	candidate := slug.Make(strings.TrimSpace(title))
 	if candidate == "" {
 		candidate = slug.Make(strings.TrimSpace(fallback))
@@ -361,9 +358,6 @@ func uniqueStepID(title, fallback string, index int, used map[string]int) string
 }
 
 func uniqueFieldKey(title, fallback string, used map[string]int) string {
-	if _, fieldKey, ok := decodeMetadata(fallback); ok && fieldKey != "" {
-		return ensureUnique(fieldKey, used)
-	}
 	candidate := slug.Make(strings.TrimSpace(title))
 	if candidate == "" {
 		candidate = slug.Make(strings.TrimSpace(fallback))

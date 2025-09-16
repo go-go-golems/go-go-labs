@@ -157,10 +157,6 @@ func BuildRequestsFromWizard(wz *wizard.Wizard) ([]*forms.Request, error) {
 					if key == "" {
 						key = f.Title
 					}
-					item.ItemId = encodeMetadata(st.ID(), key)
-					if item.QuestionItem != nil && item.QuestionItem.Question != nil {
-						item.QuestionItem.Question.QuestionId = encodeMetadata(st.ID(), key)
-					}
 					stepItems = append(stepItems, item)
 				}
 			}
@@ -170,7 +166,6 @@ func BuildRequestsFromWizard(wz *wizard.Wizard) ([]*forms.Request, error) {
 			// Insert a page break before the first item of this step (except at index 0)
 			if index > 0 {
 				pb := newPageBreakItem(st.Title(), st.Description())
-				pb.ItemId = encodeMetadata(st.ID(), "pagebreak")
 				requests = append(requests, &forms.Request{
 					CreateItem: &forms.CreateItemRequest{
 						Item: pb,
@@ -210,13 +205,8 @@ func BuildRequestsFromWizard(wz *wizard.Wizard) ([]*forms.Request, error) {
 					Shuffle: false,
 				},
 			})
-			item.ItemId = encodeMetadata(st.ID(), st.TargetKey)
-			if item.QuestionItem != nil && item.QuestionItem.Question != nil {
-				item.QuestionItem.Question.QuestionId = encodeMetadata(st.ID(), st.TargetKey)
-			}
 			if index > 0 {
 				pb := newPageBreakItem(st.Title(), st.Description())
-				pb.ItemId = encodeMetadata(st.ID(), "pagebreak")
 				requests = append(requests, &forms.Request{
 					CreateItem: &forms.CreateItemRequest{
 						Item: pb,
@@ -247,10 +237,8 @@ func BuildRequestsFromWizard(wz *wizard.Wizard) ([]*forms.Request, error) {
 				displayContent = fmt.Sprintf("%s\n\n%s", st.Description(), st.Content)
 			}
 			item := newTextItem(st.Title(), displayContent)
-			item.ItemId = encodeMetadata(st.ID(), "info")
 			if index > 0 {
 				pb := newPageBreakItem(st.Title(), st.Description())
-				pb.ItemId = encodeMetadata(st.ID(), "pagebreak")
 				requests = append(requests, &forms.Request{
 					CreateItem: &forms.CreateItemRequest{
 						Item: pb,
