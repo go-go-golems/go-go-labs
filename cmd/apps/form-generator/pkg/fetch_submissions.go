@@ -11,6 +11,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/layers"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/glazed/pkg/middlewares"
+	"github.com/go-go-golems/glazed/pkg/settings"
 	"github.com/go-go-golems/glazed/pkg/types"
 	gauth "github.com/go-go-golems/go-go-labs/pkg/google/auth"
 	"github.com/rs/zerolog"
@@ -62,6 +63,13 @@ func NewFetchSubmissionsCommand() (*cobra.Command, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not create OAuth token store layers: %w", err)
 	}
+	glazedLayers, err := settings.NewGlazedParameterLayers()
+	if err != nil {
+		return nil, fmt.Errorf("could not create glazed parameter layers: %w", err)
+	}
+
+	layersList := oauthLayers.Clone().AsList()
+	layersList = append(layersList, glazedLayers.Clone())
 
 	desc := cmds.NewCommandDescription(
 		"fetch-submissions",
@@ -83,7 +91,7 @@ Download all responses for a form and map them back to the generated Wizard DSL 
 				parameters.WithDefault(false),
 			),
 		),
-		cmds.WithLayers(oauthLayers),
+		cmds.WithLayersList(layersList...),
 	)
 
 	c := &FetchSubmissionsCommand{CommandDescription: desc}

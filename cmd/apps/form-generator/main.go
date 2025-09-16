@@ -32,5 +32,9 @@ func main() {
 	cobra.CheckErr(err)
 	rootCmd.AddCommand(fetchSubmissionsCmd)
 
+	listCmd, err := formpkg.NewListFormsCommand()
+	cobra.CheckErr(err)
+	rootCmd.AddCommand(listCmd)
+
 	_ = rootCmd.Execute()
 }

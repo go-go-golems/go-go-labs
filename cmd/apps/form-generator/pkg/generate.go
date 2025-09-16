@@ -96,7 +96,7 @@ by replacing its items with the ones described in the DSL. You can optionally ov
 }
 
 // buildFormsAuthenticator constructs an authenticator for Google Forms with proper scopes from layers.
-func buildFormsAuthenticator(parsedLayers *layers.ParsedLayers) (*gauth.Authenticator, error) {
+func buildFormsAuthenticator(parsedLayers *layers.ParsedLayers, extraScopes ...string) (*gauth.Authenticator, error) {
 	// Parse auth settings
 	s := &gauth.AuthSettings{}
 	if err := parsedLayers.InitializeStruct(gauth.AuthSlug, s); err != nil {
@@ -114,7 +114,11 @@ func buildFormsAuthenticator(parsedLayers *layers.ParsedLayers) (*gauth.Authenti
 	// CreateOptionsFromSettings already appended default scopes; to ensure Forms scope,
 	// add it again (OAuth allows multiple). Forms requires forms.FormsBodyScope.
 	opts = append(opts, o...)
-	opts = append(opts, gauth.WithScopes(forms.FormsBodyScope))
+	scopes := []string{forms.FormsBodyScope}
+	if len(extraScopes) > 0 {
+		scopes = append(scopes, extraScopes...)
+	}
+	opts = append(opts, gauth.WithScopes(scopes...))
 
 	tokenStore, err := gauth.CreateTokenStoreFromLayers(parsedLayers)
 	if err != nil {

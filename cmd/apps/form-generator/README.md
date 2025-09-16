@@ -71,6 +71,16 @@ form-generator fetch-submissions --form-id 1ABC123def456GHI --output json
 
 Use the standard Glazed formatting flags (`--output`, `--output-file`, etc.) to emit tables, CSV, JSON, or templated reports. Each row includes the submission metadata, the corresponding wizard step and field identifiers, the raw answer value(s), and uploaded file metadata when available.
 
+### Listing Forms in Drive
+
+Inspect the Google Forms that you have access to and sort them by different metadata fields:
+
+```bash
+form-generator list --sort modified --desc --limit 25 --output table
+```
+
+You can sort by `name`, `created`, or `modified`, control the order with `--desc`, limit the number of results, and leverage all Glazed output flags to format the listing.
+
 ### Command Options
 
 - `--wizard`: Path to Uhoh wizard YAML file (required)
