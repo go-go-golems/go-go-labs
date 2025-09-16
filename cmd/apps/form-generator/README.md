@@ -9,7 +9,7 @@ The form-generator bridges the gap between declarative form definitions and Goog
 **Key capabilities:**
 - Converts Uhoh Wizard steps into Google Forms sections with page breaks
 - Maps DSL field types to appropriate Google Forms question types
-- Supports both creating new forms and updating existing ones
+- Supports creating new forms, updating them in place, and exporting a form back to the Wizard DSL
 - Handles authentication via OAuth2 with token persistence
 - Preserves field descriptions, required flags, and validation rules
 
@@ -43,11 +43,43 @@ form-generator generate --wizard survey.yaml --create
 
 ### Updating an Existing Form
 
-Append new items to an existing form:
+Replace the current form items with the content defined in the DSL:
 
 ```bash
 form-generator generate --wizard survey.yaml --form-id 1ABC123def456GHI
 ```
+
+The command removes any existing items in the target form before recreating them according to the DSL, so you always end up with an exact match.
+
+### Fetching an Existing Form
+
+Export an existing Google Form back into a Wizard DSL YAML document:
+
+```bash
+form-generator fetch --form-id 1ABC123def456GHI --output survey.yaml
+```
+
+The resulting YAML can be inspected or used as a starting point for subsequent edits.
+
+### Fetching Form Submissions
+
+Download all submissions for a form and stream them as structured rows that can be formatted by Glazed:
+
+```bash
+form-generator fetch-submissions --form-id 1ABC123def456GHI --output json
+```
+
+Use the standard Glazed formatting flags (`--output`, `--output-file`, etc.) to emit tables, CSV, JSON, or templated reports. Each row includes the submission metadata, the corresponding wizard step and field identifiers, the raw answer value(s), and uploaded file metadata when available.
+
+### Listing Forms in Drive
+
+Inspect the Google Forms that you have access to and sort them by different metadata fields:
+
+```bash
+form-generator list --sort modified --desc --limit 25 --output table
+```
+
+You can sort by `name`, `created`, or `modified`, control the order with `--desc`, limit the number of results, and leverage all Glazed output flags to format the listing.
 
 ### Command Options
 
