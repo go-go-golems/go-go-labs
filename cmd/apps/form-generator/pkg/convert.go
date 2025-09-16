@@ -223,6 +223,7 @@ func buildDecisionStep(stepID, title, description string, item *forms.Item, used
 func buildFormStep(stepID, title, description string, items []*forms.Item, usedFieldKeys map[string]int) (steps.Step, []FieldMetadata, error) {
 	fields := []*uform.Field{}
 	metas := []FieldMetadata{}
+	groupName := ""
 
 	for _, item := range items {
 		q := item.QuestionItem.Question
@@ -243,6 +244,9 @@ func buildFormStep(stepID, title, description string, items []*forms.Item, usedF
 			Description: strings.TrimSpace(item.Description),
 			Options:     options,
 		}
+		if q.Required {
+			field.Validation = append(field.Validation, &uform.Validation{Condition: "required"})
+		}
 		fields = append(fields, field)
 		metas = append(metas, FieldMetadata{
 			QuestionID: q.QuestionId,
@@ -259,6 +263,7 @@ func buildFormStep(stepID, title, description string, items []*forms.Item, usedF
 	}
 
 	group := &uform.Group{
+		Name:   groupName,
 		Fields: fields,
 	}
 	formStep := &steps.FormStep{
@@ -312,10 +317,34 @@ func mapOptions(opts []*forms.Option) []*uform.Option {
 		if label == "" {
 			continue
 		}
-		res = append(res, &uform.Option{Label: label, Value: label})
+		res = append(res, &uform.Option{Label: label, Value: canonicalOptionValue(label)})
 	}
 	if len(res) == 0 {
 		return nil
+	}
+	return res
+}
+
+func canonicalOptionValue(label string) string {
+	label = strings.ToLower(strings.TrimSpace(label))
+	var b strings.Builder
+	prevUnderscore := false
+	for _, r := range label {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+			prevUnderscore = false
+			continue
+		}
+		if prevUnderscore {
+			continue
+		}
+		b.WriteRune('_')
+		prevUnderscore = true
+	}
+	res := b.String()
+	res = strings.Trim(res, "_")
+	if res == "" {
+		res = "option"
 	}
 	return res
 }

@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -104,20 +105,25 @@ func (c *FetchCommand) Run(ctx context.Context, parsedLayers *layers.ParsedLayer
 		return fmt.Errorf("failed to convert form to wizard DSL: %w", err)
 	}
 
-	data, err := yaml.Marshal(wizard)
-	if err != nil {
+	var buf bytes.Buffer
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(2)
+	if err := enc.Encode(wizard); err != nil {
 		return fmt.Errorf("failed to marshal wizard DSL: %w", err)
+	}
+	if err := enc.Close(); err != nil {
+		return fmt.Errorf("failed to finalize YAML encoding: %w", err)
 	}
 
 	if settings.Output != "" {
-		if err := os.WriteFile(settings.Output, data, 0o644); err != nil {
+		if err := os.WriteFile(settings.Output, buf.Bytes(), 0o644); err != nil {
 			return fmt.Errorf("failed to write wizard file: %w", err)
 		}
 		fmt.Fprintf(os.Stderr, "Wrote wizard YAML to %s\n", settings.Output)
 		return nil
 	}
 
-	fmt.Printf("%s\n", string(data))
+	fmt.Printf("%s", buf.String())
 	return nil
 }
 
