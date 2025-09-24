@@ -1,8 +1,9 @@
 # The Complete Guide to VHS for Advanced TUI Testing and Documentation
 
 **Author**: AI Assistant  
-**Date**: June 26, 2025  
-**Project**: Advanced TUI Development with Bubbletea File Picker
+**Date**: Updated September 15, 2025  
+**Project**: Advanced TUI Development with Bubbletea File Picker  
+**VHS Version**: v0.8.0+
 
 ## Table of Contents
 
@@ -13,9 +14,11 @@
 5. [Validation Workflows](#validation-workflows)
 6. [Creating Documentation GIFs](#creating-documentation-gifs)
 7. [Real-World Examples](#real-world-examples)
-8. [Best Practices](#best-practices)
-9. [Troubleshooting](#troubleshooting)
-10. [Integration with Development Workflow](#integration-with-development-workflow)
+8. [Modern Best Practices (2025)](#modern-best-practices-2025)
+9. [Container and CI/CD Integration](#container-and-cicd-integration)
+10. [Performance Optimization](#performance-optimization)
+11. [Troubleshooting](#troubleshooting)
+12. [Integration with Development Workflow](#integration-with-development-workflow)
 
 ---
 
@@ -43,31 +46,78 @@
 
 ### Install VHS
 
+**Latest Installation Methods (September 2025):**
+
 ```bash
-# macOS with Homebrew
+# macOS with Homebrew (recommended)
 brew install vhs
 
-# Or with Go
+# Linux with package managers
+# Ubuntu/Debian
+curl -fsSL https://charm.sh/vhs/install.sh | bash
+
+# Arch Linux
+yay -S vhs
+
+# Or with Go (latest development version)
 go install github.com/charmbracelet/vhs@latest
 
-# Verify installation
+# Verify installation and check features
 vhs --version
+vhs --help
 ```
 
 ### Install Dependencies
 
-VHS requires a few additional tools:
+VHS requires additional tools for full functionality:
 
 ```bash
-# Install ttyd (for web-based terminal simulation)
-brew install ttyd
+# macOS
+brew install ttyd imagemagick
 
-# Install ImageMagick (for image processing)
-brew install imagemagick
+# Ubuntu/Debian  
+sudo apt update
+sudo apt install ttyd imagemagick
 
-# Install a font that supports Unicode (recommended)
-brew tap homebrew/cask-fonts
-brew install font-fira-code-nerd-font
+# Arch Linux
+sudo pacman -S ttyd imagemagick
+
+# Install modern fonts with better Unicode support
+# macOS
+brew install font-jetbrains-mono-nerd-font font-fira-code-nerd-font
+
+# Linux (manual installation)
+wget -P ~/.local/share/fonts \
+  'https://github.com/ryanoasis/nerd-fonts/releases/download/v3.0.2/JetBrainsMono.zip' && \
+  unzip ~/.local/share/fonts/JetBrainsMono.zip -d ~/.local/share/fonts/ && \
+  fc-cache -fv
+```
+
+### Modern Container-Based Setup
+
+For CI/CD and reproducible environments:
+
+```dockerfile
+# Dockerfile.vhs
+FROM ubuntu:22.04
+
+RUN apt-get update && apt-get install -y \
+    curl \
+    ttyd \
+    imagemagick \
+    fonts-jetbrains-mono \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install VHS
+RUN curl -fsSL https://charm.sh/vhs/install.sh | bash
+
+# Copy your app and VHS scripts
+COPY ./your-app /app/your-app
+COPY ./demo /app/demo
+WORKDIR /app
+
+# Run VHS scripts
+CMD ["sh", "-c", "find demo -name '*.tape' -exec vhs {} \\;"]
 ```
 
 ### Project Structure for VHS
@@ -657,6 +707,435 @@ Type "q"
 
 ---
 
+## Modern Best Practices (2025)
+
+### 1. Environment Consistency
+
+**Use Container-Based Workflows:**
+
+```yaml
+# .github/workflows/vhs-tests.yml
+name: VHS TUI Tests
+
+on: [push, pull_request]
+
+jobs:
+  ui-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Build TUI application
+        run: |
+          go build -o myapp .
+          
+      - name: Run VHS tests in container
+        run: |
+          docker build -f Dockerfile.vhs -t vhs-test .
+          docker run --rm -v $(pwd)/demo:/app/demo vhs-test
+          
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: vhs-outputs
+          path: |
+            demo/**/*.txt
+            demo/**/*.gif
+            demo/**/*.mp4
+```
+
+**VHS Configuration Standards:**
+
+```bash
+# vhs.config.tape - Global settings file
+Set Shell "zsh"              # Use consistent shell
+Set Theme "GitHub Dark"      # Professional theme for docs
+Set FontFamily "JetBrains Mono NL"
+Set FontSize 13
+Set Framerate 60             # Smooth animations
+Set PlaybackSpeed 1.0        # Real-time playback
+Set Margin 20               # Better framing
+Set MarginFill "#1e1e2e"    # Professional background
+```
+
+### 2. Advanced Script Organization
+
+**Modular Script Architecture:**
+
+```
+demo/
+├── config/
+│   ├── common.tape          # Shared settings
+│   └── themes.tape          # Theme definitions  
+├── components/              # Reusable script components
+│   ├── startup.tape         # App initialization
+│   ├── navigation.tape      # Common navigation patterns
+│   └── cleanup.tape         # Consistent exit sequences
+├── tests/
+│   ├── smoke/              # Quick validation tests
+│   ├── integration/        # Full workflow tests
+│   └── regression/         # Bug reproduction tests
+└── docs/
+    ├── features/           # Feature demonstration GIFs
+    ├── tutorials/          # Step-by-step guides
+    └── troubleshooting/    # Error scenario docs
+```
+
+**Script Composition Pattern:**
+
+```bash
+# demo/tests/integration/full-workflow.tape
+Source config/common.tape
+Source components/startup.tape
+
+# Main test logic
+Type "specific command"
+Sleep 1s
+
+Source components/cleanup.tape
+```
+
+### 3. Performance-Optimized Recording
+
+**Smart Timing Strategy:**
+
+```bash
+# Use dynamic timing based on operation type
+# Fast operations
+Type "ls"
+Sleep 200ms
+
+# Medium operations (file I/O)  
+Type "cat large-file.txt"
+Sleep 800ms
+
+# Heavy operations (searching, processing)
+Type "/search-term"
+Sleep 2s
+
+# UI rendering delays
+Type "F3"                    # Toggle view
+Sleep 500ms                  # Wait for render
+Screenshot demo/view.txt     # Capture result
+```
+
+**Optimized Output Settings:**
+
+```bash
+# For documentation (balance quality/size)
+Output demo.gif
+Set Width 1200
+Set Height 800
+Set Quality 80              # Reduce file size
+Set Framerate 30            # Smooth but efficient
+
+# For detailed testing (high fidelity)
+Output test.mp4
+Set Width 1600
+Set Height 1000
+Set Quality 100
+Set Framerate 60
+```
+
+### 4. Advanced Validation Techniques
+
+**Comprehensive Screenshot Validation:**
+
+```bash
+#!/bin/bash
+# validate-screenshots.sh
+
+# Define expected UI states
+declare -A expected_states=(
+    ["initial"]="File Browser.*test-files"
+    ["selected"]="▶.*file1.txt.*◀"
+    ["copied"]="Copied.*2.*files"
+    ["error"]="Error:.*Permission denied"
+)
+
+# Validate each state
+for state in "${!expected_states[@]}"; do
+    if grep -qP "${expected_states[$state]}" "demo/${state}.txt"; then
+        echo "✅ $state state valid"
+    else
+        echo "❌ $state state invalid"
+        echo "Expected: ${expected_states[$state]}"
+        echo "Actual:"
+        cat "demo/${state}.txt"
+        exit 1
+    fi
+done
+```
+
+**Automated Visual Regression Testing:**
+
+```bash
+#!/bin/bash
+# visual-regression-check.sh
+
+# Generate current screenshots
+vhs demo/baseline.tape
+
+# Compare with reference
+for file in demo/screenshots/*.txt; do
+    baseline="demo/reference/$(basename "$file")"
+    if [ -f "$baseline" ]; then
+        if ! diff -q "$file" "$baseline" > /dev/null; then
+            echo "❌ Visual regression detected in $(basename "$file")"
+            echo "Differences:"
+            diff "$baseline" "$file"
+            exit 1
+        fi
+    fi
+done
+
+echo "✅ No visual regressions detected"
+```
+
+---
+
+## Container and CI/CD Integration
+
+### 1. Docker-Based Testing Pipeline
+
+**Multi-Stage Dockerfile:**
+
+```dockerfile
+# Dockerfile.vhs-ci
+FROM golang:1.21-alpine AS builder
+WORKDIR /app
+COPY . .
+RUN go build -o myapp .
+
+FROM ubuntu:22.04 AS vhs-runner
+RUN apt-get update && apt-get install -y \
+    curl \
+    ttyd \
+    imagemagick \
+    fonts-jetbrains-mono \
+    xvfb \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install latest VHS
+RUN curl -fsSL https://charm.sh/vhs/install.sh | bash
+
+# Create virtual display for headless operation
+ENV DISPLAY=:99
+RUN mkdir -p /tmp/.X11-unix
+
+COPY --from=builder /app/myapp /app/
+COPY demo/ /app/demo/
+WORKDIR /app
+
+# Run with virtual display
+CMD ["sh", "-c", "Xvfb :99 -screen 0 1920x1080x24 & exec ./run-vhs-tests.sh"]
+```
+
+### 2. GitHub Actions Integration
+
+**Comprehensive CI Workflow:**
+
+```yaml
+# .github/workflows/vhs-comprehensive.yml
+name: Comprehensive VHS Testing
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  vhs-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        test-suite: [smoke, integration, regression]
+        
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+          
+      - name: Build application
+        run: go build -o myapp .
+        
+      - name: Install VHS
+        run: |
+          curl -fsSL https://charm.sh/vhs/install.sh | bash
+          sudo apt-get update
+          sudo apt-get install -y ttyd imagemagick fonts-jetbrains-mono
+          
+      - name: Create test environment
+        run: |
+          mkdir -p test-data
+          ./scripts/setup-test-data.sh
+          
+      - name: Run VHS test suite
+        run: |
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 1920x1080x24 &
+          sleep 2
+          ./scripts/run-vhs-suite.sh ${{ matrix.test-suite }}
+          
+      - name: Validate outputs
+        run: ./scripts/validate-vhs-outputs.sh
+        
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: vhs-results-${{ matrix.test-suite }}
+          path: |
+            demo/**/*.txt
+            demo/**/*.gif
+            demo/**/*.mp4
+            
+      - name: Update documentation
+        if: github.ref == 'refs/heads/main' && matrix.test-suite == 'integration'
+        run: |
+          # Copy generated GIFs to docs
+          cp demo/docs/**/*.gif docs/assets/
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add docs/assets/
+          git commit -m "Update VHS documentation GIFs" || exit 0
+          git push
+```
+
+### 3. Performance Monitoring
+
+**VHS Performance Profiler:**
+
+```bash
+#!/bin/bash
+# vhs-performance-profiler.sh
+
+echo "VHS Performance Profile Report"
+echo "================================"
+
+for tape in demo/**/*.tape; do
+    echo "Profiling: $tape"
+    
+    start_time=$(date +%s.%N)
+    timeout 60s vhs "$tape" || echo "TIMEOUT: $tape"
+    end_time=$(date +%s.%N)
+    
+    duration=$(echo "$end_time - $start_time" | bc)
+    echo "Duration: ${duration}s"
+    
+    # Check output file sizes
+    output=$(grep "^Output" "$tape" | head -1 | awk '{print $2}')
+    if [ -f "$output" ]; then
+        size=$(du -h "$output" | cut -f1)
+        echo "Output size: $size"
+    fi
+    
+    echo "---"
+done
+```
+
+---
+
+## Performance Optimization
+
+### 1. Recording Optimization
+
+**Efficient Recording Settings:**
+
+```bash
+# Optimized for CI/CD (faster execution)
+Set Framerate 15           # Lower framerate for CI
+Set Quality 60             # Balanced quality/speed
+Set PlaybackSpeed 1.5      # Faster playback
+
+# Optimized for Documentation (higher quality)
+Set Framerate 30
+Set Quality 90
+Set PlaybackSpeed 1.0
+```
+
+**Selective Output Generation:**
+
+```bash
+# Conditional output based on environment
+{% raw %}
+{{- if .CI }}
+Output test-results.txt     # Text only in CI
+{{- else }}
+Output demo.gif            # Full GIF for local dev
+Output demo.txt            # Text for validation
+{{- end }}
+{% endraw %}
+```
+
+### 2. Resource Management
+
+**Memory-Efficient Testing:**
+
+```bash
+#!/bin/bash
+# run-vhs-batched.sh - Process VHS scripts in batches
+
+batch_size=3
+scripts=(demo/**/*.tape)
+
+for ((i=0; i<${#scripts[@]}; i+=batch_size)); do
+    batch=("${scripts[@]:i:batch_size}")
+    
+    echo "Processing batch: ${batch[*]}"
+    
+    # Run batch in parallel with resource limits
+    for script in "${batch[@]}"; do
+        (
+            ulimit -m 512000  # 512MB memory limit
+            timeout 60s vhs "$script"
+        ) &
+    done
+    
+    wait  # Wait for batch to complete
+    
+    # Clean up temporary files
+    find /tmp -name "vhs-*" -mmin +5 -delete
+done
+```
+
+### 3. Caching Strategies
+
+**VHS Output Caching:**
+
+```bash
+#!/bin/bash
+# vhs-with-cache.sh
+
+script="$1"
+script_hash=$(shasum -a 256 "$script" | cut -d' ' -f1)
+cache_dir="$HOME/.vhs-cache"
+cached_output="$cache_dir/$script_hash"
+
+mkdir -p "$cache_dir"
+
+if [ -f "$cached_output" ]; then
+    echo "Using cached result for $script"
+    cp "$cached_output" "$(grep '^Output' "$script" | awk '{print $2}')"
+else
+    echo "Running VHS for $script"
+    vhs "$script"
+    # Cache the result
+    output_file=$(grep '^Output' "$script" | awk '{print $2}')
+    if [ -f "$output_file" ]; then
+        cp "$output_file" "$cached_output"
+    fi
+fi
+```
+
+---
+
 ## Best Practices
 
 ### 1. Script Organization
@@ -1075,31 +1554,90 @@ Type "q"
 
 ## Conclusion
 
-VHS is an incredibly powerful tool for TUI development that provides:
+VHS has evolved into an incredibly powerful and mature tool for TUI development that provides:
 
 - **Reliable Testing**: Automated, reproducible tests for complex UI interactions
-- **Beautiful Documentation**: Professional GIFs for README files and documentation
+- **Beautiful Documentation**: Professional GIFs for README files and documentation  
 - **Development Confidence**: Catch regressions early with automated validation
 - **Visual Debugging**: Screenshot capabilities for understanding UI state
+- **CI/CD Integration**: Seamless integration with modern development workflows
+- **Performance Optimization**: Advanced caching and batching for efficient testing
 
-### Key Takeaways
+### Modern Development Benefits (2025)
 
-1. **Start Simple**: Begin with basic scripts and gradually add complexity
-2. **Test Early**: Integrate VHS testing from the beginning of development
-3. **Document Visually**: Use GIFs to show features in action
-4. **Validate Continuously**: Screenshot-based validation catches UI regressions
-5. **Automate Everything**: Build VHS into your CI/CD pipeline
+1. **Container-First Approach**: Reproducible testing across all environments
+2. **Advanced Validation**: Automated visual regression testing and comprehensive screenshot validation
+3. **Performance Monitoring**: Built-in profiling and resource management
+4. **Modular Architecture**: Reusable script components and configuration management
+5. **Professional Output**: High-quality documentation assets with optimized settings
 
-### Next Steps
+### Implementation Roadmap
 
-1. Set up VHS in your project with the recommended directory structure
-2. Create basic validation scripts for your core features
-3. Build documentation GIFs for your README
-4. Integrate VHS testing into your development workflow
-5. Expand to cover edge cases and error conditions
+#### Phase 1: Foundation (Week 1)
+1. Set up VHS with container-based workflow
+2. Create modular script architecture
+3. Implement basic validation scripts
+4. Configure CI/CD pipeline integration
 
-VHS transforms TUI development from a manual, error-prone process into a automated, reliable, and well-documented workflow. It's an essential tool for any serious TUI application development.
+#### Phase 2: Optimization (Week 2-3)
+1. Add performance monitoring and caching
+2. Implement advanced validation techniques
+3. Create comprehensive test suites (smoke, integration, regression)
+4. Optimize output settings for different use cases
+
+#### Phase 3: Advanced Features (Week 4+)
+1. Visual regression testing pipeline
+2. Automated documentation generation
+3. Performance profiling and optimization
+4. Custom validation frameworks
+
+### Best Practices Summary
+
+1. **Environment Consistency**: Use containers and standardized configurations
+2. **Modular Design**: Break scripts into reusable components
+3. **Smart Validation**: Combine screenshot and behavioral testing
+4. **Performance First**: Implement caching and resource management
+5. **Automate Everything**: Full CI/CD integration with artifact management
+
+### Migration from Legacy VHS Setups
+
+If upgrading from older VHS implementations:
+
+```bash
+#!/bin/bash
+# migrate-vhs-setup.sh
+
+# 1. Update to latest VHS version
+curl -fsSL https://charm.sh/vhs/install.sh | bash
+
+# 2. Reorganize script structure
+mkdir -p demo/{config,components,tests/{smoke,integration,regression},docs}
+
+# 3. Convert old scripts to modular format
+for script in demo/*.tape; do
+    echo "Converting $script to modular format..."
+    # Add Source directives, extract common settings
+done
+
+# 4. Set up container workflow
+cp templates/Dockerfile.vhs-ci ./
+cp templates/.github-workflows-vhs.yml .github/workflows/
+
+echo "Migration complete. Review generated files and customize as needed."
+```
+
+### Future-Proofing Your VHS Setup
+
+As VHS continues to evolve, ensure your setup remains maintainable:
+
+1. **Version Pinning**: Pin VHS versions in your CI for consistency
+2. **Configuration Management**: Use centralized configuration files
+3. **Regular Updates**: Schedule quarterly reviews of VHS updates
+4. **Community Engagement**: Follow VHS releases and community best practices
+5. **Documentation**: Keep internal documentation updated with your specific workflows
+
+VHS has transformed from a simple terminal recording tool into a comprehensive TUI testing and documentation platform. By following the modern practices outlined in this guide, you'll create robust, maintainable, and professional TUI applications with confidence.
 
 ---
 
-*This guide was created based on real-world experience developing and testing the Bubbletea File Picker, demonstrating advanced TUI functionality including multi-selection, file operations, responsive layouts, and browser-style navigation history.*
+*This guide reflects real-world experience with VHS across multiple TUI projects as of September 2025, incorporating the latest features, best practices, and integration patterns for modern development workflows.*
