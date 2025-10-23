@@ -1,0 +1,9 @@
+# Binary
+pr-history-code-browser
+
+# Frontend
+frontend/node_modules/
+frontend/dist/*
+!frontend/dist/index.html
+frontend/.vite/
+
