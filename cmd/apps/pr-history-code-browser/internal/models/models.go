@@ -58,6 +58,13 @@ type AnalysisNote struct {
 	CreatedAt string `json:"created_at" db:"created_at"`
 }
 
+// AnalysisNoteWithRefs combines note with referenced commit and file
+type AnalysisNoteWithRefs struct {
+	AnalysisNote
+	Commit *Commit `json:"commit,omitempty"`
+	File   *File   `json:"file,omitempty"`
+}
+
 // PR represents a pull request slice
 type PR struct {
 	ID          int64  `json:"id" db:"id"`
@@ -79,6 +86,13 @@ type PRChangelog struct {
 	CreatedAt string `json:"created_at" db:"created_at"`
 }
 
+// PRChangelogWithRefs combines changelog entry with referenced commit and file
+type PRChangelogWithRefs struct {
+	PRChangelog
+	Commit *Commit `json:"commit,omitempty"`
+	File   *File   `json:"file,omitempty"`
+}
+
 // CommitWithFiles combines commit info with its changed files
 type CommitWithFiles struct {
 	Commit
@@ -98,8 +112,55 @@ type FileChange struct {
 // PRWithDetails combines PR info with related commits and notes
 type PRWithDetails struct {
 	PR
-	Changelog []PRChangelog  `json:"changelog"`
-	Notes     []AnalysisNote `json:"notes"`
+	Changelog []PRChangelogWithRefs  `json:"changelog"`
+	Notes     []AnalysisNoteWithRefs `json:"notes"`
+}
+
+// CommitWithRefs includes PR associations and related info
+type CommitWithRefsAndPRs struct {
+	CommitWithFiles
+	PRAssociations []PRAssociation `json:"pr_associations,omitempty"`
+	Notes          []AnalysisNote  `json:"notes,omitempty"`
+}
+
+// PRAssociation links a commit to PRs
+type PRAssociation struct {
+	PRID   int64  `json:"pr_id"`
+	PRName string `json:"pr_name"`
+	Action string `json:"action"`
+}
+
+// SymbolHistory tracks when a symbol was modified
+type SymbolHistory struct {
+	SymbolName string   `json:"symbol_name"`
+	SymbolKind string   `json:"symbol_kind"`
+	FilePath   string   `json:"file_path"`
+	Commits    []Commit `json:"commits"`
+}
+
+// FileWithHistory combines file with its commit history
+type FileWithHistory struct {
+	File
+	CommitCount    int               `json:"commit_count"`
+	RecentCommits  []Commit          `json:"recent_commits"`
+	RelatedFiles   []RelatedFile     `json:"related_files,omitempty"`
+	PRReferences   []PRReference     `json:"pr_references,omitempty"`
+	Notes          []AnalysisNote    `json:"notes,omitempty"`
+}
+
+// PRReference represents a PR that references a file
+type PRReference struct {
+	PRID      int64  `json:"pr_id"`
+	PRName    string `json:"pr_name"`
+	Action    string `json:"action"`
+	Details   string `json:"details"`
+	CreatedAt string `json:"created_at"`
+}
+
+// RelatedFile represents files often changed together
+type RelatedFile struct {
+	File
+	ChangeCount int `json:"change_count"`
 }
 
 // DB wraps the sqlite database connection
@@ -288,7 +349,7 @@ func (db *DB) GetPRs() ([]PR, error) {
 	return prs, rows.Err()
 }
 
-// GetPRByID retrieves a PR with its changelog and notes
+// GetPRByID retrieves a PR with its changelog and notes (with cross-references)
 func (db *DB) GetPRByID(id int64) (*PRWithDetails, error) {
 	// Get PR
 	var pr PR
@@ -304,12 +365,16 @@ func (db *DB) GetPRByID(id int64) (*PRWithDetails, error) {
 		pr.UpdatedAt = updatedAt.String
 	}
 
-	// Get changelog
+	// Get changelog with commit and file references
 	changelogQuery := `
-		SELECT id, pr_id, commit_id, file_id, action, details, created_at
-		FROM pr_changelog
-		WHERE pr_id = ?
-		ORDER BY created_at DESC
+		SELECT pcl.id, pcl.pr_id, pcl.commit_id, pcl.file_id, pcl.action, pcl.details, pcl.created_at,
+		       c.id, c.hash, c.subject, c.author_name, c.committed_at,
+		       f.id, f.path
+		FROM pr_changelog pcl
+		LEFT JOIN commits c ON pcl.commit_id = c.id
+		LEFT JOIN files f ON pcl.file_id = f.id
+		WHERE pcl.pr_id = ?
+		ORDER BY pcl.created_at DESC
 	`
 	rows, err := db.conn.Query(changelogQuery, id)
 	if err != nil {
@@ -317,12 +382,19 @@ func (db *DB) GetPRByID(id int64) (*PRWithDetails, error) {
 	}
 	defer rows.Close()
 
-	var changelog []PRChangelog
+	var changelog []PRChangelogWithRefs
 	for rows.Next() {
-		var entry PRChangelog
+		var entry PRChangelogWithRefs
 		var prID, commitID, fileID sql.NullInt64
 		var details sql.NullString
-		err := rows.Scan(&entry.ID, &prID, &commitID, &fileID, &entry.Action, &details, &entry.CreatedAt)
+		var cID sql.NullInt64
+		var cHash, cSubject, cAuthor, cCommittedAt sql.NullString
+		var fID sql.NullInt64
+		var fPath sql.NullString
+		
+		err := rows.Scan(&entry.ID, &prID, &commitID, &fileID, &entry.Action, &details, &entry.CreatedAt,
+			&cID, &cHash, &cSubject, &cAuthor, &cCommittedAt,
+			&fID, &fPath)
 		if err != nil {
 			return nil, err
 		}
@@ -341,15 +413,39 @@ func (db *DB) GetPRByID(id int64) (*PRWithDetails, error) {
 		if details.Valid {
 			entry.Details = details.String
 		}
+		
+		// Add commit reference
+		if cID.Valid {
+			entry.Commit = &Commit{
+				ID:          cID.Int64,
+				Hash:        cHash.String,
+				Subject:     cSubject.String,
+				AuthorName:  cAuthor.String,
+				CommittedAt: cCommittedAt.String,
+			}
+		}
+		
+		// Add file reference
+		if fID.Valid {
+			entry.File = &File{
+				ID:   fID.Int64,
+				Path: fPath.String,
+			}
+		}
+		
 		changelog = append(changelog, entry)
 	}
 
-	// Get related notes (tagged with PR name or mentioned in details)
+	// Get related notes with commit and file references
 	notesQuery := `
-		SELECT id, commit_id, file_id, note_type, note, tags, created_at
-		FROM analysis_notes
-		WHERE tags LIKE ?
-		ORDER BY created_at DESC
+		SELECT an.id, an.commit_id, an.file_id, an.note_type, an.note, an.tags, an.created_at,
+		       c.id, c.hash, c.subject, c.author_name, c.committed_at,
+		       f.id, f.path
+		FROM analysis_notes an
+		LEFT JOIN commits c ON an.commit_id = c.id
+		LEFT JOIN files f ON an.file_id = f.id
+		WHERE an.tags LIKE ?
+		ORDER BY an.created_at DESC
 	`
 	notesRows, err := db.conn.Query(notesQuery, "%"+pr.Name+"%")
 	if err != nil {
@@ -357,12 +453,19 @@ func (db *DB) GetPRByID(id int64) (*PRWithDetails, error) {
 	}
 	defer notesRows.Close()
 
-	var notes []AnalysisNote
+	var notes []AnalysisNoteWithRefs
 	for notesRows.Next() {
-		var note AnalysisNote
+		var note AnalysisNoteWithRefs
 		var commitID, fileID sql.NullInt64
 		var tags sql.NullString
-		err := notesRows.Scan(&note.ID, &commitID, &fileID, &note.NoteType, &note.Note, &tags, &note.CreatedAt)
+		var cID sql.NullInt64
+		var cHash, cSubject, cAuthor, cCommittedAt sql.NullString
+		var fID sql.NullInt64
+		var fPath sql.NullString
+		
+		err := notesRows.Scan(&note.ID, &commitID, &fileID, &note.NoteType, &note.Note, &tags, &note.CreatedAt,
+			&cID, &cHash, &cSubject, &cAuthor, &cCommittedAt,
+			&fID, &fPath)
 		if err != nil {
 			return nil, err
 		}
@@ -377,6 +480,26 @@ func (db *DB) GetPRByID(id int64) (*PRWithDetails, error) {
 		if tags.Valid {
 			note.Tags = tags.String
 		}
+		
+		// Add commit reference
+		if cID.Valid {
+			note.Commit = &Commit{
+				ID:          cID.Int64,
+				Hash:        cHash.String,
+				Subject:     cSubject.String,
+				AuthorName:  cAuthor.String,
+				CommittedAt: cCommittedAt.String,
+			}
+		}
+		
+		// Add file reference
+		if fID.Valid {
+			note.File = &File{
+				ID:   fID.Int64,
+				Path: fPath.String,
+			}
+		}
+		
 		notes = append(notes, note)
 	}
 
@@ -585,5 +708,311 @@ func (db *DB) GetStats() (map[string]interface{}, error) {
 	stats["pr_status_counts"] = prStatusCounts
 
 	return stats, nil
+}
+
+// GetCommitWithPRAssociations retrieves a commit with PR associations and notes
+func (db *DB) GetCommitWithPRAssociations(hash string) (*CommitWithRefsAndPRs, error) {
+	commit, err := db.GetCommitByHash(hash)
+	if err != nil {
+		return nil, err
+	}
+
+	files, err := db.GetCommitFiles(commit.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get PR associations
+	prQuery := `
+		SELECT DISTINCT p.id, p.name, pcl.action
+		FROM pr_changelog pcl
+		JOIN prs p ON pcl.pr_id = p.id
+		WHERE pcl.commit_id = ?
+		ORDER BY p.name
+	`
+	prRows, err := db.conn.Query(prQuery, commit.ID)
+	if err != nil {
+		return nil, err
+	}
+	defer prRows.Close()
+
+	var prAssociations []PRAssociation
+	for prRows.Next() {
+		var assoc PRAssociation
+		err := prRows.Scan(&assoc.PRID, &assoc.PRName, &assoc.Action)
+		if err != nil {
+			return nil, err
+		}
+		prAssociations = append(prAssociations, assoc)
+	}
+
+	// Get notes for this commit
+	notesQuery := `
+		SELECT id, commit_id, file_id, note_type, note, tags, created_at
+		FROM analysis_notes
+		WHERE commit_id = ?
+		ORDER BY created_at DESC
+	`
+	notesRows, err := db.conn.Query(notesQuery, commit.ID)
+	if err != nil {
+		return nil, err
+	}
+	defer notesRows.Close()
+
+	var notes []AnalysisNote
+	for notesRows.Next() {
+		var note AnalysisNote
+		var commitID, fileID sql.NullInt64
+		var tags sql.NullString
+		err := notesRows.Scan(&note.ID, &commitID, &fileID, &note.NoteType, &note.Note, &tags, &note.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		if commitID.Valid {
+			val := commitID.Int64
+			note.CommitID = &val
+		}
+		if fileID.Valid {
+			val := fileID.Int64
+			note.FileID = &val
+		}
+		if tags.Valid {
+			note.Tags = tags.String
+		}
+		notes = append(notes, note)
+	}
+
+	return &CommitWithRefsAndPRs{
+		CommitWithFiles: CommitWithFiles{
+			Commit:  *commit,
+			Files:   files,
+		},
+		PRAssociations: prAssociations,
+		Notes:          notes,
+	}, nil
+}
+
+// GetFileWithDetails retrieves file with history, related files, and notes
+func (db *DB) GetFileWithDetails(fileID int64, limit int) (*FileWithHistory, error) {
+	// Get file info
+	var file File
+	err := db.conn.QueryRow("SELECT id, path FROM files WHERE id = ?", fileID).Scan(&file.ID, &file.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get commit count
+	var commitCount int
+	err = db.conn.QueryRow(`
+		SELECT COUNT(DISTINCT cf.commit_id)
+		FROM commit_files cf
+		WHERE cf.file_id = ?
+	`, fileID).Scan(&commitCount)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get recent commits
+	commits, err := db.GetFileHistory(fileID, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	// Extract just commits
+	var recentCommits []Commit
+	for _, cwf := range commits {
+		recentCommits = append(recentCommits, cwf.Commit)
+	}
+
+	// Get files often changed together
+	relatedQuery := `
+		SELECT f.id, f.path, COUNT(DISTINCT cf1.commit_id) as change_count
+		FROM commit_files cf1
+		JOIN commit_files cf2 ON cf1.commit_id = cf2.commit_id AND cf2.file_id = ?
+		JOIN files f ON cf1.file_id = f.id
+		WHERE cf1.file_id != ?
+		GROUP BY f.id, f.path
+		ORDER BY change_count DESC
+		LIMIT 10
+	`
+	relatedRows, err := db.conn.Query(relatedQuery, fileID, fileID)
+	if err != nil {
+		return nil, err
+	}
+	defer relatedRows.Close()
+
+	var relatedFiles []RelatedFile
+	for relatedRows.Next() {
+		var rf RelatedFile
+		err := relatedRows.Scan(&rf.ID, &rf.Path, &rf.ChangeCount)
+		if err != nil {
+			return nil, err
+		}
+		relatedFiles = append(relatedFiles, rf)
+	}
+
+	// Get PR references for this file
+	prQuery := `
+		SELECT DISTINCT p.id, p.name, pcl.action, pcl.details, pcl.created_at
+		FROM pr_changelog pcl
+		JOIN prs p ON pcl.pr_id = p.id
+		WHERE pcl.file_id = ?
+		ORDER BY pcl.created_at DESC
+		LIMIT 20
+	`
+	prRows, err := db.conn.Query(prQuery, fileID)
+	if err != nil {
+		return nil, err
+	}
+	defer prRows.Close()
+
+	var prReferences []PRReference
+	for prRows.Next() {
+		var pr PRReference
+		err := prRows.Scan(&pr.PRID, &pr.PRName, &pr.Action, &pr.Details, &pr.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		prReferences = append(prReferences, pr)
+	}
+
+	// Get notes for this file
+	notesQuery := `
+		SELECT id, commit_id, file_id, note_type, note, tags, created_at
+		FROM analysis_notes
+		WHERE file_id = ?
+		ORDER BY created_at DESC
+		LIMIT 20
+	`
+	notesRows, err := db.conn.Query(notesQuery, fileID)
+	if err != nil {
+		return nil, err
+	}
+	defer notesRows.Close()
+
+	var notes []AnalysisNote
+	for notesRows.Next() {
+		var note AnalysisNote
+		var commitID, fileIDNull sql.NullInt64
+		var tags sql.NullString
+		err := notesRows.Scan(&note.ID, &commitID, &fileIDNull, &note.NoteType, &note.Note, &tags, &note.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		if commitID.Valid {
+			val := commitID.Int64
+			note.CommitID = &val
+		}
+		if fileIDNull.Valid {
+			val := fileIDNull.Int64
+			note.FileID = &val
+		}
+		if tags.Valid {
+			note.Tags = tags.String
+		}
+		notes = append(notes, note)
+	}
+
+	return &FileWithHistory{
+		File:          file,
+		CommitCount:   commitCount,
+		RecentCommits: recentCommits,
+		RelatedFiles:  relatedFiles,
+		PRReferences:  prReferences,
+		Notes:         notes,
+	}, nil
+}
+
+// GetSymbolHistory retrieves the history of a specific symbol
+func (db *DB) GetSymbolHistory(symbolName string, limit int) ([]SymbolHistory, error) {
+	query := `
+		SELECT DISTINCT cs.symbol_name, cs.symbol_kind, f.path
+		FROM commit_symbols cs
+		JOIN files f ON cs.file_id = f.id
+		WHERE cs.symbol_name = ?
+		ORDER BY f.path
+	`
+	rows, err := db.conn.Query(query, symbolName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var histories []SymbolHistory
+	for rows.Next() {
+		var sh SymbolHistory
+		err := rows.Scan(&sh.SymbolName, &sh.SymbolKind, &sh.FilePath)
+		if err != nil {
+			return nil, err
+		}
+
+		// Get commits for this symbol in this file
+		commitQuery := `
+			SELECT c.id, c.hash, c.parents, c.author_name, c.author_email, c.authored_at,
+			       c.committer_name, c.committer_email, c.committed_at, c.subject, c.body, c.document_summary
+			FROM commits c
+			JOIN commit_symbols cs ON c.id = cs.commit_id
+			JOIN files f ON cs.file_id = f.id
+			WHERE cs.symbol_name = ? AND f.path = ?
+			ORDER BY c.committed_at DESC
+			LIMIT ?
+		`
+		commitRows, err := db.conn.Query(commitQuery, symbolName, sh.FilePath, limit)
+		if err != nil {
+			return nil, err
+		}
+
+		var commits []Commit
+		for commitRows.Next() {
+			var c Commit
+			var docSummary sql.NullString
+			err := commitRows.Scan(
+				&c.ID, &c.Hash, &c.Parents, &c.AuthorName, &c.AuthorEmail, &c.AuthoredAt,
+				&c.CommitterName, &c.CommitterEmail, &c.CommittedAt, &c.Subject, &c.Body, &docSummary,
+			)
+			if err != nil {
+				commitRows.Close()
+				return nil, err
+			}
+			if docSummary.Valid {
+				c.DocumentSummary = json.RawMessage(docSummary.String)
+			}
+			commits = append(commits, c)
+		}
+		commitRows.Close()
+
+		sh.Commits = commits
+		histories = append(histories, sh)
+	}
+
+	return histories, nil
+}
+
+// SearchSymbols searches for symbols by name pattern
+func (db *DB) SearchSymbols(pattern string, limit int) ([]CommitSymbol, error) {
+	query := `
+		SELECT DISTINCT symbol_name, symbol_kind, file_id
+		FROM commit_symbols
+		WHERE symbol_name LIKE ?
+		ORDER BY symbol_name
+		LIMIT ?
+	`
+	rows, err := db.conn.Query(query, "%"+pattern+"%", limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var symbols []CommitSymbol
+	for rows.Next() {
+		var s CommitSymbol
+		err := rows.Scan(&s.SymbolName, &s.SymbolKind, &s.FileID)
+		if err != nil {
+			return nil, err
+		}
+		symbols = append(symbols, s)
+	}
+
+	return symbols, rows.Err()
 }
 

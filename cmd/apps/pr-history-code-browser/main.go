@@ -112,20 +112,24 @@ func runServer(config Config) error {
 		// Statistics
 		r.Get("/stats", handler.HandleGetStats)
 
-		// Commits
+		// Commits (enriched with PR associations and notes)
 		r.Get("/commits", handler.HandleListCommits)
 		r.Get("/commits/{hash}", handler.HandleGetCommit)
 
-		// PRs
+		// PRs (enriched with commit and file references)
 		r.Get("/prs", handler.HandleListPRs)
 		r.Get("/prs/{id}", handler.HandleGetPR)
 
-		// Files
+		// Files (enriched with history, related files, and notes)
 		r.Get("/files", handler.HandleListFiles)
-		r.Get("/files/{id}/history", handler.HandleGetFileHistory)
+		r.Get("/files/{id}/details", handler.HandleGetFileHistory)
 
 		// Analysis Notes
 		r.Get("/notes", handler.HandleListAnalysisNotes)
+
+		// Symbols (new cross-referencing endpoints)
+		r.Get("/symbols/history", handler.HandleGetSymbolHistory)
+		r.Get("/symbols/search", handler.HandleSearchSymbols)
 	})
 
 	// Serve frontend

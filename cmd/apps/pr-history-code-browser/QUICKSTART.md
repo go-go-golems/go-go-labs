@@ -67,10 +67,34 @@ Once running, you can:
 - **Home** - View repository statistics and overview
 - **Commits** - Browse all commits with search functionality
   - Click any commit to see details, changed files, and symbols
+  - **NEW:** See which PRs used this commit (cross-references)
+  - **NEW:** View analysis notes linked to the commit
 - **PRs** - View all PR slices with their status
   - Click any PR to see its changelog and analysis notes
+  - **NEW:** Changelog entries show full commit details (clickable hashes)
+  - **NEW:** See referenced files for each changelog entry
+  - **NEW:** Analysis notes show their related commits and files
 - **Files** - Browse tracked files with path prefix filtering
+  - **NEW:** Click any file to see its detailed history
+  - **NEW:** View files often changed together (co-change analysis)
+  - **NEW:** See recent commits and analysis notes for each file
 - **Notes** - View analysis notes with tag filtering
+
+### Key Cross-Referencing Features
+
+The app now provides **complete bidirectional cross-linking** between all entities:
+
+1. **Commit ↔ PRs**: See which PRs used each commit (and vice versa)
+2. **Commit ↔ Files**: View changed files with clickable links to file details
+3. **PR ↔ Files**: See which files were referenced in PR changelog (clickable)
+4. **File ↔ PRs**: NEW! See which PRs referenced each file
+5. **File ↔ Files**: Co-change analysis shows files often changed together
+6. **Notes ↔ Commits/Files**: All note references are clickable
+7. **Contextual Navigation**: Click any entity reference to navigate instantly
+
+**Every relationship is clickable!** Navigate seamlessly through your codebase history.
+
+See [CROSS-LINKING-COMPLETE.md](CROSS-LINKING-COMPLETE.md) for complete documentation.
 
 ## Troubleshooting
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import type { File } from '../types';
 
@@ -62,7 +63,16 @@ export function FilesPage() {
       <ul className="file-list">
         {files.map((file) => (
           <li key={file.id} className="file-item">
-            <code className="file-path">{file.path}</code>
+            <Link 
+              to={`/files/${file.id}`}
+              style={{
+                textDecoration: 'none',
+                color: 'inherit',
+                display: 'block',
+              }}
+            >
+              <code className="file-path">{file.path}</code>
+            </Link>
           </li>
         ))}
       </ul>

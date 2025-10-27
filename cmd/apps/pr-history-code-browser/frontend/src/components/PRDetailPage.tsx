@@ -61,7 +61,74 @@ export function PRDetailPage() {
               <div key={entry.id} className="changelog-item">
                 <span className="action-badge">{entry.action}</span>
                 <div style={{ flex: 1 }}>
-                  <div style={{ marginBottom: '0.25rem' }}>{entry.details}</div>
+                  <div style={{ marginBottom: '0.5rem', fontWeight: 500 }}>{entry.details}</div>
+                  
+                  {/* Show referenced commit */}
+                  {entry.commit && (
+                    <div style={{ 
+                      marginBottom: '0.5rem', 
+                      padding: '0.5rem', 
+                      backgroundColor: '#f8f9fa',
+                      borderLeft: '3px solid #3498db',
+                      borderRadius: '3px'
+                    }}>
+                      <div style={{ fontSize: '0.9rem', marginBottom: '0.25rem' }}>
+                        <strong>Commit:</strong>{' '}
+                        <Link 
+                          to={`/commits/${entry.commit.hash}`}
+                          style={{ 
+                            fontFamily: 'monospace', 
+                            color: '#3498db',
+                            textDecoration: 'none'
+                          }}
+                        >
+                          {entry.commit.hash.substring(0, 8)}
+                        </Link>
+                      </div>
+                      <div style={{ fontSize: '0.85rem', color: '#555' }}>
+                        {entry.commit.subject}
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: '#7f8c8d', marginTop: '0.25rem' }}>
+                        by {entry.commit.author_name} • {new Date(entry.commit.committed_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Show referenced file */}
+                  {entry.file && (
+                    <div style={{ 
+                      marginBottom: '0.5rem',
+                      fontSize: '0.9rem',
+                      fontFamily: 'monospace',
+                      display: 'inline-block'
+                    }}>
+                      📄{' '}
+                      {entry.file.id ? (
+                        <Link 
+                          to={`/files/${entry.file.id}`}
+                          style={{
+                            color: '#27ae60',
+                            textDecoration: 'none',
+                            backgroundColor: '#f0f0f0',
+                            padding: '0.25rem 0.5rem',
+                            borderRadius: '3px',
+                          }}
+                        >
+                          {entry.file.path}
+                        </Link>
+                      ) : (
+                        <span style={{
+                          color: '#27ae60',
+                          backgroundColor: '#f0f0f0',
+                          padding: '0.25rem 0.5rem',
+                          borderRadius: '3px',
+                        }}>
+                          {entry.file.path}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  
                   <div style={{ fontSize: '0.85rem', color: '#7f8c8d' }}>
                     {new Date(entry.created_at).toLocaleString()}
                   </div>
@@ -82,6 +149,51 @@ export function PRDetailPage() {
               <div key={note.id} className="note-item">
                 <div className="note-type">{note.note_type}</div>
                 <div className="note-text">{note.note}</div>
+                
+                {/* Show referenced commit */}
+                {note.commit && (
+                  <div style={{ marginTop: '0.5rem', fontSize: '0.9rem' }}>
+                    <strong>Related to commit:</strong>{' '}
+                    <Link 
+                      to={`/commits/${note.commit.hash}`}
+                      style={{ 
+                        fontFamily: 'monospace', 
+                        color: '#3498db',
+                        textDecoration: 'none'
+                      }}
+                    >
+                      {note.commit.hash.substring(0, 8)}
+                    </Link>
+                    {' - '}{note.commit.subject}
+                  </div>
+                )}
+                
+                {/* Show referenced file */}
+                {note.file && (
+                  <div style={{ 
+                    marginTop: '0.5rem',
+                    fontSize: '0.9rem',
+                  }}>
+                    <strong>Related to file:</strong>{' '}
+                    {note.file.id ? (
+                      <Link 
+                        to={`/files/${note.file.id}`}
+                        style={{
+                          fontFamily: 'monospace',
+                          color: '#27ae60',
+                          textDecoration: 'none'
+                        }}
+                      >
+                        {note.file.path}
+                      </Link>
+                    ) : (
+                      <span style={{ fontFamily: 'monospace', color: '#27ae60' }}>
+                        {note.file.path}
+                      </span>
+                    )}
+                  </div>
+                )}
+                
                 {note.tags && (
                   <div className="note-tags">
                     Tags: {note.tags.split(',').map((tag) => (

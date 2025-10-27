@@ -1,4 +1,4 @@
-import type { Commit, CommitDetails, PR, PRDetails, File, AnalysisNote, Stats } from '../types';
+import type { Commit, CommitDetails, PR, PRDetails, File, FileWithHistory, AnalysisNote, Stats } from '../types';
 
 const API_BASE = '/api';
 
@@ -55,6 +55,10 @@ export const api = {
 
   async getFileHistory(fileId: number, limit: number = 50): Promise<Commit[]> {
     return fetchJSON<Commit[]>(`${API_BASE}/files/${fileId}/history?limit=${limit}`);
+  },
+
+  async getFileDetails(fileId: number): Promise<FileWithHistory> {
+    return fetchJSON<FileWithHistory>(`${API_BASE}/files/${fileId}/details`);
   },
 
   // Analysis Notes

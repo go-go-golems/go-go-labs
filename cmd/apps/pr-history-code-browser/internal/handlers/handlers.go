@@ -48,7 +48,7 @@ func (h *Handler) HandleListCommits(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, commits)
 }
 
-// HandleGetCommit returns details for a specific commit
+// HandleGetCommit returns enriched details for a specific commit (with PR associations and notes)
 func (h *Handler) HandleGetCommit(w http.ResponseWriter, r *http.Request) {
 	hash := chi.URLParam(r, "hash")
 	if hash == "" {
@@ -56,31 +56,28 @@ func (h *Handler) HandleGetCommit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	commit, err := h.db.GetCommitByHash(hash)
+	// Use enriched version with PR associations
+	commitWithRefs, err := h.db.GetCommitWithPRAssociations(hash)
 	if err != nil {
-		log.Error().Err(err).Str("hash", hash).Msg("Failed to get commit")
+		log.Error().Err(err).Str("hash", hash).Msg("Failed to get commit with references")
 		http.Error(w, "Commit not found", http.StatusNotFound)
 		return
 	}
 
-	files, err := h.db.GetCommitFiles(commit.ID)
+	// Get symbols separately (not in CommitWithRefsAndPRs yet)
+	symbols, err := h.db.GetCommitSymbols(commitWithRefs.Commit.ID)
 	if err != nil {
-		log.Error().Err(err).Int64("commitID", commit.ID).Msg("Failed to get commit files")
-		http.Error(w, "Failed to get commit files", http.StatusInternalServerError)
-		return
-	}
-
-	symbols, err := h.db.GetCommitSymbols(commit.ID)
-	if err != nil {
-		log.Error().Err(err).Int64("commitID", commit.ID).Msg("Failed to get commit symbols")
+		log.Error().Err(err).Int64("commitID", commitWithRefs.Commit.ID).Msg("Failed to get commit symbols")
 		http.Error(w, "Failed to get commit symbols", http.StatusInternalServerError)
 		return
 	}
 
 	response := map[string]interface{}{
-		"commit":  commit,
-		"files":   files,
-		"symbols": symbols,
+		"commit":           commitWithRefs.Commit,
+		"files":            commitWithRefs.Files,
+		"symbols":          symbols,
+		"pr_associations":  commitWithRefs.PRAssociations,
+		"notes":            commitWithRefs.Notes,
 	}
 
 	respondJSON(w, response)
@@ -133,7 +130,7 @@ func (h *Handler) HandleListFiles(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, files)
 }
 
-// HandleGetFileHistory returns commit history for a file
+// HandleGetFileHistory returns enriched file details with history, related files, and notes
 func (h *Handler) HandleGetFileHistory(w http.ResponseWriter, r *http.Request) {
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
@@ -144,14 +141,14 @@ func (h *Handler) HandleGetFileHistory(w http.ResponseWriter, r *http.Request) {
 
 	limit := getIntParam(r, "limit", 50)
 
-	commits, err := h.db.GetFileHistory(id, limit)
+	fileWithDetails, err := h.db.GetFileWithDetails(id, limit)
 	if err != nil {
-		log.Error().Err(err).Int64("fileID", id).Msg("Failed to get file history")
-		http.Error(w, "Failed to get file history", http.StatusInternalServerError)
+		log.Error().Err(err).Int64("fileID", id).Msg("Failed to get file details")
+		http.Error(w, "Failed to get file details", http.StatusInternalServerError)
 		return
 	}
 
-	respondJSON(w, commits)
+	respondJSON(w, fileWithDetails)
 }
 
 // HandleListAnalysisNotes returns analysis notes
@@ -169,6 +166,46 @@ func (h *Handler) HandleListAnalysisNotes(w http.ResponseWriter, r *http.Request
 	}
 
 	respondJSON(w, notes)
+}
+
+// HandleGetSymbolHistory returns the history of a specific symbol
+func (h *Handler) HandleGetSymbolHistory(w http.ResponseWriter, r *http.Request) {
+	symbol := r.URL.Query().Get("symbol")
+	if symbol == "" {
+		http.Error(w, "Symbol name required", http.StatusBadRequest)
+		return
+	}
+
+	limit := getIntParam(r, "limit", 50)
+
+	history, err := h.db.GetSymbolHistory(symbol, limit)
+	if err != nil {
+		log.Error().Err(err).Str("symbol", symbol).Msg("Failed to get symbol history")
+		http.Error(w, "Failed to get symbol history", http.StatusInternalServerError)
+		return
+	}
+
+	respondJSON(w, history)
+}
+
+// HandleSearchSymbols searches for symbols by pattern
+func (h *Handler) HandleSearchSymbols(w http.ResponseWriter, r *http.Request) {
+	pattern := r.URL.Query().Get("q")
+	if pattern == "" {
+		http.Error(w, "Search pattern required", http.StatusBadRequest)
+		return
+	}
+
+	limit := getIntParam(r, "limit", 100)
+
+	symbols, err := h.db.SearchSymbols(pattern, limit)
+	if err != nil {
+		log.Error().Err(err).Str("pattern", pattern).Msg("Failed to search symbols")
+		http.Error(w, "Failed to search symbols", http.StatusInternalServerError)
+		return
+	}
+
+	respondJSON(w, symbols)
 }
 
 // Helper functions

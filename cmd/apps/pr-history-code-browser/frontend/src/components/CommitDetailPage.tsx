@@ -31,7 +31,7 @@ export function CommitDetailPage() {
     return null;
   }
 
-  const { commit, files, symbols } = details;
+  const { commit, files, symbols, pr_associations, notes } = details;
 
   return (
     <div>
@@ -79,7 +79,19 @@ export function CommitDetailPage() {
           {files.map((file, idx) => (
             <div key={idx} className="file-change">
               <span className={`change-type ${file.change_type}`}>{file.change_type}</span>
-              <code className="file-path">{file.path}</code>
+              {file.file_id ? (
+                <Link 
+                  to={`/files/${file.file_id}`}
+                  style={{
+                    textDecoration: 'none',
+                    color: 'inherit',
+                  }}
+                >
+                  <code className="file-path" style={{ cursor: 'pointer' }}>{file.path}</code>
+                </Link>
+              ) : (
+                <code className="file-path">{file.path}</code>
+              )}
               {file.old_path && file.old_path !== file.path && (
                 <span style={{ color: '#7f8c8d', fontSize: '0.9rem' }}>
                   (from {file.old_path})
@@ -93,6 +105,63 @@ export function CommitDetailPage() {
           ))}
         </div>
       </div>
+
+      {pr_associations && pr_associations.length > 0 && (
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title">Related PRs ({pr_associations.length})</h3>
+          </div>
+          <div>
+            {pr_associations.map((assoc, idx) => (
+              <div
+                key={idx}
+                style={{
+                  padding: '1rem',
+                  borderLeft: '3px solid #3498db',
+                  marginBottom: '1rem',
+                  backgroundColor: '#f8f9fa',
+                  cursor: 'pointer',
+                }}
+                onClick={() => (window.location.href = `/prs/${assoc.pr_id}`)}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <strong style={{ fontSize: '1.1rem' }}>{assoc.pr_name}</strong>
+                  <span className="action-badge">{assoc.action}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {notes && notes.length > 0 && (
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title">Analysis Notes ({notes.length})</h3>
+          </div>
+          <div>
+            {notes.map((note) => (
+              <div key={note.id} className="note-item">
+                <div className="note-type">{note.note_type}</div>
+                <div className="note-text">{note.note}</div>
+                {note.tags && (
+                  <div className="note-tags">
+                    Tags:{' '}
+                    {note.tags.split(',').map((tag) => (
+                      <span key={tag.trim()} className="tag">
+                        {tag.trim()}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#7f8c8d' }}>
+                  {new Date(note.created_at).toLocaleString()}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {symbols.length > 0 && (
         <div className="card">

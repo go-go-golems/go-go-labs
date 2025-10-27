@@ -29,10 +29,18 @@ export interface CommitSymbol {
   symbol_kind: string;
 }
 
+export interface PRAssociation {
+  pr_id: number;
+  pr_name: string;
+  action: string;
+}
+
 export interface CommitDetails {
   commit: Commit;
   files: FileChange[];
   symbols: CommitSymbol[];
+  pr_associations?: PRAssociation[];
+  notes?: AnalysisNote[];
 }
 
 export interface File {
@@ -57,6 +65,8 @@ export interface PRChangelog {
   action: string;
   details: string;
   created_at: string;
+  commit?: Commit;
+  file?: File;
 }
 
 export interface AnalysisNote {
@@ -67,6 +77,8 @@ export interface AnalysisNote {
   note: string;
   tags: string;
   created_at: string;
+  commit?: Commit;
+  file?: File;
 }
 
 export interface PRDetails {
@@ -88,5 +100,28 @@ export interface Stats {
   earliest_commit: string;
   latest_commit: string;
   pr_status_counts: Record<string, number>;
+}
+
+export interface RelatedFile {
+  path: string;
+  change_count: number;
+}
+
+export interface PRReference {
+  pr_id: number;
+  pr_name: string;
+  action: string;
+  details: string;
+  created_at: string;
+}
+
+export interface FileWithHistory {
+  id: number;
+  path: string;
+  commit_count: number;
+  recent_commits: Commit[];
+  related_files: RelatedFile[];
+  pr_references: PRReference[];
+  notes: AnalysisNote[];
 }
 
