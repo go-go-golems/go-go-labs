@@ -82,6 +82,26 @@ zine-layout/
   README.md
 ```
 
+### Bootstrap from the go-go template (recommended)
+
+Rather than wiring CI and release tooling manually each time, start from the reusable template repository:
+
+```bash
+# Discover the exact template slug (currently wesen/wesen-go-template)
+gh repo list wesen --limit 200 | grep template
+
+# Create the new repository
+gh repo create wesen/zine-layout \
+  --template=wesen/wesen-go-template \
+  --private \
+  --description "Standalone zine layout CLI extracted from go-go-labs"
+
+# Clone it next to go-go-labs
+gh repo clone wesen/zine-layout zine-layout
+```
+
+The template ships with `.github/workflows`, `.goreleaser.yaml`, `.golangci.yml`, `lefthook.yml`, and `Makefile` already in place, so you can focus on migrating the actual app.
+
 ## 3) Move Code Using mv
 
 Goal: Physically move the app and its library code into the new module while preserving history in your working tree.
@@ -106,6 +126,16 @@ cp go-go-labs/cmd/apps/zine-layouter/zine-layout-dsl.md zine-layout/doc/dsl.md
 ```
 
 Tip: Start by moving only what you need to build the CLI and its immediate dependencies. You can copy additional material later.
+
+### Alternative: rsync without touching .git
+
+When copying into a fresh repository, `rsync` keeps permissions and avoids dragging over the monorepo’s `.git` directory:
+
+```bash
+rsync -a --exclude='.git' go-go-labs/cmd/apps/zine-layouter/ zine-layout/
+```
+
+Follow up by deleting any template placeholders (for example `cmd/XXX`) that the template created.
 
 ## 4) Create go.mod and Add the Module to go.work
 
@@ -151,6 +181,8 @@ rg -n "go-go-labs/pkg/zinelayout" zine-layout
 
 Update imports accordingly in both the CLI and library packages. Don’t forget any docs with inline code snippets (e.g., `units_doc.md`).
 
+> **Shared helper tip:** if your app depends on something like `go-go-labs/pkg/google/auth`, consider copying it into your new repo under `internal/` so the extracted binary keeps working immediately. File a follow-up to deduplicate those helpers across apps later.
+
 ## 6) Replace Template Placeholders (XXX)
 
 Goal: Clean up any template boilerplate carried into the new module (names, paths, binaries).
@@ -194,6 +226,7 @@ Goal: Ensure the new module compiles cleanly under the workspace.
 cd zine-layout
 go mod tidy
 go build ./...
+go test ./...
 ```
 
 If the build fails:
@@ -270,6 +303,7 @@ Before you publish:
 - Ensure `go.mod` module path matches the intended GitHub repo.
 - Search for any remaining old import paths or `XXX` placeholders.
 - Consider adding a `doc/README.md` that indexes docs and examples.
+- Update your docmgr ticket: relate the new repo path, document analysis/design artifacts, and log the go.work/go.mod changes so future work picks up the same context.
 
 ## Troubleshooting
 
