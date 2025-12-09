@@ -11,8 +11,9 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	gauth "github.com/go-go-golems/go-go-labs/pkg/google/auth"
 	uhwizard "github.com/go-go-golems/uhoh/pkg/wizard"
+	uhsteps "github.com/go-go-golems/uhoh/pkg/wizard/steps"
 	"github.com/rs/zerolog"
-	// "github.com/rs/zerolog/log"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"google.golang.org/api/forms/v1"
 	"google.golang.org/api/option"
@@ -21,12 +22,12 @@ import (
 
 // GenerateSettings holds command parameters.
 type GenerateSettings struct {
-	WizardFile  string `glazed.parameter:"wizard"`
-	FormID      string `glazed.parameter:"form-id"`
-	Create      bool   `glazed.parameter:"create"`
-	Title       string `glazed.parameter:"title"`
-	Description string `glazed.parameter:"description"`
-	Debug       bool   `glazed.parameter:"debug"`
+	WizardFile  *parameters.FileData `glazed.parameter:"wizard"`
+	FormID      string                `glazed.parameter:"form-id"`
+	Create      bool                  `glazed.parameter:"create"`
+	Title       string                `glazed.parameter:"title"`
+	Description string                `glazed.parameter:"description"`
+	Debug       bool                  `glazed.parameter:"debug"`
 }
 
 type GenerateCommand struct {
@@ -146,19 +147,52 @@ func (c *GenerateCommand) Run(ctx context.Context, parsedLayers *layers.ParsedLa
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	}
 
-	// Load wizard DSL (file path or inline YAML content)
+	// Load wizard DSL from FileData
 	var wz *uhwizard.Wizard
-	if fi, err := os.Stat(settings.WizardFile); err == nil && !fi.IsDir() {
-		wz, err = uhwizard.LoadWizard(settings.WizardFile)
+	var yamlFile string
+	
+	if settings.WizardFile == nil {
+		return fmt.Errorf("wizard file is required")
+	}
+	
+	// FileData contains both path and content
+	yamlFile = settings.WizardFile.AbsolutePath
+	if yamlFile == "" {
+		yamlFile = settings.WizardFile.Path
+	}
+	
+	// Try to load from file path first
+	if yamlFile != "" && yamlFile != "stdin" {
+		log.Debug().Str("yamlFile", yamlFile).Msg("Loading wizard from file")
+		var err error
+		wz, err = uhwizard.LoadWizard(yamlFile)
 		if err != nil {
 			return fmt.Errorf("failed to load wizard DSL from file: %w", err)
 		}
 	} else {
+		// Fallback to content (for stdin or when path is not available)
+		log.Debug().Msg("Loading wizard from content")
 		var w uhwizard.Wizard
-		if err := yaml.Unmarshal([]byte(settings.WizardFile), &w); err != nil {
-			return fmt.Errorf("failed to load wizard DSL: neither a readable file path nor valid YAML content: %w", err)
+		content := settings.WizardFile.Content
+		if content == "" {
+			content = settings.WizardFile.StringContent
+		}
+		if err := yaml.Unmarshal([]byte(content), &w); err != nil {
+			return fmt.Errorf("failed to load wizard DSL from content: %w", err)
 		}
 		wz = &w
+		// Note: DecisionStep choices can't be fixed without file path
+		yamlFile = ""
+	}
+
+	// Fix DecisionStep choices by parsing options from YAML
+	if yamlFile != "" {
+		log.Debug().Str("yamlFile", yamlFile).Msg("Calling fixDecisionStepChoices")
+		if err := fixDecisionStepChoices(wz, yamlFile); err != nil {
+			return fmt.Errorf("failed to fix decision step choices: %w", err)
+		}
+	} else {
+		log.Debug().Msg("yamlFile is empty, skipping fixDecisionStepChoices")
 	}
 
 	// Determine form title/description defaults
@@ -214,6 +248,109 @@ func (c *GenerateCommand) Run(ctx context.Context, parsedLayers *layers.ParsedLa
 	}
 	if form.ResponderUri != "" {
 		fmt.Printf("Fill-in link: %s\n", form.ResponderUri)
+	}
+
+	return nil
+}
+
+// fixDecisionStepChoices extracts options from YAML and populates DecisionStep.Choices
+func fixDecisionStepChoices(wz *uhwizard.Wizard, yamlFile string) error {
+	log.Debug().Str("yamlFile", yamlFile).Int("steps", len(wz.Steps)).Msg("Fixing DecisionStep choices")
+	
+	data, err := os.ReadFile(yamlFile)
+	if err != nil {
+		return fmt.Errorf("failed to read YAML file: %w", err)
+	}
+
+	var rawWizard map[string]interface{}
+	if err := yaml.Unmarshal(data, &rawWizard); err != nil {
+		return fmt.Errorf("failed to parse YAML: %w", err)
+	}
+
+	steps, ok := rawWizard["steps"].([]interface{})
+	if !ok {
+		log.Debug().Msg("No steps found in YAML")
+		return nil // No steps to process
+	}
+	
+	log.Debug().Int("yamlSteps", len(steps)).Msg("Found steps in YAML")
+
+	// Create a map of step IDs to their raw YAML data
+	stepMap := make(map[string]map[string]interface{})
+	for i, stepRaw := range steps {
+		stepData, ok := stepRaw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		stepID, _ := stepData["id"].(string)
+		if stepID == "" {
+			stepID = fmt.Sprintf("step-%d", i)
+		}
+		stepMap[stepID] = stepData
+		log.Debug().Str("stepID", stepID).Str("type", fmt.Sprintf("%v", stepData["type"])).Msg("Mapped step from YAML")
+	}
+
+	// Fix DecisionStep choices
+	for i, step := range wz.Steps {
+		ds, ok := step.(*uhsteps.DecisionStep)
+		if !ok {
+			continue
+		}
+		
+		stepID := ds.ID()
+		if stepID == "" {
+			stepID = fmt.Sprintf("step-%d", i)
+		}
+		
+		log.Debug().Str("stepID", stepID).Msg("Processing DecisionStep")
+		
+		// Get raw step data
+		stepData, exists := stepMap[stepID]
+		if !exists {
+			log.Debug().Str("stepID", stepID).Msg("Step not found in stepMap")
+			// Try to find by index
+			if i < len(steps) {
+				if stepRaw, ok := steps[i].(map[string]interface{}); ok {
+					stepData = stepRaw
+					exists = true
+					log.Debug().Int("index", i).Msg("Found step by index")
+				}
+			}
+			if !exists {
+				continue
+			}
+		}
+
+		// Extract options from YAML
+		optionsRaw, ok := stepData["options"].([]interface{})
+		if !ok {
+			log.Debug().Str("stepID", stepID).Interface("stepData", stepData).Msg("No options field found in step data")
+			continue
+		}
+
+		choices := make([]string, 0, len(optionsRaw))
+		for _, optRaw := range optionsRaw {
+			optMap, ok := optRaw.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			// Prefer label, fallback to value
+			label, _ := optMap["label"].(string)
+			value, _ := optMap["value"].(string)
+			if label != "" {
+				choices = append(choices, label)
+			} else if value != "" {
+				choices = append(choices, value)
+			}
+		}
+
+		// Update the DecisionStep choices
+		if len(choices) > 0 {
+			log.Debug().Str("stepID", stepID).Int("choices", len(choices)).Strs("choices", choices).Msg("Updating DecisionStep choices")
+			ds.Choices = choices
+		} else {
+			log.Debug().Str("stepID", stepID).Msg("No choices extracted from options")
+		}
 	}
 
 	return nil

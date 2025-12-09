@@ -68,6 +68,9 @@ func fieldToItem(f *uform.Field) (*forms.Item, error) {
 			}
 			opts = append(opts, &forms.Option{Value: label})
 		}
+		if len(opts) == 0 {
+			return nil, fmt.Errorf("select field '%s' must have at least one option", f.Key)
+		}
 		item := newQuestionItem(f.Title, &forms.Question{
 			Required: required,
 			ChoiceQuestion: &forms.ChoiceQuestion{
@@ -87,6 +90,9 @@ func fieldToItem(f *uform.Field) (*forms.Item, error) {
 				label = fmt.Sprintf("%v", o.Value)
 			}
 			opts = append(opts, &forms.Option{Value: label})
+		}
+		if len(opts) == 0 {
+			return nil, fmt.Errorf("multiselect field '%s' must have at least one option", f.Key)
 		}
 		item := newQuestionItem(f.Title, &forms.Question{
 			Required: required,
@@ -151,7 +157,7 @@ func BuildRequestsFromWizard(wz *wizard.Wizard) ([]*forms.Request, error) {
 				for _, f := range g.Fields {
 					item, err := fieldToItem(f)
 					if err != nil {
-						continue
+						return nil, fmt.Errorf("failed to convert field '%s' in step '%s': %w", f.Key, st.ID(), err)
 					}
 					key := f.Key
 					if key == "" {
@@ -196,6 +202,10 @@ func BuildRequestsFromWizard(wz *wizard.Wizard) ([]*forms.Request, error) {
 			opts := make([]*forms.Option, 0, len(st.Choices))
 			for _, c := range st.Choices {
 				opts = append(opts, &forms.Option{Value: c})
+			}
+			if len(opts) == 0 {
+				log.Warn().Str("stepId", st.ID()).Msg("Skipping decision step with no choices")
+				continue
 			}
 			item := newQuestionItem(st.Title(), &forms.Question{
 				Required: true,
