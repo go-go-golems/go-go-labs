@@ -413,6 +413,8 @@ blecent_scan(void)
     struct ble_gap_disc_params disc_params;
     int rc;
 
+    ESP_LOGI(tag, "blecent_scan: starting BLE passive scan");
+
     /* Figure out address to use while advertising (no privacy for now) */
     rc = ble_hs_id_infer_auto(0, &own_addr_type);
     if (rc != 0) {
@@ -442,6 +444,8 @@ blecent_scan(void)
     if (rc != 0) {
         MODLOG_DFLT(ERROR, "Error initiating GAP discovery procedure; rc=%d\n",
                     rc);
+    } else {
+        ESP_LOGI(tag, "blecent_scan: GAP discovery started successfully");
     }
 }
 
@@ -559,6 +563,12 @@ blecent_gap_event(struct ble_gap_event *event, void *arg)
 
     switch (event->type) {
     case BLE_GAP_EVENT_DISC:
+        ESP_LOGI(tag,
+                 "GAP DISC: addr=%s rssi=%d event_type=%d length_data=%d",
+                 addr_str(event->disc.addr.val),
+                 event->disc.rssi,
+                 event->disc.event_type,
+                 event->disc.length_data);
         rc = ble_hs_adv_parse_fields(&fields, event->disc.data,
                                      event->disc.length_data);
         if (rc != 0) {
@@ -639,6 +649,8 @@ blecent_gap_event(struct ble_gap_event *event, void *arg)
     case BLE_GAP_EVENT_DISC_COMPLETE:
         MODLOG_DFLT(INFO, "discovery complete; reason=%d\n",
                     event->disc_complete.reason);
+        ESP_LOGI(tag, "blecent_gap_event: restarting scan after discovery complete");
+        blecent_scan();
         return 0;
 
     case BLE_GAP_EVENT_ENC_CHANGE:
@@ -717,6 +729,8 @@ blecent_on_sync(void)
     rc = ble_hs_util_ensure_addr(0);
     assert(rc == 0);
 
+    ESP_LOGI(tag, "blecent_on_sync: host synced, starting scan");
+
 #if !CONFIG_EXAMPLE_INIT_DEINIT_LOOP
     /* Begin scanning for a peripheral to connect to. */
     blecent_scan();
@@ -775,6 +789,8 @@ app_main(void)
     }
     ESP_ERROR_CHECK(ret);
 
+    ESP_LOGI(tag, "app_main: initializing NVS and NimBLE controller");
+
     ESP_ERROR_CHECK(esp_nimble_hci_and_controller_init());
 
     nimble_port_init();
@@ -786,13 +802,16 @@ app_main(void)
     /* Initialize data structures to track connected peers. */
     rc = peer_init(MYNEWT_VAL(BLE_MAX_CONNECTIONS), 64, 64, 64);
     assert(rc == 0);
+    ESP_LOGI(tag, "app_main: peer tracking initialized");
 
     /* Set the default device name. */
     rc = ble_svc_gap_device_name_set("nimble-blecent");
     assert(rc == 0);
+    ESP_LOGI(tag, "app_main: GAP device name set to nimble-blecent");
 
     /* XXX Need to have template for store */
     ble_store_config_init();
+    ESP_LOGI(tag, "app_main: store config initialized, starting host task");
 
     nimble_port_freertos_init(blecent_host_task);
 
