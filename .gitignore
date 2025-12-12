@@ -46,3 +46,8 @@ node_modules
 .cache/
 
 .gocache/
+
+# ESP-IDF / embedded build artifacts
+**/build/
+**/sdkconfig
+**/sdkconfig.old
