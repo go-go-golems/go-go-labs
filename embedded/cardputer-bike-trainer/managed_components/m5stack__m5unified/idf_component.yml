@@ -1,0 +1,11 @@
+dependencies:
+  m5stack/m5gfx:
+    version: ^0.2.8
+description: Unified library for M5Stack series
+issues: https://github.com/m5stack/M5Unified/issues
+repository: git://github.com/Forairaaaaa/M5Unified.git
+repository_info:
+  commit_sha: 07e91153c81b74cd71ab5cb10d871033f8e24b9c
+  path: .
+url: https://github.com/m5stack/M5Unified.git
+version: 0.2.7
