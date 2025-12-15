@@ -1192,6 +1192,31 @@ This is the breakthrough: the “binary file matches” in `globalStorage/state.
 - Where is the full assistant natural-language response stored (some type=2 bubbles have empty `text`, but contain large nested results/diffs)?
 - Do `checkpointId:*` entries contain a complete transcript snapshot, or only state diffs?
 
+---
+
+## Step 17: Migration + Safety — non-destructive rsync into `go-go-labs/ttmp` and committing frequently
+
+At this point the investigation produced a lot of artifacts (diary, analysis, scripts, exports). To avoid losing work and to align with your workflow, I moved the entire ticket folder into your real git repo and committed it immediately.
+
+### What I did
+- Located a real git repo containing `ttmp/`:
+  - `/home/manuel/code/wesen/corporate-headquarters/go-go-labs`
+- Per your instruction, migrated our `ttmp/` content using **non-destructive** rsync:
+  - **Source**: `/home/manuel/workspaces/2025-12-15/inspect-agent-conversations/ttmp/`
+  - **Dest**: `/home/manuel/code/wesen/corporate-headquarters/go-go-labs/ttmp/`
+  - Used `--backup` with a timestamp suffix so if anything already existed at the destination it would be preserved with a `.bak-<timestamp>` suffix.
+  - Did a `--dry-run` first, then the real sync.
+- Staged and committed only the ticket folder inside `go-go-labs`:
+  - `ttmp/2025/12/15/REVERSE-CURSOR-CONV-DB-001--reverse-engineer-cursor-conversation-database-format/`
+  - Commit: `876a677`
+
+### Why
+- The original workspace folder was not a git repo; committing wasn’t possible there.
+- Moving into `go-go-labs` ensures the work is durable and lets us commit more often going forward.
+
+### What I learned
+- `go-go-labs` already had many unrelated untracked/modified files, so being surgical about staging only our ticket folder was important.
+
 
 
 
