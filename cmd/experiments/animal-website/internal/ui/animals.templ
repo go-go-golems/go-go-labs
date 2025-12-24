@@ -1,0 +1,55 @@
+package ui
+
+import "github.com/go-go-golems/go-go-labs/cmd/experiments/animal-website/internal/animals"
+
+templ AnimalsPage(animalsList []animals.Animal) {
+	@Layout("Animals - Animal Website", AnimalsPageContent(animalsList))
+}
+
+templ AnimalsPageContent(animalsList []animals.Animal) {
+	<div class="d-flex justify-content-between align-items-center mb-4">
+		<h1>Animals ({ len(animalsList) })</h1>
+		<div>
+			<a href="/upload" class="btn btn-primary me-2">Upload CSV</a>
+			<button
+				type="button"
+				class="btn btn-danger"
+				hx-post="/animals/clear"
+				hx-target="#animals-list"
+				hx-swap="outerHTML"
+				hx-confirm="Are you sure you want to clear all animals?"
+			>Clear list</button>
+		</div>
+	</div>
+	<div id="animals-list">
+		@AnimalsList(animalsList)
+	</div>
+}
+
+templ AnimalsList(animalsList []animals.Animal) {
+	<div class="table-responsive">
+		<table class="table table-striped">
+			<thead>
+				<tr>
+					<th scope="col">#</th>
+					<th scope="col">Name</th>
+				</tr>
+			</thead>
+			<tbody>
+				if len(animalsList) == 0 {
+					<tr>
+						<td colspan="2" class="text-center text-muted">No animals yet. Upload a CSV to get started!</td>
+					</tr>
+				} else {
+					for i, animal := range animalsList {
+						<tr>
+							<td>{ i + 1 }</td>
+							<td>{ animal.Name }</td>
+						</tr>
+					}
+				}
+			</tbody>
+		</table>
+	</div>
+}
+
