@@ -1,0 +1,14 @@
+/* Custom styles for animal website */
+
+body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.navbar {
+	margin-bottom: 2rem;
+}
+
+.table {
+	margin-top: 1rem;
+}
+
