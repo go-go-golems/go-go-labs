@@ -301,6 +301,8 @@ You also mentioned Docker Compose is currently stopped, which means `/dev/ttyUSB
 
 This step adds a small set of runnable scripts to explore the dongle at progressively lower levels: (1) connect via zigpy-znp and dump coordinator/network info, (2) do ZDO discovery against a target node, (3) send raw ZCL payloads via AF.DataRequest, and (4) sniff incoming AF messages. I also added a raw pyserial SYS.Ping script to demonstrate ZNP framing without any zigpy-znp abstractions.
 
+**Commit (code):** de05c39102de1d0b9e8f3d40e1534fc5aaa8c387 — "zigbee: add low-level ZNP/ZDO/ZCL scripts"
+
 At the moment I tried to validate access to `/dev/ttyUSB0` and noticed the Sonoff dongle is no longer present on USB (no `/dev/ttyUSB*`, no `/dev/serial/by-id`, and `lsusb` doesn’t show `10c4:ea60`). Once it’s reattached, these scripts can be used directly.
 
 ### What I did
