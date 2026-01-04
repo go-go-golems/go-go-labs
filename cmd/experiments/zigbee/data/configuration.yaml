@@ -1,0 +1,49 @@
+version: 4
+mqtt:
+  base_topic: zigbee2mqtt
+  server: mqtt://mosquitto:1883
+# permit_join: true
+advanced:
+  log_level: info
+  channel: 20
+  network_key:
+    - 179
+    - 39
+    - 49
+    - 135
+    - 28
+    - 5
+    - 188
+    - 12
+    - 108
+    - 163
+    - 51
+    - 158
+    - 228
+    - 98
+    - 233
+    - 61
+  pan_id: 58637
+  ext_pan_id:
+    - 156
+    - 151
+    - 255
+    - 175
+    - 240
+    - 251
+    - 140
+    - 188
+homeassistant:
+  enabled: false
+onboarding: false
+serial:
+  port: /dev/ttyUSB0
+  adapter: zstack
+  baudrate: 115200
+  rtscts: false
+frontend:
+  enabled: true
+  port: 8080
+devices:
+  '0x282c02bfffe69870':
+    friendly_name: '0x282c02bfffe69870'
