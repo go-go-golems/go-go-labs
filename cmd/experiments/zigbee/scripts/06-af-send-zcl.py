@@ -13,6 +13,7 @@ import zigpy_znp.api as znp_api
 import zigpy_znp.commands as c
 import zigpy_znp.config as znp_conf
 import zigpy_znp.types as t
+from zigpy_znp.commands.af import LatencyReq, TransmitOptions
 
 
 def _parse_u8(value: str) -> int:
@@ -139,6 +140,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
         action="store_false",
         help="Do not request APS ACK.",
     )
+    parser.add_argument(
+        "--pin-toggle-skip-bootloader",
+        action="store_true",
+        help="Enable zigpy-znp RTS/DTR toggling to skip bootloader/reset (off by default).",
+    )
     return parser
 
 
@@ -186,12 +192,17 @@ async def run(args: argparse.Namespace) -> int:
                 zconf.CONF_DEVICE_BAUDRATE: args.baudrate,
                 zconf.CONF_DEVICE_FLOW_CONTROL: None,
             }
+            ,
+            znp_conf.CONF_ZNP_CONFIG: {
+                znp_conf.CONF_SKIP_BOOTLOADER: bool(args.pin_toggle_skip_bootloader),
+            },
         }
     )
 
     znp = znp_api.ZNP(cfg)
     try:
         await znp.connect()
+        await znp.request(c.ZDO.StartupFromApp.Req(StartDelay=0))
 
         # Register a client-style HA endpoint so we can send/receive ZCL.
         out_clusters = [t.ClusterId(args.cluster)]
@@ -201,18 +212,18 @@ async def run(args: argparse.Namespace) -> int:
                 ProfileId=t.uint16_t(args.profile),
                 DeviceId=t.uint16_t(args.device_id),
                 DeviceVersion=t.uint8_t(0),
-                LatencyReq=c.AF.LatencyReq.NoLatencyReqs,
+                LatencyReq=LatencyReq.NoLatencyReqs,
                 InputClusters=t.ClusterIdList([]),
                 OutputClusters=t.ClusterIdList(out_clusters),
             )
         )
 
         tsn = int.from_bytes(os.urandom(1), "little")
-        opts = c.AF.TransmitOptions.NONE
+        opts = TransmitOptions.NONE
         if args.ack:
-            opts |= c.AF.TransmitOptions.ACK_REQUEST
+            opts |= TransmitOptions.ACK_REQUEST
         if args.security:
-            opts |= c.AF.TransmitOptions.ENABLE_SECURITY
+            opts |= TransmitOptions.ENABLE_SECURITY
 
         await znp.request(
             c.AF.DataRequest.Req(
@@ -254,4 +265,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

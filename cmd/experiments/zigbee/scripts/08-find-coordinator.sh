@@ -14,5 +14,15 @@ fi
 
 echo
 echo "=== tty devices ==="
-ls -l /dev/ttyUSB* /dev/ttyACM* 2>/dev/null || echo "No /dev/ttyUSB* or /dev/ttyACM* devices found"
-
+found=0
+if compgen -G "/dev/ttyUSB*" > /dev/null; then
+  ls -l /dev/ttyUSB*
+  found=1
+fi
+if compgen -G "/dev/ttyACM*" > /dev/null; then
+  ls -l /dev/ttyACM*
+  found=1
+fi
+if [ "$found" -eq 0 ]; then
+  echo "No /dev/ttyUSB* or /dev/ttyACM* devices found"
+fi

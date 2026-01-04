@@ -60,6 +60,17 @@ def build_arg_parser() -> argparse.ArgumentParser:
         default=str(Path("data") / "database.db"),
         help="Zigbee2MQTT JSONL database (optional).",
     )
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=15.0,
+        help="Seconds to wait for each ZDO response (default: 15).",
+    )
+    parser.add_argument(
+        "--pin-toggle-skip-bootloader",
+        action="store_true",
+        help="Enable zigpy-znp RTS/DTR toggling to skip bootloader/reset (off by default).",
+    )
     return parser
 
 
@@ -77,6 +88,10 @@ async def run(args: argparse.Namespace) -> int:
                 zconf.CONF_DEVICE_BAUDRATE: args.baudrate,
                 zconf.CONF_DEVICE_FLOW_CONTROL: None,
             }
+            ,
+            znp_conf.CONF_ZNP_CONFIG: {
+                znp_conf.CONF_SKIP_BOOTLOADER: bool(args.pin_toggle_skip_bootloader),
+            },
         }
     )
 
@@ -85,11 +100,11 @@ async def run(args: argparse.Namespace) -> int:
         await znp.connect()
 
         # Active Endpoints
-        await znp.request(
-            c.ZDO.ActiveEpReq.Req(DstAddr=nwk, NWKAddrOfInterest=nwk)
-        )
-        active_rsp = await znp.wait_for_response(
-            c.ZDO.ActiveEpRsp.Callback(partial=True, Src=nwk, NWK=nwk)
+        await znp.request(c.ZDO.StartupFromApp.Req(StartDelay=0))
+        active_rsp = await znp.request_callback_rsp(
+            request=c.ZDO.ActiveEpReq.Req(DstAddr=nwk, NWKAddrOfInterest=nwk),
+            callback=c.ZDO.ActiveEpRsp.Callback(partial=True, Src=nwk, NWK=nwk),
+            timeout=args.timeout,
         )
 
         eps = list(active_rsp.ActiveEndpoints)
@@ -98,24 +113,23 @@ async def run(args: argparse.Namespace) -> int:
 
         # Simple Descriptor per EP
         for ep in eps:
-            await znp.request(
-                c.ZDO.SimpleDescReq.Req(
+            simple_rsp = await znp.request_callback_rsp(
+                request=c.ZDO.SimpleDescReq.Req(
                     DstAddr=nwk, NWKAddrOfInterest=nwk, Endpoint=ep
-                )
-            )
-            simple_rsp = await znp.wait_for_response(
-                c.ZDO.SimpleDescRsp.Callback(partial=True, Src=nwk, NWK=nwk)
+                ),
+                callback=c.ZDO.SimpleDescRsp.Callback(partial=True, Src=nwk, NWK=nwk),
+                timeout=args.timeout,
             )
 
             desc = simple_rsp.SimpleDescriptor
-            in_clusters = [int(x) for x in desc.InputClusters]
-            out_clusters = [int(x) for x in desc.OutputClusters]
+            in_clusters = [int(x) for x in desc.input_clusters]
+            out_clusters = [int(x) for x in desc.output_clusters]
 
             print()
             print(f"endpoint: {ep}")
-            print(f"  profile_id: {_hex_u16(int(desc.ProfileId))}")
-            print(f"  device_id: {_hex_u16(int(desc.DeviceId))}")
-            print(f"  device_version: {int(desc.DeviceVersion)}")
+            print(f"  profile_id: {_hex_u16(int(desc.profile))}")
+            print(f"  device_id: {_hex_u16(int(desc.device_type))}")
+            print(f"  device_version: {int(desc.device_version)}")
             print(f"  in_clusters: {[ _hex_u16(x) for x in in_clusters ]}")
             print(f"  out_clusters: {[ _hex_u16(x) for x in out_clusters ]}")
 

@@ -71,6 +71,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Print network keys (sensitive).",
     )
+    parser.add_argument(
+        "--pin-toggle-skip-bootloader",
+        action="store_true",
+        help="Enable zigpy-znp RTS/DTR toggling to skip bootloader/reset (off by default).",
+    )
     return parser
 
 
@@ -92,6 +97,10 @@ async def run(args: argparse.Namespace) -> int:
                 zconf.CONF_DEVICE_BAUDRATE: args.baudrate,
                 zconf.CONF_DEVICE_FLOW_CONTROL: flow_control,
             }
+            ,
+            znp_conf.CONF_ZNP_CONFIG: {
+                znp_conf.CONF_SKIP_BOOTLOADER: bool(args.pin_toggle_skip_bootloader),
+            },
         }
     )
 
@@ -142,4 +151,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

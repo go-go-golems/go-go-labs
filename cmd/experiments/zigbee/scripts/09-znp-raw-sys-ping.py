@@ -95,13 +95,13 @@ def main() -> int:
         print(f"rx_payload_hex: {payload.hex()}")
 
         # SYS.Ping SRSP payload is MTCapabilities (u32, little-endian)
-        if len(payload) == 4:
+        if len(payload) in (2, 4):
             caps = int.from_bytes(payload, "little")
-            print(f"capabilities_u32: 0x{caps:08x}")
+            width = len(payload) * 2
+            print(f"capabilities_u{len(payload)*8}: 0x{caps:0{width}x}")
 
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

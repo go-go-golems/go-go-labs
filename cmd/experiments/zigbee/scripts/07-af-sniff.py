@@ -11,6 +11,7 @@ import zigpy_znp.api as znp_api
 import zigpy_znp.commands as c
 import zigpy_znp.config as znp_conf
 import zigpy_znp.types as t
+from zigpy_znp.commands.af import LatencyReq
 
 
 def _parse_u8(value: str) -> int:
@@ -71,6 +72,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="Comma-separated cluster IDs to register as client (out clusters).",
     )
     parser.add_argument("--seconds", type=int, default=60)
+    parser.add_argument(
+        "--pin-toggle-skip-bootloader",
+        action="store_true",
+        help="Enable zigpy-znp RTS/DTR toggling to skip bootloader/reset (off by default).",
+    )
     return parser
 
 
@@ -89,12 +95,17 @@ async def run(args: argparse.Namespace) -> int:
                 zconf.CONF_DEVICE_BAUDRATE: args.baudrate,
                 zconf.CONF_DEVICE_FLOW_CONTROL: None,
             }
+            ,
+            znp_conf.CONF_ZNP_CONFIG: {
+                znp_conf.CONF_SKIP_BOOTLOADER: bool(args.pin_toggle_skip_bootloader),
+            },
         }
     )
 
     znp = znp_api.ZNP(cfg)
     try:
         await znp.connect()
+        await znp.request(c.ZDO.StartupFromApp.Req(StartDelay=0))
 
         await znp.request(
             c.AF.Register.Req(
@@ -102,7 +113,7 @@ async def run(args: argparse.Namespace) -> int:
                 ProfileId=t.uint16_t(args.profile),
                 DeviceId=t.uint16_t(0x0000),
                 DeviceVersion=t.uint8_t(0),
-                LatencyReq=c.AF.LatencyReq.NoLatencyReqs,
+                LatencyReq=LatencyReq.NoLatencyReqs,
                 InputClusters=t.ClusterIdList([]),
                 OutputClusters=t.ClusterIdList(out_clusters),
             )
