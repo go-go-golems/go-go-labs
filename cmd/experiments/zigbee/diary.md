@@ -257,3 +257,88 @@ There is a recurring “Failed to configure” message that looks like a convert
 
 ### Code review instructions
 - Verify MQTT control works by publishing to `zigbee2mqtt/<friendly_name>/set` with `{\"state\":\"ON\"}` / `{\"state\":\"OFF\"}` (or using the UI).
+
+## Step 7: Store debugging Python as scripts
+
+You asked me to stop running ad-hoc Python inline and instead save it under `scripts/` with increasing numeric prefixes so the exact investigations are reproducible later. I added scripts that reproduce the inline checks I previously ran while inspecting zigpy-znp framing and API internals.
+
+You also mentioned Docker Compose is currently stopped, which means `/dev/ttyUSB0` should be free if you want to run any ZNP experiments directly against the dongle.
+
+### What I did
+- Added:
+  - `scripts/01-znp-versions.py` (prints installed versions and interpreter path)
+  - `scripts/02-znp-sys-version-frame.py` (prints the raw ZNP transport frame bytes for `SYS.Version`)
+  - `scripts/03-znp-inspect-api.py` (prints the source for key zigpy-znp methods)
+
+### Why
+- Make the investigation steps reproducible and easier to retrace without retyping one-off commands.
+
+### What worked
+- N/A (these are saved for you to run as needed).
+
+### What didn't work
+- N/A.
+
+### What I learned
+- zigpy-znp provides a clear reference implementation for MT framing (`TransportFrame`) and command headers (`CommandHeader`), which is a useful ground-truth when implementing a custom ZNP host.
+
+### What was tricky to build
+- Keeping scripts focused: enough output to be useful, without dumping the entire dependency tree.
+
+### What warrants a second pair of eyes
+- N/A.
+
+### What should be done in the future
+- When you start doing real ZCL sends via `AF.DataRequest`, add a dedicated script that connects to `/dev/ttyUSB0`, registers an endpoint, and sends a single ZCL On/Off command end-to-end.
+
+### Code review instructions
+- Run scripts with:
+  - `python3 scripts/01-znp-versions.py`
+  - `python3 scripts/02-znp-sys-version-frame.py`
+  - `python3 scripts/03-znp-inspect-api.py`
+
+## Step 8: Add low-level ZNP/ZDO/ZCL helper scripts
+
+This step adds a small set of runnable scripts to explore the dongle at progressively lower levels: (1) connect via zigpy-znp and dump coordinator/network info, (2) do ZDO discovery against a target node, (3) send raw ZCL payloads via AF.DataRequest, and (4) sniff incoming AF messages. I also added a raw pyserial SYS.Ping script to demonstrate ZNP framing without any zigpy-znp abstractions.
+
+At the moment I tried to validate access to `/dev/ttyUSB0` and noticed the Sonoff dongle is no longer present on USB (no `/dev/ttyUSB*`, no `/dev/serial/by-id`, and `lsusb` doesn’t show `10c4:ea60`). Once it’s reattached, these scripts can be used directly.
+
+### What I did
+- Added scripts:
+  - `scripts/04-znp-connect-info.py` (SYS/NVRAM info; optional `--show-keys`)
+  - `scripts/05-zdo-discover.py` (ActiveEP + SimpleDesc via ZDO)
+  - `scripts/06-af-send-zcl.py` (AF.DataRequest with raw ZCL or `--onoff`)
+  - `scripts/07-af-sniff.py` (listen for AF.IncomingMsg; prints ZCL header hints)
+  - `scripts/08-find-coordinator.sh` (find dongle USB + serial paths)
+  - `scripts/09-znp-raw-sys-ping.py` (raw ZNP SYS.Ping using pyserial)
+- Verified scripts compile / shellcheck cleanly (syntax-only).
+
+### Why
+- Provide a “close to the metal” playground with reproducible commands and minimal hidden behavior.
+
+### What worked
+- Scripts are in place and compile.
+
+### What didn't work
+- The coordinator device node disappeared during validation (`/dev/ttyUSB0` not present; `lsusb` did not show the CP210x bridge).
+
+### What I learned
+- If the dongle is unplugged (or USB resets), `/dev/serial/by-id` may not exist at all; `scripts/08-find-coordinator.sh` makes it obvious when it’s back.
+
+### What was tricky to build
+- Registering a “client” endpoint correctly: for controller behavior, clusters should be registered in the **output** cluster list.
+
+### What warrants a second pair of eyes
+- Confirm the chosen `src_ep` default (20) doesn’t conflict with any firmware-reserved endpoints for your specific Z-Stack build.
+
+### What should be done in the future
+- Add a script that performs a single end-to-end ZCL Read Attributes + parses the response entries (type/value) for power/voltage/current.
+
+### Code review instructions
+- Reattach the dongle and run:
+  - `scripts/08-find-coordinator.sh`
+  - `python3 scripts/04-znp-connect-info.py`
+  - `python3 scripts/05-zdo-discover.py --nwk 0x0038`
+  - `python3 scripts/06-af-send-zcl.py --dst-nwk 0x0038 --dst-ep 1 --onoff toggle`
+  - `python3 scripts/07-af-sniff.py --seconds 60`
+  - `python3 scripts/09-znp-raw-sys-ping.py`

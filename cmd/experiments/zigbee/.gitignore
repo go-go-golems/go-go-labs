@@ -1,0 +1,14 @@
+# Zigbee2MQTT runtime state (generated)
+data/database.db
+data/coordinator_backup.json
+data/state.json
+data/log/
+
+# Mosquitto runtime state (generated)
+mosquitto/data/
+mosquitto/log/
+
+# Python cache (generated)
+scripts/__pycache__/
+*.pyc
+
