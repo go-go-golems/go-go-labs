@@ -398,3 +398,22 @@ Some early script issues surfaced (wrong attribute names, enum types, false-nega
   - `cmd/experiments/zigbee/scripts/05-zdo-discover.py`
   - `cmd/experiments/zigbee/scripts/06-af-send-zcl.py`
   - `cmd/experiments/zigbee/scripts/10-zcl-read-attrs.py`
+
+## Step 10: Upload orchestrator guide to reMarkable
+
+Uploaded the main low-level Zigbee/ZNP/ZCL guide from the docmgr ticket to the reMarkable as a PDF using the existing uploader script (`pandoc` + `xelatex` + `rmapi`). I used `--mirror-ticket-structure` so the PDF lands under a ticket-named directory for this date, avoiding collisions with other uploads.
+
+### What I did
+- Ran a dry-run to confirm destination and commands:
+  - `python3 /home/manuel/.local/bin/remarkable_upload.py --ticket-dir /home/manuel/workspaces/2026-01-04/add-zigbee-control/go-go-labs/ttmp/2026/01/04/ADD-ZIGBEE-CONTROL-001--zigbee-low-level-znp-zcl-orchestrator-guide --mirror-ticket-structure --dry-run /home/manuel/workspaces/2026-01-04/add-zigbee-control/go-go-labs/ttmp/2026/01/04/ADD-ZIGBEE-CONTROL-001--zigbee-low-level-znp-zcl-orchestrator-guide/reference/01-zigbee-orchestrator-guide-zbdongle-p-znp-zcl.md`
+- Performed the real upload:
+  - `python3 /home/manuel/.local/bin/remarkable_upload.py --ticket-dir /home/manuel/workspaces/2026-01-04/add-zigbee-control/go-go-labs/ttmp/2026/01/04/ADD-ZIGBEE-CONTROL-001--zigbee-low-level-znp-zcl-orchestrator-guide --mirror-ticket-structure /home/manuel/workspaces/2026-01-04/add-zigbee-control/go-go-labs/ttmp/2026/01/04/ADD-ZIGBEE-CONTROL-001--zigbee-low-level-znp-zcl-orchestrator-guide/reference/01-zigbee-orchestrator-guide-zbdongle-p-znp-zcl.md`
+
+### Result
+- Uploaded:
+  - Source: `ttmp/2026/01/04/ADD-ZIGBEE-CONTROL-001--zigbee-low-level-znp-zcl-orchestrator-guide/reference/01-zigbee-orchestrator-guide-zbdongle-p-znp-zcl.md`
+  - PDF: `01-zigbee-orchestrator-guide-zbdongle-p-znp-zcl.pdf`
+  - Remote destination: `ai/2026/01/04/ADD-ZIGBEE-CONTROL-001--zigbee-low-level-znp-zcl-orchestrator-guide/reference/`
+
+### What I learned
+- The uploader’s ticket-mirroring mode is good default behavior: it creates intermediate directories on the device and reduces filename collisions.
