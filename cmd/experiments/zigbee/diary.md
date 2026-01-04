@@ -344,3 +344,57 @@ At the moment I tried to validate access to `/dev/ttyUSB0` and noticed the Sonof
   - `python3 scripts/06-af-send-zcl.py --dst-nwk 0x0038 --dst-ep 1 --onoff toggle`
   - `python3 scripts/07-af-sniff.py --seconds 60`
   - `python3 scripts/09-znp-raw-sys-ping.py`
+
+## Step 9: Reattach dongle and verify ZDO + ZCL end-to-end
+
+After the dongle was reattached, I verified it was visible via `lsusb` and `/dev/serial/by-id`, then exercised the low-level scripts against the already-joined plug at NWK `0x0038` (IEEE `0x282c02bfffe69870`). The key checks were: (1) raw ZNP framing works (`SYS.Ping`), (2) zigpy-znp can connect and read NIB/network state, (3) ZDO discovery returns endpoints/clusters, and (4) ZCL control and attribute reads work over `AF.DataRequest`.
+
+Some early script issues surfaced (wrong attribute names, enum types, false-negative device detection, and the fact that only one process can hold the serial port). I fixed these and added a combined “send read-attrs and wait for response” script to avoid needing two concurrent serial connections.
+
+**Commit (code):** f47a9b8b67db6e8582203a3c39d77335313426b9 — "zigbee: improve ZNP scripts and add ZCL read attrs"
+
+### What I did
+- Verified the coordinator is present:
+  - `scripts/08-find-coordinator.sh`
+- Confirmed raw MT framing works (no library):
+  - `python3 scripts/09-znp-raw-sys-ping.py --port /dev/serial/by-id/...`
+- Confirmed zigpy-znp connect + coordinator/network state:
+  - `python3 scripts/04-znp-connect-info.py --port /dev/serial/by-id/...`
+- Queried ZDO discovery for the plug:
+  - `python3 scripts/05-zdo-discover.py --port /dev/serial/by-id/... --nwk 0x0038`
+- Sent a ZCL On/Off Toggle and got `AF.DataConfirm: SUCCESS`:
+  - `python3 scripts/06-af-send-zcl.py --port /dev/serial/by-id/... --dst-nwk 0x0038 --dst-ep 1 --onoff toggle`
+- Read the On/Off attribute (`0x0006`/`0x0000`) and received a ZCL Read Attributes Response:
+  - `python3 scripts/10-zcl-read-attrs.py --port /dev/serial/by-id/... --dst-nwk 0x0038 --dst-ep 1 --cluster 0x0006 --attr 0x0000`
+
+### Why
+- This establishes a repeatable “lowest-level vertical slice” using ZNP → AF → ZCL without Zigbee2MQTT.
+
+### What worked
+- ZDO discovery returned endpoints `[1, 242]` and endpoint 1 has `genOnOff (0x0006)`, `haElectricalMeasurement (0x0b04)`, and `seMetering (0x0702)`.
+- ZCL toggle succeeded with `AF.DataConfirm: SUCCESS`.
+- ZCL Read Attributes Response was received and decoded (for `onOff` it returned `False` in this run).
+
+### What didn't work
+- Running a “sniffer” and a “sender” simultaneously failed because the serial device can only be opened by one process at a time (`PermissionError: The serial port is locked by another application`).
+
+### What I learned
+- For experiments that require both sending and receiving, scripts should perform both within a single ZNP connection.
+
+### What was tricky to build
+- zigpy-znp’s command schemas are strict about enum types (e.g. `LatencyReq` must be `LatencyReq.NoLatencyReqs`, not a raw `uint8_t`).
+- zigpy’s ZDO simple descriptor uses snake_case field names (`input_clusters`, `output_clusters`, etc.).
+
+### What warrants a second pair of eyes
+- Confirm that using `ZDO.StartupFromApp` in these scripts is always safe for an already-running coordinator and won’t disrupt an established network.
+
+### What should be done in the future
+- Add a companion script for Electrical Measurement + Metering reads (multiplier/divisor + activePower + current/voltage) and optionally configure reporting.
+
+### Code review instructions
+- Start with:
+  - `cmd/experiments/zigbee/scripts/08-find-coordinator.sh`
+  - `cmd/experiments/zigbee/scripts/09-znp-raw-sys-ping.py`
+  - `cmd/experiments/zigbee/scripts/05-zdo-discover.py`
+  - `cmd/experiments/zigbee/scripts/06-af-send-zcl.py`
+  - `cmd/experiments/zigbee/scripts/10-zcl-read-attrs.py`
