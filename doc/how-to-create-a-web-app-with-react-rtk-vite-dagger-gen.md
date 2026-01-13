@@ -370,6 +370,134 @@ tmux kill-session -t web
 - Cache Dagger layers and pnpm store for faster builds (e.g., map `PNPM_CACHE_DIR` to a CI cache path).
 - Ship the `dist/` directory in release artifacts or bake it into your container image.
 
+## Playbook — GoReleaser with Dagger UI Prebuild (Split Jobs)
+
+This playbook covers the case where you run split GoReleaser jobs (for example, Linux + macOS) and you want Dagger to build the UI once on Linux, then pass the built assets to the other jobs. This avoids relying on Docker/Colima in macOS CI while still embedding the UI into every binary.
+
+### Goal
+
+- Run the Dagger UI build exactly once in CI.
+- Reuse the generated assets for all GoReleaser split jobs.
+- Keep the GoReleaser hooks free of `go generate` for UI packaging.
+
+### Step 1 — Makefile: explicit UI build target
+
+Expose the Dagger build as a Makefile target, and make your binary build depend on it. Prefer `go run` so the Dagger SDK is available without requiring a prebuilt builder binary.
+
+```makefile
+ui-build:
+	GOWORK=off go run ./internal/web/generate_build.go
+
+build: ui-build
+	go build -tags "sqlite_fts5,embed" ./cmd/app
+```
+
+If you embed assets from a different path (for example `cmd/app/dist`), update your Dagger builder to export to that directory and ensure your `go:embed` directive points there.
+
+### Step 2 — Keep the Dagger SDK pinned during `go mod tidy`
+
+If your build uses `go mod tidy`, add a tools file to retain the Dagger SDK dependency:
+
+```go
+//go:build tools
+// +build tools
+
+package tools
+
+import (
+	_ "dagger.io/dagger"
+)
+```
+
+Then run tidy with `GOFLAGS=-tags=tools` in CI:
+
+```yaml
+before:
+  hooks:
+    - sh -c 'GOFLAGS=-tags=tools go mod tidy'
+```
+
+### Step 3 — CI: prebuild UI assets and upload as an artifact
+
+Add a Linux job that runs the Dagger UI build and uploads the output directory. The artifact path must match the directory your embed build expects.
+
+```yaml
+jobs:
+  ui-prebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '>=1.19.5'
+          cache: true
+      - name: Build UI assets
+        run: |
+          GOWORK=off make ui-build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ui-embed
+          path: internal/web/embed/public
+```
+
+### Step 4 — GoReleaser split jobs: download the artifact
+
+Each split job (Linux + macOS) downloads the UI assets to the exact same path before running GoReleaser.
+
+```yaml
+jobs:
+  goreleaser-linux:
+    runs-on: ubuntu-latest
+    needs: [ui-prebuild]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '>=1.19.5'
+          cache: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: ui-embed
+          path: internal/web/embed/public
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser-pro
+          version: "~> v2"
+          args: release --clean --split
+
+  goreleaser-darwin:
+    runs-on: macos-latest
+    needs: [ui-prebuild]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '>=1.19.5'
+          cache: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: ui-embed
+          path: internal/web/embed/public
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser-pro
+          version: "~> v2"
+          args: release --clean --split
+```
+
+### Step 5 — Remove UI go:generate from GoReleaser hooks
+
+Once the prebuild job is in place, remove any `go generate ./internal/web` hook from `.goreleaser.yaml`. The generated assets are already present via the artifact.
+
+### Validation checklist
+
+- The prebuild job output directory matches your `go:embed` path.
+- The artifact download path matches the embed path exactly.
+- The GoReleaser hooks no longer invoke `go generate` for UI packaging.
+- `make ui-build` succeeds on Linux and uses Dagger end-to-end.
+
 ## Troubleshooting
 
 - Dagger cannot connect to engine:
@@ -386,4 +514,3 @@ tmux kill-session -t web
 - Expand your API surface and wire RTK Query endpoints in `web/src/api.ts`.
 - Add state slices to `store.ts` for UI features.
 - Introduce environment-specific base URLs if you split frontend/backend origins in production.
-

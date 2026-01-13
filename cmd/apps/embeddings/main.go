@@ -17,6 +17,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/middlewares"
 	"github.com/go-go-golems/glazed/pkg/cmds/parameters"
 	"github.com/go-go-golems/glazed/pkg/help"
+	help_cmd "github.com/go-go-golems/glazed/pkg/help/cmd"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -53,7 +54,7 @@ It provides both CLI commands and a web server with APIs for:
 
 	// Set up help system
 	helpSystem := help.NewHelpSystem()
-	helpSystem.SetupCobraRootCommand(rootCmd)
+	help_cmd.SetupCobraRootCommand(helpSystem, rootCmd)
 
 	// Register all commands using the parser
 	err = cli.AddCommandsToRootCommand(rootCmd, embeddings_commands, []*alias.CommandAlias{},
