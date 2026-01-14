@@ -33,6 +33,7 @@ The approach assumes:
 - Go 1.21+ (1.22+ recommended)
 - Docker or another container runtime available to Dagger
 - Dagger SDK for Go (`go get dagger.io/dagger@latest`)
+- The `go generate` hook uses the Dagger SDK directly (no `dagger` CLI required); only the engine runtime is needed
 - Optional local Node never required; the build runs in a container via Dagger
 
 Basic familiarity with React and Go web servers is helpful.
