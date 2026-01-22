@@ -42,11 +42,15 @@ func findProcessByPort(port uint32) (*process.Process, error) {
 		return nil, err
 	}
 	for _, c := range conns {
-		if c.Status == "LISTEN" && c.Laddr.Port == port {
+		// TCP sockets "listen" on a port; UDP sockets are simply "bound" (gopsutil reports their status as "NONE").
+		if c.Laddr.Port != port {
+			continue
+		}
+		if (c.Type == uint32(syscall.SOCK_STREAM) && c.Status == "LISTEN") || c.Type == uint32(syscall.SOCK_DGRAM) {
 			return process.NewProcess(c.Pid)
 		}
 	}
-	return nil, fmt.Errorf("no process listening on port %d", port)
+	return nil, fmt.Errorf("no process listening/bound on port %d", port)
 }
 
 func buildParentTree(p *process.Process) ([]ProcessAncestor, error) {
