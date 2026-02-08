@@ -1,29 +1,31 @@
 import React from "react";
-import { useSelector, useDispatch } from "react-redux";
-import { RootState } from "@/store/store";
+import { useDispatch, useSelector } from "react-redux";
 import { WidgetRenderer } from "@/components/WidgetRenderer";
+import { Button } from "@/components/ui/button";
 import { pluginManager } from "@/lib/pluginManager";
 import { presetPlugins } from "@/lib/presetPlugins";
-import type { UINode } from "@/lib/uiTypes";
-import { Button } from "@/components/ui/button";
+import type { UINode, UIEventRef } from "@/lib/uiTypes";
+import {
+  AppDispatch,
+  RootState,
+  dispatchGlobalAction,
+  dispatchPluginAction,
+  pluginRegistered,
+  pluginRemoved,
+  selectAllPluginState,
+  selectGlobalState,
+  selectLoadedPluginIds,
+} from "@/store/store";
 
-/**
- * Plugin Playground - Load and run multiple plugins simultaneously
- * Features:
- * - Preset plugin selector
- * - Plugin editor with syntax highlighting
- * - Multi-plugin view showing all loaded plugins
- * - Real-time state updates via Redux
- */
 export default function Playground() {
-  const state = useSelector((s: RootState) => s);
-  const dispatch = useDispatch();
-  const [loadedPlugins, setLoadedPlugins] = React.useState<string[]>([]);
-  const [selectedPreset, setSelectedPreset] = React.useState<string>("");
+  const dispatch = useDispatch<AppDispatch>();
+  const loadedPlugins = useSelector((s: RootState) => selectLoadedPluginIds(s));
+  const pluginStateById = useSelector((s: RootState) => selectAllPluginState(s));
+  const globalState = useSelector((s: RootState) => selectGlobalState(s));
+
   const [customCode, setCustomCode] = React.useState<string>("");
   const [error, setError] = React.useState<string>("");
 
-  // Create UI builder for plugins
   const uiBuilder = {
     text: (content: string) => ({
       kind: "text" as const,
@@ -55,16 +57,27 @@ export default function Playground() {
     }),
   };
 
-  const createActions = (namespace: string, actionNames: string[]) => {
-    const actions: Record<string, any> = {};
-    for (const name of actionNames) {
-      actions[name] = (payload?: any) => ({
-        type: `${namespace}/${name}`,
-        payload,
-      });
-    }
-    return actions;
-  };
+  const registerLoadedPlugin = React.useCallback(
+    (plugin: {
+      id: string;
+      title: string;
+      description?: string;
+      initialState?: unknown;
+      widgets: Record<string, unknown>;
+    }) => {
+      dispatch(
+        pluginRegistered({
+          id: plugin.id,
+          title: plugin.title,
+          description: plugin.description,
+          widgets: Object.keys(plugin.widgets),
+          initialState: plugin.initialState,
+        })
+      );
+
+    },
+    [dispatch]
+  );
 
   const loadPreset = async (presetId: string) => {
     try {
@@ -74,18 +87,11 @@ export default function Playground() {
         throw new Error(`Preset not found: ${presetId}`);
       }
 
-      await pluginManager.loadPlugin(preset.code, {
+      const plugin = await pluginManager.loadPlugin(preset.id, preset.code, {
         ui: uiBuilder,
-        createActions,
       });
 
-      setLoadedPlugins((prev) => {
-        if (!prev.includes(presetId)) {
-          return [...prev, presetId];
-        }
-        return prev;
-      });
-      setSelectedPreset(presetId);
+      registerLoadedPlugin(plugin);
     } catch (err) {
       setError(`Failed to load preset: ${String(err)}`);
     }
@@ -98,30 +104,36 @@ export default function Playground() {
         throw new Error("Plugin code cannot be empty");
       }
 
-      const plugin = await pluginManager.loadPlugin(customCode, {
+      const pluginId = `custom-${Date.now()}`;
+      const plugin = await pluginManager.loadPlugin(pluginId, customCode, {
         ui: uiBuilder,
-        createActions,
       });
 
-      setLoadedPlugins((prev) => {
-        if (!prev.includes(plugin.id)) {
-          return [...prev, plugin.id];
-        }
-        return prev;
-      });
+      registerLoadedPlugin(plugin);
     } catch (err) {
       setError(`Failed to load custom plugin: ${String(err)}`);
     }
   };
 
-  const unloadPlugin = (id: string) => {
-    pluginManager.removePlugin(id);
-    setLoadedPlugins((prev) => prev.filter((p) => p !== id));
+  const unloadPlugin = (pluginId: string) => {
+    pluginManager.removePlugin(pluginId);
+    dispatch(pluginRemoved(pluginId));
   };
 
-  const handleEvent = (pluginId: string, widgetId: string, eventRef: any) => {
+  const handleEvent = (pluginId: string, widgetId: string, eventRef: UIEventRef) => {
     try {
-      pluginManager.callHandler(pluginId, widgetId, eventRef.handler, dispatch, eventRef.args, state);
+      const pluginState = pluginStateById[pluginId] ?? {};
+
+      pluginManager.callHandler(
+        pluginId,
+        widgetId,
+        eventRef.handler,
+        (actionType, payload) => dispatchPluginAction(dispatch, pluginId, actionType, payload),
+        (actionType, payload) => dispatchGlobalAction(dispatch, actionType, payload),
+        eventRef.args,
+        pluginState,
+        globalState
+      );
     } catch (err) {
       console.error("Event error:", err);
     }
@@ -132,11 +144,10 @@ export default function Playground() {
       <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold text-cyan-400 mb-2 font-mono">PLUGIN PLAYGROUND</h1>
         <p className="text-muted-foreground mb-6 font-mono text-sm">
-          QuickJS VM • React + Redux • Multi-Plugin Support
+          Unified Runtime v1 - Plugin/Global State and Action Scoping
         </p>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Left Panel: Plugin Selector */}
           <div className="border border-cyan-400/30 rounded-sm p-4 bg-card/50">
             <h2 className="text-lg font-bold text-cyan-400 mb-4 font-mono">PRESETS</h2>
             <div className="space-y-2">
@@ -163,7 +174,7 @@ export default function Playground() {
                       onClick={() => unloadPlugin(id)}
                       className="text-red-400 hover:text-red-300"
                     >
-                      ✕
+                      X
                     </button>
                   </div>
                 ))}
@@ -171,13 +182,12 @@ export default function Playground() {
             </div>
           </div>
 
-          {/* Middle Panel: Code Editor */}
           <div className="border border-cyan-400/30 rounded-sm p-4 bg-card/50">
             <h2 className="text-lg font-bold text-cyan-400 mb-4 font-mono">CUSTOM PLUGIN</h2>
             <textarea
               value={customCode}
               onChange={(e) => setCustomCode(e.target.value)}
-              placeholder="definePlugin(({ ui, createActions }) => { ... })"
+              placeholder="definePlugin(({ ui }) => { ... })"
               className="w-full h-48 bg-background/50 border border-cyan-400/20 rounded p-2 font-mono text-xs text-foreground resize-none focus:outline-none focus:border-cyan-400"
             />
             <Button onClick={loadCustom} className="w-full mt-2 font-mono text-xs">
@@ -186,7 +196,6 @@ export default function Playground() {
             {error && <div className="mt-2 text-red-400 text-xs font-mono">{error}</div>}
           </div>
 
-          {/* Right Panel: Live Widgets */}
           <div className="border border-cyan-400/30 rounded-sm p-4 bg-card/50">
             <h2 className="text-lg font-bold text-cyan-400 mb-4 font-mono">LIVE WIDGETS</h2>
             {loadedPlugins.length === 0 ? (
@@ -195,22 +204,30 @@ export default function Playground() {
               <div className="space-y-4 max-h-96 overflow-y-auto">
                 {loadedPlugins.map((pluginId) => {
                   const plugin = pluginManager.getPlugin(pluginId);
-                  if (!plugin) return null;
+                  if (!plugin) {
+                    return null;
+                  }
+
+                  const pluginState = pluginStateById[pluginId] ?? {};
 
                   return (
                     <div key={pluginId} className="border border-cyan-400/20 rounded p-2 bg-background/30">
                       <div className="text-xs font-bold text-cyan-400 mb-2 font-mono">{plugin.title}</div>
                       <div className="space-y-2">
-                        {Object.entries(plugin.widgets).map(([widgetId, widget]) => {
+                        {Object.keys(plugin.widgets).map((widgetId) => {
                           try {
-                            const tree = widget.render({ state });
+                            const tree = pluginManager.renderWidget(
+                              pluginId,
+                              widgetId,
+                              pluginState,
+                              globalState
+                            );
+
                             return (
                               <div key={widgetId}>
                                 <WidgetRenderer
                                   tree={tree}
-                                  onEvent={(eventRef) =>
-                                    handleEvent(pluginId, widgetId, eventRef)
-                                  }
+                                  onEvent={(eventRef) => handleEvent(pluginId, widgetId, eventRef)}
                                 />
                               </div>
                             );

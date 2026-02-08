@@ -1,46 +1,75 @@
-// Plugin Manager - handles loading, rendering, and event handling for plugins
-import type { UINode, UIEventRef } from "./uiTypes";
+import type { UINode } from "./uiTypes";
 
 export interface PluginInstance {
   id: string;
+  declaredId?: string;
   title: string;
+  description?: string;
+  initialState?: unknown;
   widgets: Record<string, WidgetInstance>;
 }
 
 interface WidgetInstance {
-  render: (context: any) => UINode;
-  handlers: Record<string, (context: any, args?: any) => void>;
+  render: (context: { pluginState: unknown; globalState: unknown }) => UINode;
+  handlers: Record<
+    string,
+    (
+      context: {
+        pluginId: string;
+        pluginState: unknown;
+        globalState: unknown;
+        dispatchPluginAction: (actionType: string, payload?: unknown) => void;
+        dispatchGlobalAction: (actionType: string, payload?: unknown) => void;
+      },
+      args?: unknown
+    ) => void
+  >;
+}
+
+interface PluginDefinition {
+  id?: string;
+  title: string;
+  description?: string;
+  initialState?: unknown;
+  widgets: Record<string, WidgetInstance>;
+}
+
+interface PluginBuildContext {
+  ui: any;
 }
 
 export class PluginManager {
   private plugins: Map<string, PluginInstance> = new Map();
 
-  async loadPlugin(
-    code: string,
-    context: {
-      ui: any;
-      createActions: any;
-    }
-  ): Promise<PluginInstance> {
+  async loadPlugin(pluginId: string, code: string, context: PluginBuildContext): Promise<PluginInstance> {
     return new Promise((resolve, reject) => {
       try {
-        let plugin: PluginInstance | null = null;
+        let pluginDef: PluginDefinition | null = null;
 
-        // Create the definePlugin function
-        const definePlugin = (fn: (ctx: any) => PluginInstance) => {
-          plugin = fn(context);
+        const definePlugin = (fn: (ctx: PluginBuildContext) => PluginDefinition) => {
+          pluginDef = fn(context);
         };
 
-        // Execute the plugin code
         const fn = new Function("definePlugin", code);
         fn(definePlugin);
 
-        if (!plugin) {
+        if (!pluginDef) {
           throw new Error("Plugin did not call definePlugin");
         }
 
-        this.plugins.set((plugin as PluginInstance).id, plugin as PluginInstance);
-        resolve(plugin);
+        const def = pluginDef as PluginDefinition;
+
+        const resolvedPlugin: PluginInstance = {
+          id: pluginId,
+          declaredId: def.id,
+          title: def.title,
+          description: def.description,
+          initialState: def.initialState,
+          widgets: def.widgets,
+        };
+
+        this.plugins.set(pluginId, resolvedPlugin);
+        resolve(resolvedPlugin);
       } catch (error) {
         reject(new Error(`Failed to load plugin: ${String(error)}`));
       }
@@ -55,11 +84,7 @@ export class PluginManager {
     return Array.from(this.plugins.values());
   }
 
-  renderWidget(
-    pluginId: string,
-    widgetId: string,
-    state: any
-  ): UINode {
+  renderWidget(pluginId: string, widgetId: string, pluginState: unknown, globalState: unknown): UINode {
     const plugin = this.plugins.get(pluginId);
     if (!plugin) {
       throw new Error(`Plugin not found: ${pluginId}`);
@@ -70,16 +95,18 @@ export class PluginManager {
       throw new Error(`Widget not found: ${widgetId}`);
     }
 
-    return widget.render({ state });
+    return widget.render({ pluginState, globalState });
   }
 
   callHandler(
     pluginId: string,
     widgetId: string,
     handlerName: string,
-    dispatch: any,
-    args?: any,
-    state?: any
+    dispatchPluginAction: (actionType: string, payload?: unknown) => void,
+    dispatchGlobalAction: (actionType: string, payload?: unknown) => void,
+    args?: unknown,
+    pluginState?: unknown,
+    globalState?: unknown
   ): void {
     const plugin = this.plugins.get(pluginId);
     if (!plugin) {
@@ -96,7 +123,16 @@ export class PluginManager {
       throw new Error(`Handler not found: ${handlerName}`);
     }
 
-    handler({ dispatch, state }, args);
+    handler(
+      {
+        pluginId,
+        pluginState,
+        globalState,
+        dispatchPluginAction,
+        dispatchGlobalAction,
+      },
+      args
+    );
   }
 
   removePlugin(id: string): void {

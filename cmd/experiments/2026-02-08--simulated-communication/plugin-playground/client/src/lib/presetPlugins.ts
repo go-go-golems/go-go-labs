@@ -1,12 +1,59 @@
-// Preset plugins for the plugin playground
-import type { UINode, UIEventRef } from "./uiTypes";
+// Preset plugins for the unified v1 runtime contract
 
 export interface PluginDefinition {
   id: string;
   title: string;
   description: string;
-  code: string; // The plugin code as a string
+  code: string;
 }
+
+// Counter Plugin
+export const counterPlugin: PluginDefinition = {
+  id: "counter",
+  title: "Counter",
+  description: "Simple local counter with mirrored global counter value",
+  code: `
+definePlugin(({ ui }) => {
+  return {
+    id: "counter",
+    title: "Counter",
+    description: "Simple counter",
+    initialState: { value: 0 },
+    widgets: {
+      counter: {
+        render({ pluginState }) {
+          const value = Number(pluginState?.value ?? 0);
+          return ui.panel([
+            ui.text("Counter: " + value),
+            ui.row([
+              ui.button("Decrement", { onClick: { handler: "decrement" } }),
+              ui.button("Reset", { onClick: { handler: "reset" }, variant: "destructive" }),
+              ui.button("Increment", { onClick: { handler: "increment" } }),
+            ]),
+          ]);
+        },
+        handlers: {
+          increment({ dispatchPluginAction, dispatchGlobalAction, pluginState }) {
+            const next = Number(pluginState?.value ?? 0) + 1;
+            dispatchPluginAction("increment");
+            dispatchGlobalAction("counter/set", next);
+          },
+          decrement({ dispatchPluginAction, dispatchGlobalAction, pluginState }) {
+            const next = Number(pluginState?.value ?? 0) - 1;
+            dispatchPluginAction("decrement");
+            dispatchGlobalAction("counter/set", next);
+          },
+          reset({ dispatchPluginAction, dispatchGlobalAction }) {
+            dispatchPluginAction("reset");
+            dispatchGlobalAction("counter/set", 0);
+          },
+        },
+      },
+    },
+  };
+});
+  `,
+};
 
 // Calculator Plugin
 export const calculatorPlugin: PluginDefinition = {
@@ -14,20 +61,22 @@ export const calculatorPlugin: PluginDefinition = {
   title: "Simple Calculator",
   description: "A basic calculator with +, -, *, / operations",
   code: `
-definePlugin(({ ui, createActions }) => {
-  const actions = createActions("plugin.calculator", [
-    "digit", "operation", "equals", "clear"
-  ]);
-
+definePlugin(({ ui }) => {
   return {
     id: "calculator",
     title: "Calculator",
+    description: "Basic arithmetic calculator",
+    initialState: {
+      display: "0",
+      accumulator: 0,
+      operation: null,
+    },
     widgets: {
       display: {
-        render({ state }) {
-          const display = state.calculator?.display || "0";
+        render({ pluginState }) {
+          const display = String(pluginState?.display ?? "0");
           return ui.panel([
-            ui.text(\`Display: \${display}\`),
+            ui.text("Display: " + display),
             ui.row([
               ui.button("7", { onClick: { handler: "digit", args: 7 } }),
               ui.button("8", { onClick: { handler: "digit", args: 8 } }),
@@ -49,23 +98,23 @@ definePlugin(({ ui, createActions }) => {
             ui.row([
               ui.button("0", { onClick: { handler: "digit", args: 0 } }),
               ui.button("=", { onClick: { handler: "equals" } }),
-              ui.button("C", { onClick: { handler: "clear" } }),
+              ui.button("C", { onClick: { handler: "clear" }, variant: "destructive" }),
               ui.button("+", { onClick: { handler: "operation", args: "+" } }),
             ]),
           ]);
         },
         handlers: {
-          digit({ dispatch }, digit) {
-            dispatch({ type: "plugin.calculator/digit", payload: digit });
+          digit({ dispatchPluginAction }, digit) {
+            dispatchPluginAction("digit", digit);
           },
-          operation({ dispatch }, op) {
-            dispatch({ type: "plugin.calculator/operation", payload: op });
+          operation({ dispatchPluginAction }, op) {
+            dispatchPluginAction("operation", op);
           },
-          equals({ dispatch }) {
-            dispatch({ type: "plugin.calculator/equals" });
+          equals({ dispatchPluginAction }) {
+            dispatchPluginAction("equals");
           },
-          clear({ dispatch }) {
-            dispatch({ type: "plugin.calculator/clear" });
+          clear({ dispatchPluginAction }) {
+            dispatchPluginAction("clear");
           },
         },
       },
@@ -79,25 +128,35 @@ definePlugin(({ ui, createActions }) => {
 export const statusDashboardPlugin: PluginDefinition = {
   id: "status-dashboard",
   title: "Status Dashboard",
-  description: "Shows system and plugin status information",
+  description: "Shows unified runtime status and global metrics",
   code: `
-definePlugin(({ ui, createActions }) => {
+definePlugin(({ ui }) => {
   return {
     id: "status-dashboard",
     title: "Status Dashboard",
+    description: "Runtime status dashboard",
     widgets: {
       status: {
-        render({ state }) {
-          const pluginCount = Object.keys(state.plugins?.plugins || {}).length;
-          const counterValue = state.counter || 0;
-          
+        render({ globalState }) {
+          const pluginCount = Number(globalState?.pluginCount ?? 0);
+          const counterValue = Number(globalState?.counterValue ?? 0);
+          const dispatchCount = Number(globalState?.dispatchCount ?? 0);
+
           return ui.panel([
             ui.text("System Status"),
             ui.row([
-              ui.badge(\`Plugins Loaded: \${pluginCount}\`),
-              ui.badge(\`Counter Value: \${counterValue}\`),
+              ui.badge("Plugins: " + pluginCount),
+              ui.badge("Counter: " + counterValue),
+              ui.badge("Dispatches: " + dispatchCount),
             ]),
-            ui.text("All systems operational"),
+            ui.table(
+              [
+                ["Plugin Count", String(pluginCount)],
+                ["Counter Value", String(counterValue)],
+                ["Dispatch Count", String(dispatchCount)],
+              ],
+              { headers: ["Metric", "Value"] }
+            ),
           ]);
         },
         handlers: {},
@@ -112,20 +171,20 @@ definePlugin(({ ui, createActions }) => {
 export const greeterPlugin: PluginDefinition = {
   id: "greeter",
   title: "Interactive Greeter",
-  description: "A simple greeter that responds to your name",
+  description: "Simple local state demo with input handling",
   code: `
-definePlugin(({ ui, createActions }) => {
-  const actions = createActions("plugin.greeter", ["nameChanged"]);
-
+definePlugin(({ ui }) => {
   return {
     id: "greeter",
     title: "Greeter",
+    description: "Simple greeter",
+    initialState: { name: "" },
     widgets: {
       greeter: {
-        render({ state }) {
-          const name = state.greeter?.name || "";
-          const greeting = name ? \`Hello, \${name}! 👋\` : "Enter your name...";
-          
+        render({ pluginState }) {
+          const name = String(pluginState?.name ?? "");
+          const greeting = name ? "Hello, " + name + "!" : "Enter your name...";
+
           return ui.panel([
             ui.text(greeting),
             ui.input(name, {
@@ -135,9 +194,8 @@ definePlugin(({ ui, createActions }) => {
           ]);
         },
         handlers: {
-          updateName({ dispatch }, args) {
-            const name = args?.value || "";
-            dispatch({ type: "plugin.greeter/nameChanged", payload: name });
+          updateName({ dispatchPluginAction }, args) {
+            dispatchPluginAction("nameChanged", args?.value ?? "");
           },
         },
       },
@@ -147,35 +205,33 @@ definePlugin(({ ui, createActions }) => {
   `,
 };
 
-// VM Monitor Plugin
-export const vmMonitorPlugin: PluginDefinition = {
-  id: "vm-monitor",
-  title: "VM Monitor",
-  description: "Monitors plugin VM status and metrics",
+// Runtime Monitor Plugin
+export const runtimeMonitorPlugin: PluginDefinition = {
+  id: "runtime-monitor",
+  title: "Runtime Monitor",
+  description: "Shows loaded plugin registry from global runtime state",
   code: `
-definePlugin(({ ui, createActions }) => {
+definePlugin(({ ui }) => {
   return {
-    id: "vm-monitor",
-    title: "VM Monitor",
+    id: "runtime-monitor",
+    title: "Runtime Monitor",
+    description: "Runtime monitor",
     widgets: {
       monitor: {
-        render({ state }) {
-          const plugins = state.plugins?.plugins || {};
-          const pluginList = Object.values(plugins).map(p => ({
-            name: p.id,
-            status: p.status,
-            widgets: p.meta?.widgets?.length || 0,
-          }));
-          
+        render({ globalState }) {
+          const plugins = Array.isArray(globalState?.plugins) ? globalState.plugins : [];
+
           return ui.panel([
             ui.text("Plugin Registry"),
-            ui.text(\`Total: \${pluginList.length} plugins\`),
-            ...pluginList.map(p => 
-              ui.row([
-                ui.badge(p.name),
-                ui.badge(\`Status: \${p.status}\`),
-                ui.badge(\`Widgets: \${p.widgets}\`),
-              ])
+            ui.text("Total: " + plugins.length + " plugins"),
+            ui.table(
+              plugins.map((p) => [
+                String(p.id),
+                String(p.status),
+                p.enabled ? "YES" : "NO",
+                String(p.widgets),
+              ]),
+              { headers: ["Plugin", "Status", "Enabled", "Widgets"] }
             ),
           ]);
         },
@@ -188,8 +244,9 @@ definePlugin(({ ui, createActions }) => {
 };
 
 export const presetPlugins = [
+  counterPlugin,
   calculatorPlugin,
   statusDashboardPlugin,
   greeterPlugin,
-  vmMonitorPlugin,
+  runtimeMonitorPlugin,
 ];

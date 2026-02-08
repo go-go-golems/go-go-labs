@@ -23,7 +23,7 @@ export function PluginEditor({ code, onChange, onRun, onClose, readOnly = false 
             Plugin Editor
           </span>
           <span className="font-mono text-xs text-muted-foreground">
-            [QuickJS VM]
+            [Unified Runtime]
           </span>
         </div>
         <div className="flex items-center gap-2">
