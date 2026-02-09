@@ -29,5 +29,5 @@
 - [x] T25: Fix loadPreset stale tab ID — return generated tab ID from openEditorTab
 - [x] T26: Fix loadCustom empty grants — infer capabilities from preset or allow user specification
 - [x] T27: Restyle WidgetRenderer to match vm-system-ui slate palette
-- [ ] T28: Remove dead Playground.tsx and old shell components
+- [x] T28: Remove dead Playground.tsx and old shell components
 - [ ] T29: Add vertical drag-resize handle to DevToolsPanel
