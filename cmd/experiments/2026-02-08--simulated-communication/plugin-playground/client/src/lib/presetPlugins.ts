@@ -1,9 +1,16 @@
+import type { SharedDomainName } from "@/store/store";
+
 // Preset plugins for the unified v1 runtime contract
 
 export interface PluginDefinition {
   id: string;
   title: string;
   description: string;
+  capabilities?: {
+    readShared?: SharedDomainName[];
+    writeShared?: SharedDomainName[];
+    systemCommands?: string[];
+  };
   code: string;
 }
 
@@ -11,7 +18,11 @@ export interface PluginDefinition {
 export const counterPlugin: PluginDefinition = {
   id: "counter",
   title: "Counter",
-  description: "Simple local counter with mirrored global counter value",
+  description: "Simple local counter with shared counter summary updates",
+  capabilities: {
+    readShared: ["counter-summary"],
+    writeShared: ["counter-summary"],
+  },
   code: `
 definePlugin(({ ui }) => {
   return {
@@ -21,10 +32,18 @@ definePlugin(({ ui }) => {
     initialState: { value: 0 },
     widgets: {
       counter: {
-        render({ pluginState }) {
+        render({ pluginState, globalState }) {
           const value = Number(pluginState?.value ?? 0);
+          const sharedCounter = globalState?.shared?.["counter-summary"];
+          const totalValue = Number(sharedCounter?.totalValue ?? 0);
+          const instanceCount = Number(sharedCounter?.instanceCount ?? 0);
+
           return ui.panel([
             ui.text("Counter: " + value),
+            ui.row([
+              ui.badge("Shared total: " + totalValue),
+              ui.badge("Instances: " + instanceCount),
+            ]),
             ui.row([
               ui.button("Decrement", { onClick: { handler: "decrement" } }),
               ui.button("Reset", { onClick: { handler: "reset" }, variant: "destructive" }),
@@ -33,19 +52,19 @@ definePlugin(({ ui }) => {
           ]);
         },
         handlers: {
-          increment({ dispatchPluginAction, dispatchGlobalAction, pluginState }) {
+          increment({ dispatchPluginAction, dispatchSharedAction, pluginState }) {
             const next = Number(pluginState?.value ?? 0) + 1;
             dispatchPluginAction("increment");
-            dispatchGlobalAction("counter/set", next);
+            dispatchSharedAction("counter-summary", "set-instance", { value: next });
           },
-          decrement({ dispatchPluginAction, dispatchGlobalAction, pluginState }) {
+          decrement({ dispatchPluginAction, dispatchSharedAction, pluginState }) {
             const next = Number(pluginState?.value ?? 0) - 1;
             dispatchPluginAction("decrement");
-            dispatchGlobalAction("counter/set", next);
+            dispatchSharedAction("counter-summary", "set-instance", { value: next });
           },
-          reset({ dispatchPluginAction, dispatchGlobalAction }) {
+          reset({ dispatchPluginAction, dispatchSharedAction }) {
             dispatchPluginAction("reset");
-            dispatchGlobalAction("counter/set", 0);
+            dispatchSharedAction("counter-summary", "set-instance", { value: 0 });
           },
         },
       },
@@ -60,6 +79,10 @@ export const calculatorPlugin: PluginDefinition = {
   id: "calculator",
   title: "Simple Calculator",
   description: "A basic calculator with +, -, *, / operations",
+  capabilities: {
+    readShared: [],
+    writeShared: [],
+  },
   code: `
 definePlugin(({ ui }) => {
   return {
@@ -128,7 +151,11 @@ definePlugin(({ ui }) => {
 export const statusDashboardPlugin: PluginDefinition = {
   id: "status-dashboard",
   title: "Status Dashboard",
-  description: "Shows unified runtime status and global metrics",
+  description: "Shows unified runtime status and shared domain metrics",
+  capabilities: {
+    readShared: ["counter-summary", "runtime-metrics", "runtime-registry"],
+    writeShared: [],
+  },
   code: `
 definePlugin(({ ui }) => {
   return {
@@ -138,21 +165,23 @@ definePlugin(({ ui }) => {
     widgets: {
       status: {
         render({ globalState }) {
-          const pluginCount = Number(globalState?.pluginCount ?? 0);
-          const counterValue = Number(globalState?.counterValue ?? 0);
-          const dispatchCount = Number(globalState?.dispatchCount ?? 0);
+          const counterSummary = globalState?.shared?.["counter-summary"] ?? {};
+          const runtimeMetrics = globalState?.shared?.["runtime-metrics"] ?? {};
+          const pluginCount = Number(runtimeMetrics?.pluginCount ?? 0);
+          const dispatchCount = Number(runtimeMetrics?.dispatchCount ?? 0);
+          const counterValue = Number(counterSummary?.totalValue ?? 0);
 
           return ui.panel([
             ui.text("System Status"),
             ui.row([
               ui.badge("Plugins: " + pluginCount),
-              ui.badge("Counter: " + counterValue),
+              ui.badge("Shared Counter: " + counterValue),
               ui.badge("Dispatches: " + dispatchCount),
             ]),
             ui.table(
               [
                 ["Plugin Count", String(pluginCount)],
-                ["Counter Value", String(counterValue)],
+                ["Shared Counter Total", String(counterValue)],
                 ["Dispatch Count", String(dispatchCount)],
               ],
               { headers: ["Metric", "Value"] }
@@ -172,6 +201,10 @@ export const greeterPlugin: PluginDefinition = {
   id: "greeter",
   title: "Interactive Greeter",
   description: "Simple local state demo with input handling",
+  capabilities: {
+    readShared: ["greeter-profile"],
+    writeShared: ["greeter-profile"],
+  },
   code: `
 definePlugin(({ ui }) => {
   return {
@@ -194,8 +227,10 @@ definePlugin(({ ui }) => {
           ]);
         },
         handlers: {
-          updateName({ dispatchPluginAction }, args) {
-            dispatchPluginAction("nameChanged", args?.value ?? "");
+          updateName({ dispatchPluginAction, dispatchSharedAction }, args) {
+            const name = args?.value ?? "";
+            dispatchPluginAction("nameChanged", name);
+            dispatchSharedAction("greeter-profile", "set-name", name);
           },
         },
       },
@@ -209,7 +244,11 @@ definePlugin(({ ui }) => {
 export const runtimeMonitorPlugin: PluginDefinition = {
   id: "runtime-monitor",
   title: "Runtime Monitor",
-  description: "Shows loaded plugin registry from global runtime state",
+  description: "Shows loaded plugin registry from shared runtime state",
+  capabilities: {
+    readShared: ["runtime-registry"],
+    writeShared: [],
+  },
   code: `
 definePlugin(({ ui }) => {
   return {
@@ -219,19 +258,22 @@ definePlugin(({ ui }) => {
     widgets: {
       monitor: {
         render({ globalState }) {
-          const plugins = Array.isArray(globalState?.plugins) ? globalState.plugins : [];
+          const plugins = Array.isArray(globalState?.shared?.["runtime-registry"])
+            ? globalState.shared["runtime-registry"]
+            : [];
 
           return ui.panel([
             ui.text("Plugin Registry"),
             ui.text("Total: " + plugins.length + " plugins"),
             ui.table(
               plugins.map((p) => [
-                String(p.id),
+                String(p.instanceId ?? p.id ?? ""),
+                String(p.packageId ?? ""),
                 String(p.status),
                 p.enabled ? "YES" : "NO",
                 String(p.widgets),
               ]),
-              { headers: ["Plugin", "Status", "Enabled", "Widgets"] }
+              { headers: ["Instance", "Package", "Status", "Enabled", "Widgets"] }
             ),
           ]);
         },
@@ -247,7 +289,11 @@ definePlugin(({ ui }) => {
 export const sharedGreeterStatePlugin: PluginDefinition = {
   id: "greeter-shared-state",
   title: "Greeter Shared State",
-  description: "Shows greeter state mirrored into shared global runtime state",
+  description: "Shows greeter state from shared domain",
+  capabilities: {
+    readShared: ["greeter-profile"],
+    writeShared: [],
+  },
   code: `
 definePlugin(({ ui }) => {
   return {
@@ -257,11 +303,12 @@ definePlugin(({ ui }) => {
     widgets: {
       sharedGreeter: {
         render({ globalState }) {
-          const name = String(globalState?.greeterName ?? "");
+          const greeterShared = globalState?.shared?.["greeter-profile"] ?? {};
+          const name = String(greeterShared?.name ?? "");
           const greeting = name ? "Shared greeting: Hello, " + name + "!" : "Shared greeting: (empty)";
 
           return ui.panel([
-            ui.text("Reads from globalState.greeterName"),
+            ui.text("Reads from globalState.shared['greeter-profile']"),
             ui.badge(name ? "SYNCED" : "NO NAME"),
             ui.text(greeting),
           ]);

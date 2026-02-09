@@ -20,18 +20,32 @@ describe("validateDispatchIntent", () => {
     });
   });
 
-  it("accepts global scoped intents", () => {
+  it("accepts shared scoped intents", () => {
     const intent = validateDispatchIntent(
       {
-        scope: "global",
-        actionType: "counter/set",
+        scope: "shared",
+        domain: "counter-summary",
+        actionType: "set-instance",
         payload: 4,
       },
       "counter"
     );
 
-    expect(intent.scope).toBe("global");
-    expect(intent.actionType).toBe("counter/set");
+    expect(intent.scope).toBe("shared");
+    expect(intent.domain).toBe("counter-summary");
+    expect(intent.actionType).toBe("set-instance");
+  });
+
+  it("rejects shared intents without domain", () => {
+    expect(() =>
+      validateDispatchIntent(
+        {
+          scope: "shared",
+          actionType: "set-instance",
+        },
+        "counter"
+      )
+    ).toThrow(/domain/i);
   });
 
   it("rejects malformed intent arrays", () => {

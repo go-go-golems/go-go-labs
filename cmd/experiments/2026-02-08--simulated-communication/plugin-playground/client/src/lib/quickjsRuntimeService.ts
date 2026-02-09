@@ -99,12 +99,18 @@ globalThis.__pluginHost = {
       });
     };
 
-    const dispatchGlobalAction = (actionType, payload) => {
+    const dispatchSharedAction = (domain, actionType, payload) => {
       __dispatchIntents.push({
-        scope: "global",
+        scope: "shared",
+        domain: String(domain),
         actionType: String(actionType),
         payload,
       });
+    };
+
+    // Backward compatibility alias for existing plugin code.
+    const dispatchGlobalAction = (actionType, payload) => {
+      dispatchSharedAction("legacy-global", actionType, payload);
     };
 
     handler(
@@ -112,6 +118,7 @@ globalThis.__pluginHost = {
         pluginState,
         globalState,
         dispatchPluginAction,
+        dispatchSharedAction,
         dispatchGlobalAction,
       },
       args

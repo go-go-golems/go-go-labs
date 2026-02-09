@@ -10,10 +10,11 @@ export interface RuntimeErrorPayload {
 }
 
 export interface DispatchIntent {
-  scope: "plugin" | "global";
+  scope: "plugin" | "shared";
   actionType: string;
   payload?: unknown;
   instanceId?: InstanceId;
+  domain?: string;
 }
 
 export interface LoadedPlugin {

@@ -9,8 +9,8 @@ export function validateDispatchIntent(value: unknown, instanceId: string): Disp
     throw new Error("Dispatch intent must be an object");
   }
 
-  if (value.scope !== "plugin" && value.scope !== "global") {
-    throw new Error("Dispatch intent scope must be 'plugin' or 'global'");
+  if (value.scope !== "plugin" && value.scope !== "shared") {
+    throw new Error("Dispatch intent scope must be 'plugin' or 'shared'");
   }
 
   if (typeof value.actionType !== "string" || value.actionType.length === 0) {
@@ -26,8 +26,13 @@ export function validateDispatchIntent(value: unknown, instanceId: string): Disp
     };
   }
 
+  if (typeof value.domain !== "string" || value.domain.length === 0) {
+    throw new Error("Shared dispatch intent domain must be a non-empty string");
+  }
+
   return {
-    scope: "global",
+    scope: "shared",
+    domain: value.domain,
     actionType: value.actionType,
     payload: value.payload,
   };

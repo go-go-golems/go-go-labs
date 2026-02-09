@@ -9,14 +9,16 @@ import type { LoadedPlugin } from "@/lib/quickjsContracts";
 import type { UINode, UIEventRef } from "@/lib/uiTypes";
 import {
   AppDispatch,
+  CapabilityGrants,
   RootState,
-  dispatchGlobalAction,
   dispatchPluginAction,
+  dispatchSharedAction,
   pluginRegistered,
   pluginRemoved,
   selectAllPluginState,
-  selectGlobalState,
+  selectGlobalStateForInstance,
   selectLoadedPluginIds,
+  SharedDomainName,
 } from "@/store/store";
 
 type WidgetTrees = Record<string, Record<string, UINode>>;
@@ -24,9 +26,9 @@ type WidgetErrors = Record<string, Record<string, string>>;
 
 export default function Playground() {
   const dispatch = useDispatch<AppDispatch>();
+  const rootState = useSelector((s: RootState) => s);
   const loadedPlugins = useSelector((s: RootState) => selectLoadedPluginIds(s));
   const pluginStateById = useSelector((s: RootState) => selectAllPluginState(s));
-  const globalState = useSelector((s: RootState) => selectGlobalState(s));
 
   const [pluginMetaById, setPluginMetaById] = React.useState<Record<string, LoadedPlugin>>({});
   const [widgetTrees, setWidgetTrees] = React.useState<WidgetTrees>({});
@@ -35,7 +37,7 @@ export default function Playground() {
   const [error, setError] = React.useState<string>("");
 
   const registerLoadedPlugin = React.useCallback(
-    (plugin: LoadedPlugin) => {
+    (plugin: LoadedPlugin, grants?: CapabilityGrants) => {
       dispatch(
         pluginRegistered({
           instanceId: plugin.instanceId,
@@ -44,6 +46,7 @@ export default function Playground() {
           description: plugin.description,
           widgets: plugin.widgets,
           initialState: plugin.initialState,
+          grants,
         })
       );
 
@@ -93,6 +96,7 @@ export default function Playground() {
         }
 
         const pluginState = pluginStateById[instanceId] ?? {};
+        const globalState = selectGlobalStateForInstance(rootState, instanceId);
         nextTrees[instanceId] = {};
 
         for (const widgetId of pluginMeta.widgets) {
@@ -119,7 +123,7 @@ export default function Playground() {
     return () => {
       cancelled = true;
     };
-  }, [globalState, loadedPlugins, pluginMetaById, pluginStateById]);
+  }, [loadedPlugins, pluginMetaById, pluginStateById, rootState]);
 
   const loadPreset = async (presetId: string) => {
     try {
@@ -131,7 +135,11 @@ export default function Playground() {
 
       const instanceId = createInstanceId(preset.id);
       const plugin = await quickjsSandboxClient.loadPlugin(preset.id, instanceId, preset.code);
-      registerLoadedPlugin(plugin);
+      registerLoadedPlugin(plugin, {
+        readShared: preset.capabilities?.readShared ?? [],
+        writeShared: preset.capabilities?.writeShared ?? [],
+        systemCommands: preset.capabilities?.systemCommands ?? [],
+      });
     } catch (err) {
       setError(`Failed to load preset: ${String(err)}`);
     }
@@ -147,7 +155,11 @@ export default function Playground() {
       const packageId = "custom";
       const instanceId = createInstanceId(packageId);
       const plugin = await quickjsSandboxClient.loadPlugin(packageId, instanceId, customCode);
-      registerLoadedPlugin(plugin);
+      registerLoadedPlugin(plugin, {
+        readShared: [],
+        writeShared: [],
+        systemCommands: [],
+      });
     } catch (err) {
       setError(`Failed to load custom plugin: ${String(err)}`);
     }
@@ -173,37 +185,45 @@ export default function Playground() {
     });
   };
 
-  const handleEvent = async (
-    instanceId: string,
-    widgetId: string,
-    eventRef: UIEventRef,
-    eventPayload?: unknown
-  ) => {
-    try {
-      const pluginState = pluginStateById[instanceId] ?? {};
-      const handlerArgs = eventPayload ?? eventRef.args;
-      const intents = await quickjsSandboxClient.event(
-        instanceId,
-        widgetId,
-        eventRef.handler,
-        handlerArgs,
-        pluginState,
-        globalState
-      );
+  const handleEvent = React.useCallback(
+    async (instanceId: string, widgetId: string, eventRef: UIEventRef, eventPayload?: unknown) => {
+      try {
+        const pluginState = pluginStateById[instanceId] ?? {};
+        const globalState = selectGlobalStateForInstance(rootState, instanceId);
+        const handlerArgs = eventPayload ?? eventRef.args;
+        const intents = await quickjsSandboxClient.event(
+          instanceId,
+          widgetId,
+          eventRef.handler,
+          handlerArgs,
+          pluginState,
+          globalState
+        );
 
-      for (const intent of intents) {
-        if (intent.scope === "plugin") {
-          dispatchPluginAction(dispatch, instanceId, intent.actionType, intent.payload);
-          continue;
+        for (const intent of intents) {
+          if (intent.scope === "plugin") {
+            dispatchPluginAction(dispatch, instanceId, intent.actionType, intent.payload);
+            continue;
+          }
+
+          if (!intent.domain) {
+            continue;
+          }
+          dispatchSharedAction(
+            dispatch,
+            instanceId,
+            intent.domain as SharedDomainName,
+            intent.actionType,
+            intent.payload
+          );
         }
-
-        dispatchGlobalAction(dispatch, intent.actionType, intent.payload);
+      } catch (err) {
+        console.error("Event error:", err);
+        setError(`Event failed: ${String(err)}`);
       }
-    } catch (err) {
-      console.error("Event error:", err);
-      setError(`Event failed: ${String(err)}`);
-    }
-  };
+    },
+    [dispatch, pluginStateById, rootState]
+  );
 
   return (
     <div className="min-h-dvh bg-background text-foreground p-4">

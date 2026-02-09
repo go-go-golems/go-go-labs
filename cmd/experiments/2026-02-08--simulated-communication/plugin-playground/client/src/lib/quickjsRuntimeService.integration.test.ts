@@ -76,6 +76,21 @@ describe("QuickJSRuntimeService", () => {
     expect(() => service.render("counter", "counter", {}, {})).toThrow(/not found/i);
   });
 
+  it("supports multiple instances of the same package", async () => {
+    const service = new QuickJSRuntimeService();
+    services.push(service);
+
+    await service.loadPlugin("counter", "counter@one", COUNTER_PLUGIN);
+    await service.loadPlugin("counter", "counter@two", COUNTER_PLUGIN);
+
+    const firstTree = service.render("counter@one", "counter", { value: 1 }, {});
+    const secondTree = service.render("counter@two", "counter", { value: 7 }, {});
+
+    expect(firstTree.kind).toBe("panel");
+    expect(secondTree.kind).toBe("panel");
+    expect(service.health().plugins).toEqual(expect.arrayContaining(["counter@one", "counter@two"]));
+  });
+
   it("interrupts infinite render loops with timeout", async () => {
     const service = new QuickJSRuntimeService({ renderTimeoutMs: 10 });
     services.push(service);
