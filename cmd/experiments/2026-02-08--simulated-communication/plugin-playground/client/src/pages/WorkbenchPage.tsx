@@ -195,14 +195,23 @@ export default function WorkbenchPage() {
         writeShared: preset.capabilities?.writeShared ?? [],
         systemCommands: preset.capabilities?.systemCommands ?? [],
       });
-      // Open an editor tab — the prepare callback generates the tab ID
-      const tabAction = dispatch(openEditorTab({ packageId: preset.id, label: `${preset.title}.js`, code: preset.code }));
-      dispatch(setTabActiveInstance({ tabId: tabAction.payload.id, instanceId: plugin.instanceId }));
+
+      // Reuse existing editor tab for this package, or open a new one
+      const existingTab = editorTabs.find((t) => t.packageId === preset.id);
+      let tabId: string;
+      if (existingTab) {
+        tabId = existingTab.id;
+        dispatch(setActiveEditorTab(tabId));
+      } else {
+        const tabAction = dispatch(openEditorTab({ packageId: preset.id, label: `${preset.title}.js`, code: preset.code }));
+        tabId = tabAction.payload.id;
+      }
+      dispatch(setTabActiveInstance({ tabId, instanceId: plugin.instanceId }));
       dispatch(focusInstance(plugin.instanceId));
     } catch (err) {
       dispatch(pushError({ kind: "load", instanceId: null, widgetId: null, message: String(err) }));
     }
-  }, [dispatch, registerPlugin]);
+  }, [dispatch, registerPlugin, editorTabs]);
 
   const runEditorTab = React.useCallback(async (code: string, packageId: string) => {
     try {

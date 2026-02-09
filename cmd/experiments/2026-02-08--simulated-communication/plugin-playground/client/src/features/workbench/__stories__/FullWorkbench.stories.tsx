@@ -156,8 +156,14 @@ function ConnectedWorkbench() {
       },
     }));
     dispatch(focusInstance(id));
-    const code = SAMPLE_CODE[presetId] ?? `// ${preset.title} plugin code`;
-    dispatch(openEditorTab({ packageId: presetId, label: `${preset.title.toLowerCase()}.js`, code }));
+    // Reuse existing editor tab for this package, or open a new one
+    const existingTab = wb.editorTabs.find((t: any) => t.packageId === presetId);
+    if (existingTab) {
+      dispatch(setActiveEditorTab(existingTab.id));
+    } else {
+      const code = SAMPLE_CODE[presetId] ?? `// ${preset.title} plugin code`;
+      dispatch(openEditorTab({ packageId: presetId, label: `${preset.title.toLowerCase()}.js`, code }));
+    }
   };
 
   const handleUnload = (instanceId: string) => {
