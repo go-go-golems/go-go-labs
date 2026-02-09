@@ -10,6 +10,8 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/lib/presetPlugins.ts
+      Note: Preset capabilities and dispatchSharedAction migration (commit 709df40)
     - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/lib/quickjsContracts.ts
       Note: Identity contract migration to packageId/instanceId (commit 414b68a)
     - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/lib/quickjsRuntimeService.ts
@@ -19,11 +21,17 @@ RelatedFiles:
     - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/lib/runtimeIdentity.ts
       Note: Central instance ID generation utility (commit 96c6225)
     - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/pages/Playground.tsx
-      Note: Multi-instance load/render/unload orchestration (commit 96c6225)
+      Note: |-
+        Multi-instance load/render/unload orchestration (commit 96c6225)
+        Per-instance shared dispatch and filtered global projection (commit 709df40)
     - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/store/store.ts
-      Note: Instance-keyed state and package-based reducer routing (commit 96c6225)
+      Note: |-
+        Instance-keyed state and package-based reducer routing (commit 96c6225)
+        Shared-domain state model
     - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/workers/quickjsRuntime.worker.ts
       Note: Worker request routing updated for instance identity (commit 414b68a)
+    - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/tests/e2e/quickjs-runtime.spec.ts
+      Note: Added multi-instance and capability-enforcement e2e cases (commit 709df40)
     - Path: ttmp/2026/02/08/WEBVM-001-SCOPE-PLUGIN-ACTIONS--scope-plugin-actions-and-state-for-webvm/design-doc/04-phase-3-4-design-brief-multi-instance-identity-and-capability-model.md
       Note: Source-of-truth design spec implemented in this diary
     - Path: ttmp/2026/02/08/WEBVM-001-SCOPE-PLUGIN-ACTIONS--scope-plugin-actions-and-state-for-webvm/tasks.md
@@ -34,6 +42,7 @@ LastUpdated: 2026-02-09T00:00:00Z
 WhatFor: Track implementation progress from design brief to running multi-instance + capability model runtime.
 WhenToUse: Read during development and review to understand what changed in each step and how to validate it.
 ---
+
 
 
 
@@ -266,3 +275,103 @@ I kept legacy global action semantics intact in this step so Phase 4 (shared-dom
 
 - Instance ID format: `${packageId}@${nanoid(8)}`.
 - Plugin routing switch now targets `plugin.packageId` rather than instance key string literals.
+
+## Step 4: Shared Domains, Capability Grants, and API Migration
+
+I implemented the Phase 4 capability model end-to-end: plugin intents can now target shared domains, per-instance grants are stored in runtime state, and shared writes are denied when grants are missing. I also migrated preset plugins to `dispatchSharedAction(...)` and updated tests to cover multi-instance behavior and capability enforcement.
+
+This step replaces the previous flat global model with a governed shared-domain projection while preserving host-controlled runtime metadata for observability.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Complete the remaining implementation phases with commit-by-commit execution and diary tracking.
+
+**Inferred user intent:** Finish WEBVM-001 with real capability-governed shared state and verification coverage.
+
+**Commit (code):** 709df40 — "feat(webvm-001): add shared-domain capability model and migrate presets"
+
+### What I did
+
+- Updated transport/runtime intent model:
+  - `DispatchIntent.scope` migrated from `"plugin" | "global"` to `"plugin" | "shared"`.
+  - Added `domain` field for shared intents (`quickjsContracts.ts`).
+  - Updated VM bootstrap to expose `dispatchSharedAction(domain, actionType, payload)` and keep `dispatchGlobalAction(...)` as a compatibility alias to `legacy-global`.
+- Updated intent validation:
+  - Shared intents now require non-empty `domain` (`dispatchIntent.ts`).
+  - Expanded unit tests for shared intent validation (`dispatchIntent.test.ts`).
+- Replaced runtime store model (`store.ts`):
+  - Added per-instance `CapabilityGrants` storage.
+  - Added shared domain state for `counter-summary` and `greeter-profile`.
+  - Added dispatch outcome tracing (`applied`/`denied`/`ignored` + reason).
+  - Added package reducer fallback for custom plugins (`state/replace`, `state/merge`).
+  - Added `dispatchSharedAction(...)` helper and `selectGlobalStateForInstance(...)` filtered projection.
+- Updated Playground orchestration (`Playground.tsx`):
+  - Registers per-instance grants from preset manifests.
+  - Uses per-instance filtered global state for render/event.
+  - Dispatches shared intents through `dispatchSharedAction`.
+- Migrated presets (`presetPlugins.ts`):
+  - Added capability manifests per preset.
+  - Migrated counter/greeter to shared domain writes.
+  - Migrated monitor/dashboard/shared-state viewer to domain-based reads.
+- Expanded tests:
+  - Added runtime integration test for loading same package with two instance IDs.
+  - Added e2e tests for multi-instance counter independence and shared write denial for custom plugin without grants.
+
+### Why
+
+- Phase 4 requires explicit capability boundaries and per-instance data visibility rules.
+- Preset migration and tests ensure the new API is exercised through real user flows, not only type-level changes.
+
+### What worked
+
+- Typecheck passed: `pnpm check`.
+- Unit tests passed: `pnpm test:unit`.
+- Integration tests passed: `pnpm test:integration`.
+- E2E tests passed: `pnpm test:e2e` (4/4 passing after adding new tests).
+
+### What didn't work
+
+- First e2e run failed in sandbox due local webserver bind restrictions:
+  - Command: `pnpm test:e2e`
+  - Error: `Error: Process from config.webServer was not able to start. Exit code: 1`
+  - Follow-up direct command showed: `Error: listen EPERM: operation not permitted 127.0.0.1:4173`
+- Resolved by rerunning e2e with escalated permissions.
+
+### What I learned
+
+- The capability model is easiest to reason about when read filtering (`selectGlobalStateForInstance`) and write enforcement (`sharedActionDispatched`) both live in store-level host logic.
+
+### What was tricky to build
+
+- The sharp edge was sequencing API migration without breaking custom/legacy plugin code. I handled this by adding `dispatchSharedAction` as the primary path while keeping a controlled `dispatchGlobalAction` alias that maps into normalized shared actions.
+
+### What warrants a second pair of eyes
+
+- `legacy-global` alias behavior and denial semantics for non-migrated custom plugins should be explicitly accepted (or removed quickly) to avoid long-lived ambiguity.
+- Shared domain schemas are currently runtime-validated ad hoc; if domain count grows, central schema validators should be added.
+
+### What should be done in the future
+
+- Remove `dispatchGlobalAction` alias after confirming no remaining plugin code depends on it.
+- Add dedicated reducer-level unit tests for grant denial reasons and domain reducer edge cases.
+
+### Code review instructions
+
+- Start with `client/src/store/store.ts` (core model and enforcement).
+- Then review `client/src/lib/presetPlugins.ts` + `client/src/pages/Playground.tsx` for host manifest wiring and plugin API migration.
+- Finally review `client/src/lib/quickjsRuntimeService.ts` and tests.
+- Validate with:
+  - `pnpm check`
+  - `pnpm test:unit`
+  - `pnpm test:integration`
+  - `pnpm test:e2e`
+
+### Technical details
+
+- Shared write denial is traced as `missing-write-grant:<domain>` and does not throw into the UI event loop.
+- Per-instance filtered global context shape now includes:
+  - `self: { instanceId, packageId }`
+  - `shared: { ...grantedDomainsOnly }`
+  - `system: runtime metrics + registry`

@@ -102,3 +102,15 @@ Step 3: implemented instance-based store routing and Playground multi-instance l
 - /home/manuel/workspaces/2026-02-08/plugin-playground/go-go-labs/cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/store/store.ts — Package-based local reducer dispatch by instance
 - /home/manuel/workspaces/2026-02-08/plugin-playground/go-go-labs/ttmp/2026/02/08/WEBVM-001-SCOPE-PLUGIN-ACTIONS--scope-plugin-actions-and-state-for-webvm/reference/01-diary.md — Recorded Step 3 details and validations
 
+
+## 2026-02-09
+
+Step 4: implemented shared-domain capability model, migrated presets to dispatchSharedAction, and expanded integration/e2e coverage (commit 709df40)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-08/plugin-playground/go-go-labs/cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/lib/quickjsRuntimeService.ts — VM bootstrap shared dispatch API
+- /home/manuel/workspaces/2026-02-08/plugin-playground/go-go-labs/cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/store/store.ts — Phase 4 shared domains + grant enforcement
+- /home/manuel/workspaces/2026-02-08/plugin-playground/go-go-labs/cmd/experiments/2026-02-08--simulated-communication/plugin-playground/tests/e2e/quickjs-runtime.spec.ts — Regression tests for new behavior
+- /home/manuel/workspaces/2026-02-08/plugin-playground/go-go-labs/ttmp/2026/02/08/WEBVM-001-SCOPE-PLUGIN-ACTIONS--scope-plugin-actions-and-state-for-webvm/reference/01-diary.md — Recorded Step 4 implementation and validation details
+
