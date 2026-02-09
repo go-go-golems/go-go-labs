@@ -1,4 +1,4 @@
-import type { UINode } from "./uiTypes";
+import type { UINode } from "@runtime/uiTypes";
 import type {
   DispatchIntent,
   DisposePluginRequest,
@@ -12,7 +12,7 @@ import type {
   RenderRequest,
   RuntimeErrorPayload,
   WorkerResponse,
-} from "./quickjsContracts";
+} from "@runtime/contracts";
 
 type PendingRequest = {
   resolve: (value: any) => void;

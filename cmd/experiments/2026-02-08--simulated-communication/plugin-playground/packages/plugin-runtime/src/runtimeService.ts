@@ -7,7 +7,7 @@ import type {
   LoadedPlugin,
   PackageId,
   RuntimeErrorPayload,
-} from "./quickjsContracts";
+} from "./contracts";
 import { validateUINode } from "./uiSchema";
 
 const BOOTSTRAP_SOURCE = `

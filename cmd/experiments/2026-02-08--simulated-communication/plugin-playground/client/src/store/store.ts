@@ -1,6 +1,6 @@
 import { configureStore, createSelector, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { nanoid } from "nanoid";
-import type { InstanceId, PackageId } from "@/lib/quickjsContracts";
+import type { InstanceId, PackageId } from "@runtime/contracts";
 
 export type PluginStatus = "loaded" | "error";
 export type SharedDomainName =

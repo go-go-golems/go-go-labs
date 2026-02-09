@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { QuickJSRuntimeService } from "./quickjsRuntimeService";
+import { QuickJSRuntimeService } from "./runtimeService";
 
 const COUNTER_PLUGIN = `
 definePlugin(({ ui }) => {

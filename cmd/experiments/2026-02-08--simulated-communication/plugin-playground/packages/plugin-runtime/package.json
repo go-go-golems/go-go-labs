@@ -1,0 +1,15 @@
+{
+  "name": "@plugin-playground/plugin-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./contracts": "./src/contracts.ts",
+    "./dispatchIntent": "./src/dispatchIntent.ts",
+    "./runtimeIdentity": "./src/runtimeIdentity.ts",
+    "./runtimeService": "./src/runtimeService.ts",
+    "./uiSchema": "./src/uiSchema.ts",
+    "./uiTypes": "./src/uiTypes.ts",
+    ".": "./src/index.ts"
+  }
+}

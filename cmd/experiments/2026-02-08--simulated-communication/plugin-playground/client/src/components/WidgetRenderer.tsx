@@ -2,7 +2,7 @@
 // Monospace typography, high contrast, glowing borders on interactive elements
 
 import React from "react";
-import type { UINode, UIEventRef } from "@/lib/uiTypes";
+import type { UINode, UIEventRef } from "@runtime/uiTypes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";

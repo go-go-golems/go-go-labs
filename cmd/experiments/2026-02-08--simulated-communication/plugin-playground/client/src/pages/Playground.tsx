@@ -3,10 +3,10 @@ import { useDispatch, useSelector } from "react-redux";
 import { WidgetRenderer } from "@/components/WidgetRenderer";
 import { Button } from "@/components/ui/button";
 import { presetPlugins } from "@/lib/presetPlugins";
-import { createInstanceId } from "@/lib/runtimeIdentity";
+import { createInstanceId } from "@runtime/runtimeIdentity";
 import { quickjsSandboxClient } from "@/lib/quickjsSandboxClient";
-import type { LoadedPlugin } from "@/lib/quickjsContracts";
-import type { UINode, UIEventRef } from "@/lib/uiTypes";
+import type { LoadedPlugin } from "@runtime/contracts";
+import type { UINode, UIEventRef } from "@runtime/uiTypes";
 import {
   AppDispatch,
   CapabilityGrants,
