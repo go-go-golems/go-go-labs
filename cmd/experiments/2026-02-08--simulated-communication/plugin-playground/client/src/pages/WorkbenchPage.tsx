@@ -183,35 +183,19 @@ export default function WorkbenchPage() {
     [dispatch],
   );
 
-  const loadPreset = React.useCallback(async (presetId: string) => {
-    try {
-      const preset = presetPlugins.find((p) => p.id === presetId);
-      if (!preset) throw new Error(`Preset not found: ${presetId}`);
+  /** Open a preset in the editor (no sandbox execution). */
+  const openPreset = React.useCallback((presetId: string) => {
+    const preset = presetPlugins.find((p) => p.id === presetId);
+    if (!preset) return;
 
-      const instanceId = createInstanceId(preset.id);
-      const plugin = await quickjsSandboxClient.loadPlugin(preset.id, instanceId, preset.code);
-      registerPlugin(plugin, {
-        readShared: preset.capabilities?.readShared ?? [],
-        writeShared: preset.capabilities?.writeShared ?? [],
-        systemCommands: preset.capabilities?.systemCommands ?? [],
-      });
-
-      // Reuse existing editor tab for this package, or open a new one
-      const existingTab = editorTabs.find((t) => t.packageId === preset.id);
-      let tabId: string;
-      if (existingTab) {
-        tabId = existingTab.id;
-        dispatch(setActiveEditorTab(tabId));
-      } else {
-        const tabAction = dispatch(openEditorTab({ packageId: preset.id, label: `${preset.title}.js`, code: preset.code }));
-        tabId = tabAction.payload.id;
-      }
-      dispatch(setTabActiveInstance({ tabId, instanceId: plugin.instanceId }));
-      dispatch(focusInstance(plugin.instanceId));
-    } catch (err) {
-      dispatch(pushError({ kind: "load", instanceId: null, widgetId: null, message: String(err) }));
+    // Reuse existing editor tab for this package, or open a new one
+    const existingTab = editorTabs.find((t) => t.packageId === preset.id);
+    if (existingTab) {
+      dispatch(setActiveEditorTab(existingTab.id));
+    } else {
+      dispatch(openEditorTab({ packageId: preset.id, label: `${preset.title}.js`, code: preset.code }));
     }
-  }, [dispatch, registerPlugin, editorTabs]);
+  }, [dispatch, editorTabs]);
 
   const runEditorTab = React.useCallback(async (code: string, packageId: string) => {
     try {
@@ -401,7 +385,7 @@ export default function WorkbenchPage() {
           focusedInstanceId={focusedInstanceId ?? undefined}
           onToggleCollapse={() => dispatch(toggleSidebar())}
           onFocusInstance={(id) => dispatch(focusInstance(id))}
-          onLoadPreset={(id) => void loadPreset(id)}
+          onLoadPreset={openPreset}
           onUnloadInstance={(id) => void unloadPlugin(id)}
           onNewPlugin={() => dispatch(openEditorTab({ packageId: "custom", label: "untitled.js", code: "" }))}
         />
