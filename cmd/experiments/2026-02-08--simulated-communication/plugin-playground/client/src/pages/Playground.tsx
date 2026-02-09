@@ -16,6 +16,8 @@ import {
   pluginRegistered,
   pluginRemoved,
   selectAllPluginState,
+  selectDispatchTimeline,
+  selectGlobalState,
   selectGlobalStateForInstance,
   selectLoadedPluginIds,
 } from "@runtime/redux-adapter/store";
@@ -28,6 +30,8 @@ export default function Playground() {
   const rootState = useSelector((s: RootState) => s);
   const loadedPlugins = useSelector((s: RootState) => selectLoadedPluginIds(s));
   const pluginStateById = useSelector((s: RootState) => selectAllPluginState(s));
+  const dispatchTimeline = useSelector((s: RootState) => selectDispatchTimeline(s));
+  const sharedStateSnapshot = useSelector((s: RootState) => selectGlobalState(s).shared);
 
   const [pluginMetaById, setPluginMetaById] = React.useState<Record<string, LoadedPlugin>>({});
   const [widgetTrees, setWidgetTrees] = React.useState<WidgetTrees>({});
@@ -252,6 +256,8 @@ export default function Playground() {
             pluginMetaById={pluginMetaById}
             widgetTrees={widgetTrees}
             widgetErrors={widgetErrors}
+            dispatchTimeline={dispatchTimeline}
+            sharedState={sharedStateSnapshot}
             onWidgetEvent={(instanceId, widgetId, eventRef, eventPayload) =>
               void handleEvent(instanceId, widgetId, eventRef, eventPayload)
             }

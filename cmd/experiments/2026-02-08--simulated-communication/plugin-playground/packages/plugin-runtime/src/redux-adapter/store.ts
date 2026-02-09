@@ -3,6 +3,7 @@ import { nanoid } from "nanoid";
 import type { InstanceId, PackageId } from "../contracts";
 
 export type PluginStatus = "loaded" | "error";
+export type DispatchOutcome = "applied" | "denied" | "ignored";
 export type SharedDomainName =
   | "counter-summary"
   | "greeter-profile"
@@ -24,6 +25,17 @@ export interface CapabilityGrants {
   readShared: SharedDomainName[];
   writeShared: SharedDomainName[];
   systemCommands: string[];
+}
+
+export interface DispatchTimelineEntry {
+  dispatchId: string;
+  timestamp: number;
+  scope: "plugin" | "shared";
+  actionType: string;
+  instanceId: InstanceId | null;
+  domain: SharedDomainName | null;
+  outcome: DispatchOutcome;
+  reason: string | null;
 }
 
 interface CounterSummaryDomainState {
@@ -48,12 +60,14 @@ interface RuntimeState {
   };
   dispatchTrace: {
     count: number;
+    lastTimestamp: number | null;
     lastDispatchId: string | null;
     lastScope: "plugin" | "shared" | null;
     lastActionType: string | null;
-    lastOutcome: "applied" | "denied" | "ignored" | null;
+    lastOutcome: DispatchOutcome | null;
     lastReason: string | null;
   };
+  dispatchTimeline: DispatchTimelineEntry[];
 }
 
 interface ScopedDispatchPayload {
@@ -71,6 +85,7 @@ const DEFAULT_GRANTS: CapabilityGrants = {
   writeShared: [],
   systemCommands: [],
 };
+const MAX_TIMELINE_ENTRIES = 200;
 
 const initialState: RuntimeState = {
   plugins: {},
@@ -90,16 +105,19 @@ const initialState: RuntimeState = {
   },
   dispatchTrace: {
     count: 0,
+    lastTimestamp: null,
     lastDispatchId: null,
     lastScope: null,
     lastActionType: null,
     lastOutcome: null,
     lastReason: null,
   },
+  dispatchTimeline: [],
 };
 
 function markDispatch(state: RuntimeState, dispatch: ScopedDispatchPayload) {
   state.dispatchTrace.count += 1;
+  state.dispatchTrace.lastTimestamp = dispatch.timestamp;
   state.dispatchTrace.lastDispatchId = dispatch.dispatchId;
   state.dispatchTrace.lastScope = dispatch.scope;
   state.dispatchTrace.lastActionType = dispatch.actionType;
@@ -109,11 +127,32 @@ function markDispatch(state: RuntimeState, dispatch: ScopedDispatchPayload) {
 
 function markDispatchOutcome(
   state: RuntimeState,
-  outcome: "applied" | "denied" | "ignored",
+  outcome: DispatchOutcome,
   reason: string | null = null
 ) {
   state.dispatchTrace.lastOutcome = outcome;
   state.dispatchTrace.lastReason = reason;
+}
+
+function appendDispatchTimeline(
+  state: RuntimeState,
+  dispatch: ScopedDispatchPayload,
+  outcome: DispatchOutcome,
+  reason: string | null
+) {
+  state.dispatchTimeline.push({
+    dispatchId: dispatch.dispatchId,
+    timestamp: dispatch.timestamp,
+    scope: dispatch.scope,
+    actionType: dispatch.actionType,
+    instanceId: dispatch.instanceId ?? null,
+    domain: dispatch.domain ?? null,
+    outcome,
+    reason,
+  });
+  if (state.dispatchTimeline.length > MAX_TIMELINE_ENTRIES) {
+    state.dispatchTimeline.splice(0, state.dispatchTimeline.length - MAX_TIMELINE_ENTRIES);
+  }
 }
 
 function hasWriteGrant(state: RuntimeState, instanceId: InstanceId, domain: SharedDomainName): boolean {
@@ -306,7 +345,7 @@ function reduceSharedScopedAction(
   domain: SharedDomainName,
   actionType: string,
   payload?: unknown
-): { outcome: "applied" | "ignored" | "denied"; reason: string | null } {
+): { outcome: DispatchOutcome; reason: string | null } {
   if (!hasWriteGrant(state, instanceId, domain)) {
     return { outcome: "denied", reason: `missing-write-grant:${domain}` };
   }
@@ -394,7 +433,10 @@ const runtimeSlice = createSlice({
 
         markDispatch(state, action.payload);
         const applied = reducePluginScopedAction(state, instanceId, actionType, payload);
-        markDispatchOutcome(state, applied ? "applied" : "ignored", applied ? null : "no-local-reducer-match");
+        const outcome: DispatchOutcome = applied ? "applied" : "ignored";
+        const reason = applied ? null : "no-local-reducer-match";
+        markDispatchOutcome(state, outcome, reason);
+        appendDispatchTimeline(state, action.payload, outcome, reason);
       },
       prepare(instanceId: InstanceId, actionType: string, payload?: unknown) {
         return {
@@ -420,6 +462,7 @@ const runtimeSlice = createSlice({
         markDispatch(state, action.payload);
         const result = reduceSharedScopedAction(state, instanceId, domain, actionType, payload);
         markDispatchOutcome(state, result.outcome, result.reason);
+        appendDispatchTimeline(state, action.payload, result.outcome, result.reason);
       },
       prepare(
         instanceId: InstanceId,
@@ -473,6 +516,7 @@ function buildRuntimeMetrics(runtime: RuntimeState) {
   return {
     pluginCount: Object.keys(runtime.plugins).length,
     dispatchCount: runtime.dispatchTrace.count,
+    lastTimestamp: runtime.dispatchTrace.lastTimestamp,
     lastDispatchId: runtime.dispatchTrace.lastDispatchId,
     lastScope: runtime.dispatchTrace.lastScope,
     lastActionType: runtime.dispatchTrace.lastActionType,
@@ -518,6 +562,9 @@ export function selectAllPluginState(state: RootState): Record<InstanceId, unkno
 
 export const selectLoadedPluginIds = createSelector([selectRuntimeState], (runtime) =>
   Object.keys(runtime.plugins)
+);
+export const selectDispatchTimeline = createSelector([selectRuntimeState], (runtime) =>
+  runtime.dispatchTimeline
 );
 
 export const selectGlobalState = createSelector([selectRuntimeState], (runtime) => ({

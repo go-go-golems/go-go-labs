@@ -121,3 +121,15 @@ Completed task 7 by refactoring Playground into modular workbench UI shells (Cat
 - /home/manuel/workspaces/2026-02-08/plugin-playground/go-go-labs/cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/pages/Playground.tsx — Orchestration page now composes modular shell components
 - /home/manuel/workspaces/2026-02-08/plugin-playground/go-go-labs/ttmp/2026/02/09/WEBVM-003-DEVX-UI-PACKAGE-DOCS-OVERHAUL--developer-ui-overhaul-reusable-vm-package-and-documentation/tasks.md — Marked task 7 complete
 
+
+## 2026-02-09 - Completed task 8
+
+Implemented runtime timeline and shared-domain inspector panels with filtering and bounded timeline retention in runtime state.
+
+### Related Files
+
+- cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/features/workbench/InspectorShell.tsx — Added widgets/timeline/shared tabs with filters and shared-state panel
+- cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/pages/Playground.tsx — Wired timeline/shared selectors into Inspector shell props
+- cmd/experiments/2026-02-08--simulated-communication/plugin-playground/packages/plugin-runtime/src/redux-adapter/store.ts — Added timeline entry model
+- ttmp/2026/02/09/WEBVM-003-DEVX-UI-PACKAGE-DOCS-OVERHAUL--developer-ui-overhaul-reusable-vm-package-and-documentation/tasks.md — Marked task 8 complete
+
