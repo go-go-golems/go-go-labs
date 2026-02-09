@@ -314,6 +314,79 @@ Also: the code block copy button needed a way to reference the raw code content 
 - Read §D7 for the design decision rationale
 - Check §5.7.5 for the concrete `docsManifest.ts` and `renderMarkdown.ts` code
 
+## Step 5: Storybook Setup, RTK State, Themable Components (T11+T12+T13)
+
+Installed Storybook 10, created the RTK workbench slice for UI state, built the foundational WorkbenchLayout and Sidebar components using vm-system-ui visual style with the react-modular-themable-storybook data-part/CSS-variable pattern, and wired everything through stories with a Redux Provider decorator.
+
+### Prompt Context
+
+**User prompt (verbatim):** "add detailed implementation tasks... use storybook stories as the main way to scaffold... use rtk for state... match the style of vm-system-ui, but use the themable pattern."
+
+**Assistant interpretation:** Create RTK-managed UI state, build components matching vm-system-ui's slate/Inter/JetBrains Mono visual language while using data-widget/data-part/CSS variable theming hooks, and scaffold everything story-first.
+
+**Inferred user intent:** Get a working component system that is visually consistent with the existing vm-system-ui project, architecturally sound with proper state management and theming extension points, and incrementally verifiable through Storybook.
+
+**Commit (code):** 5169169 — "T12+T13: RTK workbench slice, vm-system-ui style, themable layout + sidebar"
+
+### What I did
+
+- Installed Storybook 10 (`@storybook/react-vite`), configured `.storybook/main.ts` with Vite path aliases and `.storybook/preview.ts` with dark theme decorator + global Redux Provider
+- Exported `runtimeReducer` from `packages/plugin-runtime/src/redux-adapter/store.ts` to enable clean store composition
+- Created `client/src/store/workbenchSlice.ts`: layout state (sidebar/devtools collapse), editor tabs, instance focus, devtools active tab, error log — all as RTK `createSlice` with typed actions
+- Created `client/src/store/index.ts`: composed store with `{ runtime: runtimeReducer, workbench: workbenchReducer }`, typed hooks (`useAppDispatch`/`useAppSelector`), re-exports of all runtime + workbench actions/selectors
+- Created `workbench.css`: `:where([data-widget="workbench"])` scoped CSS variables (--wb-color-*, --wb-font-*, --wb-space-*, --wb-sidebar-width etc.) with low-specificity selectors for layout structure
+- Created `WorkbenchLayout.tsx`: reads sidebar/devtools state from RTK store, supports prop overrides for stories, `unstyled` prop for consumer CSS
+- Created `Sidebar.tsx`: pure presentational component using vm-system-ui slate palette (slate-800, slate-500 borders, Inter font, blue accent, emerald status dots)
+- Created `ConnectedSidebar.tsx`: thin RTK wrapper that selects running instances from runtime state and dispatches workbench actions
+- Created `storyDecorators.tsx`: `withStore()` factory returning Storybook `Decorator` type, with runtime stub reducer and configurable workbench preload
+- Built 14 stories across 3 story files, all rendering cleanly
+
+### Why
+
+The user asked for vm-system-ui visual consistency + themable pattern + RTK state + Storybook scaffolding. This combines all four: the components look like vm-system-ui (same color palette, typography, interaction patterns), use data-part attributes and CSS variables for theming extensibility, read/write UI state through RTK, and are fully testable in Storybook.
+
+### What worked
+
+- The global `withStore()` decorator in `preview.ts` ensures every story gets a Redux Provider automatically, eliminating the "could not find react-redux context value" error
+- Per-story `withStore({ sidebarCollapsed: true })` works via nested Provider shadowing — inner Provider wins
+- Exporting `runtimeReducer` from the runtime package was a one-line change that enabled clean store composition without hacks
+- The presentational/connected split (Sidebar vs ConnectedSidebar) keeps stories simple while the real app gets full RTK wiring
+
+### What didn't work
+
+- First storybook startup failed: `__dirname is not defined` in ESM context. Fixed by using `import.meta.url` + `fileURLToPath`.
+- First `withStore` decorator had wrong signature (`(Story: React.ComponentType)` instead of Storybook's `Decorator` type). Fixed by using `@storybook/react-vite`'s `Decorator` type.
+- `@storybook/test` module not found for `fn()` — Storybook 10 moved it to `storybook/test`. Fixed import.
+
+### What I learned
+
+- Storybook 10 uses `storybook/test` not `@storybook/test` for `fn()`
+- The `:where()` pseudo-class for CSS selectors is perfect for themable component systems — zero specificity means any consumer CSS wins
+- vm-system-ui's visual language is: slate-950 background, slate-900 cards, white/[0.06] borders (not oklch border variables), Inter for UI text, JetBrains Mono for code, blue-600 accent, emerald-500 success, compact text-xs/text-sm sizing
+
+### What was tricky to build
+
+Getting the RTK store composition right without depending on the runtime package's singleton `store`. The runtime package exports `configureStore({ reducer: { runtime: runtimeSlice.reducer } })` as a singleton, but we need to compose it with our workbench reducer. Solution: export the raw slice reducer (`runtimeReducer = runtimeSlice.reducer`) from the runtime package and compose in the app.
+
+The storybook decorator typing was also tricky — Storybook 10's `Decorator` type expects `(Story, context) => ReactNode` where `Story` is a component, and you render it as `<Story />`.
+
+### What warrants a second pair of eyes
+
+- The `storyDecorators.tsx` runtime stub reducer shape must stay in sync with what runtime selectors expect. If the runtime state shape changes, the stub needs updating or stories will break.
+- The `withStore()` global + per-story nested Provider pattern works but is unconventional. If Storybook changes Provider resolution order, it could break.
+
+### What should be done in the future
+
+- Continue with T14-T24: TopToolbar, EditorTabBar, CodeEditor, LivePreview, DevTools panels, DocsPanel
+- Consider extracting the `storyDecorators` runtime stub into a `@runtime/test-utils` export
+
+### Code review instructions
+
+- Start at `client/src/store/workbenchSlice.ts` for the RTK state shape
+- Check `client/src/features/workbench/styles/workbench.css` for the CSS variable theming contract
+- Check `client/src/features/workbench/components/Sidebar.tsx` for the vm-system-ui visual style
+- Run `pnpm storybook` and browse all 14 stories at http://localhost:6006
+
 ---
 
 ## Appendix: Technical Reference
