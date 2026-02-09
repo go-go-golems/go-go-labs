@@ -8,7 +8,7 @@
 - [x] Create one `plugin-runtime` package scaffold and migrate contracts + QuickJS core into it
 - [x] Move worker wrapper/client transport and host adapter interfaces into `plugin-runtime` for non-UI embedding
 - [x] Move Redux runtime policy/reducer/selector logic into `plugin-runtime` internal `redux-adapter` module
-- [ ] Refactor Playground into modular developer workbench UI shells (`catalog`, `workspace`, `inspector`)
+- [x] Refactor Playground into modular developer workbench UI shells (`catalog`, `workspace`, `inspector`)
 - [ ] Implement runtime timeline and shared-domain inspector panels with filters
 - [ ] Write plugin authoring + capability model docs (`quickstart`, domain reference)
 - [ ] Write runtime embedding docs with package usage examples and migration notes
