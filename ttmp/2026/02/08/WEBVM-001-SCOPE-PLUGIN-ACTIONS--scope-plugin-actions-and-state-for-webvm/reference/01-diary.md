@@ -38,7 +38,7 @@ RelatedFiles:
       Note: Step-by-step execution checklist for this implementation
 ExternalSources: []
 Summary: Implementation diary for WEBVM-001, with commit-by-commit notes, failures, and validation instructions.
-LastUpdated: 2026-02-09T00:00:00Z
+LastUpdated: 2026-02-09T06:05:16Z
 WhatFor: Track implementation progress from design brief to running multi-instance + capability model runtime.
 WhenToUse: Read during development and review to understand what changed in each step and how to validate it.
 ---
@@ -375,3 +375,73 @@ This step replaces the previous flat global model with a governed shared-domain 
   - `self: { instanceId, packageId }`
   - `shared: { ...grantedDomainsOnly }`
   - `system: runtime metrics + registry`
+
+## Step 5: Prune Unused UI Wrapper Components
+
+I removed dead wrapper files under `client/src/components/ui` and kept only the wrappers currently used by the app. This shrinks maintenance surface area and sets up a cleaner dependency-pruning pass next.
+
+This change is intentionally constrained to file removals and validation; no runtime behavior or API paths were changed.
+
+### Prompt Context
+
+**User prompt (verbatim):** "yes, go ahead."
+
+**Assistant interpretation:** Continue the cleanup pass by removing unused wrapper components before dependency pruning.
+
+**Inferred user intent:** Keep the codebase lean and reduce stale abstraction layers that are no longer used.
+
+**Commit (code):** `refactor(playground): remove unused UI wrapper components`
+
+### What I did
+
+- Audited direct imports from app code and identified active wrappers:
+  - `button`, `input`, `badge`, `card`, `sonner`, `tooltip`
+  - plus `dialog` (required by `input` via `useDialogComposition`)
+- Deleted all other wrapper files in `client/src/components/ui`.
+- Re-ran static and automated checks.
+
+### Why
+
+- Most shadcn wrapper files were no longer referenced by the runtime/playground UI.
+- Keeping dead wrappers creates confusion and inflates future migration work.
+
+### What worked
+
+- Typecheck passed: `pnpm check`.
+- Unit tests passed: `pnpm test:unit`.
+- Integration tests passed: `pnpm test:integration`.
+
+### What didn't work
+
+- N/A
+
+### What I learned
+
+- The only non-obvious retained dependency was `dialog.tsx`, required indirectly by `input.tsx`.
+
+### What was tricky to build
+
+- Ensuring no hidden imports existed outside `client/src/components/ui` before bulk deleting wrappers.
+
+### What warrants a second pair of eyes
+
+- Whether `input.tsx` should keep `useDialogComposition` coupling or be simplified in a later pass.
+
+### What should be done in the future
+
+- Prune now-unused UI dependencies from `package.json` and rerun checks/tests.
+
+### Code review instructions
+
+- Confirm only these wrapper files remain:
+  - `client/src/components/ui/button.tsx`
+  - `client/src/components/ui/input.tsx`
+  - `client/src/components/ui/badge.tsx`
+  - `client/src/components/ui/card.tsx`
+  - `client/src/components/ui/sonner.tsx`
+  - `client/src/components/ui/tooltip.tsx`
+  - `client/src/components/ui/dialog.tsx`
+- Validate with:
+  - `pnpm check`
+  - `pnpm test:unit`
+  - `pnpm test:integration`
