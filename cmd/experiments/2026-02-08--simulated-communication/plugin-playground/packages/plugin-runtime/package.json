@@ -6,10 +6,13 @@
   "exports": {
     "./contracts": "./src/contracts.ts",
     "./dispatchIntent": "./src/dispatchIntent.ts",
+    "./hostAdapter": "./src/hostAdapter.ts",
     "./runtimeIdentity": "./src/runtimeIdentity.ts",
     "./runtimeService": "./src/runtimeService.ts",
     "./uiSchema": "./src/uiSchema.ts",
     "./uiTypes": "./src/uiTypes.ts",
+    "./worker/runtime.worker": "./src/worker/runtime.worker.ts",
+    "./worker/sandboxClient": "./src/worker/sandboxClient.ts",
     ".": "./src/index.ts"
   }
 }

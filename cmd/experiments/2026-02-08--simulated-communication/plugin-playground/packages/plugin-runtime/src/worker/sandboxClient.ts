@@ -1,4 +1,4 @@
-import type { UINode } from "@runtime/uiTypes";
+import type { UINode } from "../uiTypes";
 import type {
   DispatchIntent,
   DisposePluginRequest,
@@ -12,7 +12,7 @@ import type {
   RenderRequest,
   RuntimeErrorPayload,
   WorkerResponse,
-} from "@runtime/contracts";
+} from "../contracts";
 
 type PendingRequest = {
   resolve: (value: any) => void;
@@ -39,7 +39,7 @@ export class QuickJSSandboxClient {
   private pending = new Map<number, PendingRequest>();
 
   constructor() {
-    this.worker = new Worker(new URL("../workers/quickjsRuntime.worker.ts", import.meta.url), {
+    this.worker = new Worker(new URL("./runtime.worker.ts", import.meta.url), {
       type: "module",
     });
 

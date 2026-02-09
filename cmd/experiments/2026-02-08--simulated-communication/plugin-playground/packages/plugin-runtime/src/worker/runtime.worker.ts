@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
-import type { WorkerRequest, WorkerResponse } from "@runtime/contracts";
-import { QuickJSRuntimeService, toRuntimeError } from "@runtime/runtimeService";
+import type { WorkerRequest, WorkerResponse } from "../contracts";
+import { QuickJSRuntimeService, toRuntimeError } from "../runtimeService";
 
 const runtimeService = new QuickJSRuntimeService();
 

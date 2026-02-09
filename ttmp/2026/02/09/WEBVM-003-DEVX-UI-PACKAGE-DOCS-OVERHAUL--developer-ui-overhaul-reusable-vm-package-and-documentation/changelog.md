@@ -81,3 +81,16 @@ Completed task 4 by scaffolding packages/plugin-runtime and migrating contracts,
 - /home/manuel/workspaces/2026-02-08/plugin-playground/go-go-labs/cmd/experiments/2026-02-08--simulated-communication/plugin-playground/vitest.integration.config.ts — Integration tests now include package runtime tests
 - /home/manuel/workspaces/2026-02-08/plugin-playground/go-go-labs/ttmp/2026/02/09/WEBVM-003-DEVX-UI-PACKAGE-DOCS-OVERHAUL--developer-ui-overhaul-reusable-vm-package-and-documentation/tasks.md — Marked task 4 complete
 
+
+## 2026-02-09
+
+Completed task 5 by moving worker wrapper/client transport into plugin-runtime package and adding host adapter interfaces for non-UI embedding.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-08/plugin-playground/go-go-labs/cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/pages/Playground.tsx — App now consumes sandbox client from runtime package
+- /home/manuel/workspaces/2026-02-08/plugin-playground/go-go-labs/cmd/experiments/2026-02-08--simulated-communication/plugin-playground/packages/plugin-runtime/src/hostAdapter.ts — Added runtime host adapter interfaces for embedding
+- /home/manuel/workspaces/2026-02-08/plugin-playground/go-go-labs/cmd/experiments/2026-02-08--simulated-communication/plugin-playground/packages/plugin-runtime/src/worker/runtime.worker.ts — Moved runtime worker into package worker module
+- /home/manuel/workspaces/2026-02-08/plugin-playground/go-go-labs/cmd/experiments/2026-02-08--simulated-communication/plugin-playground/packages/plugin-runtime/src/worker/sandboxClient.ts — Moved sandbox client into runtime package worker module
+- /home/manuel/workspaces/2026-02-08/plugin-playground/go-go-labs/ttmp/2026/02/09/WEBVM-003-DEVX-UI-PACKAGE-DOCS-OVERHAUL--developer-ui-overhaul-reusable-vm-package-and-documentation/tasks.md — Marked task 5 complete
+

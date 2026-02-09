@@ -4,7 +4,7 @@ import { WidgetRenderer } from "@/components/WidgetRenderer";
 import { Button } from "@/components/ui/button";
 import { presetPlugins } from "@/lib/presetPlugins";
 import { createInstanceId } from "@runtime/runtimeIdentity";
-import { quickjsSandboxClient } from "@/lib/quickjsSandboxClient";
+import { quickjsSandboxClient } from "@runtime/worker/sandboxClient";
 import type { LoadedPlugin } from "@runtime/contracts";
 import type { UINode, UIEventRef } from "@runtime/uiTypes";
 import {
