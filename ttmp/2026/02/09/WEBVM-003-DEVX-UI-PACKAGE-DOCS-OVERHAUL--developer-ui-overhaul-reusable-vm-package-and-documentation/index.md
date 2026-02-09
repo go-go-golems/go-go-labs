@@ -12,7 +12,7 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: Deep-pass ticket to redesign the plugin playground for developer workflows, extract reusable VM runtime packages, and produce production-quality docs.
-LastUpdated: 2026-02-09T00:23:20.806201038-05:00
+LastUpdated: 2026-02-09T12:24:00Z
 WhatFor: Plan and execute the next architectural step after WEBVM-001 completion.
 WhenToUse: Use when prioritizing UI overhaul, package extraction, and docs work for the plugin runtime.
 ---
@@ -29,7 +29,9 @@ This ticket covers three linked goals:
 
 ## Key Links
 
-- Deep pass design document: `design-doc/01-deep-pass-ui-overhaul-runtime-packaging-and-docs-plan.md`
+- Deep pass refresh (current source of truth): `design-doc/02-deep-pass-refresh-current-codebase-audit-and-ui-runtime-docs-roadmap.md`
+- Original deep pass baseline: `design-doc/01-deep-pass-ui-overhaul-runtime-packaging-and-docs-plan.md`
+- reMarkable upload: `/ai/2026/02/09/WEBVM-003-DEVX/WEBVM-003 Deep Pass Refresh`
 - Tasks: `tasks.md`
 - Changelog: `changelog.md`
 
