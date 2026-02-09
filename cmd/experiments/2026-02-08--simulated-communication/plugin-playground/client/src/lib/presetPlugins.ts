@@ -243,10 +243,42 @@ definePlugin(({ ui }) => {
   `,
 };
 
+// Shared Greeter State Viewer Plugin
+export const sharedGreeterStatePlugin: PluginDefinition = {
+  id: "greeter-shared-state",
+  title: "Greeter Shared State",
+  description: "Shows greeter state mirrored into shared global runtime state",
+  code: `
+definePlugin(({ ui }) => {
+  return {
+    id: "greeter-shared-state",
+    title: "Greeter Shared State",
+    description: "Shared greeter state viewer",
+    widgets: {
+      sharedGreeter: {
+        render({ globalState }) {
+          const name = String(globalState?.greeterName ?? "");
+          const greeting = name ? "Shared greeting: Hello, " + name + "!" : "Shared greeting: (empty)";
+
+          return ui.panel([
+            ui.text("Reads from globalState.greeterName"),
+            ui.badge(name ? "SYNCED" : "NO NAME"),
+            ui.text(greeting),
+          ]);
+        },
+        handlers: {},
+      },
+    },
+  };
+});
+  `,
+};
+
 export const presetPlugins = [
   counterPlugin,
   calculatorPlugin,
   statusDashboardPlugin,
   greeterPlugin,
+  sharedGreeterStatePlugin,
   runtimeMonitorPlugin,
 ];

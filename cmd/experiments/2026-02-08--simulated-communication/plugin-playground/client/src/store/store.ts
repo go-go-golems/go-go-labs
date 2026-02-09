@@ -18,6 +18,7 @@ interface RuntimeState {
   pluginStateById: Record<string, unknown>;
   globals: {
     counterValue: number;
+    greeterName: string;
   };
   dispatchTrace: {
     count: number;
@@ -43,6 +44,7 @@ const initialState: RuntimeState = {
   pluginStateById: {},
   globals: {
     counterValue: 0,
+    greeterName: "",
   },
   dispatchTrace: {
     count: 0,
@@ -144,9 +146,11 @@ function reduceGreeterPlugin(
     return;
   }
 
+  const name = String(payload ?? "");
   state.pluginStateById[pluginId] = {
-    name: String(payload ?? ""),
+    name,
   };
+  state.globals.greeterName = name;
 }
 
 function reducePluginScopedAction(
@@ -213,6 +217,11 @@ const runtimeSlice = createSlice({
         const counter = (state.pluginStateById[id] as { value?: number } | undefined) ?? { value: 0 };
         state.globals.counterValue = Number(counter.value ?? 0);
       }
+
+      if (id === "greeter") {
+        const greeter = (state.pluginStateById[id] as { name?: string } | undefined) ?? { name: "" };
+        state.globals.greeterName = String(greeter.name ?? "");
+      }
     },
 
     pluginRemoved(state, action: PayloadAction<string>) {
@@ -221,6 +230,10 @@ const runtimeSlice = createSlice({
 
       if (action.payload === "counter") {
         state.globals.counterValue = 0;
+      }
+
+      if (action.payload === "greeter") {
+        state.globals.greeterName = "";
       }
     },
 
@@ -303,6 +316,7 @@ export function selectAllPluginState(state: RootState): Record<string, unknown> 
 export function selectGlobalState(state: RootState) {
   return {
     counterValue: state.runtime.globals.counterValue,
+    greeterName: state.runtime.globals.greeterName,
     pluginCount: Object.keys(state.runtime.plugins).length,
     dispatchCount: state.runtime.dispatchTrace.count,
     lastDispatchId: state.runtime.dispatchTrace.lastDispatchId,

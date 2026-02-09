@@ -120,9 +120,15 @@ export default function Playground() {
     dispatch(pluginRemoved(pluginId));
   };
 
-  const handleEvent = (pluginId: string, widgetId: string, eventRef: UIEventRef) => {
+  const handleEvent = (
+    pluginId: string,
+    widgetId: string,
+    eventRef: UIEventRef,
+    eventPayload?: unknown
+  ) => {
     try {
       const pluginState = pluginStateById[pluginId] ?? {};
+      const handlerArgs = eventPayload ?? eventRef.args;
 
       pluginManager.callHandler(
         pluginId,
@@ -130,7 +136,7 @@ export default function Playground() {
         eventRef.handler,
         (actionType, payload) => dispatchPluginAction(dispatch, pluginId, actionType, payload),
         (actionType, payload) => dispatchGlobalAction(dispatch, actionType, payload),
-        eventRef.args,
+        handlerArgs,
         pluginState,
         globalState
       );
@@ -140,55 +146,57 @@ export default function Playground() {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground p-4">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-dvh bg-background text-foreground p-4">
+      <div className="max-w-7xl mx-auto h-full min-h-0 flex flex-col">
         <h1 className="text-3xl font-bold text-cyan-400 mb-2 font-mono">PLUGIN PLAYGROUND</h1>
         <p className="text-muted-foreground mb-6 font-mono text-sm">
           Unified Runtime v1 - Plugin/Global State and Action Scoping
         </p>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="border border-cyan-400/30 rounded-sm p-4 bg-card/50">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1 min-h-0">
+          <div className="border border-cyan-400/30 rounded-sm p-4 bg-card/50 h-full min-h-0 flex flex-col">
             <h2 className="text-lg font-bold text-cyan-400 mb-4 font-mono">PRESETS</h2>
-            <div className="space-y-2">
-              {presetPlugins.map((preset) => (
-                <Button
-                  key={preset.id}
-                  onClick={() => loadPreset(preset.id)}
-                  variant={loadedPlugins.includes(preset.id) ? "default" : "outline"}
-                  className="w-full justify-start font-mono text-xs"
-                >
-                  {preset.title}
-                  {loadedPlugins.includes(preset.id) && " ✓"}
-                </Button>
-              ))}
-            </div>
-
-            <div className="mt-6 border-t border-cyan-400/20 pt-4">
-              <h3 className="text-sm font-bold text-cyan-400 mb-2 font-mono">LOADED</h3>
-              <div className="space-y-1">
-                {loadedPlugins.map((id) => (
-                  <div key={id} className="flex items-center justify-between text-xs font-mono">
-                    <span>{id}</span>
-                    <button
-                      onClick={() => unloadPlugin(id)}
-                      className="text-red-400 hover:text-red-300"
-                    >
-                      X
-                    </button>
-                  </div>
+            <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+              <div className="space-y-2">
+                {presetPlugins.map((preset) => (
+                  <Button
+                    key={preset.id}
+                    onClick={() => loadPreset(preset.id)}
+                    variant={loadedPlugins.includes(preset.id) ? "default" : "outline"}
+                    className="w-full justify-start font-mono text-xs"
+                  >
+                    {preset.title}
+                    {loadedPlugins.includes(preset.id) && " ✓"}
+                  </Button>
                 ))}
+              </div>
+
+              <div className="mt-6 border-t border-cyan-400/20 pt-4">
+                <h3 className="text-sm font-bold text-cyan-400 mb-2 font-mono">LOADED</h3>
+                <div className="space-y-1">
+                  {loadedPlugins.map((id) => (
+                    <div key={id} className="flex items-center justify-between text-xs font-mono">
+                      <span>{id}</span>
+                      <button
+                        onClick={() => unloadPlugin(id)}
+                        className="text-red-400 hover:text-red-300"
+                      >
+                        X
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="border border-cyan-400/30 rounded-sm p-4 bg-card/50">
+          <div className="border border-cyan-400/30 rounded-sm p-4 bg-card/50 h-full min-h-0 flex flex-col">
             <h2 className="text-lg font-bold text-cyan-400 mb-4 font-mono">CUSTOM PLUGIN</h2>
             <textarea
               value={customCode}
               onChange={(e) => setCustomCode(e.target.value)}
               placeholder="definePlugin(({ ui }) => { ... })"
-              className="w-full h-48 bg-background/50 border border-cyan-400/20 rounded p-2 font-mono text-xs text-foreground resize-none focus:outline-none focus:border-cyan-400"
+              className="w-full flex-1 min-h-[12rem] bg-background/50 border border-cyan-400/20 rounded p-2 font-mono text-xs text-foreground resize-none focus:outline-none focus:border-cyan-400"
             />
             <Button onClick={loadCustom} className="w-full mt-2 font-mono text-xs">
               LOAD PLUGIN
@@ -196,12 +204,12 @@ export default function Playground() {
             {error && <div className="mt-2 text-red-400 text-xs font-mono">{error}</div>}
           </div>
 
-          <div className="border border-cyan-400/30 rounded-sm p-4 bg-card/50">
+          <div className="border border-cyan-400/30 rounded-sm p-4 bg-card/50 h-full min-h-0 flex flex-col">
             <h2 className="text-lg font-bold text-cyan-400 mb-4 font-mono">LIVE WIDGETS</h2>
             {loadedPlugins.length === 0 ? (
               <div className="text-muted-foreground text-xs font-mono">No plugins loaded</div>
             ) : (
-              <div className="space-y-4 max-h-96 overflow-y-auto">
+              <div className="space-y-4 flex-1 min-h-0 overflow-y-auto pr-1">
                 {loadedPlugins.map((pluginId) => {
                   const plugin = pluginManager.getPlugin(pluginId);
                   if (!plugin) {
@@ -227,7 +235,9 @@ export default function Playground() {
                               <div key={widgetId}>
                                 <WidgetRenderer
                                   tree={tree}
-                                  onEvent={(eventRef) => handleEvent(pluginId, widgetId, eventRef)}
+                                  onEvent={(eventRef, eventPayload) =>
+                                    handleEvent(pluginId, widgetId, eventRef, eventPayload)
+                                  }
                                 />
                               </div>
                             );
