@@ -204,12 +204,28 @@ export default function WorkbenchPage() {
     }
   }, [dispatch, registerPlugin]);
 
-  const loadCustom = React.useCallback(async (code: string) => {
+  const runEditorTab = React.useCallback(async (code: string, packageId: string) => {
     try {
       if (!code.trim()) throw new Error("Plugin code cannot be empty");
-      const instanceId = createInstanceId("custom");
-      const plugin = await quickjsSandboxClient.loadPlugin("custom", instanceId, code);
-      registerPlugin(plugin, { readShared: [], writeShared: [], systemCommands: [] });
+
+      // If packageId matches a preset, use its capabilities.
+      // Otherwise grant all shared domains (sandbox is for experimentation).
+      const preset = presetPlugins.find((p) => p.id === packageId);
+      const grants: CapabilityGrants = preset
+        ? {
+            readShared: preset.capabilities?.readShared ?? [],
+            writeShared: preset.capabilities?.writeShared ?? [],
+            systemCommands: preset.capabilities?.systemCommands ?? [],
+          }
+        : {
+            readShared: ALL_SHARED_DOMAINS,
+            writeShared: ALL_SHARED_DOMAINS,
+            systemCommands: [],
+          };
+
+      const instanceId = createInstanceId(packageId);
+      const plugin = await quickjsSandboxClient.loadPlugin(packageId, instanceId, code);
+      registerPlugin(plugin, grants);
       dispatch(focusInstance(plugin.instanceId));
     } catch (err) {
       dispatch(pushError({ kind: "load", instanceId: null, widgetId: null, message: String(err) }));
@@ -402,8 +418,8 @@ export default function WorkbenchPage() {
             activeTabId={activeEditorTabId}
             onSelectTab={(id) => dispatch(setActiveEditorTab(id))}
             onCloseTab={(id) => dispatch(closeEditorTab(id))}
-            onRun={activeTab ? () => void loadCustom(activeTab.code) : undefined}
-            onReload={activeTab ? () => void loadCustom(activeTab.code) : undefined}
+            onRun={activeTab ? () => void runEditorTab(activeTab.code, activeTab.packageId) : undefined}
+            onReload={activeTab ? () => void runEditorTab(activeTab.code, activeTab.packageId) : undefined}
           />
           {activeTab ? (
             <CodeEditor
