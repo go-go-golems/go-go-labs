@@ -1,10 +1,12 @@
 import { configureStore, createSelector, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { nanoid } from "nanoid";
+import type { InstanceId, PackageId } from "@/lib/quickjsContracts";
 
 export type PluginStatus = "loaded" | "error";
 
 export interface RuntimePlugin {
-  id: string;
+  instanceId: InstanceId;
+  packageId: PackageId;
   title: string;
   description?: string;
   widgets: string[];
@@ -14,8 +16,8 @@ export interface RuntimePlugin {
 }
 
 interface RuntimeState {
-  plugins: Record<string, RuntimePlugin>;
-  pluginStateById: Record<string, unknown>;
+  plugins: Record<InstanceId, RuntimePlugin>;
+  pluginStateById: Record<InstanceId, unknown>;
   globals: {
     counterValue: number;
     greeterName: string;
@@ -33,7 +35,7 @@ interface ScopedDispatchPayload {
   timestamp: number;
   scope: "plugin" | "global";
   actionType: string;
-  pluginId?: string;
+  instanceId?: InstanceId;
   payload?: unknown;
 }
 
@@ -63,11 +65,11 @@ function markDispatch(state: RuntimeState, dispatch: ScopedDispatchPayload) {
 
 function reduceCounterPlugin(
   state: RuntimeState,
-  pluginId: string,
+  instanceId: InstanceId,
   actionType: string,
   payload?: unknown
 ) {
-  const current = (state.pluginStateById[pluginId] as { value?: number } | undefined) ?? {};
+  const current = (state.pluginStateById[instanceId] as { value?: number } | undefined) ?? {};
   let value = Number(current.value ?? 0);
 
   if (actionType === "increment") {
@@ -80,18 +82,18 @@ function reduceCounterPlugin(
     return;
   }
 
-  state.pluginStateById[pluginId] = { value };
+  state.pluginStateById[instanceId] = { value };
   state.globals.counterValue = value;
 }
 
 function reduceCalculatorPlugin(
   state: RuntimeState,
-  pluginId: string,
+  instanceId: InstanceId,
   actionType: string,
   payload?: unknown
 ) {
   const current =
-    (state.pluginStateById[pluginId] as
+    (state.pluginStateById[instanceId] as
       | { display?: string; accumulator?: number; operation?: string | null }
       | undefined) ?? {};
 
@@ -133,12 +135,12 @@ function reduceCalculatorPlugin(
     return;
   }
 
-  state.pluginStateById[pluginId] = calculator;
+  state.pluginStateById[instanceId] = calculator;
 }
 
 function reduceGreeterPlugin(
   state: RuntimeState,
-  pluginId: string,
+  instanceId: InstanceId,
   actionType: string,
   payload?: unknown
 ) {
@@ -147,34 +149,53 @@ function reduceGreeterPlugin(
   }
 
   const name = String(payload ?? "");
-  state.pluginStateById[pluginId] = {
+  state.pluginStateById[instanceId] = {
     name,
   };
   state.globals.greeterName = name;
 }
 
+function recomputeCounterMirror(state: RuntimeState) {
+  const counterInstances = Object.values(state.plugins).filter((plugin) => plugin.packageId === "counter");
+  if (counterInstances.length === 0) {
+    state.globals.counterValue = 0;
+    return;
+  }
+
+  const last = counterInstances[counterInstances.length - 1];
+  const local = state.pluginStateById[last.instanceId] as { value?: number } | undefined;
+  state.globals.counterValue = Number(local?.value ?? 0);
+}
+
+function recomputeGreeterMirror(state: RuntimeState) {
+  const greeterInstances = Object.values(state.plugins).filter((plugin) => plugin.packageId === "greeter");
+  if (greeterInstances.length === 0) {
+    state.globals.greeterName = "";
+    return;
+  }
+
+  const last = greeterInstances[greeterInstances.length - 1];
+  const local = state.pluginStateById[last.instanceId] as { name?: string } | undefined;
+  state.globals.greeterName = String(local?.name ?? "");
+}
+
 function reducePluginScopedAction(
   state: RuntimeState,
-  pluginId: string,
+  instanceId: InstanceId,
   actionType: string,
   payload?: unknown
 ) {
-  if (!state.plugins[pluginId]) {
+  const plugin = state.plugins[instanceId];
+  if (!plugin) {
     return;
   }
 
-  if (pluginId === "counter") {
-    reduceCounterPlugin(state, pluginId, actionType, payload);
-    return;
-  }
-
-  if (pluginId === "calculator") {
-    reduceCalculatorPlugin(state, pluginId, actionType, payload);
-    return;
-  }
-
-  if (pluginId === "greeter") {
-    reduceGreeterPlugin(state, pluginId, actionType, payload);
+  if (plugin.packageId === "counter") {
+    reduceCounterPlugin(state, instanceId, actionType, payload);
+  } else if (plugin.packageId === "calculator") {
+    reduceCalculatorPlugin(state, instanceId, actionType, payload);
+  } else if (plugin.packageId === "greeter") {
+    reduceGreeterPlugin(state, instanceId, actionType, payload);
   }
 }
 
@@ -191,17 +212,19 @@ const runtimeSlice = createSlice({
     pluginRegistered(
       state,
       action: PayloadAction<{
-        id: string;
+        instanceId: InstanceId;
+        packageId: PackageId;
         title: string;
         description?: string;
         widgets: string[];
         initialState?: unknown;
       }>
     ) {
-      const { id, title, description, widgets, initialState } = action.payload;
+      const { instanceId, packageId, title, description, widgets, initialState } = action.payload;
 
-      state.plugins[id] = {
-        id,
+      state.plugins[instanceId] = {
+        instanceId,
+        packageId,
         title,
         description,
         widgets,
@@ -210,50 +233,56 @@ const runtimeSlice = createSlice({
       };
 
       if (initialState !== undefined) {
-        state.pluginStateById[id] = initialState;
+        state.pluginStateById[instanceId] = initialState;
       }
 
-      if (id === "counter") {
-        const counter = (state.pluginStateById[id] as { value?: number } | undefined) ?? { value: 0 };
+      if (packageId === "counter") {
+        const counter =
+          (state.pluginStateById[instanceId] as { value?: number } | undefined) ?? { value: 0 };
         state.globals.counterValue = Number(counter.value ?? 0);
       }
 
-      if (id === "greeter") {
-        const greeter = (state.pluginStateById[id] as { name?: string } | undefined) ?? { name: "" };
+      if (packageId === "greeter") {
+        const greeter =
+          (state.pluginStateById[instanceId] as { name?: string } | undefined) ?? { name: "" };
         state.globals.greeterName = String(greeter.name ?? "");
       }
     },
 
-    pluginRemoved(state, action: PayloadAction<string>) {
-      delete state.plugins[action.payload];
-      delete state.pluginStateById[action.payload];
-
-      if (action.payload === "counter") {
-        state.globals.counterValue = 0;
+    pluginRemoved(state, action: PayloadAction<InstanceId>) {
+      const instanceId = action.payload;
+      const removed = state.plugins[instanceId];
+      if (!removed) {
+        return;
       }
 
-      if (action.payload === "greeter") {
-        state.globals.greeterName = "";
+      delete state.plugins[instanceId];
+      delete state.pluginStateById[instanceId];
+
+      if (removed.packageId === "counter") {
+        recomputeCounterMirror(state);
+      } else if (removed.packageId === "greeter") {
+        recomputeGreeterMirror(state);
       }
     },
 
     pluginActionDispatched: {
       reducer(state, action: PayloadAction<ScopedDispatchPayload>) {
-        const { pluginId, actionType, payload } = action.payload;
-        if (!pluginId) {
+        const { instanceId, actionType, payload } = action.payload;
+        if (!instanceId) {
           return;
         }
 
         markDispatch(state, action.payload);
-        reducePluginScopedAction(state, pluginId, actionType, payload);
+        reducePluginScopedAction(state, instanceId, actionType, payload);
       },
-      prepare(pluginId: string, actionType: string, payload?: unknown) {
+      prepare(instanceId: InstanceId, actionType: string, payload?: unknown) {
         return {
           payload: {
             dispatchId: nanoid(),
             timestamp: Date.now(),
             scope: "plugin" as const,
-            pluginId,
+            instanceId,
             actionType,
             payload,
           },
@@ -303,11 +332,11 @@ export type AppDispatch = typeof store.dispatch;
 
 const selectRuntimeState = (state: RootState) => state.runtime;
 
-export function selectPluginState(state: RootState, pluginId: string): unknown {
-  return state.runtime.pluginStateById[pluginId] ?? {};
+export function selectPluginState(state: RootState, instanceId: InstanceId): unknown {
+  return state.runtime.pluginStateById[instanceId] ?? {};
 }
 
-export function selectAllPluginState(state: RootState): Record<string, unknown> {
+export function selectAllPluginState(state: RootState): Record<InstanceId, unknown> {
   return state.runtime.pluginStateById;
 }
 
@@ -324,7 +353,9 @@ export const selectGlobalState = createSelector([selectRuntimeState], (runtime) 
   lastScope: runtime.dispatchTrace.lastScope,
   lastActionType: runtime.dispatchTrace.lastActionType,
   plugins: Object.values(runtime.plugins).map((p) => ({
-    id: p.id,
+    id: p.instanceId,
+    instanceId: p.instanceId,
+    packageId: p.packageId,
     title: p.title,
     status: p.status,
     enabled: p.enabled,
@@ -334,11 +365,11 @@ export const selectGlobalState = createSelector([selectRuntimeState], (runtime) 
 
 export function dispatchPluginAction(
   dispatch: AppDispatch,
-  pluginId: string,
+  instanceId: InstanceId,
   actionType: string,
   payload?: unknown
 ) {
-  dispatch(pluginActionDispatched(pluginId, actionType, payload));
+  dispatch(pluginActionDispatched(instanceId, actionType, payload));
 }
 
 export function dispatchGlobalAction(dispatch: AppDispatch, actionType: string, payload?: unknown) {
