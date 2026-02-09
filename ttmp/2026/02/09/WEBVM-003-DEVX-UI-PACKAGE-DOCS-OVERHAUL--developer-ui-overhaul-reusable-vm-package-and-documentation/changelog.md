@@ -94,3 +94,17 @@ Completed task 5 by moving worker wrapper/client transport into plugin-runtime p
 - /home/manuel/workspaces/2026-02-08/plugin-playground/go-go-labs/cmd/experiments/2026-02-08--simulated-communication/plugin-playground/packages/plugin-runtime/src/worker/sandboxClient.ts — Moved sandbox client into runtime package worker module
 - /home/manuel/workspaces/2026-02-08/plugin-playground/go-go-labs/ttmp/2026/02/09/WEBVM-003-DEVX-UI-PACKAGE-DOCS-OVERHAUL--developer-ui-overhaul-reusable-vm-package-and-documentation/tasks.md — Marked task 5 complete
 
+
+## 2026-02-09
+
+Completed task 6 by moving Redux runtime reducer/policy/selector logic into plugin-runtime's internal redux-adapter module and switching app consumers to package imports.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-08/plugin-playground/go-go-labs/cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/App.tsx — Provider store import now comes from runtime package
+- /home/manuel/workspaces/2026-02-08/plugin-playground/go-go-labs/cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/lib/presetPlugins.ts — SharedDomainName now sourced from runtime redux adapter
+- /home/manuel/workspaces/2026-02-08/plugin-playground/go-go-labs/cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/pages/Playground.tsx — Runtime dispatch/selectors now imported from runtime redux adapter
+- /home/manuel/workspaces/2026-02-08/plugin-playground/go-go-labs/cmd/experiments/2026-02-08--simulated-communication/plugin-playground/packages/plugin-runtime/package.json — Added redux-adapter export path
+- /home/manuel/workspaces/2026-02-08/plugin-playground/go-go-labs/cmd/experiments/2026-02-08--simulated-communication/plugin-playground/packages/plugin-runtime/src/redux-adapter/store.ts — Moved runtime redux adapter logic into runtime package
+- /home/manuel/workspaces/2026-02-08/plugin-playground/go-go-labs/ttmp/2026/02/09/WEBVM-003-DEVX-UI-PACKAGE-DOCS-OVERHAUL--developer-ui-overhaul-reusable-vm-package-and-documentation/tasks.md — Marked task 6 complete
+

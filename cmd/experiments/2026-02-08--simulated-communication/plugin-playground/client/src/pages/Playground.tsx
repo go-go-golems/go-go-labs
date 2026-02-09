@@ -4,13 +4,11 @@ import { WidgetRenderer } from "@/components/WidgetRenderer";
 import { Button } from "@/components/ui/button";
 import { presetPlugins } from "@/lib/presetPlugins";
 import { createInstanceId } from "@runtime/runtimeIdentity";
-import { quickjsSandboxClient } from "@runtime/worker/sandboxClient";
-import type { LoadedPlugin } from "@runtime/contracts";
-import type { UINode, UIEventRef } from "@runtime/uiTypes";
 import {
   AppDispatch,
   CapabilityGrants,
   RootState,
+  SharedDomainName,
   dispatchPluginAction,
   dispatchSharedAction,
   pluginRegistered,
@@ -18,8 +16,10 @@ import {
   selectAllPluginState,
   selectGlobalStateForInstance,
   selectLoadedPluginIds,
-  SharedDomainName,
-} from "@/store/store";
+} from "@runtime/redux-adapter/store";
+import { quickjsSandboxClient } from "@runtime/worker/sandboxClient";
+import type { LoadedPlugin } from "@runtime/contracts";
+import type { UINode, UIEventRef } from "@runtime/uiTypes";
 
 type WidgetTrees = Record<string, Record<string, UINode>>;
 type WidgetErrors = Record<string, Record<string, string>>;

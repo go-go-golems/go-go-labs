@@ -1,6 +1,7 @@
 export * from "./contracts";
 export * from "./dispatchIntent";
 export * from "./hostAdapter";
+export * from "./redux-adapter/store";
 export * from "./runtimeIdentity";
 export * from "./runtimeService";
 export * from "./uiSchema";

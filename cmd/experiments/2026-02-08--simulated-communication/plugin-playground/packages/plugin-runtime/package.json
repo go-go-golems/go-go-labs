@@ -9,6 +9,7 @@
     "./hostAdapter": "./src/hostAdapter.ts",
     "./runtimeIdentity": "./src/runtimeIdentity.ts",
     "./runtimeService": "./src/runtimeService.ts",
+    "./redux-adapter/store": "./src/redux-adapter/store.ts",
     "./uiSchema": "./src/uiSchema.ts",
     "./uiTypes": "./src/uiTypes.ts",
     "./worker/runtime.worker": "./src/worker/runtime.worker.ts",

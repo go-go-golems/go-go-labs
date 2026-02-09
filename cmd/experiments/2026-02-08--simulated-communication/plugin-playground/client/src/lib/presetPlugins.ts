@@ -1,4 +1,4 @@
-import type { SharedDomainName } from "@/store/store";
+import type { SharedDomainName } from "@runtime/redux-adapter/store";
 
 // Preset plugins for the unified v1 runtime contract
 
