@@ -387,6 +387,68 @@ The storybook decorator typing was also tricky — Storybook 10's `Decorator` ty
 - Check `client/src/features/workbench/components/Sidebar.tsx` for the vm-system-ui visual style
 - Run `pnpm storybook` and browse all 14 stories at http://localhost:6006
 
+## Step 6: All Remaining Components + App Wiring (T14-T24)
+
+Built all remaining workbench components, wired them to the RTK store and runtime sandbox, and replaced the old Playground page.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue."
+
+**Commit (code):** ff19bc5 (T14-T17), 8fc1fda (T18-T22), e16525c (T23), 3082a4c (T24)
+
+### What I did
+
+**T14: TopToolbar** — Brand logo (Terminal icon + "Plugin Workbench"), runtime stat badges (plugin count, dispatch count, health status with color-coded dot, error count with AlertTriangle icon). Health derived from error count: 0 = healthy/emerald, 1-5 = degraded/amber, 6+ = error/red. Connected version derives stats from RTK state.
+
+**T15: EditorTabBar + CodeEditor** — Tab bar with dirty indicators (blue dot), close buttons (X, opacity-0 until hover), Run button (blue accent, Play icon), Reload button. CodeEditor is Phase 1 textarea with Tab-indent (2 spaces), monospace styling, selection:bg-blue-500/30. Will swap to CodeMirror 6 in Phase 2.
+
+**T16: LivePreview + InstanceCard** — InstanceCard: rounded-lg card with status dot, title, shortId, close button, widget rendering area or error message. LivePreview: scrollable container with "Live Preview" header label and empty state.
+
+**T17: DevToolsPanel** — 6-tab bar (Timeline, State, Capabilities, Errors, Shared, Docs) with collapse toggle (ChevronUp/Down), error count badge on Errors tab (red-500/20 background). Renders children as active tab content, hides content when collapsed.
+
+**T18: TimelinePanel** — Dispatch table with Time/Scope/Outcome/Action/Domain/Instance columns. Scope and Outcome dropdown filters. Outcome color coding (emerald=applied, red=denied, slate=ignored). Focused-instance row highlighting with blue-500/5 background. Count display "filtered / total".
+
+**T19: StatePanel** — Left rail (160px) instance list + right JSON viewer. Clicking instance focuses it, focused view shows only that instance's state. Pretty-printed JSON in bg-slate-950/50 rounded container.
+
+**T20: CapabilitiesPanel** — Grid table: instances × domains with R/W sub-columns. Check (emerald) or X (slate-700) icons. Sticky left column for instance names. Focused-row highlighting.
+
+**T21: ErrorsPanel** — Error log stream with timestamps, kind badges (load=red, render=amber, event=orange), instance shortId, pre-wrapped error messages. Clear button with Trash2 icon. Empty state: "No errors — all clear."
+
+**T22: SharedDomainsPanel** — Per-domain cards with header (domain name + R/W counts), participants section (Reader/Writer attribution), and JSON state snapshot in pre-formatted block. Max-height 8rem with overflow scroll.
+
+**T23: DocsPanel + docsManifest** — Vite `?raw` imports of 5 docs. Split layout: 192px categorized nav sidebar (grouped by category with FileText icons) + content area with doc header (title + path + Copy button) and raw markdown in pre block. Copy All Docs button at nav bottom. Copy feedback with Check icon + "Copied!" for 2s.
+
+**T24: WorkbenchPage** — Full integration page replacing Playground.tsx. Wires all components to RTK store and sandbox. Sidebar dispatches toggleSidebar/focusInstance/openEditorTab. Loading a preset opens an editor tab AND loads it into the sandbox. Widget rendering loops through loadedPluginIds → pluginMetaById → quickjsSandboxClient.render. Event handling dispatches plugin/shared actions through the runtime.
+
+### What worked
+
+- Batch building 4 components + stories in one pass (T14-T17) with single typecheck at the end
+- The presentational/connected split kept stories simple while WorkbenchPage does all the wiring
+- 60 Storybook stories covering every component in every state variant
+- The RTK workbench slice design was clean enough that T24 wiring was mostly selector derivation
+
+### What didn't work
+
+- `UINode` was imported from `@runtime/uiSchema` but it's actually exported from `@runtime/uiTypes`
+- `DispatchTimelineEntry.instanceId` is `string | null` but `TimelineEntry.instanceId` is `string` — needed null coalescing
+- `ALL_SHARED_DOMAINS` was `string[]` but grant filters expect `SharedDomainName[]` — needed type annotation
+- `WidgetRenderer` uses `tree` prop not `node` prop — naming mismatch caught by typecheck
+
+### What I learned
+
+- Batch-building component + story pairs is efficient: build all components, typecheck once, fix any errors, commit
+- The `?raw` Vite import with `vite/client` types "just works" for `.md` files
+- Having a stable `data-part` naming convention across all components makes it easy to grep for styling hooks
+- Total component count: 15 new components + 1 page, 60 stories
+
+### Code review instructions
+
+- Browse Storybook at http://localhost:6006 — components are organized under Workbench/ and Workbench/Panels/
+- Start at `WorkbenchPage.tsx` for the full integration wiring
+- Check `store/workbenchSlice.ts` for the RTK state shape
+- Old `Playground.tsx` is preserved but no longer routed
+
 ---
 
 ## Appendix: Technical Reference
