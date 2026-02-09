@@ -91,7 +91,6 @@ type WidgetErrors = Record<string, Record<string, string>>;
 
 export default function WorkbenchPage() {
   const dispatch = useAppDispatch();
-  const rootState = useAppSelector((s) => s);
 
   // RTK workbench state
   const sidebarCollapsed = useAppSelector((s) => s.workbench.sidebarCollapsed);
@@ -103,6 +102,7 @@ export default function WorkbenchPage() {
   const errors = useAppSelector((s) => s.workbench.errors);
 
   // RTK runtime state
+  const runtimeState = useAppSelector((s) => s.runtime);
   const loadedPluginIds = useAppSelector(selectLoadedPluginIds);
   const pluginStateById = useAppSelector(selectAllPluginState);
   const dispatchTimeline = useAppSelector(selectDispatchTimeline);
@@ -114,6 +114,8 @@ export default function WorkbenchPage() {
   const [pluginMetaById, setPluginMetaById] = React.useState<Record<string, LoadedPlugin>>({});
   const [widgetTrees, setWidgetTrees] = React.useState<WidgetTrees>({});
   const [widgetErrors, setWidgetErrors] = React.useState<WidgetErrors>({});
+  const renderErrorByWidgetRef = React.useRef<Record<string, string>>({});
+  const runtimeRootState = React.useMemo(() => ({ runtime: runtimeState }), [runtimeState]);
 
   // Clean up pluginMetaById when plugins are removed
   React.useEffect(() => {
@@ -133,23 +135,37 @@ export default function WorkbenchPage() {
     const renderAll = async () => {
       const nextTrees: WidgetTrees = {};
       const nextErrors: WidgetErrors = {};
+      const seenWidgetKeys = new Set<string>();
 
       for (const instanceId of loadedPluginIds) {
         const meta = pluginMetaById[instanceId];
         if (!meta) continue;
         const pluginState = pluginStateById[instanceId] ?? {};
-        const globalState = selectGlobalStateForInstance(rootState, instanceId);
+        const globalState = selectGlobalStateForInstance(runtimeRootState, instanceId);
         nextTrees[instanceId] = {};
 
         for (const widgetId of meta.widgets) {
+          const widgetKey = `${instanceId}:${widgetId}`;
+          seenWidgetKeys.add(widgetKey);
           try {
             const tree = await quickjsSandboxClient.render(instanceId, widgetId, pluginState, globalState);
             nextTrees[instanceId][widgetId] = tree;
+            delete renderErrorByWidgetRef.current[widgetKey];
           } catch (err) {
+            const message = String(err);
             if (!nextErrors[instanceId]) nextErrors[instanceId] = {};
-            nextErrors[instanceId][widgetId] = String(err);
-            dispatch(pushError({ kind: "render", instanceId, widgetId, message: String(err) }));
+            nextErrors[instanceId][widgetId] = message;
+            if (renderErrorByWidgetRef.current[widgetKey] !== message) {
+              renderErrorByWidgetRef.current[widgetKey] = message;
+              dispatch(pushError({ kind: "render", instanceId, widgetId, message }));
+            }
           }
+        }
+      }
+
+      for (const key of Object.keys(renderErrorByWidgetRef.current)) {
+        if (!seenWidgetKeys.has(key)) {
+          delete renderErrorByWidgetRef.current[key];
         }
       }
 
@@ -161,7 +177,7 @@ export default function WorkbenchPage() {
 
     void renderAll();
     return () => { cancelled = true; };
-  }, [loadedPluginIds, pluginMetaById, pluginStateById, rootState, dispatch]);
+  }, [loadedPluginIds, pluginMetaById, pluginStateById, runtimeRootState, dispatch]);
 
   // -----------------------------------------------------------------------
   // Actions
@@ -237,7 +253,7 @@ export default function WorkbenchPage() {
     async (instanceId: string, widgetId: string, eventRef: UIEventRef, eventPayload?: unknown) => {
       try {
         const pluginState = pluginStateById[instanceId] ?? {};
-        const globalState = selectGlobalStateForInstance(rootState, instanceId);
+        const globalState = selectGlobalStateForInstance(runtimeRootState, instanceId);
         const intents = await quickjsSandboxClient.event(
           instanceId, widgetId, eventRef.handler, eventPayload ?? eventRef.args, pluginState, globalState,
         );
@@ -252,7 +268,7 @@ export default function WorkbenchPage() {
         dispatch(pushError({ kind: "event", instanceId, widgetId, message: String(err) }));
       }
     },
-    [dispatch, pluginStateById, rootState],
+    [dispatch, pluginStateById, runtimeRootState],
   );
 
   // -----------------------------------------------------------------------
