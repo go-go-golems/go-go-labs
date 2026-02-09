@@ -70,8 +70,6 @@ function renderNode(node: UINode, onEvent: (ref: UIEventRef, eventPayload?: any)
       return (
         <Button
           onClick={() => {
-            console.log("[WidgetRenderer] Button clicked:", label, onClick);
-            (window as any).__lastButtonClick = { label, onClick, timestamp: Date.now() };
             onClick && onEvent(onClick, onClick.args);
           }}
           variant={variant === "destructive" ? "destructive" : "outline"}
