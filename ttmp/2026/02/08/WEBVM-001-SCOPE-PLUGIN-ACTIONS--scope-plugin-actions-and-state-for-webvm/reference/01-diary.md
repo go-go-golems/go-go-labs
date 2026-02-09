@@ -16,6 +16,12 @@ RelatedFiles:
       Note: VM map and lifecycle now keyed by instanceId (commit 414b68a)
     - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/lib/quickjsSandboxClient.ts
       Note: Client API updated to send packageId+instanceId (commit 414b68a)
+    - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/lib/runtimeIdentity.ts
+      Note: Central instance ID generation utility (commit 96c6225)
+    - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/pages/Playground.tsx
+      Note: Multi-instance load/render/unload orchestration (commit 96c6225)
+    - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/store/store.ts
+      Note: Instance-keyed state and package-based reducer routing (commit 96c6225)
     - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/workers/quickjsRuntime.worker.ts
       Note: Worker request routing updated for instance identity (commit 414b68a)
     - Path: ttmp/2026/02/08/WEBVM-001-SCOPE-PLUGIN-ACTIONS--scope-plugin-actions-and-state-for-webvm/design-doc/04-phase-3-4-design-brief-multi-instance-identity-and-capability-model.md
@@ -28,6 +34,7 @@ LastUpdated: 2026-02-09T00:00:00Z
 WhatFor: Track implementation progress from design brief to running multi-instance + capability model runtime.
 WhenToUse: Read during development and review to understand what changed in each step and how to validate it.
 ---
+
 
 
 # Diary
@@ -181,3 +188,81 @@ I kept this step scoped to transport/runtime identity plumbing and associated te
   - `render(instanceId, ...)`
   - `event(instanceId, ...)`
   - `disposePlugin(instanceId)`
+
+## Step 3: Store Routing and Multi-Instance UI
+
+I completed the Phase 3 behavioral shift: Redux local-state routing is now package-based per instance, and the Playground now creates unique instance IDs when loading presets/custom plugins. This removes the old single-instance key collision behavior for repeated preset loads.
+
+I kept legacy global action semantics intact in this step so Phase 4 (shared-domain capability model) can be introduced as an isolated follow-up change.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Continue implementation in commit-sized slices with diary updates and progress bookkeeping.
+
+**Inferred user intent:** Reach full Phase 3/4 implementation with clear incremental checkpoints.
+
+**Commit (code):** 96c6225 — "feat(webvm-001): add instance-based store routing and multi-instance playground"
+
+### What I did
+
+- Added `runtimeIdentity.ts` with `createInstanceId(packageId)`.
+- Refactored `store.ts`:
+  - `RuntimePlugin` now stores `{ instanceId, packageId, ... }`.
+  - Plugin/local-state maps are keyed by instance ID.
+  - `pluginActionDispatched` now carries `instanceId`.
+  - Local reducer routing uses `packageId` from the instance registry instead of string matching on ID.
+  - Added mirror recompute helpers for `counter`/`greeter` when removing an instance.
+  - Updated selectors and dispatch helper signatures to instance-centric parameters.
+- Refactored `Playground.tsx`:
+  - Generates unique IDs per load (`counter@...`, etc.).
+  - Calls runtime load with `(packageId, instanceId, code)`.
+  - Registers/removes plugins by instance ID + package ID.
+  - Displays preset load counts and loaded entries by instance ID.
+  - Renders and dispatches widget events per instance.
+
+### Why
+
+- Multi-instance support requires unique runtime identities at load time and package-aware reducer dispatching.
+- Store routing by package resolves the old bug where non-literal IDs (e.g., `counter@abc`) failed reducer matching.
+
+### What worked
+
+- Typecheck passed: `pnpm check`.
+- Unit tests passed: `pnpm test:unit`.
+- Integration tests passed: `pnpm test:integration`.
+
+### What didn't work
+
+- N/A
+
+### What I learned
+
+- The existing `selectLoadedPluginIds` shape was reusable for instance IDs, so the migration stayed contained without broad selector API churn.
+
+### What was tricky to build
+
+- Global mirror cleanup with multi-instance removal needed explicit recompute logic; naive reset-on-remove would incorrectly zero shared mirrors while sibling instances still exist.
+
+### What warrants a second pair of eyes
+
+- Mirror semantics (`counterValue`, `greeterName`) currently use last-instance heuristics, which are transitional until Phase 4 shared domains fully replace these fields.
+
+### What should be done in the future
+
+- Implement shared domain registry + capability grants and migrate plugin API to domain-scoped shared dispatch.
+
+### Code review instructions
+
+- Review `client/src/store/store.ts` first (routing and state shape).
+- Then review `client/src/pages/Playground.tsx` for load/render/event/unload lifecycle updates.
+- Validate with:
+  - `pnpm check`
+  - `pnpm test:unit`
+  - `pnpm test:integration`
+
+### Technical details
+
+- Instance ID format: `${packageId}@${nanoid(8)}`.
+- Plugin routing switch now targets `plugin.packageId` rather than instance key string literals.

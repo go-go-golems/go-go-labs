@@ -91,3 +91,14 @@ Step 2: migrated QuickJS contracts/runtime/worker/client to packageId+instanceId
 - /home/manuel/workspaces/2026-02-08/plugin-playground/go-go-labs/cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/lib/quickjsRuntimeService.ts — Instance-keyed VM service implementation
 - /home/manuel/workspaces/2026-02-08/plugin-playground/go-go-labs/ttmp/2026/02/08/WEBVM-001-SCOPE-PLUGIN-ACTIONS--scope-plugin-actions-and-state-for-webvm/reference/01-diary.md — Recorded implementation step details and validation evidence
 
+
+## 2026-02-09
+
+Step 3: implemented instance-based store routing and Playground multi-instance lifecycle (commit 96c6225)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-08/plugin-playground/go-go-labs/cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/pages/Playground.tsx — Unique instance ID generation and per-instance rendering
+- /home/manuel/workspaces/2026-02-08/plugin-playground/go-go-labs/cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/store/store.ts — Package-based local reducer dispatch by instance
+- /home/manuel/workspaces/2026-02-08/plugin-playground/go-go-labs/ttmp/2026/02/08/WEBVM-001-SCOPE-PLUGIN-ACTIONS--scope-plugin-actions-and-state-for-webvm/reference/01-diary.md — Recorded Step 3 details and validations
+
