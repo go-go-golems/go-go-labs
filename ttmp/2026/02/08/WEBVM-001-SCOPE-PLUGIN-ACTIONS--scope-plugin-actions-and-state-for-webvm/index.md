@@ -44,6 +44,7 @@ This ticket investigates plugin identity, action scoping, and state scoping in t
 - Design doc 01 (state/action scoping): `design-doc/01-plugin-action-and-state-scoping-architecture-review.md`
 - Design doc 02 (QuickJS isolation): `design-doc/02-quickjs-isolation-architecture-and-mock-runtime-removal-plan.md`
 - Design doc 03 (vision explainer): `design-doc/03-webvm-plugin-playground-vision-and-architecture-explainer.md`
+- Design doc 04 (Phase 3-4 brief): `design-doc/04-phase-3-4-design-brief-multi-instance-identity-and-capability-model.md`
 - Follow-on execution ticket (WEBVM-002): `../../WEBVM-002-QUICKJS-MIGRATION--migrate-plugin-playground-runtime-to-quickjs-worker-and-add-test-gates/index.md`
 - reMarkable upload (doc 01): `/ai/2026/02/08/WEBVM-001-SCOPE-PLUGIN-ACTIONS/01-plugin-action-and-state-scoping-architecture-review`
 - reMarkable upload (bundle docs 01+02): `/ai/2026/02/08/WEBVM-001-SCOPE-PLUGIN-ACTIONS/WEBVM-001-scoping-and-quickjs-review`

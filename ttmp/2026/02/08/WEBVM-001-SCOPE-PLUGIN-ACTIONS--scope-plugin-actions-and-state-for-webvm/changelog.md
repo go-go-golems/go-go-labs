@@ -71,3 +71,12 @@ Added cross-ticket reMarkable bundle link for WEBVM-002 execution package that i
 
 - /home/manuel/workspaces/2026-02-08/plugin-playground/go-go-labs/ttmp/2026/02/08/WEBVM-001-SCOPE-PLUGIN-ACTIONS--scope-plugin-actions-and-state-for-webvm/index.md — Added WEBVM-002 bundle link
 
+
+## 2026-02-08
+
+Added design-doc 04: Phase 3-4 design brief with concrete instructions for architect to produce the multi-instance identity (packageId/instanceId) and capability model design, grounded in actual post-QuickJS codebase
+
+### Related Files
+
+- /home/manuel/workspaces/2026-02-08/plugin-playground/go-go-labs/ttmp/2026/02/08/WEBVM-001-SCOPE-PLUGIN-ACTIONS--scope-plugin-actions-and-state-for-webvm/design-doc/04-phase-3-4-design-brief-multi-instance-identity-and-capability-model.md — New design brief for Phase 3-4
+
