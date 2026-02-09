@@ -108,18 +108,12 @@ globalThis.__pluginHost = {
       });
     };
 
-    // Backward compatibility alias for existing plugin code.
-    const dispatchGlobalAction = (actionType, payload) => {
-      dispatchSharedAction("legacy-global", actionType, payload);
-    };
-
     handler(
       {
         pluginState,
         globalState,
         dispatchPluginAction,
         dispatchSharedAction,
-        dispatchGlobalAction,
       },
       args
     );

@@ -7,8 +7,7 @@ export type SharedDomainName =
   | "counter-summary"
   | "greeter-profile"
   | "runtime-registry"
-  | "runtime-metrics"
-  | "legacy-global";
+  | "runtime-metrics";
 
 export interface RuntimePlugin {
   instanceId: InstanceId;
@@ -301,22 +300,6 @@ function applyGreeterProfileSetName(state: RuntimeState, instanceId: InstanceId,
   return true;
 }
 
-function normalizeSharedAction(domain: SharedDomainName, actionType: string, payload?: unknown) {
-  if (domain === "legacy-global" && actionType === "counter/set") {
-    return {
-      domain: "counter-summary" as const,
-      actionType: "set-instance",
-      payload: { value: Number(payload ?? 0) },
-    };
-  }
-
-  return {
-    domain,
-    actionType,
-    payload,
-  };
-}
-
 function reduceSharedScopedAction(
   state: RuntimeState,
   instanceId: InstanceId,
@@ -324,30 +307,25 @@ function reduceSharedScopedAction(
   actionType: string,
   payload?: unknown
 ): { outcome: "applied" | "ignored" | "denied"; reason: string | null } {
-  const normalized = normalizeSharedAction(domain, actionType, payload);
-
-  if (!hasWriteGrant(state, instanceId, normalized.domain)) {
-    return { outcome: "denied", reason: `missing-write-grant:${normalized.domain}` };
+  if (!hasWriteGrant(state, instanceId, domain)) {
+    return { outcome: "denied", reason: `missing-write-grant:${domain}` };
   }
 
-  if (normalized.domain === "counter-summary") {
-    const applied =
-      normalized.actionType === "set-instance" &&
-      applyCounterSummarySetInstance(state, instanceId, normalized.payload);
+  if (domain === "counter-summary") {
+    const applied = actionType === "set-instance" && applyCounterSummarySetInstance(state, instanceId, payload);
     return applied
       ? { outcome: "applied", reason: null }
-      : { outcome: "ignored", reason: `unsupported-action:${normalized.domain}/${normalized.actionType}` };
+      : { outcome: "ignored", reason: `unsupported-action:${domain}/${actionType}` };
   }
 
-  if (normalized.domain === "greeter-profile") {
-    const applied = normalized.actionType === "set-name" &&
-      applyGreeterProfileSetName(state, instanceId, normalized.payload);
+  if (domain === "greeter-profile") {
+    const applied = actionType === "set-name" && applyGreeterProfileSetName(state, instanceId, payload);
     return applied
       ? { outcome: "applied", reason: null }
-      : { outcome: "ignored", reason: `unsupported-action:${normalized.domain}/${normalized.actionType}` };
+      : { outcome: "ignored", reason: `unsupported-action:${domain}/${actionType}` };
   }
 
-  return { outcome: "ignored", reason: `unsupported-domain:${normalized.domain}` };
+  return { outcome: "ignored", reason: `unsupported-domain:${domain}` };
 }
 
 const runtimeSlice = createSlice({
