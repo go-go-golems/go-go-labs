@@ -2,12 +2,15 @@
  * Documentation manifest — raw markdown embedded at build time via Vite ?raw.
  *
  * The docs are bundled into the JS output so the DocsPanel works without
- * any server-side file access. Bundle cost: ~4KB gzipped for the current
- * five docs.
+ * any server-side file access. Bundle cost: ~15KB gzipped for the current
+ * seven docs.
  */
 
 import readmeRaw from "../../../docs/README.md?raw";
 import quickstartRaw from "../../../docs/plugin-authoring/quickstart.md?raw";
+import examplesRaw from "../../../docs/plugin-authoring/examples.md?raw";
+import dispatchLifecycleRaw from "../../../docs/architecture/dispatch-lifecycle.md?raw";
+import uiDslRaw from "../../../docs/architecture/ui-dsl.md?raw";
 import capabilityModelRaw from "../../../docs/architecture/capability-model.md?raw";
 import embeddingRaw from "../../../docs/runtime/embedding.md?raw";
 import changelogRaw from "../../../docs/migration/changelog-vm-api.md?raw";
@@ -31,10 +34,28 @@ export const docs: DocEntry[] = [
     raw: readmeRaw,
   },
   {
-    title: "Quickstart",
+    title: "Plugin Authoring Guide",
     category: "Plugin Authoring",
     path: "docs/plugin-authoring/quickstart.md",
     raw: quickstartRaw,
+  },
+  {
+    title: "Plugin Examples",
+    category: "Plugin Authoring",
+    path: "docs/plugin-authoring/examples.md",
+    raw: examplesRaw,
+  },
+  {
+    title: "Dispatch Lifecycle",
+    category: "Architecture",
+    path: "docs/architecture/dispatch-lifecycle.md",
+    raw: dispatchLifecycleRaw,
+  },
+  {
+    title: "UI DSL Reference",
+    category: "Architecture",
+    path: "docs/architecture/ui-dsl.md",
+    raw: uiDslRaw,
   },
   {
     title: "Capability Model",
