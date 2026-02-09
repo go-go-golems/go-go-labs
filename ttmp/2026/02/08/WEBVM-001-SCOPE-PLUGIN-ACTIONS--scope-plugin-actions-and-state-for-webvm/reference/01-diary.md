@@ -38,7 +38,7 @@ RelatedFiles:
       Note: Step-by-step execution checklist for this implementation
 ExternalSources: []
 Summary: Implementation diary for WEBVM-001, with commit-by-commit notes, failures, and validation instructions.
-LastUpdated: 2026-02-09T06:08:24Z
+LastUpdated: 2026-02-09T12:19:10Z
 WhatFor: Track implementation progress from design brief to running multi-instance + capability model runtime.
 WhenToUse: Read during development and review to understand what changed in each step and how to validate it.
 ---
@@ -514,6 +514,78 @@ This step keeps behavior unchanged and focuses on reducing dependency surface an
 
 - Review `cmd/experiments/2026-02-08--simulated-communication/plugin-playground/package.json` for removed dependencies.
 - Confirm lockfile regeneration in `cmd/experiments/2026-02-08--simulated-communication/plugin-playground/pnpm-lock.yaml`.
+- Validate with:
+  - `pnpm check`
+  - `pnpm test:unit`
+  - `pnpm test:integration`
+  - `pnpm build`
+
+## Step 7: Remove Input-to-Dialog Coupling and Drop Dialog Wrapper
+
+I removed the last internal coupling that kept `dialog.tsx` alive: `input.tsx` no longer reads dialog composition context and now relies exclusively on the shared `useComposition` hook. With that dependency gone, I deleted the unused dialog wrapper and removed `@radix-ui/react-dialog` from dependencies.
+
+This keeps IME behavior in one place, reduces component surface area, and continues the cleanup path toward a minimal runtime/playground UI core.
+
+### Prompt Context
+
+**User prompt (verbatim):** "go ahead."
+
+**Assistant interpretation:** Continue with the next cleanup step by removing the remaining hidden coupling and related dead code.
+
+**Inferred user intent:** Finish the UI/runtime cleanup slices incrementally while preserving behavior and test health.
+
+**Commit (code):** `refactor(playground): drop dialog wrapper and decouple input composition logic`
+
+### What I did
+
+- Updated `client/src/components/ui/input.tsx`:
+  - Removed `useDialogComposition` import and all dialog-context callbacks.
+  - Kept IME handling via `useComposition` only.
+- Deleted `client/src/components/ui/dialog.tsx`.
+- Removed `@radix-ui/react-dialog` from `package.json`.
+- Regenerated lockfile through `pnpm remove`.
+- Re-ran static and test/build validation.
+
+### Why
+
+- `dialog.tsx` had become dead code after wrapper pruning except for a single indirect usage from `input.tsx`.
+- IME composition behavior belongs in the reusable composition hook, not in hidden dialog-specific wiring.
+
+### What worked
+
+- Typecheck passed: `pnpm check`.
+- Unit tests passed: `pnpm test:unit`.
+- Integration tests passed: `pnpm test:integration`.
+- Build passed: `pnpm build`.
+
+### What didn't work
+
+- N/A (same pre-existing build warnings remain, no failures).
+
+### What I learned
+
+- The existing `useComposition` hook already covered the composition timing edge cases that the dialog coupling had been compensating for.
+
+### What was tricky to build
+
+- The sharp edge was ensuring Safari/IME timing handling remained intact after removing `justEndedComposing`; I kept the change focused and validated against typecheck, unit, integration, and build gates.
+
+### What warrants a second pair of eyes
+
+- Real browser verification of IME behavior inside any modal-like flows, since this repo currently does not have a dialog-driven UI path to exercise it.
+
+### What should be done in the future
+
+- If modal inputs are reintroduced, keep composition semantics centralized in `useComposition` rather than adding component-level context coupling.
+
+### Code review instructions
+
+- Start with:
+  - `cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/components/ui/input.tsx`
+  - `cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/components/ui/dialog.tsx` (deleted)
+- Then inspect:
+  - `cmd/experiments/2026-02-08--simulated-communication/plugin-playground/package.json`
+  - `cmd/experiments/2026-02-08--simulated-communication/plugin-playground/pnpm-lock.yaml`
 - Validate with:
   - `pnpm check`
   - `pnpm test:unit`

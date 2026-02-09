@@ -16,7 +16,6 @@
     "test:migration": "pnpm check && pnpm test:unit && pnpm test:integration && pnpm test:e2e"
   },
   "dependencies": {
-    "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@reduxjs/toolkit": "^2.11.2",
