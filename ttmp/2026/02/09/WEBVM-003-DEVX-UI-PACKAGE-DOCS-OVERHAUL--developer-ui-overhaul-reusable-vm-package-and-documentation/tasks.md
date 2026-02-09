@@ -4,7 +4,7 @@
 
 - [x] Remove dead/template components and unused UI wrappers/dependencies from plugin-playground
 - [x] Remove remaining debug/template leftovers (WidgetRenderer globals/logs, index analytics placeholders/comment block, unused helper imports/hooks)
-- [ ] Unify theme stack (remove custom-vs-next-themes split and keep one provider model)
+- [x] Unify theme stack (remove custom-vs-next-themes split and keep one provider model)
 - [ ] Create one `plugin-runtime` package scaffold and migrate contracts + QuickJS core into it
 - [ ] Move worker wrapper/client transport and host adapter interfaces into `plugin-runtime` for non-UI embedding
 - [ ] Move Redux runtime policy/reducer/selector logic into `plugin-runtime` internal `redux-adapter` module
