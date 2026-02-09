@@ -13,12 +13,40 @@ DocType: index
 Intent: long-term
 Owners: []
 RelatedFiles:
-    - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/lib/pluginManager.ts
-      Note: Legacy in-process runtime scheduled for removal
+    - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/lib/dispatchIntent.test.ts
+      Note: Unit tests for dispatch intent validation
+    - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/lib/dispatchIntent.ts
+      Note: Runtime intent validation
+    - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/lib/quickjsContracts.ts
+      Note: Runtime message and result contracts
+    - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/lib/quickjsRuntimeService.integration.test.ts
+      Note: Integration coverage for runtime lifecycle and timeout handling
+    - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/lib/quickjsRuntimeService.ts
+      Note: Reusable runtime service extracted for integration testing
+    - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/lib/quickjsSandboxClient.ts
+      Note: Worker RPC client
+    - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/lib/uiSchema.test.ts
+      Note: Unit tests for runtime UI schema validation
+    - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/lib/uiSchema.ts
+      Note: Runtime UI tree validation
     - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/pages/Playground.tsx
-      Note: Main runtime orchestration entrypoint for cutover
+      Note: |-
+        Main runtime orchestration entrypoint for cutover
+        Main runtime orchestration cutover
     - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/store/store.ts
       Note: Host dispatch pipeline and scoped action behavior
+    - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/workers/quickjsRuntime.worker.ts
+      Note: QuickJS runtime worker implementation
+    - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/package.json
+      Note: Migration test scripts and Playwright dependency
+    - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/playwright.config.ts
+      Note: E2E harness configuration
+    - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/tests/e2e/quickjs-runtime.spec.ts
+      Note: Playwright E2E runtime assertions
+    - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/vitest.config.ts
+      Note: Unit test runner config
+    - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/vitest.integration.config.ts
+      Note: Integration test runner config
     - Path: ttmp/2026/02/08/WEBVM-002-QUICKJS-MIGRATION--migrate-plugin-playground-runtime-to-quickjs-worker-and-add-test-gates/design-doc/01-quickjs-migration-implementation-guide-and-test-strategy.md
       Note: Primary migration runbook
     - Path: ttmp/2026/02/08/WEBVM-002-QUICKJS-MIGRATION--migrate-plugin-playground-runtime-to-quickjs-worker-and-add-test-gates/reference/01-diary.md
@@ -29,6 +57,8 @@ LastUpdated: 2026-02-08T19:05:00-05:00
 WhatFor: Track concrete migration execution from in-process plugin runtime to QuickJS worker runtime.
 WhenToUse: Use as the landing page for WEBVM-002 deliverables, tasks, and progress updates.
 ---
+
+
 
 
 # Migrate Plugin Playground Runtime to QuickJS Worker and Add Test Gates

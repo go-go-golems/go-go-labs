@@ -2,8 +2,9 @@ import React from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { WidgetRenderer } from "@/components/WidgetRenderer";
 import { Button } from "@/components/ui/button";
-import { pluginManager } from "@/lib/pluginManager";
 import { presetPlugins } from "@/lib/presetPlugins";
+import { quickjsSandboxClient } from "@/lib/quickjsSandboxClient";
+import type { LoadedPlugin } from "@/lib/quickjsContracts";
 import type { UINode, UIEventRef } from "@/lib/uiTypes";
 import {
   AppDispatch,
@@ -17,67 +18,94 @@ import {
   selectLoadedPluginIds,
 } from "@/store/store";
 
+type WidgetTrees = Record<string, Record<string, UINode>>;
+type WidgetErrors = Record<string, Record<string, string>>;
+
 export default function Playground() {
   const dispatch = useDispatch<AppDispatch>();
   const loadedPlugins = useSelector((s: RootState) => selectLoadedPluginIds(s));
   const pluginStateById = useSelector((s: RootState) => selectAllPluginState(s));
   const globalState = useSelector((s: RootState) => selectGlobalState(s));
 
+  const [pluginMetaById, setPluginMetaById] = React.useState<Record<string, LoadedPlugin>>({});
+  const [widgetTrees, setWidgetTrees] = React.useState<WidgetTrees>({});
+  const [widgetErrors, setWidgetErrors] = React.useState<WidgetErrors>({});
   const [customCode, setCustomCode] = React.useState<string>("");
   const [error, setError] = React.useState<string>("");
 
-  const uiBuilder = {
-    text: (content: string) => ({
-      kind: "text" as const,
-      text: content,
-    }),
-    button: (label: string, props?: any) => ({
-      kind: "button" as const,
-      props: { label, ...props },
-    }),
-    input: (value: string, props?: any) => ({
-      kind: "input" as const,
-      props: { value, ...props },
-    }),
-    row: (children: UINode[]) => ({
-      kind: "row" as const,
-      children,
-    }),
-    panel: (children: UINode[]) => ({
-      kind: "panel" as const,
-      children,
-    }),
-    badge: (text: string) => ({
-      kind: "badge" as const,
-      text,
-    }),
-    table: (rows: any[][], props?: any) => ({
-      kind: "table" as const,
-      props: { headers: props?.headers || [], rows },
-    }),
-  };
-
   const registerLoadedPlugin = React.useCallback(
-    (plugin: {
-      id: string;
-      title: string;
-      description?: string;
-      initialState?: unknown;
-      widgets: Record<string, unknown>;
-    }) => {
+    (plugin: LoadedPlugin) => {
       dispatch(
         pluginRegistered({
           id: plugin.id,
           title: plugin.title,
           description: plugin.description,
-          widgets: Object.keys(plugin.widgets),
+          widgets: plugin.widgets,
           initialState: plugin.initialState,
         })
       );
 
+      setPluginMetaById((current) => ({
+        ...current,
+        [plugin.id]: plugin,
+      }));
     },
     [dispatch]
   );
+
+  React.useEffect(() => {
+    setPluginMetaById((current) => {
+      const next: Record<string, LoadedPlugin> = {};
+      for (const pluginId of loadedPlugins) {
+        if (current[pluginId]) {
+          next[pluginId] = current[pluginId];
+        }
+      }
+      return next;
+    });
+  }, [loadedPlugins]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    const renderAllWidgets = async () => {
+      const nextTrees: WidgetTrees = {};
+      const nextErrors: WidgetErrors = {};
+
+      for (const pluginId of loadedPlugins) {
+        const pluginMeta = pluginMetaById[pluginId];
+        if (!pluginMeta) {
+          continue;
+        }
+
+        const pluginState = pluginStateById[pluginId] ?? {};
+        nextTrees[pluginId] = {};
+
+        for (const widgetId of pluginMeta.widgets) {
+          try {
+            const tree = await quickjsSandboxClient.render(pluginId, widgetId, pluginState, globalState);
+            nextTrees[pluginId][widgetId] = tree;
+          } catch (err) {
+            if (!nextErrors[pluginId]) {
+              nextErrors[pluginId] = {};
+            }
+            nextErrors[pluginId][widgetId] = String(err);
+          }
+        }
+      }
+
+      if (!cancelled) {
+        setWidgetTrees(nextTrees);
+        setWidgetErrors(nextErrors);
+      }
+    };
+
+    void renderAllWidgets();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [globalState, loadedPlugins, pluginMetaById, pluginStateById]);
 
   const loadPreset = async (presetId: string) => {
     try {
@@ -87,10 +115,7 @@ export default function Playground() {
         throw new Error(`Preset not found: ${presetId}`);
       }
 
-      const plugin = await pluginManager.loadPlugin(preset.id, preset.code, {
-        ui: uiBuilder,
-      });
-
+      const plugin = await quickjsSandboxClient.loadPlugin(preset.id, preset.code);
       registerLoadedPlugin(plugin);
     } catch (err) {
       setError(`Failed to load preset: ${String(err)}`);
@@ -105,22 +130,34 @@ export default function Playground() {
       }
 
       const pluginId = `custom-${Date.now()}`;
-      const plugin = await pluginManager.loadPlugin(pluginId, customCode, {
-        ui: uiBuilder,
-      });
-
+      const plugin = await quickjsSandboxClient.loadPlugin(pluginId, customCode);
       registerLoadedPlugin(plugin);
     } catch (err) {
       setError(`Failed to load custom plugin: ${String(err)}`);
     }
   };
 
-  const unloadPlugin = (pluginId: string) => {
-    pluginManager.removePlugin(pluginId);
+  const unloadPlugin = async (pluginId: string) => {
+    try {
+      await quickjsSandboxClient.disposePlugin(pluginId);
+    } catch (err) {
+      console.warn(`Failed to dispose plugin runtime for ${pluginId}:`, err);
+    }
+
     dispatch(pluginRemoved(pluginId));
+    setWidgetTrees((current) => {
+      const next = { ...current };
+      delete next[pluginId];
+      return next;
+    });
+    setWidgetErrors((current) => {
+      const next = { ...current };
+      delete next[pluginId];
+      return next;
+    });
   };
 
-  const handleEvent = (
+  const handleEvent = async (
     pluginId: string,
     widgetId: string,
     eventRef: UIEventRef,
@@ -129,19 +166,26 @@ export default function Playground() {
     try {
       const pluginState = pluginStateById[pluginId] ?? {};
       const handlerArgs = eventPayload ?? eventRef.args;
-
-      pluginManager.callHandler(
+      const intents = await quickjsSandboxClient.event(
         pluginId,
         widgetId,
         eventRef.handler,
-        (actionType, payload) => dispatchPluginAction(dispatch, pluginId, actionType, payload),
-        (actionType, payload) => dispatchGlobalAction(dispatch, actionType, payload),
         handlerArgs,
         pluginState,
         globalState
       );
+
+      for (const intent of intents) {
+        if (intent.scope === "plugin") {
+          dispatchPluginAction(dispatch, pluginId, intent.actionType, intent.payload);
+          continue;
+        }
+
+        dispatchGlobalAction(dispatch, intent.actionType, intent.payload);
+      }
     } catch (err) {
       console.error("Event error:", err);
+      setError(`Event failed: ${String(err)}`);
     }
   };
 
@@ -177,10 +221,7 @@ export default function Playground() {
                   {loadedPlugins.map((id) => (
                     <div key={id} className="flex items-center justify-between text-xs font-mono">
                       <span>{id}</span>
-                      <button
-                        onClick={() => unloadPlugin(id)}
-                        className="text-red-400 hover:text-red-300"
-                      >
+                      <button onClick={() => void unloadPlugin(id)} className="text-red-400 hover:text-red-300">
                         X
                       </button>
                     </div>
@@ -198,7 +239,7 @@ export default function Playground() {
               placeholder="definePlugin(({ ui }) => { ... })"
               className="w-full flex-1 min-h-[12rem] bg-background/50 border border-cyan-400/20 rounded p-2 font-mono text-xs text-foreground resize-none focus:outline-none focus:border-cyan-400"
             />
-            <Button onClick={loadCustom} className="w-full mt-2 font-mono text-xs">
+            <Button onClick={() => void loadCustom()} className="w-full mt-2 font-mono text-xs">
               LOAD PLUGIN
             </Button>
             {error && <div className="mt-2 text-red-400 text-xs font-mono">{error}</div>}
@@ -211,43 +252,48 @@ export default function Playground() {
             ) : (
               <div className="space-y-4 flex-1 min-h-0 overflow-y-auto pr-1">
                 {loadedPlugins.map((pluginId) => {
-                  const plugin = pluginManager.getPlugin(pluginId);
+                  const plugin = pluginMetaById[pluginId];
                   if (!plugin) {
-                    return null;
+                    return (
+                      <div key={pluginId} className="text-muted-foreground text-xs font-mono">
+                        Loading plugin metadata: {pluginId}
+                      </div>
+                    );
                   }
-
-                  const pluginState = pluginStateById[pluginId] ?? {};
 
                   return (
                     <div key={pluginId} className="border border-cyan-400/20 rounded p-2 bg-background/30">
                       <div className="text-xs font-bold text-cyan-400 mb-2 font-mono">{plugin.title}</div>
                       <div className="space-y-2">
-                        {Object.keys(plugin.widgets).map((widgetId) => {
-                          try {
-                            const tree = pluginManager.renderWidget(
-                              pluginId,
-                              widgetId,
-                              pluginState,
-                              globalState
-                            );
-
-                            return (
-                              <div key={widgetId}>
-                                <WidgetRenderer
-                                  tree={tree}
-                                  onEvent={(eventRef, eventPayload) =>
-                                    handleEvent(pluginId, widgetId, eventRef, eventPayload)
-                                  }
-                                />
-                              </div>
-                            );
-                          } catch (err) {
+                        {plugin.widgets.map((widgetId) => {
+                          const widgetError = widgetErrors[pluginId]?.[widgetId];
+                          if (widgetError) {
                             return (
                               <div key={widgetId} className="text-red-400 text-xs font-mono">
-                                Render error: {String(err)}
+                                Render error: {widgetError}
                               </div>
                             );
                           }
+
+                          const tree = widgetTrees[pluginId]?.[widgetId];
+                          if (!tree) {
+                            return (
+                              <div key={widgetId} className="text-muted-foreground text-xs font-mono">
+                                Rendering {widgetId}...
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div key={widgetId}>
+                              <WidgetRenderer
+                                tree={tree}
+                                onEvent={(eventRef, eventPayload) =>
+                                  void handleEvent(pluginId, widgetId, eventRef, eventPayload)
+                                }
+                              />
+                            </div>
+                          );
                         })}
                       </div>
                     </div>

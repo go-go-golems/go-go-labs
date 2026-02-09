@@ -1,4 +1,4 @@
-import { configureStore, createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { configureStore, createSelector, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { nanoid } from "nanoid";
 
 export type PluginStatus = "loaded" | "error";
@@ -301,9 +301,7 @@ export const store = configureStore({
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
 
-export function selectLoadedPluginIds(state: RootState): string[] {
-  return Object.keys(state.runtime.plugins);
-}
+const selectRuntimeState = (state: RootState) => state.runtime;
 
 export function selectPluginState(state: RootState, pluginId: string): unknown {
   return state.runtime.pluginStateById[pluginId] ?? {};
@@ -313,24 +311,26 @@ export function selectAllPluginState(state: RootState): Record<string, unknown> 
   return state.runtime.pluginStateById;
 }
 
-export function selectGlobalState(state: RootState) {
-  return {
-    counterValue: state.runtime.globals.counterValue,
-    greeterName: state.runtime.globals.greeterName,
-    pluginCount: Object.keys(state.runtime.plugins).length,
-    dispatchCount: state.runtime.dispatchTrace.count,
-    lastDispatchId: state.runtime.dispatchTrace.lastDispatchId,
-    lastScope: state.runtime.dispatchTrace.lastScope,
-    lastActionType: state.runtime.dispatchTrace.lastActionType,
-    plugins: Object.values(state.runtime.plugins).map((p) => ({
-      id: p.id,
-      title: p.title,
-      status: p.status,
-      enabled: p.enabled,
-      widgets: p.widgets.length,
-    })),
-  };
-}
+export const selectLoadedPluginIds = createSelector([selectRuntimeState], (runtime) =>
+  Object.keys(runtime.plugins)
+);
+
+export const selectGlobalState = createSelector([selectRuntimeState], (runtime) => ({
+  counterValue: runtime.globals.counterValue,
+  greeterName: runtime.globals.greeterName,
+  pluginCount: Object.keys(runtime.plugins).length,
+  dispatchCount: runtime.dispatchTrace.count,
+  lastDispatchId: runtime.dispatchTrace.lastDispatchId,
+  lastScope: runtime.dispatchTrace.lastScope,
+  lastActionType: runtime.dispatchTrace.lastActionType,
+  plugins: Object.values(runtime.plugins).map((p) => ({
+    id: p.id,
+    title: p.title,
+    status: p.status,
+    enabled: p.enabled,
+    widgets: p.widgets.length,
+  })),
+}));
 
 export function dispatchPluginAction(
   dispatch: AppDispatch,

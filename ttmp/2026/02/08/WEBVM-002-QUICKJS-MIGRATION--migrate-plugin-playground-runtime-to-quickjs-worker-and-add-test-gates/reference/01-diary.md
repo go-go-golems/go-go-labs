@@ -354,3 +354,177 @@ One verification command initially returned a no-match error for the remote dire
   - WEBVM-002 design-doc 01
   - WEBVM-002 tasks.md
   - WEBVM-002 reference diary
+
+## Step 6: Implement QuickJS Worker Migration and Remove Legacy Runtime Path
+
+After the user approved execution, I implemented the migration core in code: worker runtime, RPC client, runtime contracts/validators, and `Playground` cutover. This moved plugin execution off the in-process `pluginManager` path and into a QuickJS-backed worker lifecycle.
+
+I also addressed a worker build failure caused by Vite worker output format settings by setting `worker.format = "es"` in `vite.config.ts`, then re-ran typecheck and production build to validate the new runtime path compiles and bundles.
+
+### Prompt Context
+
+**User prompt (verbatim):** "yes, go ahead."
+
+**Assistant interpretation:** Execute WEBVM-002 migration tasks in code now, not just in documentation.
+
+**Inferred user intent:** Begin actual implementation of QuickJS runtime isolation and report concrete progress.
+
+**Commit (code):** N/A
+
+### What I did
+- Added shared runtime contract and validation files:
+  - `client/src/lib/quickjsContracts.ts`
+  - `client/src/lib/uiSchema.ts`
+  - `client/src/lib/dispatchIntent.ts`
+- Added worker runtime service:
+  - `client/src/workers/quickjsRuntime.worker.ts`
+  - Includes runtime/context lifecycle, load/render/event/dispose/health handlers, timeout interrupt handler, memory/stack limits, and bootstrap bridge.
+- Added main-thread worker RPC client:
+  - `client/src/lib/quickjsSandboxClient.ts`
+- Cut over `Playground` to async worker RPC for:
+  - plugin load
+  - widget render
+  - event dispatch intent handling
+- Removed legacy runtime:
+  - deleted `client/src/lib/pluginManager.ts`
+- Updated Vite worker output setting:
+  - `vite.config.ts` -> `worker.format = "es"`
+- Updated ticket tasks/changelog:
+  - Marked tasks 2-17 complete.
+
+### Why
+- This is the minimum viable implementation needed to make runtime isolation real and unblock follow-on testing tasks.
+
+### What worked
+- `pnpm check` passed after migration changes.
+- `pnpm build` passed after worker format fix.
+- Search confirms no remaining `new Function(` or `pluginManager` references in `client/src`.
+
+### What didn't work
+- First `pnpm build` failed with:
+  - `Invalid value "iife" for option "worker.format" - UMD and IIFE output formats are not supported for code-splitting builds.`
+- Fix applied:
+  - Added `worker: { format: "es" }` to Vite config, then build succeeded.
+
+### What I learned
+- QuickJS worker integration in this project needed an explicit Vite worker format override to support code-split worker bundles.
+
+### What was tricky to build
+- The sharpest edge was replacing a synchronous in-process render path with async worker RPC without breaking UI behavior. The key adaptation was introducing per-widget render caching and async event handling in `Playground` while preserving the existing Redux action model.
+
+### What warrants a second pair of eyes
+- Runtime correctness under stress:
+  - interrupt behavior under long-running plugin code
+  - memory cleanup/disposal discipline across repeated load/unload cycles
+- Browser-runtime compatibility for `quickjs-emscripten` generated bundles across environments.
+
+### What should be done in the future
+- Complete remaining tasks 18-23:
+  - unit/integration tests
+  - Playwright e2e isolation tests
+  - test scripts and full migration gate run.
+
+### Code review instructions
+- Start at these files:
+  - `cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/workers/quickjsRuntime.worker.ts`
+  - `cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/lib/quickjsSandboxClient.ts`
+  - `cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/pages/Playground.tsx`
+- Validation commands:
+  - `cd cmd/experiments/2026-02-08--simulated-communication/plugin-playground`
+  - `pnpm check`
+  - `pnpm build`
+  - `rg -n "new Function\\(|pluginManager" client/src` (expect no matches)
+
+### Technical details
+- Runtime limits currently set in worker:
+  - memory: `32MB`
+  - stack: `1MB`
+  - load timeout: `1000ms`
+  - render timeout: `100ms`
+  - event timeout: `100ms`
+
+## Step 7: Add Test Gates and Validate Full Migration Pipeline
+
+After the core runtime cutover was stable, I implemented the remaining WEBVM-002 test tasks: unit tests, integration tests, Playwright e2e, and a single migration gate command that runs all checks in sequence.
+
+I hit two notable issues while validating e2e: first, a sequencing bug from launching browser install and tests in parallel; second, a runtime render loop caused by unstable selector outputs. Both were fixed, and the full pipeline passed.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 6)
+
+**Assistant interpretation:** Continue through remaining migration tasks and finish the test/hardening phase.
+
+**Inferred user intent:** Complete the ticket end-to-end, not just runtime code changes.
+
+**Commit (code):** N/A
+
+### What I did
+- Added runtime service extraction for testability:
+  - `client/src/lib/quickjsRuntimeService.ts`
+- Updated worker to delegate to runtime service:
+  - `client/src/workers/quickjsRuntime.worker.ts`
+- Added unit test config + tests:
+  - `vitest.config.ts`
+  - `client/src/lib/uiSchema.test.ts`
+  - `client/src/lib/dispatchIntent.test.ts`
+- Added integration test config + tests:
+  - `vitest.integration.config.ts`
+  - `client/src/lib/quickjsRuntimeService.integration.test.ts`
+- Added Playwright config + e2e tests:
+  - `playwright.config.ts`
+  - `tests/e2e/quickjs-runtime.spec.ts`
+- Added scripts:
+  - `test:unit`, `test:integration`, `test:e2e`, `test:migration` in `package.json`
+- Installed Playwright dependency and browser binaries.
+- Fixed selector-stability render-loop regression:
+  - memoized selectors in `store.ts` using `createSelector`.
+
+### Why
+- Remaining tasks in WEBVM-002 required measurable, automated proof that the migration works and protects against regressions.
+
+### What worked
+- `pnpm check` passed.
+- `pnpm test:unit` passed.
+- `pnpm test:integration` passed.
+- `pnpm test:e2e` passed.
+- `pnpm test:migration` passed end-to-end.
+
+### What didn't work
+- First e2e attempt failed because browser install and tests were started in parallel; tests ran before install completed.
+- Early e2e runs also failed due:
+  - `Maximum update depth exceeded` from unstable selector outputs in `Playground` dependencies.
+  - strict locator conflict in e2e assertion (`Hello, Ada!` matched two elements).
+
+### What I learned
+- Async render effects tied to non-memoized selector outputs can create feedback loops even when business logic is correct.
+- Keep Playwright install and execution strictly sequential in automation to avoid false negatives.
+
+### What was tricky to build
+- Converting runtime code into a structure that is both worker-friendly and directly integration-testable required separating message transport concerns from VM lifecycle logic. Extracting `QuickJSRuntimeService` was the key move that made testing practical without browser-only harnesses.
+
+### What warrants a second pair of eyes
+- E2E environment warnings still appear for unresolved analytics placeholders and CSS import ordering; they are non-blocking for migration correctness but should be cleaned up for CI noise reduction.
+
+### What should be done in the future
+- Optional cleanup:
+  - make analytics script injection conditional when env vars are unset
+  - reorder CSS imports to eliminate PostCSS import-order warning.
+
+### Code review instructions
+- Review runtime + tests in this order:
+  - `client/src/lib/quickjsRuntimeService.ts`
+  - `client/src/workers/quickjsRuntime.worker.ts`
+  - `client/src/lib/quickjsSandboxClient.ts`
+  - `client/src/pages/Playground.tsx`
+  - `client/src/lib/*.test.ts`
+  - `tests/e2e/quickjs-runtime.spec.ts`
+- Validate with:
+  - `pnpm test:migration`
+
+### Technical details
+- Final test outputs:
+  - unit: 2 files, 6 tests passed
+  - integration: 1 file, 4 tests passed
+  - e2e: 2 tests passed
+  - migration pipeline: passed
