@@ -1,5 +1,8 @@
 import type { UINode } from "./uiTypes";
 
+export type PackageId = string;
+export type InstanceId = string;
+
 export interface RuntimeErrorPayload {
   code: string;
   message: string;
@@ -10,11 +13,12 @@ export interface DispatchIntent {
   scope: "plugin" | "global";
   actionType: string;
   payload?: unknown;
-  pluginId?: string;
+  instanceId?: InstanceId;
 }
 
 export interface LoadedPlugin {
-  id: string;
+  packageId: PackageId;
+  instanceId: InstanceId;
   declaredId?: string;
   title: string;
   description?: string;
@@ -25,14 +29,15 @@ export interface LoadedPlugin {
 export interface LoadPluginRequest {
   id: number;
   type: "loadPlugin";
-  pluginId: string;
+  packageId: PackageId;
+  instanceId: InstanceId;
   code: string;
 }
 
 export interface RenderRequest {
   id: number;
   type: "render";
-  pluginId: string;
+  instanceId: InstanceId;
   widgetId: string;
   pluginState: unknown;
   globalState: unknown;
@@ -41,7 +46,7 @@ export interface RenderRequest {
 export interface EventRequest {
   id: number;
   type: "event";
-  pluginId: string;
+  instanceId: InstanceId;
   widgetId: string;
   handler: string;
   args?: unknown;
@@ -52,7 +57,7 @@ export interface EventRequest {
 export interface DisposePluginRequest {
   id: number;
   type: "disposePlugin";
-  pluginId: string;
+  instanceId: InstanceId;
 }
 
 export interface HealthRequest {
@@ -103,4 +108,3 @@ export interface WorkerErrorResponse {
 }
 
 export type WorkerResponse = WorkerSuccessResponse | WorkerErrorResponse;
-

@@ -31,8 +31,8 @@ describe("QuickJSRuntimeService", () => {
 
   afterEach(() => {
     for (const service of services) {
-      for (const pluginId of service.health().plugins) {
-        service.disposePlugin(pluginId);
+      for (const instanceId of service.health().plugins) {
+        service.disposePlugin(instanceId);
       }
     }
     services.length = 0;
@@ -42,7 +42,7 @@ describe("QuickJSRuntimeService", () => {
     const service = new QuickJSRuntimeService();
     services.push(service);
 
-    const plugin = await service.loadPlugin("counter", COUNTER_PLUGIN);
+    const plugin = await service.loadPlugin("counter", "counter", COUNTER_PLUGIN);
     expect(plugin.widgets).toEqual(["counter"]);
 
     const tree = service.render("counter", "counter", { value: 2 }, {});
@@ -53,13 +53,13 @@ describe("QuickJSRuntimeService", () => {
     const service = new QuickJSRuntimeService();
     services.push(service);
 
-    await service.loadPlugin("counter", COUNTER_PLUGIN);
+    await service.loadPlugin("counter", "counter", COUNTER_PLUGIN);
     const intents = service.event("counter", "counter", "increment", undefined, { value: 0 }, {});
 
     expect(intents).toEqual([
       {
         scope: "plugin",
-        pluginId: "counter",
+        instanceId: "counter",
         actionType: "increment",
         payload: undefined,
       },
@@ -70,7 +70,7 @@ describe("QuickJSRuntimeService", () => {
     const service = new QuickJSRuntimeService();
     services.push(service);
 
-    await service.loadPlugin("counter", COUNTER_PLUGIN);
+    await service.loadPlugin("counter", "counter", COUNTER_PLUGIN);
     expect(service.disposePlugin("counter")).toBe(true);
     expect(service.disposePlugin("counter")).toBe(false);
     expect(() => service.render("counter", "counter", {}, {})).toThrow(/not found/i);
@@ -81,6 +81,7 @@ describe("QuickJSRuntimeService", () => {
     services.push(service);
 
     await service.loadPlugin(
+      "loop",
       "loop",
       `
 definePlugin(({ ui }) => {
@@ -103,4 +104,3 @@ definePlugin(({ ui }) => {
     expect(() => service.render("loop", "loop", {}, {})).toThrow(/interrupted/i);
   });
 });
-

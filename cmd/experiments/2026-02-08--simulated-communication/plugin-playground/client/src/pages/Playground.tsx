@@ -37,7 +37,7 @@ export default function Playground() {
     (plugin: LoadedPlugin) => {
       dispatch(
         pluginRegistered({
-          id: plugin.id,
+          id: plugin.instanceId,
           title: plugin.title,
           description: plugin.description,
           widgets: plugin.widgets,
@@ -47,7 +47,7 @@ export default function Playground() {
 
       setPluginMetaById((current) => ({
         ...current,
-        [plugin.id]: plugin,
+        [plugin.instanceId]: plugin,
       }));
     },
     [dispatch]
@@ -115,7 +115,7 @@ export default function Playground() {
         throw new Error(`Preset not found: ${presetId}`);
       }
 
-      const plugin = await quickjsSandboxClient.loadPlugin(preset.id, preset.code);
+      const plugin = await quickjsSandboxClient.loadPlugin(preset.id, preset.id, preset.code);
       registerLoadedPlugin(plugin);
     } catch (err) {
       setError(`Failed to load preset: ${String(err)}`);
@@ -130,7 +130,7 @@ export default function Playground() {
       }
 
       const pluginId = `custom-${Date.now()}`;
-      const plugin = await quickjsSandboxClient.loadPlugin(pluginId, customCode);
+      const plugin = await quickjsSandboxClient.loadPlugin(pluginId, pluginId, customCode);
       registerLoadedPlugin(plugin);
     } catch (err) {
       setError(`Failed to load custom plugin: ${String(err)}`);

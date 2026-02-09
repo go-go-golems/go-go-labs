@@ -1,7 +1,13 @@
 import { getQuickJS } from "quickjs-emscripten";
 import type { QuickJSContext, QuickJSRuntime } from "quickjs-emscripten";
 import { validateDispatchIntents } from "./dispatchIntent";
-import type { DispatchIntent, LoadedPlugin, RuntimeErrorPayload } from "./quickjsContracts";
+import type {
+  DispatchIntent,
+  InstanceId,
+  LoadedPlugin,
+  PackageId,
+  RuntimeErrorPayload,
+} from "./quickjsContracts";
 import { validateUINode } from "./uiSchema";
 
 const BOOTSTRAP_SOURCE = `
@@ -117,7 +123,8 @@ globalThis.__pluginHost = {
 `;
 
 interface PluginVm {
-  pluginId: string;
+  packageId: PackageId;
+  instanceId: InstanceId;
   runtime: QuickJSRuntime;
   context: QuickJSContext;
   deadlineMs: number;
@@ -196,7 +203,11 @@ function evalCodeOrThrow(vm: PluginVm, code: string, filename: string, timeoutMs
   result.value.dispose();
 }
 
-function validateLoadedPluginMeta(pluginId: string, value: unknown): LoadedPlugin {
+function validateLoadedPluginMeta(
+  packageId: PackageId,
+  instanceId: InstanceId,
+  value: unknown
+): LoadedPlugin {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new Error("Plugin metadata must be an object");
   }
@@ -214,7 +225,8 @@ function validateLoadedPluginMeta(pluginId: string, value: unknown): LoadedPlugi
   }
 
   return {
-    id: pluginId,
+    packageId,
+    instanceId,
     declaredId: typeof meta.declaredId === "string" ? meta.declaredId : undefined,
     title: typeof meta.title === "string" ? meta.title : "Untitled Plugin",
     description: typeof meta.description === "string" ? meta.description : undefined,
@@ -241,7 +253,7 @@ export function toRuntimeError(error: unknown): RuntimeErrorPayload {
 export class QuickJSRuntimeService {
   private readonly options: Required<QuickJSRuntimeServiceOptions>;
 
-  private readonly vms = new Map<string, PluginVm>();
+  private readonly vms = new Map<InstanceId, PluginVm>();
 
   constructor(options: QuickJSRuntimeServiceOptions = {}) {
     this.options = {
@@ -250,13 +262,14 @@ export class QuickJSRuntimeService {
     };
   }
 
-  private async createPluginVm(pluginId: string): Promise<PluginVm> {
+  private async createPluginVm(packageId: PackageId, instanceId: InstanceId): Promise<PluginVm> {
     const QuickJS = await getQuickJS();
     const runtime = QuickJS.newRuntime();
     const context = runtime.newContext();
 
     const vm: PluginVm = {
-      pluginId,
+      packageId,
+      instanceId,
       runtime,
       context,
       deadlineMs: Number.POSITIVE_INFINITY,
@@ -270,28 +283,31 @@ export class QuickJSRuntimeService {
     return vm;
   }
 
-  private getVmOrThrow(pluginId: string): PluginVm {
-    const vm = this.vms.get(pluginId);
+  private getVmOrThrow(instanceId: InstanceId): PluginVm {
+    const vm = this.vms.get(instanceId);
     if (!vm) {
-      throw new Error(`Plugin runtime not found: ${pluginId}`);
+      throw new Error(`Plugin runtime not found: ${instanceId}`);
     }
     return vm;
   }
 
-  async loadPlugin(pluginId: string, code: string): Promise<LoadedPlugin> {
-    this.disposePlugin(pluginId);
-    const vm = await this.createPluginVm(pluginId);
+  async loadPlugin(packageId: PackageId, instanceId: InstanceId, code: string): Promise<LoadedPlugin> {
+    if (this.vms.has(instanceId)) {
+      throw new Error(`Plugin runtime already exists: ${instanceId}`);
+    }
+
+    const vm = await this.createPluginVm(packageId, instanceId);
 
     try {
-      evalCodeOrThrow(vm, code, `${pluginId}.plugin.js`, this.options.loadTimeoutMs);
+      evalCodeOrThrow(vm, code, `${instanceId}.plugin.js`, this.options.loadTimeoutMs);
       const meta = evalToNative<unknown>(
         vm,
         "globalThis.__pluginHost.getMeta()",
         "plugin-meta.js",
         this.options.loadTimeoutMs
       );
-      const plugin = validateLoadedPluginMeta(pluginId, meta);
-      this.vms.set(pluginId, vm);
+      const plugin = validateLoadedPluginMeta(packageId, instanceId, meta);
+      this.vms.set(instanceId, vm);
       return plugin;
     } catch (error) {
       vm.context.dispose();
@@ -300,14 +316,14 @@ export class QuickJSRuntimeService {
     }
   }
 
-  render(pluginId: string, widgetId: string, pluginState: unknown, globalState: unknown) {
-    const vm = this.getVmOrThrow(pluginId);
+  render(instanceId: InstanceId, widgetId: string, pluginState: unknown, globalState: unknown) {
+    const vm = this.getVmOrThrow(instanceId);
     const tree = evalToNative<unknown>(
       vm,
       `globalThis.__pluginHost.render(${toJsLiteral(widgetId)}, ${toJsLiteral(
         pluginState
       )}, ${toJsLiteral(globalState)})`,
-      `${pluginId}.render.js`,
+      `${instanceId}.render.js`,
       this.options.renderTimeoutMs
     );
 
@@ -315,33 +331,33 @@ export class QuickJSRuntimeService {
   }
 
   event(
-    pluginId: string,
+    instanceId: InstanceId,
     widgetId: string,
     handler: string,
     args: unknown,
     pluginState: unknown,
     globalState: unknown
   ): DispatchIntent[] {
-    const vm = this.getVmOrThrow(pluginId);
+    const vm = this.getVmOrThrow(instanceId);
     const intents = evalToNative<unknown>(
       vm,
       `globalThis.__pluginHost.event(${toJsLiteral(widgetId)}, ${toJsLiteral(
         handler
       )}, ${toJsLiteral(args)}, ${toJsLiteral(pluginState)}, ${toJsLiteral(globalState)})`,
-      `${pluginId}.event.js`,
+      `${instanceId}.event.js`,
       this.options.eventTimeoutMs
     );
 
-    return validateDispatchIntents(intents, pluginId);
+    return validateDispatchIntents(intents, instanceId);
   }
 
-  disposePlugin(pluginId: string): boolean {
-    const vm = this.vms.get(pluginId);
+  disposePlugin(instanceId: InstanceId): boolean {
+    const vm = this.vms.get(instanceId);
     if (!vm) {
       return false;
     }
 
-    this.vms.delete(pluginId);
+    this.vms.delete(instanceId);
     vm.context.dispose();
     vm.runtime.dispose();
     return true;
@@ -354,4 +370,3 @@ export class QuickJSRuntimeService {
     };
   }
 }
-

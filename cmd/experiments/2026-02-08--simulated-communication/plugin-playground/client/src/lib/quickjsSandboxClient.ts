@@ -5,8 +5,10 @@ import type {
   EventRequest,
   HealthRequest,
   HealthResult,
+  InstanceId,
   LoadPluginRequest,
   LoadedPlugin,
+  PackageId,
   RenderRequest,
   RuntimeErrorPayload,
   WorkerResponse,
@@ -76,11 +78,12 @@ export class QuickJSSandboxClient {
     });
   }
 
-  async loadPlugin(pluginId: string, code: string): Promise<LoadedPlugin> {
+  async loadPlugin(packageId: PackageId, instanceId: InstanceId, code: string): Promise<LoadedPlugin> {
     const result = await this.postRequest<{ plugin: LoadedPlugin }>(
       {
         type: "loadPlugin",
-        pluginId,
+        packageId,
+        instanceId,
         code,
       } satisfies Omit<LoadPluginRequest, "id">
     );
@@ -89,7 +92,7 @@ export class QuickJSSandboxClient {
   }
 
   async render(
-    pluginId: string,
+    instanceId: InstanceId,
     widgetId: string,
     pluginState: unknown,
     globalState: unknown
@@ -97,7 +100,7 @@ export class QuickJSSandboxClient {
     const result = await this.postRequest<{ tree: UINode }>(
       {
         type: "render",
-        pluginId,
+        instanceId,
         widgetId,
         pluginState,
         globalState,
@@ -108,7 +111,7 @@ export class QuickJSSandboxClient {
   }
 
   async event(
-    pluginId: string,
+    instanceId: InstanceId,
     widgetId: string,
     handler: string,
     args: unknown,
@@ -118,7 +121,7 @@ export class QuickJSSandboxClient {
     const result = await this.postRequest<{ intents: DispatchIntent[] }>(
       {
         type: "event",
-        pluginId,
+        instanceId,
         widgetId,
         handler,
         args,
@@ -130,11 +133,11 @@ export class QuickJSSandboxClient {
     return result.intents;
   }
 
-  async disposePlugin(pluginId: string): Promise<boolean> {
+  async disposePlugin(instanceId: InstanceId): Promise<boolean> {
     const result = await this.postRequest<{ disposed: boolean }>(
       {
         type: "disposePlugin",
-        pluginId,
+        instanceId,
       } satisfies Omit<DisposePluginRequest, "id">
     );
 

@@ -8,11 +8,13 @@ const runtimeService = new QuickJSRuntimeService();
 async function handleRequest(request: WorkerRequest) {
   switch (request.type) {
     case "loadPlugin":
-      return { plugin: await runtimeService.loadPlugin(request.pluginId, request.code) };
+      return {
+        plugin: await runtimeService.loadPlugin(request.packageId, request.instanceId, request.code),
+      };
     case "render":
       return {
         tree: runtimeService.render(
-          request.pluginId,
+          request.instanceId,
           request.widgetId,
           request.pluginState,
           request.globalState
@@ -21,7 +23,7 @@ async function handleRequest(request: WorkerRequest) {
     case "event":
       return {
         intents: runtimeService.event(
-          request.pluginId,
+          request.instanceId,
           request.widgetId,
           request.handler,
           request.args,
@@ -30,7 +32,7 @@ async function handleRequest(request: WorkerRequest) {
         ),
       };
     case "disposePlugin":
-      return { disposed: runtimeService.disposePlugin(request.pluginId) };
+      return { disposed: runtimeService.disposePlugin(request.instanceId) };
     case "health":
       return runtimeService.health();
     default:

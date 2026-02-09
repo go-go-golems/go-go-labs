@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { validateDispatchIntent, validateDispatchIntents } from "./dispatchIntent";
 
 describe("validateDispatchIntent", () => {
-  it("normalizes plugin scoped intents with pluginId", () => {
+  it("normalizes plugin scoped intents with instanceId", () => {
     const intent = validateDispatchIntent(
       {
         scope: "plugin",
@@ -14,7 +14,7 @@ describe("validateDispatchIntent", () => {
 
     expect(intent).toEqual({
       scope: "plugin",
-      pluginId: "counter",
+      instanceId: "counter",
       actionType: "increment",
       payload: { by: 1 },
     });
@@ -38,4 +38,3 @@ describe("validateDispatchIntent", () => {
     expect(() => validateDispatchIntents({} as never, "x")).toThrow(/must be an array/i);
   });
 });
-

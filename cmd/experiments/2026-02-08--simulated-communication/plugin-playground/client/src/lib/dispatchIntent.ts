@@ -4,7 +4,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export function validateDispatchIntent(value: unknown, pluginId: string): DispatchIntent {
+export function validateDispatchIntent(value: unknown, instanceId: string): DispatchIntent {
   if (!isRecord(value)) {
     throw new Error("Dispatch intent must be an object");
   }
@@ -20,7 +20,7 @@ export function validateDispatchIntent(value: unknown, pluginId: string): Dispat
   if (value.scope === "plugin") {
     return {
       scope: "plugin",
-      pluginId,
+      instanceId,
       actionType: value.actionType,
       payload: value.payload,
     };
@@ -33,11 +33,10 @@ export function validateDispatchIntent(value: unknown, pluginId: string): Dispat
   };
 }
 
-export function validateDispatchIntents(value: unknown, pluginId: string): DispatchIntent[] {
+export function validateDispatchIntents(value: unknown, instanceId: string): DispatchIntent[] {
   if (!Array.isArray(value)) {
     throw new Error("Dispatch intents result must be an array");
   }
 
-  return value.map((intent) => validateDispatchIntent(intent, pluginId));
+  return value.map((intent) => validateDispatchIntent(intent, instanceId));
 }
-
