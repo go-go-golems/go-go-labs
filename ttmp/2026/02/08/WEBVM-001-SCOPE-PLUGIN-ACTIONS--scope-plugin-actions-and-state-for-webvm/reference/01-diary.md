@@ -10,16 +10,25 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
-    - Path: /home/manuel/workspaces/2026-02-08/plugin-playground/go-go-labs/ttmp/2026/02/08/WEBVM-001-SCOPE-PLUGIN-ACTIONS--scope-plugin-actions-and-state-for-webvm/tasks.md
-      Note: Step-by-step execution checklist for this implementation
-    - Path: /home/manuel/workspaces/2026-02-08/plugin-playground/go-go-labs/ttmp/2026/02/08/WEBVM-001-SCOPE-PLUGIN-ACTIONS--scope-plugin-actions-and-state-for-webvm/design-doc/04-phase-3-4-design-brief-multi-instance-identity-and-capability-model.md
+    - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/lib/quickjsContracts.ts
+      Note: Identity contract migration to packageId/instanceId (commit 414b68a)
+    - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/lib/quickjsRuntimeService.ts
+      Note: VM map and lifecycle now keyed by instanceId (commit 414b68a)
+    - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/lib/quickjsSandboxClient.ts
+      Note: Client API updated to send packageId+instanceId (commit 414b68a)
+    - Path: cmd/experiments/2026-02-08--simulated-communication/plugin-playground/client/src/workers/quickjsRuntime.worker.ts
+      Note: Worker request routing updated for instance identity (commit 414b68a)
+    - Path: ttmp/2026/02/08/WEBVM-001-SCOPE-PLUGIN-ACTIONS--scope-plugin-actions-and-state-for-webvm/design-doc/04-phase-3-4-design-brief-multi-instance-identity-and-capability-model.md
       Note: Source-of-truth design spec implemented in this diary
+    - Path: ttmp/2026/02/08/WEBVM-001-SCOPE-PLUGIN-ACTIONS--scope-plugin-actions-and-state-for-webvm/tasks.md
+      Note: Step-by-step execution checklist for this implementation
 ExternalSources: []
-Summary: "Implementation diary for WEBVM-001, with commit-by-commit notes, failures, and validation instructions."
+Summary: Implementation diary for WEBVM-001, with commit-by-commit notes, failures, and validation instructions.
 LastUpdated: 2026-02-09T00:00:00Z
-WhatFor: "Track implementation progress from design brief to running multi-instance + capability model runtime."
-WhenToUse: "Read during development and review to understand what changed in each step and how to validate it."
+WhatFor: Track implementation progress from design brief to running multi-instance + capability model runtime.
+WhenToUse: Read during development and review to understand what changed in each step and how to validate it.
 ---
+
 
 # Diary
 
@@ -89,3 +98,86 @@ This step intentionally focuses on scaffolding and traceability before code refa
 - Commands used:
   - `docmgr task add --ticket WEBVM-001-SCOPE-PLUGIN-ACTIONS --text "..."`
   - `docmgr doc add --ticket WEBVM-001-SCOPE-PLUGIN-ACTIONS --doc-type reference --title "Diary"`
+
+## Step 2: Contract and Runtime Identity Migration
+
+I migrated the QuickJS boundary contracts and runtime internals from `pluginId` identity to explicit `packageId` plus `instanceId`, with runtime operations keyed by `instanceId`. This establishes the foundation for true multi-instance support while keeping current behavior stable.
+
+I kept this step scoped to transport/runtime identity plumbing and associated tests so later refactors (store routing and capability domains) can build on a stable API boundary.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Implement WEBVM-001 incrementally, committing each slice and recording the details.
+
+**Inferred user intent:** Move from design to running code with minimal-risk, reviewable increments.
+
+**Commit (code):** 414b68a — "feat(webvm-001): migrate quickjs contracts and runtime to instance identity"
+
+### What I did
+
+- Updated `quickjsContracts.ts`:
+  - Added `PackageId` and `InstanceId` aliases.
+  - Replaced request/response fields from `pluginId` to `instanceId`, and `loadPlugin` now carries both `packageId` + `instanceId`.
+  - Updated `LoadedPlugin` to carry `{ packageId, instanceId }`.
+  - Updated `DispatchIntent` plugin attribution field to `instanceId`.
+- Updated `quickjsRuntimeService.ts`:
+  - VM map keyed by `instanceId`.
+  - `loadPlugin(packageId, instanceId, code)` now checks for duplicate instance IDs instead of replacing existing runtimes by key.
+  - Runtime metadata validation now returns `{ packageId, instanceId }`.
+- Updated worker/client plumbing (`quickjsRuntime.worker.ts`, `quickjsSandboxClient.ts`) to use new request fields.
+- Updated `dispatchIntent.ts` + `dispatchIntent.test.ts` to stamp/expect `instanceId`.
+- Updated integration tests in `quickjsRuntimeService.integration.test.ts` for new load signature and intent attribution.
+- Updated `Playground.tsx` load/register calls to use new `LoadedPlugin` fields and the new sandbox client signature.
+
+### Why
+
+- Identity split is a prerequisite for loading multiple instances of the same package without key collisions.
+- Moving this boundary first isolates downstream reducer/UI changes from transport-layer churn.
+
+### What worked
+
+- Typecheck passed: `pnpm check`.
+- Unit tests passed: `pnpm test:unit`.
+- Integration tests passed: `pnpm test:integration`.
+
+### What didn't work
+
+- Initial `git commit` attempt failed inside sandbox due worktree lock path permissions:
+  - Command: `git add ... && git commit ...`
+  - Error: `fatal: Unable to create '/home/manuel/code/wesen/corporate-headquarters/go-go-labs/.git/worktrees/go-go-labs39/index.lock': Permission denied`
+- Resolved by rerunning commit command with escalated permissions.
+
+### What I learned
+
+- This repo’s `.git` worktree metadata sits outside the writable sandbox path, so commit operations need elevated execution in this environment.
+
+### What was tricky to build
+
+- The main edge was avoiding accidental behavior changes while replacing identity fields across contracts, runtime service, worker, and tests in one slice. I constrained the step to boundary-layer identity changes and verified with both unit and integration suites before committing.
+
+### What warrants a second pair of eyes
+
+- `QuickJSRuntimeService.loadPlugin(...)` duplicate-instance behavior change (now throws on existing `instanceId`) should be explicitly validated against expected UX before multi-instance UI lands.
+
+### What should be done in the future
+
+- Implement store-level package-based reducer routing and true multi-instance ID generation (`packageId@...`) in the next step.
+
+### Code review instructions
+
+- Start with `client/src/lib/quickjsContracts.ts` for type contract changes.
+- Then inspect `client/src/lib/quickjsRuntimeService.ts`, `client/src/workers/quickjsRuntime.worker.ts`, and `client/src/lib/quickjsSandboxClient.ts` for boundary propagation.
+- Validate with:
+  - `pnpm check`
+  - `pnpm test:unit`
+  - `pnpm test:integration`
+
+### Technical details
+
+- Key API shift:
+  - `loadPlugin(packageId, instanceId, code)`
+  - `render(instanceId, ...)`
+  - `event(instanceId, ...)`
+  - `disposePlugin(instanceId)`
