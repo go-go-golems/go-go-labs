@@ -11,4 +11,4 @@
 - [x] Refactor Playground into modular developer workbench UI shells (`catalog`, `workspace`, `inspector`)
 - [x] Implement runtime timeline and shared-domain inspector panels with filters
 - [x] Write plugin authoring + capability model docs (`quickstart`, domain reference)
-- [ ] Write runtime embedding docs with package usage examples and migration notes
+- [x] Write runtime embedding docs with package usage examples and migration notes

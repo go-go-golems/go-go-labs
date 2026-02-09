@@ -144,3 +144,15 @@ Published plugin authoring quickstart and capability/shared-domain reference doc
 - cmd/experiments/2026-02-08--simulated-communication/plugin-playground/docs/plugin-authoring/quickstart.md — New authoring quickstart with working custom-plugin patterns and handler context
 - ttmp/2026/02/09/WEBVM-003-DEVX-UI-PACKAGE-DOCS-OVERHAUL--developer-ui-overhaul-reusable-vm-package-and-documentation/tasks.md — Marked task 9 complete
 
+
+## 2026-02-09 - Completed task 10
+
+Published runtime embedding guide with host-loop examples and migration notes documenting breaking import-path changes to the plugin-runtime package.
+
+### Related Files
+
+- cmd/experiments/2026-02-08--simulated-communication/plugin-playground/docs/README.md — Top-level docs navigation index
+- cmd/experiments/2026-02-08--simulated-communication/plugin-playground/docs/migration/changelog-vm-api.md — WEBVM-003 migration map and compatibility statement
+- cmd/experiments/2026-02-08--simulated-communication/plugin-playground/docs/runtime/embedding.md — Runtime embedding patterns for direct service and worker-backed hosts
+- ttmp/2026/02/09/WEBVM-003-DEVX-UI-PACKAGE-DOCS-OVERHAUL--developer-ui-overhaul-reusable-vm-package-and-documentation/tasks.md — Marked task 10 complete
+
