@@ -38,7 +38,7 @@ RelatedFiles:
       Note: Step-by-step execution checklist for this implementation
 ExternalSources: []
 Summary: Implementation diary for WEBVM-001, with commit-by-commit notes, failures, and validation instructions.
-LastUpdated: 2026-02-09T06:05:16Z
+LastUpdated: 2026-02-09T06:08:24Z
 WhatFor: Track implementation progress from design brief to running multi-instance + capability model runtime.
 WhenToUse: Read during development and review to understand what changed in each step and how to validate it.
 ---
@@ -390,7 +390,7 @@ This change is intentionally constrained to file removals and validation; no run
 
 **Inferred user intent:** Keep the codebase lean and reduce stale abstraction layers that are no longer used.
 
-**Commit (code):** `refactor(playground): remove unused UI wrapper components`
+**Commit (code):** d38e329 — `refactor(playground): remove unused UI wrapper components`
 
 ### What I did
 
@@ -445,3 +445,77 @@ This change is intentionally constrained to file removals and validation; no run
   - `pnpm check`
   - `pnpm test:unit`
   - `pnpm test:integration`
+
+## Step 6: Prune Unused NPM Dependencies
+
+I removed stale runtime and UI library dependencies that became dead after the component cleanup and runtime simplification. The package manifest now tracks only the libraries still referenced by source code, CSS imports, and active scripts.
+
+This step keeps behavior unchanged and focuses on reducing dependency surface and long-term maintenance overhead.
+
+### Prompt Context
+
+**User prompt (verbatim):** "yes, go ahead."
+
+**Assistant interpretation:** Continue cleanup after dead-component removal by trimming unused dependencies.
+
+**Inferred user intent:** Keep the playground lean and avoid carrying unused transitive risk.
+
+**Commit (code):** `chore(playground): prune unused npm dependencies`
+
+### What I did
+
+- Removed unused runtime dependencies from `package.json`, including:
+  - legacy Radix wrappers no longer present (`accordion`, `alert-dialog`, `avatar`, etc.)
+  - old form/editor/chart stacks (`react-hook-form`, `@hookform/resolvers`, `monaco`, `recharts`, `zod`)
+  - unused utility/UI libs (`axios`, `cmdk`, `embla-carousel-react`, `framer-motion`, `vaul`, `streamdown`)
+- Removed unused dev dependencies:
+  - `@tailwindcss/typography`
+  - `@types/google.maps`
+  - `add`
+  - `autoprefixer`
+  - `postcss`
+  - `pnpm`
+  - `tsx`
+- Updated `pnpm-lock.yaml` via `pnpm remove`.
+
+### Why
+
+- Unused packages increase install time, vulnerability surface, and upgrade burden.
+- The current runtime/playground path uses a much smaller subset than the historical manifest.
+
+### What worked
+
+- Typecheck passed: `pnpm check`.
+- Unit tests passed: `pnpm test:unit`.
+- Integration tests passed: `pnpm test:integration`.
+- Build passed: `pnpm build`.
+
+### What didn't work
+
+- N/A (build produced warnings only; no failures).
+
+### What I learned
+
+- The active dependency set is now mostly QuickJS runtime, Redux runtime, minimal Radix primitives, and routing/toast/theme support.
+
+### What was tricky to build
+
+- Distinguishing true runtime requirements from old package history and deleted wrapper references.
+
+### What warrants a second pair of eyes
+
+- `vite-plugin-jsx-loc` currently reports a peer warning with Vite 7 (`expects ^4 || ^5`), which predates this cleanup but remains visible.
+
+### What should be done in the future
+
+- Decide whether to keep or replace `vite-plugin-jsx-loc` to eliminate peer-version drift warnings.
+
+### Code review instructions
+
+- Review `cmd/experiments/2026-02-08--simulated-communication/plugin-playground/package.json` for removed dependencies.
+- Confirm lockfile regeneration in `cmd/experiments/2026-02-08--simulated-communication/plugin-playground/pnpm-lock.yaml`.
+- Validate with:
+  - `pnpm check`
+  - `pnpm test:unit`
+  - `pnpm test:integration`
+  - `pnpm build`
