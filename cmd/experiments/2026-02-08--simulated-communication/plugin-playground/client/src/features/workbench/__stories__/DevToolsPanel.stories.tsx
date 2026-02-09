@@ -1,6 +1,13 @@
+import React from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { DevToolsPanel } from "../components/DevToolsPanel";
+import { TimelinePanel, type TimelineEntry } from "../components/TimelinePanel";
+import { StatePanel } from "../components/StatePanel";
+import { ErrorsPanel } from "../components/ErrorsPanel";
+import { DocsPanel } from "../components/DocsPanel";
+import type { DevToolsTab } from "@/store/workbenchSlice";
+import { MOCK_TIMELINE, MOCK_PLUGIN_STATE, MOCK_PLUGINS, MOCK_ERRORS } from "./storyDecorators";
 
 // ---------------------------------------------------------------------------
 // Placeholder tab content
@@ -113,4 +120,67 @@ export const DocsTab: Story = {
       </div>
     ),
   },
+};
+
+// ---------------------------------------------------------------------------
+// Interactive story — click tabs, toggle collapse, see real panel content
+// ---------------------------------------------------------------------------
+
+const TIMELINE_ENTRIES: TimelineEntry[] = MOCK_TIMELINE.map((d, i) => ({
+  id: `tl-${i}`,
+  timestamp: d.timestamp,
+  scope: d.scope as "plugin" | "shared",
+  outcome: d.outcome as "applied" | "denied" | "ignored",
+  actionType: d.actionType,
+  instanceId: d.instanceId ?? "",
+  shortInstanceId: (d.instanceId ?? "").slice(0, 10),
+  domain: d.domain ?? undefined,
+  reason: d.reason ?? undefined,
+}));
+
+const INSTANCE_STATES = Object.entries(MOCK_PLUGINS).map(([id, p]) => ({
+  instanceId: id,
+  title: (p as any).title,
+  shortId: id.slice(0, 10),
+  state: MOCK_PLUGIN_STATE[id] ?? {},
+}));
+
+const FIXTURE_DOCS = [
+  { title: "Overview", category: "Overview", path: "docs/README.md", raw: "# Plugin Playground\n\nA sandbox for plugin development." },
+  { title: "Quickstart", category: "Plugin Authoring", path: "docs/quickstart.md", raw: "# Quickstart\n\nCall `definePlugin()` to get started." },
+];
+
+function InteractiveDevTools() {
+  const [activeTab, setActiveTab] = React.useState<DevToolsTab>("timeline");
+  const [collapsed, setCollapsed] = React.useState(false);
+  const [errors, setErrors] = React.useState(MOCK_ERRORS);
+  const [focusedId, setFocusedId] = React.useState<string | null>(null);
+
+  const tabContent: Record<DevToolsTab, React.ReactNode> = {
+    timeline: <TimelinePanel entries={TIMELINE_ENTRIES} focusedInstanceId={focusedId} />,
+    state: <StatePanel instances={INSTANCE_STATES} focusedInstanceId={focusedId} onFocusInstance={setFocusedId} />,
+    capabilities: <div className="p-3 text-xs text-slate-500">Capabilities panel (see dedicated story)</div>,
+    errors: <ErrorsPanel errors={errors} onClear={() => setErrors([])} />,
+    shared: <div className="p-3 text-xs text-slate-500">Shared domains panel (see dedicated story)</div>,
+    docs: <DocsPanel docs={FIXTURE_DOCS} />,
+  };
+
+  return (
+    <div className="bg-slate-900 rounded-lg overflow-hidden border border-white/[0.06]" style={{ height: collapsed ? 36 : 320 }}>
+      <DevToolsPanel
+        activeTab={activeTab}
+        collapsed={collapsed}
+        errorCount={errors.length}
+        onSelectTab={setActiveTab}
+        onToggleCollapse={() => setCollapsed((c) => !c)}
+      >
+        {tabContent[activeTab]}
+      </DevToolsPanel>
+    </div>
+  );
+}
+
+export const Interactive: Story = {
+  args: { activeTab: "timeline" },
+  render: () => <InteractiveDevTools />,
 };

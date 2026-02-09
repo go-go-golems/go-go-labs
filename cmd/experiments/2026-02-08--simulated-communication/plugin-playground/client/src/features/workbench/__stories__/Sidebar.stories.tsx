@@ -1,3 +1,4 @@
+import React from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { Sidebar, type CatalogEntry, type RunningInstance } from "../components/Sidebar";
 import { fn } from "storybook/test";
@@ -143,4 +144,64 @@ export const ManyInstances: Story = {
       writeGrants: i % 3 === 0 ? ["counter-summary"] : [],
     })),
   },
+};
+
+// ---------------------------------------------------------------------------
+// Interactive story — full local state, clicking works
+// ---------------------------------------------------------------------------
+
+let nextId = 0;
+
+function InteractiveSidebar() {
+  const [collapsed, setCollapsed] = React.useState(false);
+  const [running, setRunning] = React.useState<RunningInstance[]>([]);
+  const [focusedId, setFocusedId] = React.useState<string | undefined>();
+
+  const handleLoad = (presetId: string) => {
+    const preset = CATALOG.find((c) => c.id === presetId);
+    if (!preset) return;
+    const id = `${presetId}-${++nextId}`;
+    setRunning((prev) => [
+      ...prev,
+      {
+        instanceId: id,
+        title: preset.title,
+        packageId: presetId,
+        shortId: id.slice(0, 10),
+        status: "loaded",
+        readGrants: preset.capabilitySummary?.includes("R") ? ["counter-summary"] : [],
+        writeGrants: preset.capabilitySummary?.includes("W") ? ["counter-summary"] : [],
+      },
+    ]);
+    setFocusedId(id);
+  };
+
+  const handleUnload = (instanceId: string) => {
+    setRunning((prev) => prev.filter((r) => r.instanceId !== instanceId));
+    if (focusedId === instanceId) setFocusedId(undefined);
+  };
+
+  return (
+    <div
+      style={{ width: collapsed ? 48 : 240, height: 600, transition: "width 150ms" }}
+      className="border border-white/[0.06] rounded-lg overflow-hidden bg-slate-900"
+    >
+      <Sidebar
+        catalog={CATALOG}
+        running={running}
+        collapsed={collapsed}
+        focusedInstanceId={focusedId}
+        onToggleCollapse={() => setCollapsed((c) => !c)}
+        onLoadPreset={handleLoad}
+        onFocusInstance={setFocusedId}
+        onUnloadInstance={handleUnload}
+        onNewPlugin={() => handleLoad("calculator")}
+      />
+    </div>
+  );
+}
+
+export const Interactive: Story = {
+  args: { catalog: CATALOG, running: [] },
+  render: () => <InteractiveSidebar />,
 };
