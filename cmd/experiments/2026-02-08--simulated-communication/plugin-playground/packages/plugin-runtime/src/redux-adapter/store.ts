@@ -489,6 +489,9 @@ const runtimeSlice = createSlice({
 export const { pluginRegistered, pluginRemoved, pluginActionDispatched, sharedActionDispatched } =
   runtimeSlice.actions;
 
+/** The runtime slice reducer — use this when composing a custom store. */
+export const runtimeReducer = runtimeSlice.reducer;
+
 export const store = configureStore({
   reducer: {
     runtime: runtimeSlice.reducer,

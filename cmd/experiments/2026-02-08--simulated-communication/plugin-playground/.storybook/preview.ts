@@ -1,5 +1,6 @@
 import type { Preview } from "@storybook/react-vite";
 import "../client/src/index.css";
+import { withStore } from "../client/src/features/workbench/__stories__/storyDecorators";
 
 const preview: Preview = {
   parameters: {
@@ -18,11 +19,14 @@ const preview: Preview = {
     },
   },
   decorators: [
+    // Global dark-class decorator
     (Story) => {
-      // Ensure the dark class is on the root for Tailwind dark mode
       document.documentElement.classList.add("dark");
       return Story();
     },
+    // Global Redux store — every story gets a fresh default store.
+    // Individual stories can override with withStore({ ... }) in their own decorators.
+    withStore(),
   ],
 };
 

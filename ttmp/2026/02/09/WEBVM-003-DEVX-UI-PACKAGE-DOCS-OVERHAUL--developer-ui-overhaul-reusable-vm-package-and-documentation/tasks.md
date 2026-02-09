@@ -12,3 +12,17 @@
 - [x] Implement runtime timeline and shared-domain inspector panels with filters
 - [x] Write plugin authoring + capability model docs (`quickstart`, domain reference)
 - [x] Write runtime embedding docs with package usage examples and migration notes
+- [x] T11: Install and configure Storybook 8 with React/Vite/Tailwind, dark theme decorator matching brutalist theme, and verify it runs
+- [x] T12: Create WorkbenchLayout shell component + story (sidebar/main/devtools skeleton with data-part attributes)
+- [ ] T13: Create Sidebar component + stories (catalog tree, running instances with capability badges, collapse toggle)
+- [ ] T14: Create TopToolbar component + story (runtime status badges, plugin count, dispatch count, health indicator)
+- [ ] T15: Create EditorTabBar + CodeEditor components + stories (tab management, syntax highlighting placeholder, run button)
+- [ ] T16: Create LivePreview + InstanceCard components + stories (widget rendering area, instance header with status)
+- [ ] T17: Create DevToolsPanel container + stories (tab bar with 6 tabs, collapse/expand, drag-resize handle)
+- [ ] T18: Create TimelinePanel component + story (dispatch table with scope/outcome/domain filters, expandable rows)
+- [ ] T19: Create StatePanel component + story (per-instance plugin state and globalState JSON viewer)
+- [ ] T20: Create CapabilitiesPanel component + story (per-instance grant/deny grid for all shared domains)
+- [ ] T21: Create ErrorsPanel component + story (error log stream with timestamps, clear button, empty state)
+- [ ] T22: Create SharedDomainsPanel component + story (per-domain cards with state, reader/writer attribution)
+- [ ] T23: Create DocsPanel + docsManifest + renderMarkdown + stories (embedded docs viewer, tree nav, 3-tier copy-to-clipboard)
+- [ ] T24: Wire WorkbenchLayout into app router replacing Playground, connect to runtime hooks

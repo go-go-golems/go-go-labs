@@ -1,5 +1,7 @@
 import React from "react";
 import { cn } from "@/lib/utils";
+import { useAppSelector } from "@/store";
+import "../styles/workbench.css";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -10,13 +12,15 @@ export interface WorkbenchLayoutProps {
   sidebar?: React.ReactNode;
   /** Top toolbar (badges, runtime status, menu). */
   toolbar?: React.ReactNode;
-  /** Main content area — typically EditorTabBar + SplitView(editor, preview). */
+  /** Main content area — EditorTabBar + SplitView(editor, preview). */
   children: React.ReactNode;
-  /** Bottom devtools panel (timeline, state, capabilities, errors, shared, docs). */
+  /** Bottom devtools panel. */
   devtools?: React.ReactNode;
-  /** Whether the sidebar is collapsed (48px icon-only). */
+  /** Strip all workbench CSS; render only data-part attributes for consumer styling. */
+  unstyled?: boolean;
+  /** Override sidebar collapsed state (defaults to store). */
   sidebarCollapsed?: boolean;
-  /** Whether the devtools panel is collapsed (tab bar only). */
+  /** Override devtools collapsed state (defaults to store). */
   devtoolsCollapsed?: boolean;
   className?: string;
 }
@@ -30,54 +34,41 @@ export function WorkbenchLayout({
   toolbar,
   children,
   devtools,
-  sidebarCollapsed = false,
-  devtoolsCollapsed = false,
+  unstyled = false,
+  sidebarCollapsed: sidebarCollapsedProp,
+  devtoolsCollapsed: devtoolsCollapsedProp,
   className,
 }: WorkbenchLayoutProps) {
+  const storeCollapsed = useAppSelector((s) => s.workbench.sidebarCollapsed);
+  const storeDevtools = useAppSelector((s) => s.workbench.devtoolsCollapsed);
+  const sidebarCollapsed = sidebarCollapsedProp ?? storeCollapsed;
+  const devtoolsCollapsed = devtoolsCollapsedProp ?? storeDevtools;
+
   return (
     <div
       data-widget="workbench"
-      className={cn("h-dvh flex flex-col bg-background text-foreground overflow-hidden", className)}
+      data-unstyled={unstyled || undefined}
+      className={cn(!unstyled && "h-dvh", className)}
     >
-      {/* Top toolbar */}
-      {toolbar && (
-        <div data-part="toolbar" className="flex-shrink-0 border-b border-border">
-          {toolbar}
-        </div>
-      )}
+      {toolbar && <div data-part="toolbar">{toolbar}</div>}
 
-      {/* Main body: sidebar + center + (devtools is below center) */}
-      <div className="flex flex-1 min-h-0">
-        {/* Sidebar */}
+      <div data-part="body">
         {sidebar && (
           <aside
             data-part="sidebar"
             data-state={sidebarCollapsed ? "collapsed" : "expanded"}
-            className={cn(
-              "flex-shrink-0 border-r border-border overflow-y-auto transition-[width] duration-150",
-              sidebarCollapsed ? "w-12" : "w-60"
-            )}
           >
             {sidebar}
           </aside>
         )}
 
-        {/* Center: main + devtools stacked vertically */}
-        <div className="flex flex-col flex-1 min-w-0 min-h-0">
-          {/* Main content pane */}
-          <main data-part="main" className="flex-1 min-h-0 overflow-hidden">
-            {children}
-          </main>
+        <div data-part="center">
+          <main data-part="main">{children}</main>
 
-          {/* Devtools panel */}
           {devtools && (
             <div
               data-part="devtools"
               data-state={devtoolsCollapsed ? "collapsed" : "expanded"}
-              className={cn(
-                "flex-shrink-0 border-t border-border overflow-hidden transition-[height] duration-150",
-                devtoolsCollapsed ? "h-9" : "h-70"
-              )}
             >
               {devtools}
             </div>
