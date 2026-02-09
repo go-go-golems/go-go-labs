@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { WorkbenchLayout } from "../components/WorkbenchLayout";
 import { Sidebar, type CatalogEntry, type RunningInstance } from "../components/Sidebar";
-import { Terminal, Layers, Activity } from "lucide-react";
+import { TopToolbar } from "../components/TopToolbar";
 import { withStore } from "./storyDecorators";
 
 // ---------------------------------------------------------------------------
@@ -53,32 +53,12 @@ const RUNNING: RunningInstance[] = [
 
 function ToolbarPlaceholder() {
   return (
-    <div className="flex items-center justify-between px-4 h-10">
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-md bg-blue-600 flex items-center justify-center">
-            <Terminal className="w-3.5 h-3.5 text-white" />
-          </div>
-          <span className="text-sm font-semibold text-slate-100">Plugin Workbench</span>
-        </div>
-      </div>
-      <div className="flex items-center gap-3 text-xs text-slate-500">
-        <span className="flex items-center gap-1.5">
-          <Layers className="w-3.5 h-3.5" />
-          <span>3 plugins</span>
-        </span>
-        <span className="text-slate-700">·</span>
-        <span className="flex items-center gap-1.5">
-          <Activity className="w-3.5 h-3.5" />
-          <span>47 dispatches</span>
-        </span>
-        <span className="text-slate-700">·</span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-          healthy
-        </span>
-      </div>
-    </div>
+    <TopToolbar
+      pluginCount={3}
+      dispatchCount={47}
+      health="healthy"
+      errorCount={0}
+    />
   );
 }
 
