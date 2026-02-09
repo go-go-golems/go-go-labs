@@ -109,25 +109,35 @@ const workbenchSlice = createSlice({
 
     // -- Editor tabs -----------------------------------------------------
 
-    openEditorTab(
-      state,
-      action: PayloadAction<{
-        packageId: string;
-        label: string;
-        code: string;
-      }>
-    ) {
-      const id = `tab-${++nextTabCounter}-${Date.now()}`;
-      const tab: EditorTab = {
-        id,
-        label: action.payload.label,
-        packageId: action.payload.packageId,
-        code: action.payload.code,
-        dirty: false,
-        activeInstanceId: null,
-      };
-      state.editorTabs.push(tab);
-      state.activeEditorTabId = id;
+    openEditorTab: {
+      reducer(
+        state,
+        action: PayloadAction<{
+          id: string;
+          packageId: string;
+          label: string;
+          code: string;
+        }>
+      ) {
+        const tab: EditorTab = {
+          id: action.payload.id,
+          label: action.payload.label,
+          packageId: action.payload.packageId,
+          code: action.payload.code,
+          dirty: false,
+          activeInstanceId: null,
+        };
+        state.editorTabs.push(tab);
+        state.activeEditorTabId = action.payload.id;
+      },
+      prepare(payload: { packageId: string; label: string; code: string }) {
+        return {
+          payload: {
+            ...payload,
+            id: `tab-${++nextTabCounter}-${Date.now()}`,
+          },
+        };
+      },
     },
 
     closeEditorTab(state, action: PayloadAction<string>) {

@@ -26,3 +26,8 @@
 - [x] T22: Create SharedDomainsPanel component + story (per-domain cards with state, reader/writer attribution)
 - [x] T23: Create DocsPanel + docsManifest + renderMarkdown + stories (embedded docs viewer, tree nav, 3-tier copy-to-clipboard)
 - [x] T24: Wire WorkbenchLayout into app router replacing Playground, connect to runtime hooks
+- [ ] T25: Fix loadPreset stale tab ID — return generated tab ID from openEditorTab
+- [ ] T26: Fix loadCustom empty grants — infer capabilities from preset or allow user specification
+- [ ] T27: Restyle WidgetRenderer to match vm-system-ui slate palette
+- [ ] T28: Remove dead Playground.tsx and old shell components
+- [ ] T29: Add vertical drag-resize handle to DevToolsPanel
