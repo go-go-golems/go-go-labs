@@ -24,5 +24,5 @@
 - [x] T20: Create CapabilitiesPanel component + story (per-instance grant/deny grid for all shared domains)
 - [x] T21: Create ErrorsPanel component + story (error log stream with timestamps, clear button, empty state)
 - [x] T22: Create SharedDomainsPanel component + story (per-domain cards with state, reader/writer attribution)
-- [ ] T23: Create DocsPanel + docsManifest + renderMarkdown + stories (embedded docs viewer, tree nav, 3-tier copy-to-clipboard)
+- [x] T23: Create DocsPanel + docsManifest + renderMarkdown + stories (embedded docs viewer, tree nav, 3-tier copy-to-clipboard)
 - [ ] T24: Wire WorkbenchLayout into app router replacing Playground, connect to runtime hooks

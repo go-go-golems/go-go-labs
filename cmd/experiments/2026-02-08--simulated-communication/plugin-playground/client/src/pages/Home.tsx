@@ -1,5 +1,5 @@
-import Playground from "./Playground";
+import WorkbenchPage from "./WorkbenchPage";
 
 export default function Home() {
-  return <Playground />;
+  return <WorkbenchPage />;
 }
