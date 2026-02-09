@@ -339,20 +339,22 @@ Required docs:
 
 ```txt
 packages/
-  plugin-runtime-contracts/
-    src/index.ts         // ids, intents, worker contracts, errors
-  plugin-runtime-core/
-    src/quickjsRuntimeService.ts
-    src/dispatchIntent.ts
-    src/uiSchema.ts
-    src/runtimeIdentity.ts
-  plugin-runtime-worker/
-    src/quickjsRuntime.worker.ts
-  plugin-runtime-redux/
-    src/types.ts
-    src/reducers/
-    src/selectors/
-    src/policies/
+  plugin-runtime/
+    src/core/
+      quickjsRuntimeService.ts
+      dispatchIntent.ts
+      uiSchema.ts
+      runtimeIdentity.ts
+      contracts.ts
+    src/worker/
+      quickjsRuntime.worker.ts
+      sandboxClient.ts
+    src/redux-adapter/
+      types.ts
+      reducers/
+      selectors/
+      policies/
+    src/index.ts
 apps/
   plugin-playground/
     client/...           // UI only
@@ -360,10 +362,11 @@ apps/
 
 ### Key design decisions
 
-1. Contracts package has zero React/Redux dependencies.
-2. Core runtime package exposes deterministic APIs usable from browser and tests.
-3. Redux package provides optional store integration, not required for runtime use.
-4. UI app imports packages instead of owning runtime internals.
+1. Use one runtime package (`plugin-runtime`) and one app package (`plugin-playground`) to avoid package sprawl.
+2. Keep runtime core free of React/Redux dependencies so it can run in any host.
+3. Keep Redux integration as an internal optional adapter module (`redux-adapter/`), not a separate published package.
+4. UI app imports runtime package APIs instead of owning runtime internals.
+5. Hosts that do not use Redux consume `core` + `worker` APIs directly and apply intents in their own state layer.
 
 ### Minimal host API sketch
 
@@ -418,10 +421,11 @@ Phase A (cleanup and baseline)
 3. Add lint/check rule preventing `window as any` debug escapes.
 
 Phase B (package extraction)
-1. Create `plugin-runtime-contracts` and migrate types.
-2. Move runtime service + validators into `plugin-runtime-core`.
-3. Move worker wrapper into `plugin-runtime-worker`.
-4. Update playground imports and tests.
+1. Create single `plugin-runtime` package scaffold.
+2. Move contracts/runtime service/validators into `plugin-runtime/src/core`.
+3. Move worker wrapper + sandbox client into `plugin-runtime/src/worker`.
+4. Move Redux-specific logic into `plugin-runtime/src/redux-adapter` (internal module).
+5. Update playground imports and tests.
 
 Phase C (UI overhaul)
 1. Split `Playground` into feature modules (`catalog`, `workspace`, `runtime-inspector`).
@@ -443,7 +447,7 @@ Phase D (documentation completion)
 
 ## Acceptance Criteria for WEBVM-003
 
-1. Playground runtime logic is mostly in packages, not page components.
+1. Playground runtime logic is mostly in `plugin-runtime`, not page components.
 2. A separate host app can run VM plugins using extracted package APIs.
 3. Dead/template artifacts are removed or archived with rationale.
 4. Developer-centric UI adds timeline/inspector workflows.
