@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { Copy, Check, FileText } from "lucide-react";
+import { MarkdownContent } from "./MarkdownContent";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -164,14 +165,12 @@ export function DocsPanel({
               </button>
             </div>
 
-            {/* Rendered markdown (Phase 1: pre-formatted; Phase 2: marked HTML) */}
+            {/* Rendered markdown with syntax-highlighted code blocks */}
             <div
               data-part="docs-rendered"
               className="flex-1 min-h-0 overflow-auto px-4 py-3"
             >
-              <pre className="text-xs font-mono text-slate-300 whitespace-pre-wrap leading-relaxed">
-                {selectedDoc.raw}
-              </pre>
+              <MarkdownContent source={selectedDoc.raw} />
             </div>
           </>
         ) : (
