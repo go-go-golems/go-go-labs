@@ -30,4 +30,4 @@
 - [x] T26: Fix loadCustom empty grants — infer capabilities from preset or allow user specification
 - [x] T27: Restyle WidgetRenderer to match vm-system-ui slate palette
 - [x] T28: Remove dead Playground.tsx and old shell components
-- [ ] T29: Add vertical drag-resize handle to DevToolsPanel
+- [x] T29: Add vertical drag-resize handle to DevToolsPanel

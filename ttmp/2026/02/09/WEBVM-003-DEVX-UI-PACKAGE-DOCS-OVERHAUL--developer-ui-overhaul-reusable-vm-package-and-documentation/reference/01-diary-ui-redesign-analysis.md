@@ -451,6 +451,69 @@ Built all remaining workbench components, wired them to the RTK store and runtim
 
 ---
 
+## Step 7: Bug Fixes + Drag-Resize DevTools (T25-T29)
+
+Fixed 4 real integration bugs discovered during gap analysis, restyled WidgetRenderer, removed dead code, and added vertical drag-resize to the devtools panel.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Ok, what's needed for the real thing now, with some real presets and the real docs? - also, can we make the devtools panel resizable vertically? then, add tasks fix the bugs to the ticket, and do them. git commit at each step, keep a frequent diary."
+
+**Assistant interpretation:** Analyze the gap between Storybook mocks and the real working app, identify and fix all bugs that prevent it from working, add a resizable devtools panel, and commit incrementally.
+
+**Inferred user intent:** Get the workbench to actually run with the real QuickJS sandbox, real preset plugins, and real embedded docs — not just look good in Storybook.
+
+### What I did
+
+**T25 (commit 1a946a0):** Fixed `loadPreset` using stale `activeEditorTabId`. Changed `openEditorTab` from a plain reducer to one with a RTK `prepare` callback that generates the tab ID before the reducer runs. Caller gets the ID back via `action.payload.id`, so `setTabActiveInstance` can use it immediately.
+
+**T26 (commit 9558e59):** Fixed `loadCustom` always granting empty capabilities. Renamed to `runEditorTab(code, packageId)`. When `packageId` matches a preset, uses that preset's capabilities. For custom code, grants all shared domains (permissive sandbox for experimentation).
+
+**T27 (commit 5badb04):** Restyled WidgetRenderer from old "Technical Brutalism" (cyan glows, `shadow-[0_0_15px_rgba(0,255,255,0.1)]`, Space Mono font) to vm-system-ui slate palette (white/[0.08] borders, blue-400 accents, rounded-lg, text-xs/text-sm). Removed shadcn Button/Input/Badge imports — uses plain HTML elements with Tailwind.
+
+**T28 (commit 52c6eb0):** Deleted 5 dead files: `Playground.tsx`, `CatalogShell.tsx`, `WorkspaceShell.tsx`, `InspectorShell.tsx`, `types.ts`. Nothing imported them anymore.
+
+**T29 (commit d1c7932):** Added `ResizeHandle` component: mousedown/mousemove/mouseup drag tracking with min/max constraints (80-600px). Thin blue highlight on hover, wider invisible hit area (12px). Integrated into `WorkbenchLayout` between main and devtools. Devtools height managed as local state, applied as inline style. Added interactive story.
+
+### What worked
+
+- The RTK `prepare` callback pattern is clean — the ID is generated once, available to both reducer and caller, no async needed
+- Granting all shared domains for custom code is the right default for a sandbox tool
+- Removing shadcn imports from WidgetRenderer simplified the component and made it consistent with the rest of the workbench
+
+### What didn't work
+
+Nothing — all 5 fixes were straightforward.
+
+### What I learned
+
+- RTK's `prepare` callback is the correct pattern for generated IDs, not thunks or `getState()`
+- Removing the CSS `transition` on devtools height was necessary — it makes drag-resize laggy and jumpy
+
+### What was tricky to build
+
+The resize handle's hit area: the visual line is 1-3px but you need a much wider click target. Solved with an invisible 12px div overlapping the visual handle. The mouse event math is inverted (dragging *up* increases panel height) which is non-obvious.
+
+### What warrants a second pair of eyes
+
+- `runEditorTab` granting all shared domains to custom code is intentionally permissive. In a production runtime this would be a security concern, but for a sandbox tool it's correct.
+- The resize handle doesn't persist height across sessions. Could add localStorage or store it in the workbench slice.
+
+### What should be done in the future
+
+- Persist devtools height in localStorage
+- Add horizontal resize handle for the sidebar
+- Consider adding a double-click-to-reset gesture on the resize handle
+
+### Code review instructions
+
+- Git log: `git log --oneline 1a946a0..d1c7932` (5 commits)
+- Verify app runs: `pnpm dev` → load a preset from sidebar → it should open an editor tab AND show a live preview
+- Verify resize: in Storybook, navigate to `Workbench / ResizeHandle / Interactive` and drag the handle
+- Verify dead code removal: `grep -r "CatalogShell" client/src/` should return nothing
+
+---
+
 ## Appendix: Technical Reference
 
 ### Technical details
