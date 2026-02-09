@@ -514,6 +514,62 @@ The resize handle's hit area: the visual line is 1-3px but you need a much wider
 
 ---
 
+## Step 8: Markdown Rendering + Tab Dedup (T30-T31)
+
+Added proper markdown rendering with syntax-highlighted code blocks to the DocsPanel, and fixed the duplicate editor tab issue when loading the same preset multiple times.
+
+### Prompt Context
+
+**User prompt (verbatim):** "- use a nice actual markdown rendering engine for displaying the doc as well (including syntax highlighting for the code blocks). - clicking an already opened plugin editor should just focus the existing tab. Add tasks to the ticket, then execute, commit, diary"
+
+**Assistant interpretation:** Replace the raw `<pre>` markdown display with rendered HTML (headings, code blocks with syntax highlighting, tables, etc.), and prevent duplicate editor tabs when repeatedly loading the same preset.
+
+**Inferred user intent:** Make the docs panel actually useful for reading documentation (not just raw text), and fix the UX annoyance of tab proliferation.
+
+### What I did
+
+**T30 (commit 3015da6):** Installed `react-markdown`, `remark-gfm`, `rehype-highlight`, `highlight.js`. Created `MarkdownContent` component with custom component overrides for every block-level element (h1-h3, p, ul/ol, blockquote, table, code, hr, a, strong). Code blocks get atom-one-dark syntax highlighting plus a per-block copy-to-clipboard button that appears on hover. Inline code renders as `blue-400` on `slate-800`. Tables get rounded borders and header styling. DocsPanel swapped from `<pre>` to `<MarkdownContent>`. Added 4 stories (RichDocument, CodeOnly, TableHeavy, Empty).
+
+**T31 (commit fba938c):** In `loadPreset`, added `editorTabs.find(t => t.packageId === preset.id)` check. If an existing tab is found, calls `setActiveEditorTab(existingTab.id)` instead of `openEditorTab`. A new plugin instance is still created (multiple runtime instances of the same preset is valid), but the editor reuses the shared source tab. Applied same logic in FullWorkbench story.
+
+### What worked
+
+- `react-markdown` with custom `components` map is very clean — each element maps to a styled React component, no `dangerouslySetInnerHTML`
+- `rehype-highlight` integrates seamlessly — just add it to the plugin chain, code blocks get `hljs` classes automatically
+- The `extractText` recursive helper correctly pulls raw text from nested React children for the copy button
+
+### What didn't work
+
+- First build failed: `highlight.js/styles/atom-one-dark.min.css` couldn't be resolved. `rehype-highlight` depends on `highlight.js` but the CSS import was from our code, so it needed to be a direct dependency. Fixed by `pnpm add highlight.js`.
+
+### What I learned
+
+- `rehype-highlight` uses `highlight.js` internally but you must install `highlight.js` as a direct dep if you import its CSS theme files
+- `react-markdown` detects fenced code blocks by the presence of `className` containing `hljs` or `language-*` — this is how we distinguish inline code from fenced blocks in the custom `code` component
+
+### What was tricky to build
+
+Distinguishing inline code from fenced code blocks in react-markdown's custom component system. Both render as `<code>`, but fenced blocks get wrapped in `<pre><code className="hljs language-*">`. The solution: check if `className` contains `hljs` or `language-` — if so, render as CodeBlock; otherwise, InlineCode. Also had to override `<pre>` as a pass-through so CodeBlock handles all the styling.
+
+### What warrants a second pair of eyes
+
+- The `extractText` function uses `React.isValidElement` which is fragile if react-markdown changes its internal element structure
+- Tab dedup uses `packageId` matching, which means editing a preset's code then loading the same preset again will focus the modified tab (not reset it). This is intentional (preserves edits) but could surprise users.
+
+### What should be done in the future
+
+- Add line numbers to code blocks
+- Consider `shiki` for even better syntax highlighting (theme-aware, more languages)
+- Add search within docs
+
+### Code review instructions
+
+- Open Storybook → `Workbench / MarkdownContent / RichDocument` to verify headings, code blocks, tables, inline code all render with proper styling
+- Open `Workbench / Panels / DocsPanel / Default` to verify the docs nav + rendered content
+- Test tab dedup: in `FullWorkbench / Interactive`, click "Counter" twice — should only open one editor tab
+
+---
+
 ## Appendix: Technical Reference
 
 ### Technical details

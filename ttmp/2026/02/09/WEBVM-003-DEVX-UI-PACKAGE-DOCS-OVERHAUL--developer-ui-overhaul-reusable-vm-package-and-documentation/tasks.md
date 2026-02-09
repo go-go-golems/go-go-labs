@@ -32,4 +32,4 @@
 - [x] T28: Remove dead Playground.tsx and old shell components
 - [x] T29: Add vertical drag-resize handle to DevToolsPanel
 - [x] T30: Add markdown rendering with syntax-highlighted code blocks to DocsPanel (replace raw <pre> with marked + shiki/highlight.js)
-- [ ] T31: Deduplicate editor tabs — clicking a preset that already has an open tab focuses the existing tab instead of opening a new one
+- [x] T31: Deduplicate editor tabs — clicking a preset that already has an open tab focuses the existing tab instead of opening a new one
