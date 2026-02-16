@@ -1,0 +1,12 @@
+version: "doodle-v1"
+actions:
+  - id: propose
+    action: propose_times
+    use_tz: "Europe/Berlin"
+    duration: "30m"
+    candidate_windows:
+      - start: "2025-09-27T09:00"
+        end:   "2025-09-27T17:00"
+    max_candidates: 6
+
+
